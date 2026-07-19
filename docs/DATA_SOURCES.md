@@ -273,6 +273,11 @@ Evidence Lake E4 source checkpoints:
   62 table-column occurrences; 4,079 primary/secondary binary claims, 5,099
   linked orbit solutions, 4,079 component spectra, 4,403 component magnitudes,
   release-distinct Gaia DR2/DR3 aliases, and 1,807 recognized ADS bibcodes
+- SBX `37ffa7255d026c8d930af6d4`: complete unbounded source snapshot with 4,080
+  systems, 102,459 aliases, 261 configurations, 5,169 full orbit rows, and all
+  73 table-column occurrences; 4,080 scoped binary claims, 94 hierarchy claims,
+  5,169 linked orbit solutions, 3,550 component classifications, 4,498
+  component magnitudes, and 20,152 astrometric measurements
 
 ### Exoplanet Lifecycle Notes
 
@@ -293,10 +298,13 @@ Evidence Lake E4 source checkpoints:
   snapshot `20260628T1210Z_msc20260619` now contains refreshed MSC raw and
   cooked artifacts; sync this mirror to `spacegates.org` during the next public
   deployment.
-- SBX and SB9 are complementary. SBX supplies current Gaia/HIP/HD-linked
-  spectroscopic-binary system evidence, while SB9 preserves primary and
-  secondary component spectral types that are absent from the current SBX
-  export. Neither catalog creates canonical component inventory by itself.
+- SBX and SB9 are complementary independent releases. The legacy SBX core
+  projection retained only ten system columns and aggregate orbit counts; the
+  Evidence Lake profile now acquires the complete small catalog, including both
+  component spectral types, magnitudes/bands, uncertainties, references,
+  configurations, every alias family, and full orbit solutions. SB9 remains a
+  separately published historical/current orbit and component evidence source.
+  Neither catalog creates canonical component inventory by itself.
 - A bounded canonical recovery path may use an exact unique HIP+HD agreement
   between SBX and the transitional AT-HYG crosswalk for Gaia-missing systems,
   but only with no Gaia identifier on the source rows, usable distance,
@@ -782,6 +790,8 @@ Typical manifest files:
 - `reports/manifests/gaia_classprob_manifest.json`
 - `reports/manifests/gaia_nss_manifest.json`
 - `reports/manifests/sbx_manifest.json`
+- `reports/manifests/sbx_evidence_v2_manifest.json` (complete Evidence Lake
+  profile; separate from the served legacy projection)
 - `reports/manifests/sb9_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`

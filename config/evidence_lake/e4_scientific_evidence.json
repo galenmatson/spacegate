@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.27",
-  "compiler_version": "scientific_evidence_compiler_v27",
+  "contract_version": "2026-07-19.e4-foundation.29",
+  "compiler_version": "scientific_evidence_compiler_v29",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -643,6 +643,86 @@
         "disposition": "domain",
         "destination": "orbital_solution_evidence",
         "reason": "coherent source-native spectroscopic orbit, flags, grade, reference, contributor, and exact row lineage"
+      }
+    ],
+    "sbx_systems": [
+      {
+        "pattern": "^(sn|component)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-native SBX system and component-label identity"
+      },
+      {
+        "pattern": "^st[12]$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source-native primary or secondary spectral classification"
+      },
+      {
+        "pattern": "^mag[12]$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "component-scoped source-native apparent magnitude"
+      },
+      {
+        "pattern": "^(ra|dec|parallax|pmra|pmdec)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-native position, parallax, and proper-motion measurement"
+      },
+      {
+        "pattern": "^coordinates_(1900|2000)_legacy$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "legacy coordinate display string is preserved in source-native Parquet but superseded by numeric source astrometry"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "SBX uncertainty, band, epoch, reference, and source context retained with the exact system row"
+      }
+    ],
+    "sbx_aliases": [
+      {
+        "pattern": "^(sn|identifier)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SBX system key and complete source-native catalog alias inventory"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "catalog name and release remain attached to each exact alias row"
+      }
+    ],
+    "sbx_configurations": [
+      {
+        "pattern": "^(sn|parent)$",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "source-native child-to-parent hierarchy endpoint evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "inverse child slots, family membership, and multiplicity flags remain exact source configuration context"
+      }
+    ],
+    "sbx_orbits": [
+      {
+        "pattern": "^sn$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SBX system sequence identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "complete coherent SBX spectroscopic orbit, uncertainties, reference, grade, velocity diagnostics, notes, and source lineage"
       }
     ]
   },
@@ -1576,6 +1656,186 @@
             "sql_predicate": "nullif(trim(Per), '') is not null",
             "method": "sb9_spectroscopic_orbit",
             "normalization_version": "sb9_source_native_lexical_v1"
+          }
+        }
+      }
+    },
+    "multiplicity.sbx": {
+      "adapter_version": "sbx_scientific_evidence_v2",
+      "table_order": ["sbx_systems", "sbx_alias", "sbx_configurations", "sbx_orbits"],
+      "tables": {
+        "sbx_systems": {
+          "logical_key_fields": ["sn"],
+          "object_scope": "spectroscopic_binary_system",
+          "field_profile": "sbx_systems",
+          "identifier_claims": {
+            "sn": {"namespace": "sbx_sequence", "claim_scope": "system"},
+            "component": {"namespace": "sbx_component_label", "claim_scope": "component_label"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["sn"], "prefix": "SBX_", "namespace": "sbx_system", "claim_scope": "system"},
+            {"fields": ["sn"], "prefix": "SBX_", "suffix": ":primary", "namespace": "sbx_component", "claim_scope": "star", "component_scope": "primary"},
+            {"fields": ["sn"], "prefix": "SBX_", "suffix": ":secondary", "namespace": "sbx_component", "claim_scope": "star", "component_scope": "secondary"}
+          ],
+          "relation_claim": {
+            "left_identifier_field": "sn",
+            "left_identifier_namespace": "sbx_component",
+            "left_component_scope": "primary",
+            "left_identifier_prefix": "SBX_",
+            "left_identifier_suffix": ":primary",
+            "right_identifier_field": "sn",
+            "right_identifier_namespace": "sbx_component",
+            "right_component_scope": "secondary",
+            "right_identifier_prefix": "SBX_",
+            "right_identifier_suffix": ":secondary",
+            "relation_kind": "spectroscopic_binary",
+            "relation_scope": "pair",
+            "evidence_polarity": "positive",
+            "method": "sbx_catalog_system",
+            "reference_raw": "https://astro.ulb.ac.be/sbx/",
+            "quality_fields": ["component"]
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "parameter_set_kind": "sbx_primary_classification",
+              "component_scope": "primary",
+              "classification_field": "st1",
+              "classification_scheme": "spectral_type",
+              "reference_field": "st1_bibcode",
+              "quality_fields": ["component"],
+              "measurements": [],
+              "method": "sbx_source_component_classification",
+              "normalization_version": "sbx_source_native_lexical_v1"
+            },
+            {
+              "parameter_set_kind": "sbx_secondary_classification",
+              "component_scope": "secondary",
+              "classification_field": "st2",
+              "classification_scheme": "spectral_type",
+              "reference_field": "st2_bibcode",
+              "quality_fields": ["component"],
+              "measurements": [],
+              "method": "sbx_source_component_classification",
+              "normalization_version": "sbx_source_native_lexical_v1"
+            },
+            {
+              "parameter_set_kind": "sbx_primary_photometry",
+              "component_scope": "primary",
+              "reference_field": "mag1_source",
+              "quality_fields": ["band1", "component"],
+              "measurements": [
+                {"value_field": "mag1", "quantity_key": "sbx.apparent_magnitude", "unit_raw": "mag", "normalized_unit": "mag"}
+              ],
+              "method": "sbx_source_component_photometry",
+              "normalization_version": "sbx_source_native_lexical_v1"
+            },
+            {
+              "parameter_set_kind": "sbx_secondary_photometry",
+              "component_scope": "secondary",
+              "reference_field": "mag2_source",
+              "quality_fields": ["band2", "component"],
+              "measurements": [
+                {"value_field": "mag2", "quantity_key": "sbx.apparent_magnitude", "unit_raw": "mag", "normalized_unit": "mag"}
+              ],
+              "method": "sbx_source_component_photometry",
+              "normalization_version": "sbx_source_native_lexical_v1"
+            }
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "uncertainty_field": "ra_error", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "epoch_field": "position_epoch", "reference_field": "position_source", "method": "sbx_source_astrometry", "normalization_version": "sbx_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "uncertainty_field": "dec_error", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "epoch_field": "position_epoch", "reference_field": "position_source", "method": "sbx_source_astrometry", "normalization_version": "sbx_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "parallax", "uncertainty_field": "parallax_error", "quantity_key": "parallax", "unit_raw": "mas", "normalized_unit": "mas", "reference_field": "parallax_source", "method": "sbx_source_astrometry", "normalization_version": "sbx_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra", "uncertainty_field": "pmra_error", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "mas/yr", "normalized_unit": "mas yr-1", "epoch_field": "pm_epoch", "reference_field": "pm_source", "method": "sbx_source_astrometry", "normalization_version": "sbx_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec", "uncertainty_field": "pmdec_error", "quantity_key": "proper_motion_dec", "unit_raw": "mas/yr", "normalized_unit": "mas yr-1", "epoch_field": "pm_epoch", "reference_field": "pm_source", "method": "sbx_source_astrometry", "normalization_version": "sbx_source_native_v1"}
+          ]
+        },
+        "sbx_alias": {
+          "logical_key_fields": ["sn", "catalog", "version", "identifier"],
+          "object_scope": "system_alias",
+          "field_profile": "sbx_aliases",
+          "identifier_claims": {
+            "sn": {"namespace": "sbx_sequence", "claim_scope": "system"},
+            "identifier": {"namespace": "catalog_alias", "claim_scope": "system"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["sn"], "prefix": "SBX_", "namespace": "sbx_system", "claim_scope": "system"},
+            {"fields": ["catalog", "identifier"], "delimiter": " ", "namespace": "catalog_designation", "claim_scope": "system"}
+          ],
+          "conditional_identifier_claims": [
+            {"value_field": "identifier", "namespace": "gaia_dr1_source_id", "claim_scope": "observation_target", "sql_predicate": "catalog='Gaia' and version='DR1'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "gaia_dr2_source_id", "claim_scope": "observation_target", "sql_predicate": "catalog='Gaia' and version='DR2'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "gaia_dr3_source_id", "claim_scope": "observation_target", "sql_predicate": "catalog='Gaia' and version='DR3'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "tic_id", "claim_scope": "observation_target", "sql_predicate": "catalog='TIC'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "hip_designation", "claim_scope": "observation_target", "sql_predicate": "catalog='HIP'"},
+            {"value_field": "identifier", "namespace": "hip_id", "claim_scope": "observation_target", "sql_predicate": "catalog='HIP' and regexp_full_match(identifier, '[0-9]+')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "hd_designation", "claim_scope": "observation_target", "sql_predicate": "catalog='HD'"},
+            {"value_field": "identifier", "namespace": "hd_id", "claim_scope": "observation_target", "sql_predicate": "catalog='HD' and regexp_full_match(identifier, '[0-9]+')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "wds_id", "claim_scope": "observation_target", "sql_predicate": "catalog='WDS'"},
+            {"value_field": "identifier", "namespace": "ads_id", "claim_scope": "observation_target", "sql_predicate": "catalog='ADS'"},
+            {"value_field": "identifier", "namespace": "two_mass_designation", "claim_scope": "observation_target", "sql_predicate": "catalog='2MASS'"},
+            {"value_field": "identifier", "namespace": "tyc_id", "claim_scope": "observation_target", "sql_predicate": "catalog='TYC'"},
+            {"value_field": "identifier", "namespace": "gj_designation", "claim_scope": "observation_target", "sql_predicate": "catalog='GJ'"},
+            {"value_field": "identifier", "namespace": "hr_id", "claim_scope": "observation_target", "sql_predicate": "catalog='HR'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "identifier", "namespace": "wise_designation", "claim_scope": "observation_target", "sql_predicate": "catalog in ('WISE','WISEA')"}
+          ]
+        },
+        "sbx_configurations": {
+          "logical_key_fields": ["sn"],
+          "object_scope": "source_hierarchy_claim",
+          "field_profile": "sbx_configurations",
+          "composite_identifier_claims": [
+            {"fields": ["sn"], "prefix": "SBX_", "namespace": "sbx_system", "claim_scope": "subsystem", "component_scope": "child_subsystem"},
+            {"fields": ["parent"], "prefix": "SBX_", "namespace": "sbx_system", "claim_scope": "subsystem", "component_scope": "parent_subsystem"}
+          ],
+          "relation_claim": {
+            "left_identifier_field": "sn",
+            "left_identifier_namespace": "sbx_system",
+            "left_component_scope": "child_subsystem",
+            "left_identifier_prefix": "SBX_",
+            "right_identifier_field": "parent",
+            "right_identifier_namespace": "sbx_system",
+            "right_component_scope": "parent_subsystem",
+            "right_identifier_prefix": "SBX_",
+            "relation_kind": "hierarchical_parent",
+            "relation_scope": "source_configuration",
+            "evidence_polarity": "positive",
+            "method": "sbx_source_configuration",
+            "reference_raw": "https://astro.ulb.ac.be/sbx/",
+            "quality_fields": ["family", "child1", "child2", "in_triple", "in_quadruple", "in_high_order"],
+            "sql_predicate": "parent is not null"
+          }
+        },
+        "sbx_orbits": {
+          "logical_key_fields": ["sn", "on"],
+          "object_scope": "spectroscopic_orbit_solution",
+          "field_profile": "sbx_orbits",
+          "identifier_claims": {
+            "sn": {"namespace": "sbx_sequence", "claim_scope": "system"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["sn"], "prefix": "SBX_", "namespace": "sbx_system", "claim_scope": "system"},
+            {"fields": ["sn", "on"], "prefix": "SBX_", "delimiter": ":orbit:", "namespace": "sbx_orbit", "claim_scope": "orbit_solution"}
+          ],
+          "orbital_solution": {
+            "solution_key_fields": ["sn", "on"],
+            "parameter_fields": [
+              "period", "period_error", "periastron_time", "periastron_time_error", "periastron_time_flag", "epoch_reference",
+              "eccentricity", "eccentricity_error", "periastron_argument", "periastron_argument_error",
+              "K1", "K1_error", "K2", "K2_error", "systemic_velocity", "systemic_velocity_error",
+              "apparent_systemic_velocity_1", "apparent_systemic_velocity_2",
+              "apparent_systemic_velocity_error_1", "apparent_systemic_velocity_error_2",
+              "rms_RV1", "rms_RV2", "num_RV1", "num_RV2"
+            ],
+            "quality_fields": ["accessibility_legacy", "note", "contributor", "grade", "grade_legacy"],
+            "reference_field": "bibcode",
+            "relation_link": {
+              "source_table": "sbx_systems",
+              "key_fields": {"sn": "sn"},
+              "required": true
+            },
+            "sql_predicate": "nullif(trim(period), '') is not null",
+            "method": "sbx_spectroscopic_orbit",
+            "normalization_version": "sbx_source_native_lexical_v1"
           }
         }
       }

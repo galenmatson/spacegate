@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.2",
+  "registry_version": "2026-07-19.5",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -421,21 +421,140 @@
     },
     {
       "source_id": "multiplicity.sbx",
-      "release_id": "sbx_tap_parallax_gte_3_26156",
-      "state": "active_expansion_pending",
-      "authority_roles": {"identity": "catalog_crosswalk", "multiplicity": "spectroscopic_system_and_orbit_evidence"},
+      "release_id": "sbx_tap_full_rolling_snapshot_v1",
+      "state": "active",
+      "authority_roles": {
+        "identity": "complete_source_catalog_crosswalk",
+        "classification": "component_spectral_classification_evidence",
+        "astrometry": "source-compiled_position_motion_and_parallax_evidence",
+        "stellar_parameters": "component_magnitude_and_band_evidence",
+        "multiplicity": "spectroscopic_system_hierarchy_and_orbit_evidence"
+      },
       "publisher": "Université libre de Bruxelles",
       "citation_url": "https://astro.ulb.ac.be/sbx/",
       "license": {"name": "SBX source terms", "url": "https://astro.ulb.ac.be/sbx/"},
       "cadence": "rolling; Spacegate pins snapshots",
+      "identity_namespaces": [
+        "sbx_system", "sbx_component", "sbx_orbit", "catalog_designation",
+        "gaia_dr1_source_id", "gaia_dr2_source_id", "gaia_dr3_source_id",
+        "tic_id", "hip_id", "hip_designation", "hd_id", "hd_designation",
+        "wds_id", "ads_id", "two_mass_designation",
+        "tyc_id", "gj_designation", "hr_id", "wise_designation"
+      ],
+      "frame_epoch": "source-column specific",
+      "retrieval": {
+        "kind": "tap",
+        "implementation": "scripts/fetch_sbx_core.py",
+        "profile": "evidence-v2",
+        "selection": "complete_catalog_no_spatial_truncation"
+      },
+      "manifest_entries": [
+        {"manifest": "sbx_evidence_v2_manifest.json", "source_name": "sbx_systems"},
+        {"manifest": "sbx_evidence_v2_manifest.json", "source_name": "sbx_alias"},
+        {"manifest": "sbx_evidence_v2_manifest.json", "source_name": "sbx_configurations"},
+        {"manifest": "sbx_evidence_v2_manifest.json", "source_name": "sbx_orbits"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "multiplicity.sbx_legacy_projection",
+      "release_id": "sbx_tap_parallax_gte_3_26156",
+      "state": "disabled",
+      "authority_roles": {
+        "identity": "legacy_lossy_projection_not_selection_authority",
+        "inventory": "served_e6_ab_stability_reference_only"
+      },
+      "publisher": "Université libre de Bruxelles",
+      "citation_url": "https://astro.ulb.ac.be/sbx/",
+      "license": {"name": "SBX source terms", "url": "https://astro.ulb.ac.be/sbx/"},
+      "cadence": "frozen legacy Spacegate projection",
       "identity_namespaces": ["sbx_sn", "gaia_dr3_source_id", "hip_id", "hd_id", "wds_id"],
       "frame_epoch": "source-column specific",
-      "retrieval": {"kind": "tap", "implementation": "scripts/fetch_sbx_core.py"},
+      "retrieval": {
+        "kind": "tap",
+        "implementation": "scripts/fetch_sbx_core.py",
+        "profile": "legacy-core",
+        "selection": "parallax_gte_3_26156"
+      },
       "manifest_entries": [
         {"manifest": "sbx_manifest.json", "source_name": "sbx_systems"},
         {"manifest": "sbx_manifest.json", "source_name": "sbx_alias"},
         {"manifest": "sbx_manifest.json", "source_name": "sbx_configurations"},
         {"manifest": "sbx_manifest.json", "source_name": "sbx_orbits"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.planetary_systems_legacy_projection",
+      "release_id": "rolling_snapshot",
+      "state": "disabled",
+      "authority_roles": {
+        "planet_inventory": "legacy_field_limited_projection_not_selection_authority",
+        "inventory": "served_e6_ab_stability_reference_only"
+      },
+      "publisher": "NASA Exoplanet Archive",
+      "citation_url": "https://exoplanetarchive.ipac.caltech.edu/",
+      "license": {"name": "NASA Exoplanet Archive terms", "url": "https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html"},
+      "cadence": "frozen legacy Spacegate projection",
+      "identity_namespaces": ["nasa_planet_name", "nasa_hostname"],
+      "frame_epoch": "source-column specific",
+      "retrieval": {"kind": "tap", "implementation": "scripts/fetch_catalogs.py", "profile": "legacy-core"},
+      "manifest_entries": [
+        {"manifest": "core_manifest.json", "source_name": "ps"},
+        {"manifest": "core_manifest.json", "source_name": "pscomppars"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.gaia_source_legacy_projection",
+      "release_id": "gaia_dr3",
+      "state": "disabled",
+      "authority_roles": {"astrometry": "served_e6_ab_stability_reference_only", "inventory": "legacy_bounded_projection"},
+      "publisher": "ESA Gaia DPAC",
+      "citation_url": "https://www.cosmos.esa.int/web/gaia/dr3",
+      "license": {"name": "Gaia archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/acknowledgements"},
+      "cadence": "frozen legacy Spacegate projection",
+      "identity_namespaces": ["gaia_dr3_source_id"],
+      "frame_epoch": "ICRS Gaia DR3 source columns",
+      "retrieval": {"kind": "tap", "implementation": "scripts/fetch_gaia_backbone.py", "profile": "legacy-core"},
+      "manifest_entries": [{"manifest": "gaia_backbone_manifest.json", "source_name": "gaia_dr3_backbone"}],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.astrophysical_parameters_legacy_projection",
+      "release_id": "gaia_dr3",
+      "state": "disabled",
+      "authority_roles": {"classification": "served_e6_ab_stability_reference_only", "inventory": "legacy_field_limited_projection"},
+      "publisher": "ESA Gaia DPAC",
+      "citation_url": "https://www.cosmos.esa.int/web/gaia/dr3",
+      "license": {"name": "Gaia archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/acknowledgements"},
+      "cadence": "frozen legacy Spacegate projection",
+      "identity_namespaces": ["gaia_dr3_source_id"],
+      "frame_epoch": "Gaia DR3 source columns",
+      "retrieval": {"kind": "tap", "implementation": "scripts/fetch_gaia_classprob_core.py", "profile": "legacy-core"},
+      "manifest_entries": [{"manifest": "gaia_classprob_manifest.json", "source_name": "gaia_dr3_astrophysical_classprob"}],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.non_single_star_legacy_projection",
+      "release_id": "gaia_dr3",
+      "state": "disabled",
+      "authority_roles": {"multiplicity": "served_e6_ab_stability_reference_only", "inventory": "legacy_field_limited_projection"},
+      "publisher": "ESA Gaia DPAC",
+      "citation_url": "https://www.cosmos.esa.int/web/gaia/dr3",
+      "license": {"name": "Gaia archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/acknowledgements"},
+      "cadence": "frozen legacy Spacegate projection",
+      "identity_namespaces": ["gaia_dr3_source_id"],
+      "frame_epoch": "Gaia DR3 source columns",
+      "retrieval": {"kind": "tap", "implementation": "scripts/fetch_gaia_nss_core.py", "profile": "legacy-core"},
+      "manifest_entries": [
+        {"manifest": "gaia_nss_manifest.json", "source_name": "gaia_dr3_non_single_star"},
+        {"manifest": "gaia_nss_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}

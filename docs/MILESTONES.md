@@ -1239,7 +1239,9 @@ Exit criteria:
 
 Current status (July 18, 2026):
 
-- machine-readable registry covers 34 source releases and all 63 current
+- machine-readable registry covers 44 source releases and the pinned baseline
+  covers all 67 currently materialized manifest entries, including the disabled
+  legacy SBX, Gaia, and NASA projections retained only for E6 A/B comparison
   manifest entries after the E2 Gaia forward/reverse additions; the pinned
   baseline accounts for 1,824 machine-enumerated
   fields and exact source-format contracts for E1 parser work
@@ -1442,6 +1444,13 @@ Current status (July 19, 2026, in progress):
   239,406 shifted-sky negative controls. It accounts 1,218,874 filtered rows,
   3,974,770 release-scoped identifier claims, two endpoint binding scopes per
   retained relation, all 422 fields, and 1,116,713 evidence-citation links.
+- the earlier SBX core collector was measured as field-losing: it retained 10
+  of 29 system fields, five selected alias families, and only an aggregate
+  orbit count. The separate Evidence Lake profile now acquires the complete
+  rolling catalog without a spatial cut: 4,080 systems, 102,459 aliases, 261
+  configurations, and 5,169 full orbit rows. Immutable snapshot
+  `ea236790d0501967b3c30466` is typed and verified; the served legacy input is
+  unchanged.
   `R_chance_align` remains a non-strict confidence statistic, including 289,705
   values above one; zero strict probabilities or canonical containment rows are
   fabricated. Clean reproduction and the independent artifact audit pass.
@@ -1501,6 +1510,21 @@ Current status (July 19, 2026, in progress):
   release namespaces. Of 1,826 references, 1,807 direct ADS bibcodes receive
   deterministic ADS links. No SB9 relation becomes canonical containment;
   clean reproduction and the independent audit pass.
+- SBX checkpoint `37ffa7255d026c8d930af6d4` accounts all 111,969 rows and all
+  73 table-column occurrences from the complete source. It emits 4,080
+  primary/secondary spectroscopic-binary claims, 94 explicitly scoped
+  hierarchy claims, 5,169 complete orbit solutions linked to exactly one
+  system relation, 3,550 source component classifications, 4,498
+  component-magnitude measurements, and 20,152 astrometric measurements.
+- The complete alias inventory contributes 102,459 raw and catalog-qualified
+  designations plus release-correct Gaia DR1/DR2/DR3, TIC, HIP, HD, WDS, ADS,
+  2MASS, TYC, GJ, HR, and WISE claims. Component-suffixed HD/HIP values remain
+  exact designations; only purely numeric values enter numeric-ID namespaces.
+  All 71 useful fields are materialized and two legacy coordinate strings are
+  explicitly excluded while remaining in source-native Parquet. Clean
+  reproduction matches logical hash
+  `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`,
+  and the independent audit passes without canonical promotion.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

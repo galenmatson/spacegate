@@ -487,7 +487,7 @@
       "release_id": "gaia_dr3",
       "schema_kind": "delimited_header",
       "schema_sha256": "a25062371a31001832ebd304789f98f046e9a5faf016db4277b7c4e520d204c8",
-      "source_id": "gaia.dr3.astrophysical_parameters",
+      "source_id": "gaia.dr3.astrophysical_parameters_legacy_projection",
       "source_name": "gaia_dr3_astrophysical_classprob"
     },
     {
@@ -2910,7 +2910,7 @@
       "release_id": "gaia_dr3",
       "schema_kind": "delimited_header",
       "schema_sha256": "da5473b7af2b61c1ab4b9619cdfb6a36131d9b86cac9bec59312b3501ff34ff9",
-      "source_id": "gaia.dr3.gaia_source",
+      "source_id": "gaia.dr3.gaia_source_legacy_projection",
       "source_name": "gaia_dr3_backbone"
     },
     {
@@ -2947,7 +2947,7 @@
       "release_id": "gaia_dr3",
       "schema_kind": "delimited_header",
       "schema_sha256": "e91e3548f126596846da370846dc8ba9090c7fb646bd97b1e3042c0f58af2976",
-      "source_id": "gaia.dr3.non_single_star",
+      "source_id": "gaia.dr3.non_single_star_legacy_projection",
       "source_name": "gaia_dr3_non_single_star"
     },
     {
@@ -2998,7 +2998,7 @@
       "release_id": "gaia_dr3",
       "schema_kind": "delimited_header",
       "schema_sha256": "92c379f2b0569f0386ff5e17c7d10141cef22d96953b39b12761a6b45295b758",
-      "source_id": "gaia.dr3.non_single_star",
+      "source_id": "gaia.dr3.non_single_star_legacy_projection",
       "source_name": "gaia_dr3_nss_two_body_orbit"
     },
     {
@@ -3100,6 +3100,228 @@
       "source_name": "sb9_readme"
     },
     {
+      "artifact": "state://raw/evidence_lake_v2_acquisition/sbx/sbx_alias.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 4,
+      "fields": [
+        "catalog",
+        "identifier",
+        "sn",
+        "version"
+      ],
+      "manifest": "sbx_evidence_v2_manifest.json",
+      "member_schemas": {
+        "sbx_alias.csv": [
+          "catalog",
+          "identifier",
+          "sn",
+          "version"
+        ]
+      },
+      "release_id": "sbx_tap_full_rolling_snapshot_v1",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "9b4000a19c763f0de69252bd3b3f39b0a2621ffa037b67f884f4de6c94285d06",
+      "source_id": "multiplicity.sbx",
+      "source_name": "sbx_alias"
+    },
+    {
+      "artifact": "state://raw/evidence_lake_v2_acquisition/sbx/sbx_configurations.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 8,
+      "fields": [
+        "child1",
+        "child2",
+        "family",
+        "in_high_order",
+        "in_quadruple",
+        "in_triple",
+        "parent",
+        "sn"
+      ],
+      "manifest": "sbx_evidence_v2_manifest.json",
+      "member_schemas": {
+        "sbx_configurations.csv": [
+          "child1",
+          "child2",
+          "family",
+          "in_high_order",
+          "in_quadruple",
+          "in_triple",
+          "parent",
+          "sn"
+        ]
+      },
+      "release_id": "sbx_tap_full_rolling_snapshot_v1",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "50a0ecdc807c266c627f7e93bb8ae1259c3e6b9246741d7a5149f66caf44232a",
+      "source_id": "multiplicity.sbx",
+      "source_name": "sbx_configurations"
+    },
+    {
+      "artifact": "state://raw/evidence_lake_v2_acquisition/sbx/sbx_orbits.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 32,
+      "fields": [
+        "K1",
+        "K1_error",
+        "K2",
+        "K2_error",
+        "accessibility_legacy",
+        "apparent_systemic_velocity_1",
+        "apparent_systemic_velocity_2",
+        "apparent_systemic_velocity_error_1",
+        "apparent_systemic_velocity_error_2",
+        "bibcode",
+        "contributor",
+        "eccentricity",
+        "eccentricity_error",
+        "epoch_reference",
+        "grade",
+        "grade_legacy",
+        "note",
+        "num_RV1",
+        "num_RV2",
+        "on",
+        "periastron_argument",
+        "periastron_argument_error",
+        "periastron_time",
+        "periastron_time_error",
+        "periastron_time_flag",
+        "period",
+        "period_error",
+        "rms_RV1",
+        "rms_RV2",
+        "sn",
+        "systemic_velocity",
+        "systemic_velocity_error"
+      ],
+      "manifest": "sbx_evidence_v2_manifest.json",
+      "member_schemas": {
+        "sbx_orbits.csv": [
+          "accessibility_legacy",
+          "apparent_systemic_velocity_1",
+          "apparent_systemic_velocity_2",
+          "apparent_systemic_velocity_error_1",
+          "apparent_systemic_velocity_error_2",
+          "bibcode",
+          "contributor",
+          "eccentricity",
+          "eccentricity_error",
+          "epoch_reference",
+          "grade",
+          "grade_legacy",
+          "K1",
+          "K1_error",
+          "K2",
+          "K2_error",
+          "note",
+          "num_RV1",
+          "num_RV2",
+          "on",
+          "periastron_argument",
+          "periastron_argument_error",
+          "periastron_time",
+          "periastron_time_error",
+          "periastron_time_flag",
+          "period",
+          "period_error",
+          "rms_RV1",
+          "rms_RV2",
+          "sn",
+          "systemic_velocity",
+          "systemic_velocity_error"
+        ]
+      },
+      "release_id": "sbx_tap_full_rolling_snapshot_v1",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "df3755f80917bb7c3015ce2a4191444c7efe4d23256f35d514fcc76ea13a3e36",
+      "source_id": "multiplicity.sbx",
+      "source_name": "sbx_orbits"
+    },
+    {
+      "artifact": "state://raw/evidence_lake_v2_acquisition/sbx/sbx_systems.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 29,
+      "fields": [
+        "band1",
+        "band2",
+        "component",
+        "coordinates_1900_legacy",
+        "coordinates_2000_legacy",
+        "dec",
+        "dec_error",
+        "mag1",
+        "mag1_source",
+        "mag2",
+        "mag2_source",
+        "parallax",
+        "parallax_error",
+        "parallax_source",
+        "pm_epoch",
+        "pm_source",
+        "pmdec",
+        "pmdec_error",
+        "pmra",
+        "pmra_error",
+        "position_epoch",
+        "position_source",
+        "ra",
+        "ra_error",
+        "sn",
+        "st1",
+        "st1_bibcode",
+        "st2",
+        "st2_bibcode"
+      ],
+      "manifest": "sbx_evidence_v2_manifest.json",
+      "member_schemas": {
+        "sbx_systems.csv": [
+          "band1",
+          "band2",
+          "component",
+          "coordinates_1900_legacy",
+          "coordinates_2000_legacy",
+          "dec",
+          "dec_error",
+          "mag1",
+          "mag1_source",
+          "mag2",
+          "mag2_source",
+          "parallax",
+          "parallax_error",
+          "parallax_source",
+          "pmdec",
+          "pmdec_error",
+          "pm_epoch",
+          "pmra",
+          "pmra_error",
+          "pm_source",
+          "position_epoch",
+          "position_source",
+          "ra",
+          "ra_error",
+          "sn",
+          "st1",
+          "st1_bibcode",
+          "st2",
+          "st2_bibcode"
+        ]
+      },
+      "release_id": "sbx_tap_full_rolling_snapshot_v1",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "3d0724d6359215bee477a2d78d91b16e985320508199dcd831ac205a5f4660cc",
+      "source_id": "multiplicity.sbx",
+      "source_name": "sbx_systems"
+    },
+    {
       "artifact": "state://raw/sbx/sbx_alias.csv",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -3123,7 +3345,7 @@
       "release_id": "sbx_tap_parallax_gte_3_26156",
       "schema_kind": "delimited_header",
       "schema_sha256": "e0fe9927f8e34ccc7140e6be3995f41bf83a35568f3a12a643c51fa7c2b79b13",
-      "source_id": "multiplicity.sbx",
+      "source_id": "multiplicity.sbx_legacy_projection",
       "source_name": "sbx_alias"
     },
     {
@@ -3154,7 +3376,7 @@
       "release_id": "sbx_tap_parallax_gte_3_26156",
       "schema_kind": "delimited_header",
       "schema_sha256": "8b033b9b6991a24088fbd6f38ea26167a35119301b0c94a80919797e450a8409",
-      "source_id": "multiplicity.sbx",
+      "source_id": "multiplicity.sbx_legacy_projection",
       "source_name": "sbx_configurations"
     },
     {
@@ -3177,7 +3399,7 @@
       "release_id": "sbx_tap_parallax_gte_3_26156",
       "schema_kind": "delimited_header",
       "schema_sha256": "69e707fa3e757609669bb43943f786d9b2a700f536d51aa4366b4136802abe62",
-      "source_id": "multiplicity.sbx",
+      "source_id": "multiplicity.sbx_legacy_projection",
       "source_name": "sbx_orbits"
     },
     {
@@ -3216,7 +3438,7 @@
       "release_id": "sbx_tap_parallax_gte_3_26156",
       "schema_kind": "delimited_header",
       "schema_sha256": "f3b94c1e631bd497536f3da83332465ec31147ea5b5e90cc2e49dac07f9c1f75",
-      "source_id": "multiplicity.sbx",
+      "source_id": "multiplicity.sbx_legacy_projection",
       "source_name": "sbx_systems"
     },
     {
@@ -4030,7 +4252,7 @@
       "release_id": "rolling_snapshot",
       "schema_kind": "delimited_header",
       "schema_sha256": "e88b84e9573cb4d1d6443431fefb7c63660ca6c6385796fd9f79baae98f70795",
-      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "source_id": "nasa_exoplanet_archive.planetary_systems_legacy_projection",
       "source_name": "ps"
     },
     {
@@ -5415,7 +5637,7 @@
       "release_id": "rolling_snapshot",
       "schema_kind": "delimited_header",
       "schema_sha256": "1b78a68b70b316c2e3d168e41d0b7a394806417b8606c106adf4f15090544b03",
-      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "source_id": "nasa_exoplanet_archive.planetary_systems_legacy_projection",
       "source_name": "pscomppars"
     },
     {
@@ -14964,7 +15186,7 @@
       "source_name": "UltracoolSheet_Main"
     }
   ],
-  "registry_version": "2026-07-18.2",
+  "registry_version": "2026-07-19.5",
   "schema_version": "spacegate.evidence_schema_snapshot.v1",
-  "snapshot_sha256": "5f1ec5ec044733acf6da32a7532a84cc8d1d118f6ba168d6f9f5e05530f53cbf"
+  "snapshot_sha256": "25164401ed3460524041b20a8a0d68cfc23258b0f52f82d1878258e66eedc151"
 }

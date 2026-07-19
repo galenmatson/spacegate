@@ -1111,6 +1111,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   multiplicity/compact/ultracool/extended sources under the new contracts
 - [x] E3 wide-binary checkpoint: pin, source-native type, verify, and clean-
   reproduce the El-Badry Gaia EDR3 main/control FITS tables and method scripts
+- [x] E3 SBX checkpoint: replace the 10-field/aggregate-orbit Evidence Lake
+  input with a separate complete-catalog profile; preserve all 4,080 systems,
+  102,459 aliases, 261 configurations, 5,169 full orbit rows, and all 73
+  table-column occurrences without changing the served legacy input
 - [ ] E3: acquire complete relevant NASA reference-specific/composite planet,
   host, TOI, Kepler/K2 candidate/status, transit, and RV metadata plus matched
   APOGEE/GALAH/LAMOST stellar-physics evidence
@@ -1171,6 +1175,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   magnitudes, release-correct Gaia aliases, coherent ADS-linked orbit solutions,
   and deterministic cross-table relation links; pass clean reproduction and
   artifact audit without canonical containment promotion
+- [x] E4 SBX checkpoint: materialize complete source-scoped astrometry,
+  component spectra/magnitudes, catalog aliases, hierarchy claims, and coherent
+  orbits; split component-suffixed HD/HIP designations from numeric IDs, link
+  every orbit to one binary relation, and pass clean reproduction plus the
+  independent artifact audit without canonical containment promotion
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

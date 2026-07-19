@@ -1192,6 +1192,41 @@ Representative commits:
   Clean scratch reproduction and the independent audit pass. No SB9 claim is
   canonical containment, and no named-system production branch was added.
 
+### 40) Evidence Lake E3/E4 Full SBX Evidence
+
+- The Evidence Lake audit found that the legacy SBX collector preserved only
+  10 of 29 system fields, selected five alias families, and replaced the orbit
+  table with per-system counts. This was a general source-boundary loss, not a
+  named-system defect. The served legacy files remain unchanged for E6 A/B.
+- The same registry audit identified preserved legacy Gaia backbone/classifier/
+  NSS and NASA `ps`/`pscomppars` manifests. They are now explicit disabled
+  stability-reference releases rather than unregistered artifacts; the active
+  full-release sources remain the only Evidence Lake compiler inputs.
+- A separate `evidence-v2` acquisition profile now preserves the complete small
+  rolling catalog without a spatial cut: 4,080 systems, 102,459 aliases, 261
+  configurations, 5,169 full orbit solutions, and all 73 table-column
+  occurrences. Immutable raw/typed snapshot `ea236790d0501967b3c30466`
+  verifies and reproduces from the exact TAP queries and checksums.
+- Compiler/contract v29 emits source-scoped primary/secondary binary relations,
+  child/parent hierarchy relations only when a parent is asserted, complete
+  coherent orbit solutions, component classifications/magnitudes, source
+  astrometry with uncertainty/epoch/reference, and the full alias inventory.
+  Every orbit links by exact `sn` to exactly one relation; no relation becomes
+  canonical containment.
+- SBX uses component-suffixed HD/HIP values as exact designations and creates
+  numeric-ID claims only for purely numeric source values. This corrected 343
+  invalid unsigned normalizations found by the first independent audit without
+  discarding their raw identities.
+- Accepted checkpoint `37ffa7255d026c8d930af6d4` accounts all 111,969 source
+  rows and all fields as 71 materialized plus two explicitly excluded legacy
+  coordinate strings retained in typed Parquet. It emits 4,080 binary claims,
+  94 hierarchy claims, 5,169 linked orbits, 3,550 classifications, 4,498
+  component magnitudes, 20,152 astrometric measurements, 2,139 citations, and
+  37,530 evidence-citation links. The independent audit passes every scope,
+  identity, relation, citation, uncertainty, and lineage check. Clean scratch
+  reproduction matches logical hash
+  `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

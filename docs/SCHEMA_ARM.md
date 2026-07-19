@@ -106,6 +106,16 @@ Evidence Lake v2 staging rule:
   tables by an exact configured logical-key mapping. Required mappings fail on
   zero or multiple matches. This links SB9 orbit rows to system relation claims
   by `Seq` without name parsing or array-position identity.
+- SBX uses the same general contracts with source-native `primary`/`secondary`
+  component endpoints and separate `child_subsystem`/`parent_subsystem`
+  hierarchy endpoints. Only configuration rows with an asserted parent emit a
+  hierarchy claim; inverse child slots and family flags remain exact source-row
+  context and do not become duplicate canonical edges.
+- SBX orbit rows link by exact source `sn` to one binary relation, while
+  multiple `on` solutions remain distinct. Component classifications and
+  magnitudes retain primary/secondary scope. Catalog aliases remain
+  source/release-scoped observation-target or system claims; co-occurrence does
+  not promote a source relation or alias into canonical identity/containment.
 
 ## Artifact Contract
 

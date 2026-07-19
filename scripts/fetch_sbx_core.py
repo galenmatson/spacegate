@@ -21,7 +21,8 @@ DEFAULT_TIMEOUT_S = 360
 DEFAULT_RETRIES = 6
 DEFAULT_DELTA_MODE = "resume"
 DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
-SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
+LEGACY_SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
+EVIDENCE_SBX_VERSION = "sbx_tap_full_rolling_snapshot_v1"
 
 
 def log(msg: str) -> None:
@@ -250,6 +251,8 @@ def file_sha256(path: Path) -> str:
 def write_manifest(
     manifest_path: Path,
     entries: list[dict[str, object]],
+    *,
+    source_version: str,
 ) -> None:
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     manifest_rows = []
@@ -259,7 +262,7 @@ def write_manifest(
         manifest_rows.append(
             {
                 "source_name": str(entry["source_name"]),
-                "source_version": SBX_VERSION,
+                "source_version": source_version,
                 "url": SBX_TAP_SYNC_URL,
                 "dest_path": path_rel,
                 "retrieved_at": ts,
@@ -277,9 +280,18 @@ def write_manifest(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Fetch SBX spectroscopic-binary inputs for Spacegate core ingest."
+        description="Fetch SBX inputs for legacy core ingest or Evidence Lake v2."
     )
     parser.add_argument("--state-dir", default=None)
+    parser.add_argument(
+        "--profile",
+        choices=["legacy-core", "evidence-v2"],
+        default="legacy-core",
+        help=(
+            "legacy-core preserves the currently served bounded projection; "
+            "evidence-v2 acquires every source-native SBX row and field into a separate manifest"
+        ),
+    )
     parser.add_argument("--min-parallax-mas", type=float, default=DEFAULT_MIN_PARALLAX_MAS)
     parser.add_argument("--buckets", type=int, default=DEFAULT_BUCKETS)
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
@@ -300,7 +312,7 @@ def main() -> int:
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be >= 1")
-    if args.min_parallax_mas <= 0:
+    if args.profile == "legacy-core" and args.min_parallax_mas <= 0:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
@@ -312,41 +324,71 @@ def main() -> int:
         or os.getenv("SPACEGATE_DATA_DIR")
         or (root / "data")
     )
-    raw_dir = state_dir / "raw" / "sbx"
-    manifest_path = state_dir / "reports" / "manifests" / "sbx_manifest.json"
+    evidence_profile = args.profile == "evidence-v2"
+    if evidence_profile:
+        raw_rel_dir = Path("raw/evidence_lake_v2_acquisition/sbx")
+        raw_dir = state_dir / raw_rel_dir
+        manifest_path = (
+            state_dir / "reports" / "manifests" / "sbx_evidence_v2_manifest.json"
+        )
+        source_version = EVIDENCE_SBX_VERSION
+    else:
+        raw_rel_dir = Path("raw/sbx")
+        raw_dir = state_dir / raw_rel_dir
+        manifest_path = state_dir / "reports" / "manifests" / "sbx_manifest.json"
+        source_version = LEGACY_SBX_VERSION
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     min_parallax = f"{args.min_parallax_mas:.8f}"
-    systems_query_template = (
-        "SELECT s.sn, s.ra, s.dec, s.parallax, s.pmra, s.pmdec, s.mag1, "
-        "s.position_epoch, s.position_source, s.st1 "
-        "FROM systems s "
-        f"WHERE s.parallax >= {min_parallax} AND MOD(s.sn, {{buckets}}) = {{bucket}} "
-        "ORDER BY 1"
-    )
-    alias_query_template = (
-        "SELECT a.sn, a.catalog, a.version, a.identifier "
-        "FROM alias a "
-        "JOIN systems s ON s.sn = a.sn "
-        f"WHERE s.parallax >= {min_parallax} "
-        "AND MOD(a.sn, {buckets}) = {bucket} "
-        "AND ((a.catalog = 'Gaia' AND a.version = 'DR3') OR a.catalog IN ('HIP','HD','WDS','ADS')) "
-        "ORDER BY 1,2,3"
-    )
-    config_query_template = (
-        "SELECT c.sn, c.family, c.parent, c.child1, c.child2, c.in_triple "
-        "FROM configurations c "
-        "JOIN systems s ON s.sn = c.sn "
-        f"WHERE s.parallax >= {min_parallax} AND MOD(c.sn, {{buckets}}) = {{bucket}} "
-        "ORDER BY 1"
-    )
-    orbit_query_template = (
-        "SELECT o.sn, COUNT(*) AS orbit_count "
-        "FROM orbits o "
-        "JOIN systems s ON s.sn = o.sn "
-        f"WHERE s.parallax >= {min_parallax} AND MOD(o.sn, {{buckets}}) = {{bucket}} "
-        "GROUP BY o.sn ORDER BY 1"
-    )
+    if evidence_profile:
+        systems_query_template = (
+            "SELECT s.* FROM systems s "
+            "WHERE MOD(s.sn, {buckets}) = {bucket} ORDER BY sn"
+        )
+        alias_query_template = (
+            "SELECT a.* FROM alias a "
+            "WHERE MOD(a.sn, {buckets}) = {bucket} "
+            "ORDER BY sn, catalog, version, identifier"
+        )
+        config_query_template = (
+            "SELECT c.* FROM configurations c "
+            "WHERE MOD(c.sn, {buckets}) = {bucket} ORDER BY sn"
+        )
+        orbit_query_template = (
+            "SELECT o.* FROM orbits o "
+            "WHERE MOD(o.sn, {buckets}) = {bucket} ORDER BY sn, \"on\""
+        )
+    else:
+        systems_query_template = (
+            "SELECT s.sn, s.ra, s.dec, s.parallax, s.pmra, s.pmdec, s.mag1, "
+            "s.position_epoch, s.position_source, s.st1 "
+            "FROM systems s "
+            f"WHERE s.parallax >= {min_parallax} AND MOD(s.sn, {{buckets}}) = {{bucket}} "
+            "ORDER BY 1"
+        )
+        alias_query_template = (
+            "SELECT a.sn, a.catalog, a.version, a.identifier "
+            "FROM alias a "
+            "JOIN systems s ON s.sn = a.sn "
+            f"WHERE s.parallax >= {min_parallax} "
+            "AND MOD(a.sn, {buckets}) = {bucket} "
+            "AND ((a.catalog = 'Gaia' AND a.version = 'DR3') OR a.catalog IN ('HIP','HD','WDS','ADS')) "
+            "ORDER BY 1,2,3"
+        )
+        config_query_template = (
+            "SELECT c.sn, c.family, c.parent, c.child1, c.child2, c.in_triple "
+            "FROM configurations c "
+            "JOIN systems s ON s.sn = c.sn "
+            f"WHERE s.parallax >= {min_parallax} AND MOD(c.sn, {{buckets}}) = {{bucket}} "
+            "ORDER BY 1"
+        )
+        orbit_query_template = (
+            "SELECT o.sn, COUNT(*) AS orbit_count "
+            "FROM orbits o "
+            "JOIN systems s ON s.sn = o.sn "
+            f"WHERE s.parallax >= {min_parallax} AND MOD(o.sn, {{buckets}}) = {{bucket}} "
+            "GROUP BY o.sn ORDER BY 1"
+        )
 
     systems_path = raw_dir / "sbx_systems.csv"
     alias_path = raw_dir / "sbx_alias.csv"
@@ -355,7 +397,9 @@ def main() -> int:
 
     log(
         "SBX fetch start "
-        f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s}, "
+        f"(profile={args.profile}, source_version={source_version}, "
+        f"min_parallax_mas={args.min_parallax_mas if not evidence_profile else 'not_applicable_full_catalog'}, "
+        f"buckets={args.buckets}, timeout_s={args.timeout_s}, "
         f"delta_mode={args.delta_mode}, delta_max_age_hours={args.delta_max_age_hours})"
     )
 
@@ -418,7 +462,7 @@ def main() -> int:
             {
                 "source_name": "sbx_systems",
                 "path_abs": systems_path,
-                "path_rel": Path("raw/sbx/sbx_systems.csv"),
+                "path_rel": raw_rel_dir / "sbx_systems.csv",
                 "row_count": systems_rows,
                 "query_signature": systems_query_template.replace("{bucket}", "<bucket>").replace(
                     "{buckets}", str(args.buckets)
@@ -428,7 +472,7 @@ def main() -> int:
             {
                 "source_name": "sbx_alias",
                 "path_abs": alias_path,
-                "path_rel": Path("raw/sbx/sbx_alias.csv"),
+                "path_rel": raw_rel_dir / "sbx_alias.csv",
                 "row_count": alias_rows,
                 "query_signature": alias_query_template.replace("{bucket}", "<bucket>").replace(
                     "{buckets}", str(args.buckets)
@@ -438,7 +482,7 @@ def main() -> int:
             {
                 "source_name": "sbx_configurations",
                 "path_abs": config_path,
-                "path_rel": Path("raw/sbx/sbx_configurations.csv"),
+                "path_rel": raw_rel_dir / "sbx_configurations.csv",
                 "row_count": config_rows,
                 "query_signature": config_query_template.replace("{bucket}", "<bucket>").replace(
                     "{buckets}", str(args.buckets)
@@ -448,7 +492,7 @@ def main() -> int:
             {
                 "source_name": "sbx_orbits",
                 "path_abs": orbit_path,
-                "path_rel": Path("raw/sbx/sbx_orbits.csv"),
+                "path_rel": raw_rel_dir / "sbx_orbits.csv",
                 "row_count": orbit_rows,
                 "query_signature": orbit_query_template.replace("{bucket}", "<bucket>").replace(
                     "{buckets}", str(args.buckets)
@@ -456,6 +500,7 @@ def main() -> int:
                 "delta_update": {"mode": args.delta_mode, "max_age_hours": args.delta_max_age_hours, **orbit_stats},
             },
         ],
+        source_version=source_version,
     )
 
     log(

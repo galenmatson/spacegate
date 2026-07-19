@@ -186,7 +186,16 @@ clean-reproduction reports are also protected. McGill magnetar checkpoint
 `c599c951590451ace4248934`, its pinned `TabO1.csv` raw/typed snapshots, and its
 audit and clean-reproduction reports are likewise protected. SB9 checkpoint
 `72663823963198c8fcbbe569`, all four pinned source tables, and its audit and
-clean-reproduction reports are protected. Earlier SB9 compiler artifacts
+clean-reproduction reports are protected. SBX checkpoint
+`37ffa7255d026c8d930af6d4`, complete raw/typed snapshot
+`ea236790d0501967b3c30466`, and its audit and clean-reproduction reports are
+protected. The served legacy SBX projection remains protected as an E6 A/B
+input. Earlier SBX scientific-evidence artifact
+`c0b729ea1ec32ade4548a7b7` predates the accepted component-designation
+normalization; `da07cc5c9fbf36faa314d98f` and
+`3f24effe31db3258870e48cb` predate complete explicit registry coverage for the
+preserved legacy projections. All are retention dry-run candidates,
+not manual deletion targets. Earlier SB9 compiler artifacts
 `5a216d394e0773f6175ff226` and `407c81af12127feb9cf61048` predate the accepted
 endpoint-scope/cross-table-link contract and are retention dry-run candidates,
 not manual deletion targets. Earlier

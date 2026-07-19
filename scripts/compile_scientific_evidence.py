@@ -241,6 +241,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"{prefix} confidence statistic requires field, key, and semantics"
                     )
+                if relation_claim.get("sql_predicate") is not None and not str(
+                    relation_claim.get("sql_predicate") or ""
+                ).strip():
+                    errors.append(f"{prefix}.sql_predicate must be non-empty")
             row_selection = table.get("row_selection")
             if row_selection:
                 prefix = f"{source_id}.{table_name}.row_selection"
@@ -293,10 +297,20 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 missing = sorted(required - set(parameter_set))
                 if missing:
                     errors.append(f"{prefix} lacks {missing}")
-                for field in required:
+                for field in required - {"measurements"}:
                     value = parameter_set.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+                measurements = parameter_set.get("measurements")
+                if not isinstance(measurements, list):
+                    errors.append(f"{prefix}.measurements must be a list")
+                    measurements = []
+                if not measurements and not str(
+                    parameter_set.get("classification_field") or ""
+                ).strip():
+                    errors.append(
+                        f"{prefix} requires a classification field or at least one measurement"
+                    )
                 if not str(
                     parameter_set.get("scope_key")
                     or parameter_set.get("component_scope")
@@ -317,6 +331,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 for field in ("value_field", "quantity_key"):
                     if not str(measurement.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
+                if measurement.get("bandpass") and measurement.get("bandpass_field"):
+                    errors.append(
+                        f"{prefix} cannot define both bandpass and bandpass_field"
+                    )
             for index, measurement in enumerate(
                 table.get("configured_domain_measurements") or []
             ):
@@ -1715,7 +1733,7 @@ def materialize_scoped_stellar_evidence(
             if value
         }
         configured_fields.update(quality_fields)
-        for measurement in config["measurements"]:
+        for measurement in config.get("measurements") or []:
             configured_fields.add(str(measurement["value_field"]))
             if measurement.get("uncertainty_field"):
                 configured_fields.add(str(measurement["uncertainty_field"]))
@@ -1772,7 +1790,7 @@ def materialize_scoped_stellar_evidence(
                 """
             )
         branches = []
-        for measurement in config["measurements"]:
+        for measurement in config.get("measurements") or []:
             field = str(measurement["value_field"])
             uncertainty_field = measurement.get("uncertainty_field")
             predicate = missing_value_predicate(
@@ -1867,7 +1885,18 @@ def materialize_configured_photometry(
     for measurement in measurements:
         field = str(measurement["value_field"])
         uncertainty_field = measurement.get("uncertainty_field")
-        fields = {field} | ({str(uncertainty_field)} if uncertainty_field else set())
+        bandpass_field = measurement.get("bandpass_field")
+        reference_field = measurement.get("reference_field")
+        quality_fields = [str(value) for value in measurement.get("quality_fields") or []]
+        fields = {
+            field,
+            *(
+                str(value)
+                for value in (uncertainty_field, bandpass_field, reference_field)
+                if value
+            ),
+            *quality_fields,
+        }
         missing = sorted(fields - available_fields)
         if missing:
             raise ValueError(f"photometry fields missing from {table_name}: {missing}")
@@ -1887,6 +1916,24 @@ def materialize_configured_photometry(
         normalized_unit = nullable_sql_string(
             measurement.get("normalized_unit", measurement.get("unit_raw"))
         )
+        bandpass = (
+            text_expression(str(bandpass_field))
+            if bandpass_field
+            else nullable_sql_string(measurement.get("bandpass"))
+        )
+        quality_members = [
+            "'source_field'",
+            sql_string(field),
+            "'bandpass_field'",
+            nullable_sql_string(bandpass_field),
+            "'missing_values'",
+            sql_string(json.dumps(measurement.get("missing_values") or [])),
+        ]
+        for quality_field in quality_fields:
+            quality_members.extend(
+                (sql_string(quality_field), sql_identifier(quality_field))
+            )
+        quality = "json_object(" + ", ".join(quality_members) + ")"
         predicate = missing_value_predicate(
             field, list(measurement.get("missing_values") or [])
         )
@@ -1895,16 +1942,13 @@ def materialize_configured_photometry(
             select distinct
               sha256({sql_string('configured-photometry|' + field + '|')} || r.source_record_id),
               r.source_record_id, {sql_string(str(measurement['quantity_key']))},
-              {nullable_sql_string(measurement.get('bandpass'))}, {raw}, {unit},
+              {bandpass}, {raw}, {unit},
               try_cast({sql_identifier(field)} as double), {normalized_unit},
               {uncertainty}, {uncertainty}, 'measurement',
               {nullable_sql_string(measurement.get('method'))},
               {nullable_sql_string(measurement.get('model'))},
-              {text_expression(measurement.get('reference_field'))},
-              json_object(
-                'source_field', {sql_string(field)},
-                'missing_values', {sql_string(json.dumps(measurement.get('missing_values') or []))}
-              ),
+              {text_expression(reference_field)},
+              {quality},
               {sql_string(str(measurement.get('normalization_version') or 'source_native_v1'))}
             from read_parquet({sql_string(str(path))}) t
             join source_records r
@@ -1938,9 +1982,18 @@ def materialize_configured_domain_measurements(
         destination = str(measurement["destination"])
         field = str(measurement["value_field"])
         uncertainty_field = measurement.get("uncertainty_field")
-        configured_fields = {field} | (
-            {str(uncertainty_field)} if uncertainty_field else set()
-        )
+        epoch_field = measurement.get("epoch_field")
+        reference_field = measurement.get("reference_field")
+        quality_fields = [str(value) for value in measurement.get("quality_fields") or []]
+        configured_fields = {
+            field,
+            *(
+                str(value)
+                for value in (uncertainty_field, epoch_field, reference_field)
+                if value
+            ),
+            *quality_fields,
+        }
         missing = sorted(configured_fields - available_fields)
         if missing:
             raise ValueError(
@@ -1974,12 +2027,17 @@ def materialize_configured_domain_measurements(
            and r.source_row_sha256=sha256(to_json(t))
           where {predicate}
         """
-        quality = f"""
-          json_object(
-            'source_field', {sql_string(field)},
-            'missing_values', {sql_string(json.dumps(missing_values))}
-          )
-        """
+        quality_members = [
+            "'source_field'",
+            sql_string(field),
+            "'missing_values'",
+            sql_string(json.dumps(missing_values)),
+        ]
+        for quality_field in quality_fields:
+            quality_members.extend(
+                (sql_string(quality_field), sql_identifier(quality_field))
+            )
+        quality = "json_object(" + ", ".join(quality_members) + ")"
         normalization = sql_string(
             str(measurement.get("normalization_version") or "source_native_v1")
         )
@@ -1991,10 +2049,10 @@ def materialize_configured_domain_measurements(
                 try_cast({sql_identifier(field)} as double), {normalized_unit},
                 {uncertainty}, {uncertainty}, 'measurement',
                 {nullable_sql_string(measurement.get('frame_raw'))},
-                {text_expression(measurement.get('epoch_field'))},
+                {text_expression(epoch_field)},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
-                {text_expression(measurement.get('reference_field'))},
+                {text_expression(reference_field)},
                 {quality}, {normalization}
               {common_from}
             """
@@ -2008,7 +2066,7 @@ def materialize_configured_domain_measurements(
                 {uncertainty}, {uncertainty},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
-                {text_expression(measurement.get('reference_field'))},
+                {text_expression(reference_field)},
                 {quality}, {normalization}
               {common_from}
             """
@@ -2173,6 +2231,7 @@ def materialize_relation_claims(
          and r.source_row_sha256=sha256(to_json(t))
         where nullif({left}, '') is not null
           and nullif({right}, '') is not null
+          and ({str(relation_claim.get('sql_predicate') or 'true')})
         """
     )
     if probability_field:

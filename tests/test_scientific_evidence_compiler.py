@@ -43,6 +43,16 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "sb9_alias",
         "sb9_orbits",
     }
+    sbx_adapter = contract["source_adapters"]["multiplicity.sbx"]
+    assert set(sbx_adapter["tables"]) == {
+        "sbx_systems",
+        "sbx_alias",
+        "sbx_configurations",
+        "sbx_orbits",
+    }
+    assert sbx_adapter["tables"]["sbx_orbits"]["orbital_solution"][
+        "relation_link"
+    ]["required"] is True
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -540,6 +550,54 @@ def test_relation_claim_preserves_non_probability_statistic_and_control_polarity
     assert all(json.loads(row[5])["sep_AU"] in {100.0, 200.0} for row in evidence)
 
 
+def test_relation_claim_predicate_retains_source_rows_but_bounds_claims(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "hierarchy.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('1','2'),('2',null)) t(sn,parent)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t order by sn"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'test.hierarchy', 'r1', 'configurations', 'hierarchy_claim', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [[f"record-{index}", row_hash] for index, (row_hash,) in enumerate(rows)],
+        )
+        compiler.materialize_relation_claims(
+            con,
+            source_id="test.hierarchy",
+            release_id="r1",
+            table_name="configurations",
+            path=parquet,
+            relation_claim={
+                "left_identifier_field": "sn",
+                "left_identifier_namespace": "source_component",
+                "left_component_scope": "subsystem",
+                "right_identifier_field": "parent",
+                "right_identifier_namespace": "source_component",
+                "right_component_scope": "parent_subsystem",
+                "relation_kind": "hierarchical_parent",
+                "relation_scope": "source_configuration",
+                "evidence_polarity": "positive",
+                "method": "source_configuration",
+                "reference_raw": "source reference",
+                "sql_predicate": "parent is not null",
+            },
+            available_fields={"sn", "parent"},
+        )
+        assert con.execute("select count(*) from source_records").fetchone()[0] == 2
+        assert con.execute(
+            "select left_identity_raw,right_identity_raw from relation_claim_evidence"
+        ).fetchall() == [("1", "2")]
+
+
 def test_relation_audit_accepts_source_native_primary_secondary_scopes() -> None:
     with duckdb.connect() as con:
         compiler.create_schema(con)
@@ -727,7 +785,7 @@ def test_scoped_stellar_parameter_sets_keep_binary_components_separate(
     parquet = tmp_path / "components.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select 'M4V' spectral_1, 'none' spectral_2, "
+            f"copy (select 'M4V' spectral_1, 'none' spectral_2, 'DA2' spectral_3, "
             "'-0.65' log_mass_1, '0.01' log_mass_error_1, "
             "'-9.99' log_mass_2, '-9.99' log_mass_error_2) "
             f"to '{parquet}' (format parquet)"
@@ -784,10 +842,19 @@ def test_scoped_stellar_parameter_sets_keep_binary_components_separate(
                         }
                     ],
                 },
+                {
+                    "component_scope": "tertiary",
+                    "parameter_set_kind": "published_component_classification",
+                    "classification_field": "spectral_3",
+                    "method": "published_binary_classification",
+                    "normalization_version": "source_native_v1",
+                    "measurements": [],
+                },
             ],
             available_fields={
                 "spectral_1",
                 "spectral_2",
+                "spectral_3",
                 "log_mass_1",
                 "log_mass_error_1",
                 "log_mass_2",
@@ -808,13 +875,14 @@ def test_scoped_stellar_parameter_sets_keep_binary_components_separate(
     assert consumed == {
         "spectral_1",
         "spectral_2",
+        "spectral_3",
         "log_mass_1",
         "log_mass_error_1",
         "log_mass_2",
         "log_mass_error_2",
     }
     assert evidence == [("primary", "log10_mass", "-0.65", 0.01)]
-    assert classifications == [("primary", "M4V")]
+    assert classifications == [("primary", "M4V"), ("tertiary", "DA2")]
     assert parameter_sets == [("primary",)]
 
 
@@ -827,6 +895,53 @@ def test_missing_uncertainty_sentinel_does_not_become_large_uncertainty() -> Non
             f"select {expression} from (values ('-9.9900'),('-0.25')) t(uncertainty)"
         ).fetchall()
     assert rows == [(None,), (0.25,)]
+
+
+def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "photometry.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '8.4' mag, 'V' band, '2024A&A...1A' reference, "
+            f"'primary' component) to '{parquet}' (format parquet)"
+        )
+        source_row_sha256 = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.photometry','r1','systems','binary_system',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_row_sha256],
+        )
+        consumed = compiler.materialize_configured_photometry(
+            con,
+            source_id="test.photometry",
+            release_id="r1",
+            table_name="systems",
+            path=parquet,
+            measurements=[
+                {
+                    "value_field": "mag",
+                    "quantity_key": "apparent_magnitude",
+                    "bandpass_field": "band",
+                    "reference_field": "reference",
+                    "quality_fields": ["component"],
+                    "unit_raw": "mag",
+                }
+            ],
+            available_fields={"mag", "band", "reference", "component"},
+        )
+        row = con.execute(
+            "select bandpass,reference_raw,quality_json::varchar "
+            "from photometry_extinction_evidence"
+        ).fetchone()
+    assert consumed == {"mag", "band", "reference", "component"}
+    assert row[:2] == ("V", "2024A&A...1A")
+    assert json.loads(row[2])["component"] == "primary"
 
 
 def test_scalar_grouping_preserves_measurement_companions() -> None:

@@ -424,6 +424,29 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `1406dc3e6c30b4b1e92bfc333abb953478d0f38b1f473ba7419c70c9750c2ddf`.
   Clean reproduction and the independent audit pass; no relation is promoted
   to canonical containment.
+- Compiler/contract v29 adds predicate-bounded relation emission,
+  classification-only component contexts, dynamic source band/reference
+  support, and complete consumption of configured epoch/reference/quality
+  fields. These are general evidence contracts; none branches on a named
+  astronomical object.
+- The Evidence Lake SBX acquisition profile is separate from the served legacy
+  core projection. Because the complete upstream catalog is small, it uses no
+  spatial truncation and preserves 4,080 systems, 102,459 aliases, 261
+  configurations, 5,169 orbit rows, and all 73 table-column occurrences in
+  immutable raw/typed snapshot `ea236790d0501967b3c30466`.
+- Served legacy SBX, Gaia backbone/classifier/NSS, and NASA `ps`/`pscomppars`
+  manifests are registered as disabled E6 stability-reference releases. This
+  keeps schema and retention accounting complete without allowing a lossy
+  projection to compete with its active full-release source.
+- SBX checkpoint `37ffa7255d026c8d930af6d4` emits 4,080 positive
+  primary/secondary binary relations, 94 child/parent hierarchy relations with
+  explicit endpoint scopes, and 5,169 source-native orbit solutions. Every
+  orbit links by exact `sn` to one binary relation. The complete alias evidence
+  remains source/release scoped; HD/HIP component suffixes are designations,
+  not malformed integer IDs. Its logical hash is
+  `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`;
+  clean reproduction and independent audit pass, and zero claims become
+  canonical containment.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961
