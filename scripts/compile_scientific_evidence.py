@@ -101,13 +101,19 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
         errors.append("domain_tables must exactly match the compiler contract")
     dispositions = set(contract.get("field_dispositions") or [])
     mapping_statuses = set(contract.get("mapping_statuses") or [])
-    identifier_namespaces = contract.get("identifier_namespaces") or {}
+    identifier_claims = contract.get("identifier_claims") or {}
     profiles = contract.get("field_profiles") or {}
-    if not identifier_namespaces:
-        errors.append("identifier_namespaces must not be empty")
-    for field, namespace in identifier_namespaces.items():
-        if not str(field).strip() or not str(namespace).strip():
-            errors.append("identifier namespace fields and values must be non-empty")
+    if not identifier_claims:
+        errors.append("identifier_claims must not be empty")
+    for field, claim in identifier_claims.items():
+        if (
+            not str(field).strip()
+            or not str(claim.get("namespace") or "").strip()
+            or not str(claim.get("claim_scope") or "").strip()
+        ):
+            errors.append(
+                "identifier claim fields, namespaces, and scopes must be non-empty"
+            )
     for profile_name, rules in profiles.items():
         if not rules:
             errors.append(f"field profile has no rules: {profile_name}")
@@ -140,7 +146,7 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix} lacks claim_role")
                 if not claim.get("identifier_field"):
                     errors.append(f"{prefix} lacks identifier_field")
-                elif claim["identifier_field"] not in identifier_namespaces:
+                elif claim["identifier_field"] not in identifier_claims:
                     errors.append(f"{prefix} identifier lacks a namespace")
                 disposition_sources = sum(
                     bool(claim.get(field))
@@ -663,18 +669,19 @@ def materialize_identifier_claims(
     source_id: str,
     release_id: str,
     table_name: str,
-    object_scope: str,
     path: Path,
     fields: list[str],
-    namespace_by_field: dict[str, str],
+    claim_by_field: dict[str, dict[str, str]],
 ) -> set[str]:
-    missing = sorted(set(fields) - set(namespace_by_field))
+    missing = sorted(set(fields) - set(claim_by_field))
     if missing:
         raise ValueError(f"identifier namespace mappings missing for {table_name}: {missing}")
     branches = []
     for field in fields:
         quoted = sql_identifier(field)
-        namespace = namespace_by_field[field]
+        claim = claim_by_field[field]
+        namespace = claim["namespace"]
+        claim_scope = claim["claim_scope"]
         evidence_namespace = f"identifier|{field}|"
         branches.append(
             f"""
@@ -684,7 +691,7 @@ def materialize_identifier_claims(
               {sql_string(namespace)},
               s.value_raw,
               trim(s.value_raw),
-              {sql_string(object_scope)},
+              {sql_string(claim_scope)},
               null,
               null,
               json_object('source_field', {sql_string(field)})
@@ -929,10 +936,9 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                object_scope=str(table_contract["object_scope"]),
                 path=path,
                 fields=identifier_fields,
-                namespace_by_field=contract["identifier_namespaces"],
+                claim_by_field=contract["identifier_claims"],
             )
         )
         materialized_fields.update(
@@ -989,11 +995,21 @@ def materialize_source(
     con.execute(
         """
         insert into object_binding_outcomes
+        with binding_scopes as (
+          select source_record_id, object_scope binding_scope
+          from source_records
+          where source_id=? and release_id=?
+          union
+          select i.source_record_id, i.claim_scope binding_scope
+          from identifier_claim_evidence i
+          join source_records r using (source_record_id)
+          where r.source_id=? and r.release_id=?
+        )
         select
-          sha256('binding|unresolved|' || source_record_id),
-          source_record_id,
+          sha256('binding|unresolved|' || s.source_record_id || '|' || s.binding_scope),
+          s.source_record_id,
           'unresolved',
-          object_scope,
+          s.binding_scope,
           null,
           null,
           null,
@@ -1001,15 +1017,15 @@ def materialize_source(
           null,
           'awaiting release-scoped identity and component-scope binding',
           json_object(
-            'source_id', source_id,
-            'release_id', release_id,
-            'source_table', source_table,
-            'source_row_sha256', source_row_sha256
+            'source_id', r.source_id,
+            'release_id', r.release_id,
+            'source_table', r.source_table,
+            'source_row_sha256', r.source_row_sha256
           )
-        from source_records
-        where source_id=? and release_id=?
+        from binding_scopes s
+        join source_records r using (source_record_id)
         """,
-        [source_id, release_id],
+        [source_id, release_id, source_id, release_id],
     )
     return {
         "source_id": source_id,
@@ -1144,6 +1160,28 @@ def compile_evidence(
                 "group by namespace order by namespace"
             ).fetchall()
         }
+        identifier_claim_scope_counts = {
+            str(scope): int(count)
+            for scope, count in con.execute(
+                "select claim_scope, count(*) from identifier_claim_evidence "
+                "group by claim_scope order by claim_scope"
+            ).fetchall()
+        }
+        binding_outcome_counts = {
+            str(status): {
+                str(scope): int(count)
+                for scope, count in con.execute(
+                    "select binding_scope, count(*) from object_binding_outcomes "
+                    "where binding_status=? group by binding_scope order by binding_scope",
+                    [status],
+                ).fetchall()
+            }
+            for status in sorted(contract["binding_statuses"])
+            if con.execute(
+                "select count(*) from object_binding_outcomes where binding_status=?",
+                [status],
+            ).fetchone()[0]
+        }
         lifecycle_claim_counts = {
             "by_disposition": {
                 str(disposition): int(count)
@@ -1190,6 +1228,8 @@ def compile_evidence(
         "sources": source_reports,
         "mapping_status_counts": mapping_counts,
         "identifier_claim_counts_by_namespace": identifier_claim_counts,
+        "identifier_claim_counts_by_scope": identifier_claim_scope_counts,
+        "binding_outcome_counts_by_status_and_scope": binding_outcome_counts,
         "lifecycle_claim_counts": lifecycle_claim_counts,
         "logical_content_sha256": logical_content_sha256,
         "tables": tables,

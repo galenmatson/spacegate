@@ -30,6 +30,12 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         "identifier_claim_counts_by_namespace": report[
             "identifier_claim_counts_by_namespace"
         ],
+        "identifier_claim_counts_by_scope": report[
+            "identifier_claim_counts_by_scope"
+        ],
+        "binding_outcome_counts_by_status_and_scope": report[
+            "binding_outcome_counts_by_status_and_scope"
+        ],
         "lifecycle_claim_counts": report["lifecycle_claim_counts"],
         "logical_content_sha256": report["logical_content_sha256"],
         "tables": report["tables"],

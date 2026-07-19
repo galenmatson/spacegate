@@ -33,7 +33,9 @@ Evidence Lake v2 staging rule:
   stability reference.
 - E4 materializes source-native scientific domain evidence from the typed lake;
   the current NASA checkpoint includes source-scoped identifier and lifecycle
-  evidence but deliberately leaves object bindings unresolved. E6 then
+  evidence but deliberately leaves object bindings unresolved. Mixed source
+  rows create separate binding outcomes for star, host, planet/candidate,
+  observation-target, signal, component-label, and product scopes. E6 then
   shadow-builds this schema from those contracts; no E2 graph row
   is promoted into ARM merely because it has an accepted identity binding.
 - E4 compiler artifacts live at

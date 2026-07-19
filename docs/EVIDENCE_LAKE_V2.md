@@ -287,12 +287,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   binding outcomes. `scripts/verify_scientific_evidence_reproduction.py`
   rebuilds into a temporary scratch root, compares deterministic logical hashes,
   and removes the scratch artifact; the NASA foundation reproduction passes.
-- NASA checkpoint build `2d9e5a0871ad2f7a5505c953` accounts 206,989 source
+- NASA checkpoint build `d97673cd1a443d5e3e092c62` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
   duplicate counts. It materializes 750,151 release-scoped identifier claims
-  and 72,809 planet-lifecycle claims while leaving every source record's object
-  binding explicitly unresolved for later E2-graph reconciliation. Confirmed
+  and 72,809 planet-lifecycle claims. Identifier fields carry their own star,
+  host, planet/candidate, observation-target, signal, component-label, or
+  product scope rather than inheriting a mixed source row's broad scope. The
+  compiler emits 697,952 explicit unresolved record/scope binding outcomes for
+  later E2-graph reconciliation. Confirmed
   claims are positive evidence, candidates remain candidate evidence, and false
   positives, false alarms, and refuted claims are negative evidence; none of
   these rows alter canonical planet inventory.

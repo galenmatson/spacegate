@@ -139,7 +139,9 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         },
     }
     contract = {
-        "identifier_namespaces": {"source_id": "test_id"},
+        "identifier_claims": {
+            "source_id": {"namespace": "test_id", "claim_scope": "host"}
+        },
         "field_profiles": {
             "test": [
                 {
@@ -182,6 +184,9 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
             binding_count = con.execute(
                 "select count(*) from object_binding_outcomes"
             ).fetchone()[0]
+            binding_scopes = con.execute(
+                "select distinct binding_scope from object_binding_outcomes order by 1"
+            ).fetchall()
             identifier_claims = con.execute(
                 "select identifier_normalized from identifier_claim_evidence "
                 "order by evidence_id"
@@ -206,7 +211,8 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
             ("CANDIDATE", "candidate"),
             ("FALSE_POSITIVE", "negative"),
         ]
-        assert binding_count == 2
+        assert binding_count == 4
+        assert binding_scopes == [("host",), ("object",)]
     assert snapshots[0] == snapshots[1]
 
 
@@ -220,6 +226,10 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
         "sources": [],
         "mapping_status_counts": {"declared_pending": 1},
         "identifier_claim_counts_by_namespace": {"test_id": 1},
+        "identifier_claim_counts_by_scope": {"host": 1},
+        "binding_outcome_counts_by_status_and_scope": {
+            "unresolved": {"host": 1, "object": 1}
+        },
         "lifecycle_claim_counts": {
             "by_disposition": {"CANDIDATE": 1},
             "by_polarity": {"candidate": 1},

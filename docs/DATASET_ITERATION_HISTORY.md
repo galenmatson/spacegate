@@ -998,11 +998,14 @@ Representative commits:
   counts and retains non-unique logical keys without manufacturing uniqueness
   from source array positions.
 - All 2,093 NASA fields receive a machine-readable disposition. The next
-  checkpoint (`2d9e5a0871ad2f7a5505c953`) materializes 750,151 release-scoped
+  checkpoint (`d97673cd1a443d5e3e092c62`) materializes 750,151 release-scoped
   identifier claims and 72,809 lifecycle claims in addition to source-record
   context, for 188 materialized fields total; 1,905 remain `declared_pending`.
   Confirmed, candidate, false-positive, false-alarm, and refuted claims retain
-  distinct polarity and cannot change canonical inventory at this stage. The
+  distinct polarity and cannot change canonical inventory at this stage.
+  Per-identifier semantic scopes create 697,952 explicit unresolved binding
+  outcomes, preventing mixed planet, host, and observation-target fields in one
+  archive row from sharing an accidental binding scope. The
   build therefore reports
   `in_progress`, preventing schema declaration or raw preservation from being
   mistaken for completed scientific normalization. A clean scratch rebuild

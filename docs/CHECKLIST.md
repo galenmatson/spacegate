@@ -1125,7 +1125,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   hash reproduction; keep unmaterialized fields visibly pending
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
-  verify clean logical-hash reproduction without altering canonical inventory
+  preserve per-identifier semantic scope, and verify clean logical-hash
+  reproduction without altering canonical inventory
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

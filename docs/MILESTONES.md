@@ -1427,10 +1427,12 @@ Current status (July 19, 2026, in progress):
   visibly `declared_pending`, so the compiler correctly reports `in_progress`
   rather than treating a declaration or raw preservation as E4 completion; the
   current logical-hash reproduction passes
-- NASA checkpoint `2d9e5a0871ad2f7a5505c953` materializes 750,151
+- NASA checkpoint `d97673cd1a443d5e3e092c62` materializes 750,151
   source-scoped identifier claims and 72,809 lifecycle claims. Confirmed,
   candidate, false-positive, false-alarm, and refuted evidence remain explicitly
-  separated and do not change canonical planet counts.
+  separated and do not change canonical planet counts. Per-identifier semantic
+  scopes produce 697,952 separate unresolved binding outcomes instead of
+  allowing mixed planet/host/target rows to leak scope.
 
 #### M8.3c-E5. Selection and Derivation Compiler
 
