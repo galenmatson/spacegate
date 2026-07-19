@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import gzip
+import hashlib
 import io
 import json
 import sys
@@ -15,6 +16,96 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import evidence_tap_acquire as acquire  # noqa: E402
+
+
+def test_target_values_are_checksum_bounded_and_part_of_query_identity(
+    tmp_path: Path,
+) -> None:
+    seed = tmp_path / "derived" / "targets" / "build"
+    seed.mkdir(parents=True)
+    artifact = seed / "missing.json"
+    artifact.write_text('{"ids":[20,10,20]}\n', encoding="utf-8")
+    artifact_sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    manifest = seed / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "build_id": "build",
+                "artifacts": [
+                    {"path": "missing.json", "sha256": artifact_sha256}
+                ],
+                "report": {"coverage": "hard_envelope_only"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    product = {
+        "where": "quality = 1",
+        "target_values": {
+            "manifest_relpath": "derived/targets/build/manifest.json",
+            "build_id": "build",
+            "artifact": "missing.json",
+            "json_path": ["ids"],
+            "coverage": "hard_envelope_only",
+            "field_expression": "rows.oid",
+            "max_values": 10,
+        },
+    }
+    resolved = acquire.resolve_target_values(product, tmp_path)
+    assert resolved["where"] == "(quality = 1) and (rows.oid in (10,20))"
+    assert resolved["target_values_lineage"]["value_count"] == 2
+    assert resolved["target_values_lineage"]["artifact_sha256"] == artifact_sha256
+
+    artifact.write_text('{"ids":[10]}\n', encoding="utf-8")
+    try:
+        acquire.resolve_target_values(product, tmp_path)
+    except ValueError as error:
+        assert "checksum mismatch" in str(error)
+    else:
+        raise AssertionError("modified target seed was accepted")
+
+
+def test_untargeted_product_identity_remains_backward_compatible() -> None:
+    program = {"schema_version": "spacegate.e3_acquisition_program.v1"}
+    product = {
+        "source_id": "test.source",
+        "release_id": "r1",
+        "endpoint": "https://example.test/tap/sync",
+        "table": "test.rows",
+        "select": ["source_id", "measurement"],
+        "where": "measurement is not null",
+        "partition_expression": "source_id",
+        "buckets": 7,
+        "max_rec": 1000,
+    }
+    legacy_identity = acquire.stable_hash(
+        {
+            "program_contract": program["schema_version"],
+            "engine_version": acquire.ENGINE_VERSION,
+            "source_id": product["source_id"],
+            "release_id": product["release_id"],
+            "endpoint": product["endpoint"],
+            "table": product["table"],
+            "select": product["select"],
+            "from": product["table"],
+            "where": product["where"],
+            "partition_expression": product["partition_expression"],
+            "order_by": product["partition_expression"],
+            "ordered": True,
+            "buckets": product["buckets"],
+            "max_rec": product["max_rec"],
+            "tap_mode": "sync",
+            "output_format": "csv",
+        }
+    )[:24]
+    assert acquire.product_identity(program, product) == legacy_identity
+    assert acquire.product_identity(
+        program, {**product, "target_values_lineage": None}
+    ) == legacy_identity
+    assert acquire.product_identity(
+        program,
+        {**product, "target_values_lineage": {"build_id": "target-build"}},
+    ) != legacy_identity
 
 
 class FakeResponse:
@@ -283,6 +374,55 @@ def test_manifest_merge_preserves_unrelated_products(tmp_path: Path) -> None:
         {"source_name": "second", "sha256": "two"},
     ]
     assert json.loads(path.read_text()) == merged
+
+
+def test_progress_publish_uses_durable_merged_manifest(tmp_path: Path) -> None:
+    product_report = tmp_path / "product_report.json"
+    product_report.write_text(
+        json.dumps(
+            {
+                "field_dispositions": [
+                    {"column_name": "source_id"},
+                    {"column_name": "measurement"},
+                ]
+            }
+        )
+    )
+    program = {
+        "schema_version": "spacegate.e3_acquisition_program.v1",
+        "program_version": "test.1",
+        "manifest_name": "test_manifest.json",
+        "products": [
+            {
+                "product_name": "complete",
+                "table": "test.rows",
+                "preserve_all_fields": True,
+            }
+        ],
+    }
+    manifest = tmp_path / "reports" / "manifests" / "test_manifest.json"
+    acquire.merge_manifest_rows(
+        manifest,
+        [
+            {
+                "source_name": "complete",
+                "field_disposition_report": str(product_report),
+                "row_count": 2,
+                "bytes_written": 10,
+            }
+        ],
+    )
+    report = acquire.publish_acquisition_progress(program, tmp_path)
+    assert report["status"] == "pass"
+    assert report["summary"] == {
+        "product_count": 1,
+        "row_count": 2,
+        "bytes": 10,
+        "pending_product_count": 0,
+    }
+    assert json.loads(
+        (tmp_path / "reports" / "evidence_lake_v2" / "e3_acquisition_report.json").read_text()
+    ) == report
 
 
 def test_uncompressed_binary_votable_metadata(tmp_path: Path) -> None:

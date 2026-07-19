@@ -70,7 +70,17 @@ def tree_report(path: Path) -> list[dict[str, Any]]:
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        delete=False,
+    ) as handle:
+        json.dump(value, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+        temporary = Path(handle.name)
+    os.replace(temporary, path)
 
 
 def merge_manifest_rows(path: Path, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -481,27 +491,94 @@ def selected_output_name(expression: str) -> str:
     return expression.split(".")[-1].strip()
 
 
+def resolve_target_values(
+    product: dict[str, Any], state_dir: Path
+) -> dict[str, Any]:
+    contract = product.get("target_values")
+    if not contract:
+        return dict(product)
+    manifest_path = (state_dir / str(contract["manifest_relpath"])).resolve()
+    state_root = state_dir.resolve()
+    try:
+        manifest_path.relative_to(state_root)
+    except ValueError as error:
+        raise ValueError("target-value manifest escapes state root") from error
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_build_id = str(contract["build_id"])
+    if manifest.get("build_id") != expected_build_id:
+        raise ValueError("target-value manifest build identity mismatch")
+    expected_coverage = contract.get("coverage")
+    if expected_coverage and manifest.get("report", {}).get("coverage") != expected_coverage:
+        raise ValueError("target-value manifest coverage mismatch")
+    artifact_name = str(contract["artifact"])
+    artifacts = {str(row["path"]): row for row in manifest.get("artifacts") or []}
+    if artifact_name not in artifacts:
+        raise ValueError(f"target-value artifact absent from manifest: {artifact_name}")
+    artifact_path = (manifest_path.parent / artifact_name).resolve()
+    try:
+        artifact_path.relative_to(manifest_path.parent.resolve())
+    except ValueError as error:
+        raise ValueError("target-value artifact escapes manifest directory") from error
+    expected_sha256 = str(artifacts[artifact_name]["sha256"])
+    if hashlib.sha256(artifact_path.read_bytes()).hexdigest() != expected_sha256:
+        raise ValueError("target-value artifact checksum mismatch")
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+    values = payload
+    for key in contract.get("json_path") or []:
+        if not isinstance(values, dict) or key not in values:
+            raise ValueError(f"target-value JSON path is absent: {key}")
+        values = values[key]
+    if not isinstance(values, list):
+        raise ValueError("target-value JSON result must be a list")
+    maximum = int(contract.get("max_values") or 10000)
+    if not values or len(values) > maximum:
+        raise ValueError(
+            f"target-value count outside bounds: {len(values)} not in 1..{maximum}"
+        )
+    normalized = sorted({str(value).strip() for value in values})
+    if any(not re.fullmatch(r"[0-9]+", value) for value in normalized):
+        raise ValueError("target values must be unsigned decimal integers")
+    field_expression = str(contract["field_expression"])
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", field_expression):
+        raise ValueError("unsafe target-value field expression")
+    target_predicate = f"{field_expression} in ({','.join(normalized)})"
+    resolved = dict(product)
+    resolved["where"] = f"({product['where']}) and ({target_predicate})"
+    resolved["target_values_lineage"] = {
+        "build_id": expected_build_id,
+        "manifest_relpath": str(contract["manifest_relpath"]),
+        "artifact": artifact_name,
+        "artifact_sha256": expected_sha256,
+        "coverage": manifest.get("report", {}).get("coverage"),
+        "field_expression": field_expression,
+        "value_count": len(normalized),
+        "values_sha256": stable_hash(normalized),
+    }
+    return resolved
+
+
 def product_identity(program: dict[str, Any], product: dict[str, Any]) -> str:
-    return stable_hash(
-        {
-            "program_contract": program["schema_version"],
-            "engine_version": ENGINE_VERSION,
-            "source_id": product["source_id"],
-            "release_id": product["release_id"],
-            "endpoint": product["endpoint"],
-            "table": product["table"],
-            "select": product["select"],
-            "from": product.get("from") or product["table"],
-            "where": product["where"],
-            "partition_expression": product["partition_expression"],
-            "order_by": product.get("order_by") or product["partition_expression"],
-            "ordered": product.get("ordered", True),
-            "buckets": product["buckets"],
-            "max_rec": product["max_rec"],
-            "tap_mode": product.get("tap_mode", "sync"),
-            "output_format": product.get("output_format", "csv"),
-        }
-    )[:24]
+    identity = {
+        "program_contract": program["schema_version"],
+        "engine_version": ENGINE_VERSION,
+        "source_id": product["source_id"],
+        "release_id": product["release_id"],
+        "endpoint": product["endpoint"],
+        "table": product["table"],
+        "select": product["select"],
+        "from": product.get("from") or product["table"],
+        "where": product["where"],
+        "partition_expression": product["partition_expression"],
+        "order_by": product.get("order_by") or product["partition_expression"],
+        "ordered": product.get("ordered", True),
+        "buckets": product["buckets"],
+        "max_rec": product["max_rec"],
+        "tap_mode": product.get("tap_mode", "sync"),
+        "output_format": product.get("output_format", "csv"),
+    }
+    if product.get("target_values_lineage") is not None:
+        identity["target_values_lineage"] = product["target_values_lineage"]
+    return stable_hash(identity)[:24]
 
 
 def render_query(product: dict[str, Any], bucket: int) -> str:
@@ -535,6 +612,7 @@ def acquire_product(
     retries: int,
     refresh: bool,
 ) -> dict[str, Any]:
+    product = resolve_target_values(product, state_dir)
     schema = query_schema(
         product["endpoint"],
         product.get("schema_table_name") or product["table"],
@@ -789,6 +867,7 @@ def acquire_product(
         "upstream_field_count": len(schema),
         "omitted_field_count": len(schema) - len(selected_names),
         "field_dispositions": field_dispositions,
+        "target_values_lineage": product.get("target_values_lineage"),
         "selected_fields": [
             {
                 "source_name": source_name,
@@ -910,6 +989,44 @@ def build_coverage_report(
     }
 
 
+def publish_acquisition_progress(
+    program: dict[str, Any], state_dir: Path
+) -> dict[str, Any]:
+    """Publish reports from the latest locked manifest after each product."""
+    manifest_path = state_dir / "reports" / "manifests" / program["manifest_name"]
+    report_path = (
+        state_dir / "reports" / "evidence_lake_v2" / "e3_acquisition_report.json"
+    )
+    lock_path = report_path.with_suffix(report_path.suffix + ".lock")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        merged = json.loads(manifest_path.read_text(encoding="utf-8"))
+        coverage = build_coverage_report(program, merged)
+        report = {
+            "schema_version": CONTRACT,
+            "program_version": program["program_version"],
+            "status": coverage["status"],
+            "products": merged,
+            "summary": {
+                "product_count": len(merged),
+                "row_count": sum(int(row["row_count"]) for row in merged),
+                "bytes": sum(int(row["bytes_written"]) for row in merged),
+                "pending_product_count": coverage["summary"]["pending_products"],
+            },
+            "checked_at": utc_now(),
+        }
+        write_json(report_path, report)
+        write_json(
+            state_dir
+            / "reports"
+            / "evidence_lake_v2"
+            / "e3_source_coverage_report.json",
+            coverage,
+        )
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--program", type=Path, default=DEFAULT_PROGRAM)
@@ -937,47 +1054,24 @@ def main() -> int:
     if not products:
         raise ValueError("no acquisition products selected")
 
-    manifest_rows = []
+    manifest_path = (
+        args.state_dir / "reports" / "manifests" / program["manifest_name"]
+    )
+    report: dict[str, Any] | None = None
     for product in products:
-        manifest_rows.append(
-            acquire_product(
-                program,
-                product,
-                state_dir=args.state_dir,
-                workers=args.workers,
-                timeout_s=args.timeout,
-                read_stall_timeout_s=args.read_stall_timeout,
-                retries=args.retries,
-                refresh=args.refresh,
-            )
+        row = acquire_product(
+            program,
+            product,
+            state_dir=args.state_dir,
+            workers=args.workers,
+            timeout_s=args.timeout,
+            read_stall_timeout_s=args.read_stall_timeout,
+            retries=args.retries,
+            refresh=args.refresh,
         )
-    manifest_path = args.state_dir / "reports" / "manifests" / program["manifest_name"]
-    merged = merge_manifest_rows(manifest_path, manifest_rows)
-    coverage = build_coverage_report(program, merged)
-    report = {
-        "schema_version": CONTRACT,
-        "program_version": program["program_version"],
-        "status": coverage["status"],
-        "products": merged,
-        "summary": {
-            "product_count": len(merged),
-            "row_count": sum(int(row["row_count"]) for row in merged),
-            "bytes": sum(int(row["bytes_written"]) for row in merged),
-            "pending_product_count": coverage["summary"]["pending_products"],
-        },
-        "checked_at": utc_now(),
-    }
-    report_path = (
-        args.state_dir / "reports" / "evidence_lake_v2" / "e3_acquisition_report.json"
-    )
-    write_json(report_path, report)
-    write_json(
-        args.state_dir
-        / "reports"
-        / "evidence_lake_v2"
-        / "e3_source_coverage_report.json",
-        coverage,
-    )
+        merge_manifest_rows(manifest_path, [row])
+        report = publish_acquisition_progress(program, args.state_dir)
+    assert report is not None
     print(json.dumps(report["summary"], sort_keys=True))
     return 0
 

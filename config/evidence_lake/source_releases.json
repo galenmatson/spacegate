@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.7",
+  "registry_version": "2026-07-19.8",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -955,7 +955,10 @@
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_nearby_basic_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_nearby_identifiers_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_nearby_bibliography_links_v1"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_reference_index_v1"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_reference_index_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_basic_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_identifier_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_bibliography_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "tap_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}

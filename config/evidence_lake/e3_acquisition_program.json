@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_acquisition_program.v1",
-  "program_version": "2026-07-19.e3-foundation.6",
+  "program_version": "2026-07-19.e3-foundation.8",
   "manifest_name": "evidence_lake_e3_manifest.json",
   "products": [
     {
@@ -130,7 +130,7 @@
       "ordered": false,
       "tap_mode": "async",
       "output_format": "votable_gzip",
-      "buckets": 17,
+      "buckets": 31,
       "max_rec": 400000,
       "unselected_field_reason": "preserved_in_sibling_gaia_parameter_set_product"
     },
@@ -653,6 +653,87 @@
       "tap_mode": "async",
       "output_format": "csv",
       "unselected_field_reason": "not_applicable_all_reference_index_fields_are_preserved"
+    },
+    {
+      "product_name": "simbad_gaia_hard_basic_supplement_v1",
+      "source_id": "identity.simbad",
+      "release_id": "simbad4_1_8_2026_06_snapshot_2026_07_19",
+      "endpoint": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+      "table": "basic",
+      "table_alias": "b",
+      "from": "basic b",
+      "preserve_all_fields": true,
+      "where": "1 = 1",
+      "target_values": {
+        "manifest_relpath": "derived/evidence_lake_v2/acquisition_targets/simbad_gaia/6b8b0cb2c749ddcbe1fd0595/manifest.json",
+        "build_id": "6b8b0cb2c749ddcbe1fd0595",
+        "artifact": "missing_oids.json",
+        "json_path": ["simbad_oids"],
+        "coverage": "hard_envelope_only",
+        "field_expression": "b.oid",
+        "max_values": 1000
+      },
+      "partition_expression": "b.oid",
+      "ordered": false,
+      "buckets": 1,
+      "max_rec": 1000,
+      "tap_mode": "async",
+      "output_format": "csv",
+      "unselected_field_reason": "not_applicable_all_targeted_basic_fields_are_preserved"
+    },
+    {
+      "product_name": "simbad_gaia_hard_identifier_supplement_v1",
+      "source_id": "identity.simbad",
+      "release_id": "simbad4_1_8_2026_06_snapshot_2026_07_19",
+      "endpoint": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+      "table": "ident",
+      "table_alias": "i",
+      "from": "ident i",
+      "preserve_all_fields": true,
+      "where": "1 = 1",
+      "target_values": {
+        "manifest_relpath": "derived/evidence_lake_v2/acquisition_targets/simbad_gaia/6b8b0cb2c749ddcbe1fd0595/manifest.json",
+        "build_id": "6b8b0cb2c749ddcbe1fd0595",
+        "artifact": "missing_oids.json",
+        "json_path": ["simbad_oids"],
+        "coverage": "hard_envelope_only",
+        "field_expression": "i.oidref",
+        "max_values": 1000
+      },
+      "partition_expression": "i.oidref",
+      "ordered": false,
+      "buckets": 1,
+      "max_rec": 10000,
+      "tap_mode": "async",
+      "output_format": "csv",
+      "unselected_field_reason": "not_applicable_all_targeted_identifier_fields_are_preserved"
+    },
+    {
+      "product_name": "simbad_gaia_hard_bibliography_supplement_v1",
+      "source_id": "identity.simbad",
+      "release_id": "simbad4_1_8_2026_06_snapshot_2026_07_19",
+      "endpoint": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+      "table": "has_ref",
+      "table_alias": "h",
+      "from": "has_ref h",
+      "preserve_all_fields": true,
+      "where": "1 = 1",
+      "target_values": {
+        "manifest_relpath": "derived/evidence_lake_v2/acquisition_targets/simbad_gaia/6b8b0cb2c749ddcbe1fd0595/manifest.json",
+        "build_id": "6b8b0cb2c749ddcbe1fd0595",
+        "artifact": "missing_oids.json",
+        "json_path": ["simbad_oids"],
+        "coverage": "hard_envelope_only",
+        "field_expression": "h.oidref",
+        "max_values": 1000
+      },
+      "partition_expression": "h.oidref",
+      "ordered": false,
+      "buckets": 1,
+      "max_rec": 10000,
+      "tap_mode": "async",
+      "output_format": "csv",
+      "unselected_field_reason": "not_applicable_all_targeted_bibliography_fields_are_preserved"
     }
   ]
 }
