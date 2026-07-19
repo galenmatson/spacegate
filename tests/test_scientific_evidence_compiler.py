@@ -37,6 +37,12 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     }
     magnetar_adapter = contract["source_adapters"]["compact.mcgill_magnetar"]
     assert len(magnetar_adapter["tables"]["TabO1"]["compact_object_parameter_sets"]) == 5
+    assert set(contract["source_adapters"]["multiplicity.sb9"]["tables"]) == {
+        "sb9_readme",
+        "sb9_main",
+        "sb9_alias",
+        "sb9_orbits",
+    }
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -326,12 +332,12 @@ def test_artifact_audit_rejects_invalid_relation_probability() -> None:
             """
             insert into relation_claim_evidence (
               evidence_id, source_record_id,
-              left_identity_namespace, left_identity_raw,
-              right_identity_namespace, right_identity_raw,
+              left_identity_namespace, left_identity_raw, left_component_scope,
+              right_identity_namespace, right_identity_raw, right_component_scope,
               relation_kind, relation_scope, probability, probability_semantics,
               evidence_polarity
             ) values (
-              'evidence', 'record', 'test', 'left', 'test', 'right',
+              'evidence', 'record', 'test', 'left', 'left', 'test', 'right', 'right',
               'candidate_test', 'pair', 2.0, 'strict probability', 'candidate'
             )
             """
@@ -494,8 +500,10 @@ def test_relation_claim_preserves_non_probability_statistic_and_control_polarity
             relation_claim={
                 "left_identifier_field": "source_id1",
                 "left_identifier_namespace": "gaia_edr3_source_id",
+                "left_component_scope": "left",
                 "right_identifier_field": "source_id2",
                 "right_identifier_namespace": "gaia_edr3_source_id",
+                "right_component_scope": "right",
                 "relation_kind": "shifted_control",
                 "relation_scope": "stellar_pair_control",
                 "evidence_polarity": "negative_control",
@@ -530,6 +538,47 @@ def test_relation_claim_preserves_non_probability_statistic_and_control_polarity
         ("21", "22", None, 4.2, "negative_control"),
     ]
     assert all(json.loads(row[5])["sep_AU"] in {100.0, 200.0} for row in evidence)
+
+
+def test_relation_audit_accepts_source_native_primary_secondary_scopes() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record', 'multiplicity.test', 'r1', 'systems', 'binary', "
+            "'{}', '{}', 'row-hash', 1, 'raw', 'typed', 'raw-tree', "
+            "'typed-table', timestamp '2026-07-19 00:00:00')"
+        )
+        con.execute(
+            "insert into relation_claim_evidence ("
+            "evidence_id,source_record_id,left_identity_namespace,left_identity_raw,"
+            "left_component_scope,right_identity_namespace,right_identity_raw,"
+            "right_component_scope,relation_kind,relation_scope,evidence_polarity) "
+            "values ('relation','record','component','system:primary','primary',"
+            "'component','system:secondary','secondary','binary','pair','positive')"
+        )
+        con.execute(
+            "insert into identifier_claim_evidence "
+            "(evidence_id,source_record_id,namespace,identifier_raw,"
+            "identifier_normalized,claim_scope,component_scope) values "
+            "('primary-claim','record','component','system:primary',"
+            "'system:primary','star','primary'),"
+            "('secondary-claim','record','component','system:secondary',"
+            "'system:secondary','star','secondary')"
+        )
+        con.execute(
+            "insert into object_binding_outcomes "
+            "(binding_outcome_id,source_record_id,binding_status,binding_scope,"
+            "component_scope,reason,provenance_json) values "
+            "('primary-binding','record','unresolved','star','primary',"
+            "'test unresolved','{}'),"
+            "('secondary-binding','record','unresolved','star','secondary',"
+            "'test unresolved','{}')"
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["checks"]["relation_endpoints_without_identifier_claims"] == 0
+    assert report["checks"]["relation_endpoints_without_binding_scopes"] == 0
+    assert report["status"] == "pass"
 
 
 def test_orbital_solution_preserves_one_coherent_source_parameter_set(
@@ -610,6 +659,66 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
     assert json.loads(row[2]) == {"period_raw": "290.0", "epoch_raw": "1884.54"}
     assert row[3:5] == ("1884.54", "Zir2013d")
     assert json.loads(row[5]) == {"grade_raw": "2"}
+
+
+def test_orbital_solution_links_exactly_one_relation_by_source_logical_key(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "orbits.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('1','2','5.0','reference')) "
+            "t(Seq,o,Per,Ref)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        orbit_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('system-record','multiplicity.test','r1','systems','binary',"
+            "'{\"Seq\":\"1\"}','{}','system-hash',1,'raw','typed',"
+            "'raw-tree','typed-table',timestamp '2026-07-19 00:00:00'),"
+            "('orbit-record','multiplicity.test','r1','orbits','orbit',"
+            "'{\"Seq\":\"1\",\"o\":\"2\"}','{}',?,1,'raw','typed',"
+            "'raw-tree','typed-table',timestamp '2026-07-19 00:00:00')",
+            [orbit_hash],
+        )
+        con.execute(
+            "insert into relation_claim_evidence ("
+            "evidence_id,source_record_id,left_identity_namespace,left_identity_raw,"
+            "left_component_scope,right_identity_namespace,right_identity_raw,"
+            "right_component_scope,relation_kind,relation_scope,evidence_polarity) "
+            "values ('relation','system-record','component','system:primary','primary',"
+            "'component','system:secondary','secondary','binary','pair','positive')"
+        )
+        compiler.materialize_orbital_solutions(
+            con,
+            source_id="multiplicity.test",
+            release_id="r1",
+            table_name="orbits",
+            path=parquet,
+            fields=[{"column_name": "Per"}, {"column_name": "Ref"}],
+            orbital_solution={
+                "solution_key_fields": ["Seq", "o"],
+                "parameter_fields": ["Per"],
+                "quality_fields": ["o"],
+                "reference_field": "Ref",
+                "relation_link": {
+                    "source_table": "systems",
+                    "key_fields": {"Seq": "Seq"},
+                    "required": True,
+                },
+                "method": "source_orbit",
+                "normalization_version": "source_native_v1",
+            },
+            available_fields={"Seq", "o", "Per", "Ref"},
+        )
+        linked = con.execute(
+            "select relation_claim_id from orbital_solution_evidence"
+        ).fetchone()[0]
+    assert linked == "relation"
 
 
 def test_scoped_stellar_parameter_sets_keep_binary_components_separate(
@@ -897,6 +1006,50 @@ def test_conditional_identifier_claims_apply_only_to_matching_rows(
     assert claims == [("psrj", "J1234+5678", "compact_object", "parameter_name='PSRJ'")]
 
 
+def test_conditional_identifier_claim_strips_prefix_before_numeric_normalization(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "aliases.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('GAIADR3 000123'),('HIP 7')) t(Name)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'multiplicity.test', 'r1', 'aliases', 'system_alias', '{}', '{}', "
+            "?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(rows)],
+        )
+        compiler.materialize_conditional_identifier_claims(
+            con,
+            source_id="multiplicity.test",
+            release_id="r1",
+            table_name="aliases",
+            path=parquet,
+            claims=[
+                {
+                    "value_field": "Name",
+                    "namespace": "gaia_dr3_source_id",
+                    "claim_scope": "star",
+                    "sql_predicate": "Name like 'GAIADR3 %'",
+                    "strip_prefix": "GAIADR3 ",
+                    "normalization": "unsigned_integer_decimal_v1",
+                }
+            ],
+            available_fields={"Name"},
+        )
+        claim = con.execute(
+            "select identifier_raw,identifier_normalized from identifier_claim_evidence"
+        ).fetchone()
+    assert claim == ("GAIADR3 000123", "123")
+
+
 def test_identifier_normalization_strips_only_trailing_hash_footnotes(
     tmp_path: Path,
 ) -> None:
@@ -1140,4 +1293,15 @@ def test_nasa_reference_fragment_parser_preserves_lineage_and_parses_ads() -> No
         "bibcode": "2016ApJS..225....9H",
         "doi": None,
         "publication_year": 2016,
+    }
+
+
+def test_reference_fragment_parser_recognizes_direct_ads_bibcode() -> None:
+    assert compiler.parse_reference_fragment("1926PDAO....3..341H") == {
+        "reference_key": None,
+        "display_text": "1926PDAO....3..341H",
+        "url": "https://ui.adsabs.harvard.edu/abs/1926PDAO....3..341H/abstract",
+        "bibcode": "1926PDAO....3..341H",
+        "doi": None,
+        "publication_year": 1926,
     }

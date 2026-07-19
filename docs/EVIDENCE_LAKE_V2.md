@@ -404,6 +404,26 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   text. The 6,041,600-byte artifact has logical hash
   `9d95e4669d24ff8c0db396f253436d96be42a81c9f390d0cd2b9883cf93f2979`;
   clean reproduction and independent audit pass.
+- Compiler v27 makes relation endpoint component scopes explicit rather than
+  assuming every catalog uses `left`/`right`. It also supports required,
+  ambiguity-failing orbital links to a relation in another source table through
+  exact source-native logical keys. SB9 uses primary/secondary scopes and links
+  each `orbits.Seq` to exactly one `main.Seq` relation claim; a missing or
+  multiply matched required link fails the build.
+- SB9 checkpoint `72663823963198c8fcbbe569` accounts 30,153 source rows and all
+  62 table-column occurrences. It materializes 4,079 positive binary claims,
+  5,099 separate orbit solutions linked to 4,078 relation claims, 3,478 primary
+  plus 601 secondary spectral classifications, and 3,978 primary plus 425
+  secondary magnitude measurements. Source gaps remain gaps; no secondary
+  classification or magnitude is inferred.
+- The alias table contributes release-distinct Gaia DR2/DR3 identities through
+  declared prefix stripping and unsigned-decimal normalization while retaining
+  the raw alias. Direct 19-character ADS bibcodes are recognized without
+  rewriting the citation text; 1,807 of 1,826 references receive ADS locators.
+  The 95,956,992-byte artifact has logical hash
+  `1406dc3e6c30b4b1e92bfc333abb953478d0f38b1f473ba7419c70c9750c2ddf`.
+  Clean reproduction and the independent audit pass; no relation is promoted
+  to canonical containment.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

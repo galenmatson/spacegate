@@ -96,6 +96,16 @@ Evidence Lake v2 staging rule:
   predicate, method, reference, parameter JSON, and quality JSON. McGill
   timing, X-ray, distance, position, and association/activity records use this
   contract rather than one incompatible field-wise composite.
+- `relation_claim_evidence` stores `left_component_scope` and
+  `right_component_scope` explicitly. Audits resolve each endpoint through an
+  identifier claim and its matching binding scope; they do not assume all
+  sources use generic `left`/`right` labels. SB9 therefore retains source-native
+  `primary`/`secondary`, while the El-Badry wide-pair adapter retains
+  `left`/`right`.
+- `orbital_solution_evidence.relation_claim_id` may be resolved across source
+  tables by an exact configured logical-key mapping. Required mappings fail on
+  zero or multiple matches. This links SB9 orbit rows to system relation claims
+  by `Seq` without name parsing or array-position identity.
 
 ## Artifact Contract
 

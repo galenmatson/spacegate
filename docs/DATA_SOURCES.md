@@ -269,6 +269,10 @@ Evidence Lake E4 source checkpoints:
   31 normalized/raw magnetar identities, and 139 separate timing, X-ray,
   distance, position, and source-context parameter sets; 96 source reference
   codes are retained, while full bibliography acquisition remains pending
+- SB9 `72663823963198c8fcbbe569`: all 30,153 ReadMe/system/alias/orbit rows and
+  62 table-column occurrences; 4,079 primary/secondary binary claims, 5,099
+  linked orbit solutions, 4,079 component spectra, 4,403 component magnitudes,
+  release-distinct Gaia DR2/DR3 aliases, and 1,807 recognized ADS bibcodes
 
 ### Exoplanet Lifecycle Notes
 

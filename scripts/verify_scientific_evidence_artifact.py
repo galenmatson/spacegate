@@ -37,38 +37,59 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         "relation_endpoints_without_identifier_claims": scalar_count(
             con,
             """
-            select count(*)
-            from relation_claim_evidence r
-            left join identifier_claim_evidence l
-              on l.source_record_id=r.source_record_id
-             and l.namespace=r.left_identity_namespace
-             and l.identifier_normalized=r.left_identity_raw
-             and l.component_scope='left'
-            left join identifier_claim_evidence rr
-              on rr.source_record_id=r.source_record_id
-             and rr.namespace=r.right_identity_namespace
-             and rr.identifier_normalized=r.right_identity_raw
-             and rr.component_scope='right'
-            where l.evidence_id is null or rr.evidence_id is null
+            with endpoints as (
+              select evidence_id, source_record_id, 'left' endpoint_side,
+                left_identity_namespace endpoint_namespace,
+                left_identity_raw endpoint_raw,
+                left_component_scope endpoint_scope
+              from relation_claim_evidence
+              union all
+              select evidence_id, source_record_id, 'right',
+                right_identity_namespace, right_identity_raw,
+                right_component_scope
+              from relation_claim_evidence
+            )
+            select count(distinct e.evidence_id)
+            from endpoints e
+            left join identifier_claim_evidence i
+              on i.source_record_id=e.source_record_id
+             and i.namespace=e.endpoint_namespace
+             and i.identifier_normalized=e.endpoint_raw
+             and i.component_scope is not distinct from e.endpoint_scope
+            where i.evidence_id is null
             """,
         ),
         "relation_endpoints_without_binding_scopes": scalar_count(
             con,
             """
-            with relation_scopes as (
-              select
-                r.source_record_id,
-                count(b.binding_outcome_id) binding_count,
-                count(distinct b.component_scope) component_count
-              from relation_claim_evidence r
+            with endpoints as (
+              select evidence_id, source_record_id,
+                left_identity_namespace endpoint_namespace,
+                left_identity_raw endpoint_raw,
+                left_component_scope endpoint_scope
+              from relation_claim_evidence
+              union all
+              select evidence_id, source_record_id,
+                right_identity_namespace, right_identity_raw,
+                right_component_scope
+              from relation_claim_evidence
+            ), endpoint_bindings as (
+              select e.evidence_id, e.endpoint_namespace, e.endpoint_raw,
+                count(b.binding_outcome_id) binding_count
+              from endpoints e
+              left join identifier_claim_evidence i
+                on i.source_record_id=e.source_record_id
+               and i.namespace=e.endpoint_namespace
+               and i.identifier_normalized=e.endpoint_raw
+               and i.component_scope is not distinct from e.endpoint_scope
               left join object_binding_outcomes b
-                on b.source_record_id=r.source_record_id
-               and b.binding_scope='star'
-               and b.component_scope in ('left','right')
-              group by r.source_record_id
+                on b.source_record_id=e.source_record_id
+               and b.binding_scope=i.claim_scope
+               and b.component_scope is not distinct from i.component_scope
+              group by e.evidence_id, e.endpoint_namespace, e.endpoint_raw
             )
-            select count(*) from relation_scopes
-            where binding_count<>2 or component_count<>2
+            select count(distinct evidence_id) from endpoint_bindings
+            where binding_count=0
             """,
         ),
         "strict_probabilities_outside_unit_interval": scalar_count(

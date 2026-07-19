@@ -1167,6 +1167,31 @@ Representative commits:
   Clean scratch reproduction and the independent artifact audit pass; no served
   or canonical database changed.
 
+### 39) Evidence Lake E4 SB9 Scoped Relations and Linked Orbits
+
+- The first SB9 E4 build exposed a general audit assumption: relation endpoint
+  scopes were implicitly `left`/`right`. Compiler/schema v26 now stores explicit
+  endpoint component scopes, and the independent audit matches each endpoint
+  through its identifier claim and corresponding binding outcome. El-Badry
+  remains left/right; SB9 remains primary/secondary.
+- Compiler v27 adds required cross-table orbit-to-relation linkage through exact
+  source logical keys. A zero- or multi-match leaves the link null and fails a
+  required build. All 5,099 SB9 orbit rows link by `Seq` to exactly one of 4,078
+  system relations; multiple source solutions remain separate, up to six for a
+  system.
+- Checkpoint `72663823963198c8fcbbe569` accounts all 30,153 rows and 62
+  table-column occurrences from the pinned ReadMe, main, alias, and orbit files.
+  It emits 4,079 positive binary claims, 4,079 component spectral observations
+  (3,478 primary; 601 secondary), and 4,403 component magnitude measurements
+  (3,978 primary; 425 secondary). Missing secondary evidence is not inferred.
+- Alias handling emits 3,543 Gaia DR2 and 3,530 Gaia DR3 claims in separate
+  release namespaces. Direct ADS-bibcode parsing resolves 1,807 of 1,826 source
+  references and preserves every raw reference. The 95,956,992-byte artifact
+  has logical hash
+  `1406dc3e6c30b4b1e92bfc333abb953478d0f38b1f473ba7419c70c9750c2ddf`.
+  Clean scratch reproduction and the independent audit pass. No SB9 claim is
+  canonical containment, and no named-system production branch was added.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.24",
-  "compiler_version": "scientific_evidence_compiler_v24",
+  "contract_version": "2026-07-19.e4-foundation.27",
+  "compiler_version": "scientific_evidence_compiler_v27",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -590,6 +590,60 @@
         "destination": "compact_object_evidence",
         "reason": "coherent source-native timing, X-ray, distance, position, association, band, and activity parameter context"
       }
+    ],
+    "sb9_systems": [
+      {
+        "pattern": "^(Seq|B1900|Comp|Name)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SB9 sequence, coordinate designation, component label, and preferred source name"
+      },
+      {
+        "pattern": "^(Sp1|Sp2)$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source-native primary or secondary spectral classification"
+      },
+      {
+        "pattern": "^(mag1|n_mag1|mag2|n_mag2)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "component-scoped apparent magnitude and source-native band flag"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "SB9 binary inventory, source position, component context, and exact row lineage"
+      }
+    ],
+    "sb9_aliases": [
+      {
+        "pattern": "^(Seq|Name)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SB9 system sequence and source-native alias"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "fixed-width alias row lineage"
+      }
+    ],
+    "sb9_orbits": [
+      {
+        "pattern": "^Seq$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SB9 system sequence identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "coherent source-native spectroscopic orbit, flags, grade, reference, contributor, and exact row lineage"
+      }
     ]
   },
   "source_adapters": {
@@ -799,8 +853,10 @@
           "relation_claim": {
             "left_identifier_field": "source_id1",
             "left_identifier_namespace": "gaia_edr3_source_id",
+            "left_component_scope": "left",
             "right_identifier_field": "source_id2",
             "right_identifier_namespace": "gaia_edr3_source_id",
+            "right_component_scope": "right",
             "relation_kind": "candidate_gravitationally_bound_wide_binary",
             "relation_scope": "stellar_pair",
             "evidence_polarity": "candidate",
@@ -830,8 +886,10 @@
           "relation_claim": {
             "left_identifier_field": "source_id1",
             "left_identifier_namespace": "gaia_edr3_source_id",
+            "left_component_scope": "left",
             "right_identifier_field": "source_id2",
             "right_identifier_namespace": "gaia_edr3_source_id",
+            "right_component_scope": "right",
             "relation_kind": "shifted_sky_chance_alignment_control",
             "relation_scope": "stellar_pair_control",
             "evidence_polarity": "negative_control",
@@ -1398,6 +1456,127 @@
               "normalization_version": "mcgill_source_native_lexical_v1"
             }
           ]
+        }
+      }
+    },
+    "multiplicity.sb9": {
+      "adapter_version": "sb9_scientific_evidence_v1",
+      "table_order": ["sb9_readme", "sb9_main", "sb9_alias", "sb9_orbits"],
+      "tables": {
+        "sb9_readme": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_document",
+          "field_profile": "source_method_document"
+        },
+        "sb9_main": {
+          "logical_key_fields": ["Seq"],
+          "object_scope": "spectroscopic_binary_system",
+          "field_profile": "sb9_systems",
+          "identifier_claims": {
+            "Seq": {"namespace": "sb9_sequence", "claim_scope": "system"},
+            "B1900": {"namespace": "sb9_b1900_designation", "claim_scope": "system"},
+            "Comp": {"namespace": "sb9_component_label", "claim_scope": "component_label"},
+            "Name": {"namespace": "catalog_alias", "claim_scope": "system"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["Seq"], "prefix": "SB9_", "namespace": "sb9_system", "claim_scope": "system"},
+            {"fields": ["Seq"], "prefix": "SB9_", "suffix": ":primary", "namespace": "sb9_component", "claim_scope": "star", "component_scope": "primary"},
+            {"fields": ["Seq"], "prefix": "SB9_", "suffix": ":secondary", "namespace": "sb9_component", "claim_scope": "star", "component_scope": "secondary"}
+          ],
+          "relation_claim": {
+            "left_identifier_field": "Seq",
+            "left_identifier_namespace": "sb9_component",
+            "left_component_scope": "primary",
+            "left_identifier_prefix": "SB9_",
+            "left_identifier_suffix": ":primary",
+            "right_identifier_field": "Seq",
+            "right_identifier_namespace": "sb9_component",
+            "right_component_scope": "secondary",
+            "right_identifier_prefix": "SB9_",
+            "right_identifier_suffix": ":secondary",
+            "relation_kind": "spectroscopic_binary",
+            "relation_scope": "pair",
+            "evidence_polarity": "positive",
+            "method": "sb9_catalog_entry",
+            "reference_raw": "https://cdsarc.cds.unistra.fr/ftp/B/sb9/ReadMe",
+            "quality_fields": [
+              "source_line_number", "B1900", "RAh", "RAm", "RAs", "DE-",
+              "DEd", "DEm", "DEs", "Comp", "Name", "raw_row"
+            ]
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "parameter_set_kind": "sb9_primary_component",
+              "component_scope": "primary",
+              "classification_field": "Sp1",
+              "classification_scheme": "spectral_type",
+              "quality_fields": ["n_mag1", "Comp", "Name"],
+              "measurements": [
+                {"value_field": "mag1", "quantity_key": "sb9.apparent_magnitude", "unit_raw": "mag", "normalized_unit": "mag"}
+              ],
+              "method": "sb9_source_component_observation",
+              "normalization_version": "sb9_source_native_lexical_v1"
+            },
+            {
+              "parameter_set_kind": "sb9_secondary_component",
+              "component_scope": "secondary",
+              "classification_field": "Sp2",
+              "classification_scheme": "spectral_type",
+              "quality_fields": ["n_mag2", "Comp", "Name"],
+              "measurements": [
+                {"value_field": "mag2", "quantity_key": "sb9.apparent_magnitude", "unit_raw": "mag", "normalized_unit": "mag"}
+              ],
+              "method": "sb9_source_component_observation",
+              "normalization_version": "sb9_source_native_lexical_v1"
+            }
+          ]
+        },
+        "sb9_alias": {
+          "logical_key_fields": ["Seq", "Name", "source_line_number"],
+          "object_scope": "system_alias",
+          "field_profile": "sb9_aliases",
+          "identifier_claims": {
+            "Seq": {"namespace": "sb9_sequence", "claim_scope": "system"},
+            "Name": {"namespace": "catalog_alias", "claim_scope": "system"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["Seq"], "prefix": "SB9_", "namespace": "sb9_system", "claim_scope": "system"}
+          ],
+          "conditional_identifier_claims": [
+            {"value_field": "Name", "namespace": "gaia_dr2_source_id", "claim_scope": "star", "sql_predicate": "Name like 'GAIADR2 %'", "strip_prefix": "GAIADR2 ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "Name", "namespace": "gaia_dr3_source_id", "claim_scope": "star", "sql_predicate": "Name like 'GAIADR3 %'", "strip_prefix": "GAIADR3 ", "normalization": "unsigned_integer_decimal_v1"}
+          ]
+        },
+        "sb9_orbits": {
+          "logical_key_fields": ["Seq", "o", "source_line_number"],
+          "object_scope": "spectroscopic_orbit_solution",
+          "field_profile": "sb9_orbits",
+          "identifier_claims": {
+            "Seq": {"namespace": "sb9_sequence", "claim_scope": "system"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["Seq"], "prefix": "SB9_", "namespace": "sb9_system", "claim_scope": "system"},
+            {"fields": ["Seq", "o"], "prefix": "SB9_", "delimiter": ":orbit:", "namespace": "sb9_orbit", "claim_scope": "orbit_solution"}
+          ],
+          "orbital_solution": {
+            "solution_key_fields": ["Seq", "o"],
+            "parameter_fields": [
+              "Per", "f_Per", "e_Per", "T0", "n_T0", "e_T0", "f_T0",
+              "e", "f_e", "e_e", "omega", "f_omega", "e_omega",
+              "K1", "u_K1", "f_K1", "e_K1", "K2", "u_K2", "f_K2", "e_K2",
+              "V0", "u_V0", "f_V0", "e_V0", "rms1", "rms2", "o_K1", "o_K2"
+            ],
+            "quality_fields": ["source_line_number", "Grade", "Contr", "unnamed_293_295", "raw_row"],
+            "reference_field": "Ref",
+            "relation_link": {
+              "source_table": "sb9_main",
+              "key_fields": {"Seq": "Seq"},
+              "required": true
+            },
+            "sql_predicate": "nullif(trim(Per), '') is not null",
+            "method": "sb9_spectroscopic_orbit",
+            "normalization_version": "sb9_source_native_lexical_v1"
+          }
         }
       }
     }

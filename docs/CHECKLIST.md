@@ -1166,6 +1166,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E3/E4 McGill bibliography follow-up: pin and type the publisher's full
   reference-key bibliography, then validate source codes before creating
   resolved citation metadata
+- [x] E4 SB9 checkpoint: preserve the complete ReadMe/system/alias/orbit release,
+  explicit primary/secondary relation endpoints, scoped component spectra and
+  magnitudes, release-correct Gaia aliases, coherent ADS-linked orbit solutions,
+  and deterministic cross-table relation links; pass clean reproduction and
+  artifact audit without canonical containment promotion
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

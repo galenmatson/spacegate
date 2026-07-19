@@ -1490,6 +1490,17 @@ Current status (July 19, 2026, in progress):
   The source codes produce 96 distinct reference records and 128 links; full
   bibliography expansion remains an explicit E3/E4 follow-up. Clean
   reproduction and the independent artifact audit pass.
+- SB9 checkpoint `72663823963198c8fcbbe569` preserves all 30,153 rows and 62
+  table-column occurrences across the ReadMe, system inventory, aliases, and
+  orbit tables. It emits 4,079 positive spectroscopic-binary claims with
+  explicit primary/secondary endpoint scopes, 5,099 coherent orbit solutions,
+  4,079 component spectral classifications, and 4,403 component magnitude
+  measurements. Every orbit links deterministically by source `Seq` to exactly
+  one relation; multiple published solutions remain separate.
+- SB9 alias evidence keeps 3,543 Gaia DR2 and 3,530 Gaia DR3 claims in distinct
+  release namespaces. Of 1,826 references, 1,807 direct ADS bibcodes receive
+  deterministic ADS links. No SB9 relation becomes canonical containment;
+  clean reproduction and the independent audit pass.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

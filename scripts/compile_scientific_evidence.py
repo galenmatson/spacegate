@@ -211,8 +211,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 required = {
                     "left_identifier_field",
                     "left_identifier_namespace",
+                    "left_component_scope",
                     "right_identifier_field",
                     "right_identifier_namespace",
+                    "right_component_scope",
                     "relation_kind",
                     "relation_scope",
                     "evidence_polarity",
@@ -269,6 +271,13 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = orbital_solution.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+                relation_link = orbital_solution.get("relation_link")
+                if relation_link:
+                    for field in ("source_table", "key_fields"):
+                        if not relation_link.get(field):
+                            errors.append(f"{prefix}.relation_link.{field} must be non-empty")
+                    if not isinstance(relation_link.get("key_fields"), dict):
+                        errors.append(f"{prefix}.relation_link.key_fields must be an object")
             for index, parameter_set in enumerate(
                 table.get("scoped_stellar_parameter_sets") or []
             ):
@@ -337,6 +346,16 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 for field in ("value_field", "namespace", "claim_scope", "sql_predicate"):
                     if not str(claim.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
+                if claim.get("strip_prefix") is not None and not str(
+                    claim.get("strip_prefix") or ""
+                ):
+                    errors.append(f"{prefix}.strip_prefix must be non-empty")
+                if claim.get("normalization") not in {
+                    None,
+                    "trim_v1",
+                    "unsigned_integer_decimal_v1",
+                }:
+                    errors.append(f"{prefix}.normalization is unsupported")
             citation_catalog = table.get("citation_catalog")
             if citation_catalog:
                 prefix = f"{source_id}.{table_name}.citation_catalog"
@@ -673,8 +692,10 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           source_record_id varchar not null,
           left_identity_namespace varchar not null,
           left_identity_raw varchar not null,
+          left_component_scope varchar not null,
           right_identity_namespace varchar not null,
           right_identity_raw varchar not null,
+          right_component_scope varchar not null,
           relation_kind varchar not null,
           relation_scope varchar not null,
           probability double,
@@ -1149,17 +1170,26 @@ def materialize_conditional_identifier_claims(
             )
         consumed.add(field)
         raw = text_expression(field)
+        normalized = raw
+        strip_prefix = claim.get("strip_prefix")
+        if strip_prefix:
+            normalized = f"trim(substr({raw}, {len(str(strip_prefix)) + 1}))"
+        normalization = str(claim.get("normalization") or "trim_v1")
+        if normalization == "unsigned_integer_decimal_v1":
+            normalized = f"cast(try_cast({normalized} as ubigint) as varchar)"
         namespace = str(claim["namespace"])
         branches.append(
             f"""
             select distinct
               sha256({sql_string('conditional-identifier|' + namespace + '|' + str(index) + '|')} || r.source_record_id),
-              r.source_record_id, {sql_string(namespace)}, {raw}, {raw},
+              r.source_record_id, {sql_string(namespace)}, {raw}, {normalized},
               {sql_string(str(claim['claim_scope']))},
               {nullable_sql_string(claim.get('component_scope'))}, null,
               json_object(
                 'source_field', {sql_string(field)},
-                'predicate', {sql_string(str(claim['sql_predicate']))}
+                'predicate', {sql_string(str(claim['sql_predicate']))},
+                'strip_prefix', {nullable_sql_string(strip_prefix)},
+                'normalization', {sql_string(normalization)}
               )
             from read_parquet({sql_string(str(path))}) t
             join source_records r
@@ -1628,6 +1658,7 @@ def configured_scoped_stellar_fields(table_contract: dict[str, Any]) -> set[str]
             fields.add(str(parameter_set["classification_field"]))
         if parameter_set.get("reference_field"):
             fields.add(str(parameter_set["reference_field"]))
+        fields.update(str(field) for field in parameter_set.get("quality_fields") or [])
         for measurement in parameter_set.get("measurements") or []:
             fields.add(str(measurement["value_field"]))
             if measurement.get("uncertainty_field"):
@@ -1677,11 +1708,13 @@ def materialize_scoped_stellar_evidence(
         method = str(config["method"])
         normalization = str(config["normalization_version"])
         reference_field = config.get("reference_field")
+        quality_fields = [str(field) for field in config.get("quality_fields") or []]
         configured_fields = {
             str(value)
             for value in (config.get("classification_field"), reference_field)
             if value
         }
+        configured_fields.update(quality_fields)
         for measurement in config["measurements"]:
             configured_fields.add(str(measurement["value_field"]))
             if measurement.get("uncertainty_field"):
@@ -1693,6 +1726,11 @@ def materialize_scoped_stellar_evidence(
             )
         consumed.update(configured_fields)
         reference = text_expression(reference_field)
+        source_quality = (
+            logical_key_expression(quality_fields, "t")
+            if quality_fields
+            else "'{}'::json"
+        )
         parameter_set_id = (
             f"sha256({sql_string('stellar-parameter-set|' + kind + '|' + scope + '|')} "
             "|| r.source_record_id)"
@@ -1721,7 +1759,8 @@ def materialize_scoped_stellar_evidence(
                     'source_field', {sql_string(classification_field)},
                     'evidence_scope', {sql_string(scope)},
                     'component_scope', {component_scope_sql},
-                    'missing_values', {sql_string(json.dumps(config.get('classification_missing_values') or []))}
+                    'missing_values', {sql_string(json.dumps(config.get('classification_missing_values') or []))},
+                    'source_quality', {source_quality}
                   )
                 from read_parquet({sql_string(str(path))}) t
                 join source_records r
@@ -1770,7 +1809,8 @@ def materialize_scoped_stellar_evidence(
                     'evidence_scope', {sql_string(scope)},
                     'component_scope', {component_scope_sql},
                     'parameter_set_kind', {sql_string(kind)},
-                    'missing_values', {sql_string(json.dumps(measurement.get('missing_values') or []))}
+                    'missing_values', {sql_string(json.dumps(measurement.get('missing_values') or []))},
+                    'source_quality', {source_quality}
                   ),
                   {sql_string(normalization)}
                 from read_parquet({sql_string(str(path))}) t
@@ -1796,7 +1836,8 @@ def materialize_scoped_stellar_evidence(
                   json_object(
                     'parameter_set_kind', {sql_string(kind)},
                     'evidence_scope', {sql_string(scope)},
-                    'component_scope', {component_scope_sql}
+                    'component_scope', {component_scope_sql},
+                    'quality_fields', {sql_string(json.dumps(quality_fields))}
                   )
                 from stellar_parameter_evidence e
                 join source_records r using (source_record_id)
@@ -2053,8 +2094,18 @@ def materialize_relation_claims(
     if missing:
         raise ValueError(f"relation fields missing from {table_name}: {missing}")
 
-    left = text_expression(left_field)
-    right = text_expression(right_field)
+    def endpoint_expression(side: str, field: str) -> str:
+        raw = text_expression(field)
+        prefix = str(relation_claim.get(f"{side}_identifier_prefix") or "")
+        suffix = str(relation_claim.get(f"{side}_identifier_suffix") or "")
+        return (
+            f"{sql_string(prefix)} || {raw} || {sql_string(suffix)}"
+            if prefix or suffix
+            else raw
+        )
+
+    left = endpoint_expression("left", left_field)
+    right = endpoint_expression("right", right_field)
     probability = (
         f"try_cast({sql_identifier(str(probability_field))} as double)"
         if probability_field
@@ -2096,8 +2147,10 @@ def materialize_relation_claims(
           r.source_record_id,
           {sql_string(str(relation_claim['left_identifier_namespace']))},
           {left},
+          {sql_string(str(relation_claim['left_component_scope']))},
           {sql_string(str(relation_claim['right_identifier_namespace']))},
           {right},
+          {sql_string(str(relation_claim['right_component_scope']))},
           {sql_string(str(relation_claim['relation_kind']))},
           {sql_string(str(relation_claim['relation_scope']))},
           {probability},
@@ -2182,6 +2235,35 @@ def materialize_orbital_solutions(
     frame = text_expression(orbital_solution.get("frame_field"))
     reference = text_expression(orbital_solution.get("reference_field"))
     model = nullable_sql_string(orbital_solution.get("model"))
+    relation_link = orbital_solution.get("relation_link") or {}
+    relation_claim_id = "null::varchar"
+    if relation_link:
+        key_fields_map = {
+            str(local_field): str(relation_field)
+            for local_field, relation_field in relation_link["key_fields"].items()
+        }
+        missing_link_fields = sorted(set(key_fields_map) - available_fields)
+        if missing_link_fields:
+            raise ValueError(
+                f"orbital relation-link fields missing from {table_name}: {missing_link_fields}"
+            )
+        consumed.update(key_fields_map)
+        predicates = " and ".join(
+            f"trim(cast(rr.logical_key_json->>{sql_string(relation_field)} as varchar))="
+            f"trim(cast(t.{sql_identifier(local_field)} as varchar))"
+            for local_field, relation_field in key_fields_map.items()
+        )
+        relation_claim_id = f"""
+          (
+            select case when count(*)=1 then min(rc.evidence_id) end
+            from source_records rr
+            join relation_claim_evidence rc using (source_record_id)
+            where rr.source_id={sql_string(source_id)}
+              and rr.release_id={sql_string(release_id)}
+              and rr.source_table={sql_string(str(relation_link['source_table']))}
+              and {predicates}
+          )
+        """
     namespace = f"orbital-solution|{table_name}|"
     con.execute(
         f"""
@@ -2189,7 +2271,7 @@ def materialize_orbital_solutions(
         select distinct
           sha256({sql_string(namespace)} || r.source_record_id),
           r.source_record_id,
-          null,
+          {relation_claim_id},
           {solution_key},
           {parameters},
           {epoch},
@@ -2208,6 +2290,23 @@ def materialize_orbital_solutions(
         where {str(orbital_solution.get('sql_predicate') or 'true')}
         """
     )
+    if relation_link.get("required"):
+        unresolved = int(
+            con.execute(
+                """
+                select count(*)
+                from orbital_solution_evidence o
+                join source_records r using (source_record_id)
+                where r.source_id=? and r.release_id=? and r.source_table=?
+                  and o.relation_claim_id is null
+                """,
+                [source_id, release_id, table_name],
+            ).fetchone()[0]
+        )
+        if unresolved:
+            raise ValueError(
+                f"required orbital relation links unresolved in {table_name}: {unresolved}"
+            )
     return consumed
 
 
@@ -2384,6 +2483,11 @@ def parse_reference_fragment(raw: str) -> dict[str, Any]:
         match = re.search(r"/abs/([^/?#]+)", url)
         if match:
             bibcode = unquote(match.group(1))
+    if bibcode is None and re.fullmatch(
+        r"(?:18|19|20)\d{2}\S{15}", display_text
+    ):
+        bibcode = display_text
+        url = f"https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"
     doi = None
     doi_match = re.search(r"10\.\d{4,9}/[^\s<>]+", unquote(url or raw), re.IGNORECASE)
     if doi_match:

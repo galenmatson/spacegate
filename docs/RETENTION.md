@@ -184,7 +184,12 @@ clean-reproduction report are likewise protected. ATNF checkpoint
 `64c55c19a5a10a88877d4cd2`, its pinned raw/typed package, and its audit and
 clean-reproduction reports are also protected. McGill magnetar checkpoint
 `c599c951590451ace4248934`, its pinned `TabO1.csv` raw/typed snapshots, and its
-audit and clean-reproduction reports are likewise protected. Earlier
+audit and clean-reproduction reports are likewise protected. SB9 checkpoint
+`72663823963198c8fcbbe569`, all four pinned source tables, and its audit and
+clean-reproduction reports are protected. Earlier SB9 compiler artifacts
+`5a216d394e0773f6175ff226` and `407c81af12127feb9cf61048` predate the accepted
+endpoint-scope/cross-table-link contract and are retention dry-run candidates,
+not manual deletion targets. Earlier
 source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.
