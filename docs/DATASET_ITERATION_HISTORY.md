@@ -1347,6 +1347,19 @@ Representative commits:
   `0dc54bd5a607cff1da7f5315ea147a5075f6389c6cb28e29a2523215fca23204`
   authorized whole-tree removal. Raw/typed inputs, logs, reports, immutable v36,
   and the active v38 replacement were not changed.
+- The bounded v38 retry completed as immutable checkpoint
+  `fc5bd4e6398d72bde50ba6d5`. It materializes all 161 registered field
+  occurrences, preserves 22,951,059 selected source records, and explicitly
+  rejects all 285 invalid numeric HIP normalizations. Its independent artifact
+  audit passes with no scope, identity, citation, or orphan failures. Clean
+  reproduction matches logical hash
+  `673cebbbfcc4055fb7a6a007824ba11eac75bcc7b038bb138a15abf6cf9288d7`
+  with no differing sections and removes the scratch artifact.
+- After that replacement was durable, the retention gate selected only the
+  independently audit-failed v36 build `07230826efefffce913a3569`. Candidate
+  hash `de47f05ca412b29f501f0eb1ee7e23b3be2327f7d5834de7f7114fe1f96af8f5`
+  authorized whole-artifact removal and reclaimed 42,799,505,408 allocated
+  bytes. Raw/typed SIMBAD snapshots, v38, and all durable reports remain.
 
 ## Recurrent Defect Classes and Mitigations
 

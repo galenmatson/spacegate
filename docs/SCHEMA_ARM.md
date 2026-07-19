@@ -47,6 +47,13 @@ Evidence Lake v2 staging rule:
   A field declaration is not materialization: `declared_pending` fields keep an
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
+- Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5` validates the
+  bounded citation and identity contracts at scale. Its 32-bucket astrometry-
+  citation expansion preserves the same exhaustive evidence relation under a
+  16-GB DuckDB limit; 285 component-suffixed HIP aliases remain normalization
+  rejections rather than empty claims. Independent audit and clean logical-hash
+  reproduction pass. This checkpoint is still pre-ARM evidence, not a selected
+  public-fact or canonical-inventory promotion.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

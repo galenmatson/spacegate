@@ -1578,8 +1578,9 @@ Current status (July 19, 2026, in progress):
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general
   operation into 32 exhaustive source-record hash buckets, disables unnecessary
   insertion-order preservation, and retains ordered duplicate-sensitive
-  logical hashes. The retry, independent audit, and clean reproduction remain
-  open acceptance gates.
+  logical hashes. Checkpoint `fc5bd4e6398d72bde50ba6d5` passes the independent
+  artifact audit and clean reproduction at logical hash
+  `673cebbbfcc4055fb7a6a007824ba11eac75bcc7b038bb138a15abf6cf9288d7`.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

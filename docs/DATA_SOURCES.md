@@ -123,6 +123,14 @@ bibliography acquisition. Full TIC, Gaia observation products, and survey
 spectra remain excluded from bulk mirroring; registered metadata and product
 locators drive bounded on-demand retrieval.
 
+The complete staged SIMBAD snapshot contributes 35,321,742 typed rows across
+the bounded Gaia-envelope bridge, basic, identifier, and bibliography tables.
+E4 checkpoint `fc5bd4e6398d72bde50ba6d5` accounts every registered field,
+materializes identity, classification, astrometry, and bibliography evidence,
+and quarantines 285 component-suffixed HIP aliases that cannot normalize as
+numeric HIP claims. Its independent audit and clean logical-hash reproduction
+pass; SIMBAD remains evidence and does not create canonical inventory.
+
 Pinned HTML sources must declare their semantic table contract when one exists.
 The WGSN snapshot declares and validates all 16 catalog headers, preserves row
 identity and linked resources, and excludes unrelated page tables and footer

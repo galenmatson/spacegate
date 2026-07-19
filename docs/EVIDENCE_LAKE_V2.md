@@ -379,8 +379,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   join into 32 deterministic source-record hash buckets and disables
   unnecessary insertion-order preservation while retaining explicitly ordered,
   duplicate-sensitive logical hashes. Operator-configured scratch still places
-  disposable spill outside `/data`. The v38 retry requires independent audit
-  and clean reproduction before it can become a checkpoint.
+  disposable spill outside `/data`. Checkpoint `fc5bd4e6398d72bde50ba6d5`
+  materializes all 161 registered field occurrences into 22,951,059 exact source
+  records, 50,453,123 identifier claims, 435,079 source classifications,
+  1,862,866 astrometry bundles, 465,243 citations, and 30,744,757 evidence links.
+  All 285 component-suffixed HIP normalization failures remain explicit
+  rejections rather than blank claims. The independent artifact audit passes,
+  and clean reproduction matches logical hash
+  `673cebbbfcc4055fb7a6a007824ba11eac75bcc7b038bb138a15abf6cf9288d7`
+  with no differing sections and removes its external scratch tree.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

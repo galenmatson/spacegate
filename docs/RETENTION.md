@@ -212,6 +212,17 @@ The matching applied report reclaimed 36,925,886,464 allocated bytes. Raw/typed
 inputs, failure logs, immutable v36, and the active v38 replacement remained
 protected.
 
+The v38 replacement then passed independent artifact audit and clean logical-
+hash reproduction as build `fc5bd4e6398d72bde50ba6d5`. Only after those
+reports were durable did
+`e4_simbad_v36_failed_artifact_retention_dry_run.json` select immutable v36
+build `07230826efefffce913a3569`, whose independent audit failed exactly 285
+blank identifier claims. Candidate hash
+`de47f05ca412b29f501f0eb1ee7e23b3be2327f7d5834de7f7114fe1f96af8f5`
+authorized the matching applied report and reclaimed 42,799,505,408 allocated
+bytes. The raw and typed snapshots, accepted v38 artifact, audit, reproduction,
+compiler, and retention reports remain protected.
+
 Evidence Lake identity graphs under
 `derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
 artifacts. Preserve the graph named by the adjacent atomic `current` pointer and
@@ -246,6 +257,9 @@ The field-complete NASA checkpoint `cb82c09179afa740b02e2cdf` is approximately
 reference. Earlier content-addressed experiments and interrupted hidden
 temporary directories are cleanup candidates only through a retention dry-run;
 do not remove the current reference, a reproduction input, or a rollback build.
+Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5`, its immutable
+raw/typed inputs, independent audit, and clean-reproduction report are protected
+inputs to E4/E5.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`
