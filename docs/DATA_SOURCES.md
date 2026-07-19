@@ -249,6 +249,16 @@ Interpretation note:
 | TESS EB catalog (Villanova) | default-on | on | `SPACEGATE_ENABLE_TESS_EB` | eclipsing/variability expansion beyond Kepler with deterministic paginated export capture |
 | NASA TESS Objects of Interest + targeted TIC/MAST/Gaia metadata | default-on identity + `arm` evidence | on | `SPACEGATE_ENABLE_TESS_EVIDENCE` | exact TIC/TOI lookup, missing-object audit, candidate/transit evidence, and targeted Gaia reconciliation without bulk TIC ingestion; see `docs/TESS_INTEGRATION.md` |
 
+Evidence Lake E4 source checkpoints:
+
+- Green SNR `d08c5aa9af7dc8bcdbf0d6c3`: 310 rows/15 fields with
+  deterministic Galactic identifiers, geometry, uncertain flux/index strings,
+  aliases, and detail lineage
+- Villanova TESS EB `255678b2daa6e8bf46e6dcd9`: 17,605 rows/20 fields with
+  normalized TIC identity, positive/negative catalog membership, sector,
+  morphology, flag, Tmag, astrometry, target-context physics, and 4,584
+  positive-member orbit solutions
+
 ### Exoplanet Lifecycle Notes
 
 - `exoplanet.eu`: status overlay source; currently observed as predominantly/entirely confirmed in recent snapshots.
@@ -639,6 +649,10 @@ Policy:
 - independently supported missing real objects remain deferred until a reusable
   canonical reconciliation rule or an inspectable adjudication record accepts
   them; a local object-specific supplement file is not sufficient
+- Villanova TESS EB zero-padded TIC strings preserve their raw spelling but
+  normalize to unsigned decimal TIC IDs. `in_catalog=false` rows are negative
+  membership evidence and never receive an EB orbit solely because they appear
+  in the export.
 
 ## 13) WISE / CatWISE2020 / AllWISE
 

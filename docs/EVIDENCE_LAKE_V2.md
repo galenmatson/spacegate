@@ -350,6 +350,18 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   values remain logarithmic source measurements. Missing-value sentinels are
   recorded in the adapter and filtered from evidence without erasing the exact
   source row. All primary/secondary binding outcomes remain unresolved.
+- Contract v3 adds an extended-object parameter set beside geometry and
+  distance, plus declarative composite identifiers and configured source-native
+  scalar evidence. Green SNR checkpoint `d08c5aa9af7dc8bcdbf0d6c3` uses that
+  contract to preserve 310 SNR rows, all 15 fields, exact angular geometry,
+  1-GHz flux/index uncertainty markers, aliases, and detail locators under
+  deterministic Galactic `G...` identities.
+- TESS EB checkpoint `255678b2daa6e8bf46e6dcd9` preserves 17,605 rows and all
+  20 fields. TIC identifiers retain their zero-padded raw values and normalize
+  to unsigned decimal IDs. `in_catalog=true` is required before an orbit
+  solution is emitted; false rows remain negative catalog-membership evidence.
+  Sectors, source/flags, morphology, Tmag, astrometry, and unresolved target
+  stellar context remain independently typed and provenance-bound.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

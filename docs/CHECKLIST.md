@@ -1144,6 +1144,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 DEBCat checkpoint: preserve all 374 rows and 30 fields with separate
   primary/secondary/system parameter scopes, explicit missing sentinels, and no
   component or system leakage; pass clean reproduction/artifact audit
+- [x] E4 Green SNR checkpoint: preserve all 310 rows/15 fields with Galactic
+  identifiers, geometry, raw uncertain flux/index parameters, detail lineage,
+  clean reproduction, and artifact-audit coverage
+- [x] E4 TESS EB checkpoint: preserve all 17,605 rows/20 fields; normalize
+  zero-padded TIC identity, distinguish 4,584 catalog members from 13,021
+  nonmembers, and type sector/flag/morphology/Tmag/astrometry/orbit evidence
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

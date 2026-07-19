@@ -1078,6 +1078,27 @@ Representative commits:
 - Both checkpoints pass clean logical-hash reproduction and the independent
   artifact audit. They do not alter the served database or canonical hierarchy.
 
+### 35) Evidence Lake E4 Green SNR and TESS EB Evidence
+
+- Scientific-evidence contract v3 separates extended-object geometry, distance,
+  and source-native physical parameter sets. It also supports deterministic
+  composite identifier claims and declarative scalar measurements without
+  forcing nonnumeric source values through a numeric normalization.
+- Green SNR checkpoint `d08c5aa9af7dc8bcdbf0d6c3` preserves all 310 rows and
+  15 fields. Galactic longitude/latitude form 310 source identifiers such as
+  `G0.0+0.0`; geometry, angular size, SNR type, aliases, detail links, and raw
+  1-GHz flux/spectral-index values retain their exact uncertainty markers.
+- TESS EB checkpoint `255678b2daa6e8bf46e6dcd9` preserves all 17,605 rows and
+  20 fields. Raw zero-padded TIC strings normalize to ordinary decimal TIC IDs.
+  The source's 4,584 `in_catalog=true` rows receive orbit solutions; 13,021
+  false rows remain negative catalog-status evidence. Sector coverage,
+  source/quality flags, morphology, Tmag, six astrometric quantities, and
+  unresolved target-context stellar parameters are independently typed.
+- Both source artifacts pass clean logical-hash reproduction and the expanded
+  artifact audit, including citation, extended-geometry, identifier, scope,
+  uncertainty, parameter-set, and orphan-lineage checks. Neither changes the
+  served database or canonical inventory.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

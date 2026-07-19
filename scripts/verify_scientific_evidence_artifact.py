@@ -9,7 +9,12 @@ from typing import Any
 
 import duckdb
 
-from compile_scientific_evidence import DEFAULT_STATE, load_json, write_json
+from compile_scientific_evidence import (
+    DEFAULT_STATE,
+    EVIDENCE_REFERENCE_TABLES,
+    load_json,
+    write_json,
+)
 
 
 def scalar_count(con: duckdb.DuckDBPyConnection, sql: str) -> int:
@@ -127,6 +132,11 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
               and c.evidence_id is null
             """,
         ),
+        "empty_extended_object_geometry": scalar_count(
+            con,
+            "select count(*) from extended_object_evidence "
+            "where geometry_raw is null or geometry_raw::varchar='{}'",
+        ),
         "orphan_planet_parameter_evidence": scalar_count(
             con,
             "select count(*) from planet_parameter_evidence e "
@@ -194,6 +204,17 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             f"select count(*) from {table} where uncertainty_lower<0 or uncertainty_upper<0",
         )
         for table in uncertainty_tables
+    )
+    checks["referenced_evidence_without_citations"] = sum(
+        scalar_count(
+            con,
+            f"select count(*) from {table} e "
+            "left join evidence_citations c "
+            f"on c.evidence_table='{table}' and c.evidence_id=e.evidence_id "
+            "where nullif(trim(e.reference_raw), '') is not null "
+            "and c.evidence_id is null",
+        )
+        for table in sorted(EVIDENCE_REFERENCE_TABLES)
     )
 
     source_record_tables = [

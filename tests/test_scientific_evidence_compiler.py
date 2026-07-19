@@ -339,6 +339,19 @@ def test_artifact_audit_rejects_empty_or_orphaned_orbital_solutions() -> None:
     assert report["checks"]["orphan_orbital_solution_relations"] == 1
 
 
+def test_artifact_audit_rejects_extended_object_without_geometry() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into extended_object_evidence "
+            "(evidence_id,source_record_id,extended_kind) "
+            "values ('extended','record','test')"
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["status"] == "fail"
+    assert report["checks"]["empty_extended_object_geometry"] == 1
+
+
 def test_refuted_planet_claim_is_negative_evidence() -> None:
     expression = compiler.lifecycle_polarity_expression("disposition")
     with duckdb.connect() as con:

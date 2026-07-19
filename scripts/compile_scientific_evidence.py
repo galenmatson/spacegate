@@ -117,7 +117,7 @@ def slug(value: str) -> str:
 
 def validate_contract(contract: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v2":
+    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v3":
         errors.append("unsupported scientific evidence contract")
     if set(contract.get("domain_tables") or []) != DOMAIN_TABLES:
         errors.append("domain_tables must exactly match the compiler contract")
@@ -189,6 +189,14 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 ):
                     errors.append(
                         f"{source_id}.{table_name}.{field} has an empty excluded value"
+                    )
+                if claim.get("normalization") not in {
+                    None,
+                    "trim_v1",
+                    "unsigned_integer_decimal_v1",
+                }:
+                    errors.append(
+                        f"{source_id}.{table_name}.{field} has an unsupported identifier normalization"
                     )
             relation_claim = table.get("relation_claim")
             if relation_claim:
@@ -292,6 +300,47 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 prefix = f"{source_id}.{table_name}.photometry_measurements[{index}]"
                 for field in ("value_field", "quantity_key"):
                     if not str(measurement.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            for index, measurement in enumerate(
+                table.get("configured_domain_measurements") or []
+            ):
+                prefix = (
+                    f"{source_id}.{table_name}.configured_domain_measurements[{index}]"
+                )
+                for field in ("destination", "value_field", "quantity_key"):
+                    if not str(measurement.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                if measurement.get("destination") not in {
+                    "astrometry_distance_evidence",
+                    "variability_activity_rotation_evidence",
+                }:
+                    errors.append(f"{prefix}.destination is unsupported")
+            for index, claim in enumerate(
+                table.get("composite_identifier_claims") or []
+            ):
+                prefix = f"{source_id}.{table_name}.composite_identifier_claims[{index}]"
+                for field in ("fields", "namespace", "claim_scope"):
+                    value = claim.get(field)
+                    if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            extended_object = table.get("extended_object")
+            if extended_object:
+                prefix = f"{source_id}.{table_name}.extended_object"
+                required = {
+                    "extended_kind",
+                    "identity_key_fields",
+                    "geometry_fields",
+                    "parameter_fields",
+                    "quality_fields",
+                    "method",
+                    "normalization_version",
+                }
+                missing = sorted(required - set(extended_object))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                for field in required:
+                    value = extended_object.get(field)
+                    if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
@@ -715,6 +764,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           extended_kind varchar not null,
           geometry_raw json,
           distance_raw json,
+          parameter_set_raw json,
           method varchar,
           model varchar,
           reference_raw varchar,
@@ -909,6 +959,12 @@ def materialize_identifier_claims(
             values = ", ".join(sql_string(value) for value in excluded_values)
             excluded_predicate = f"and trim(cast({quoted} as varchar)) not in ({values})"
         evidence_namespace = f"identifier|{field}|"
+        normalization = str(claim.get("normalization") or "trim_v1")
+        normalized = (
+            "cast(try_cast(s.value_raw as ubigint) as varchar)"
+            if normalization == "unsigned_integer_decimal_v1"
+            else "trim(s.value_raw)"
+        )
         branches.append(
             f"""
             select
@@ -916,11 +972,14 @@ def materialize_identifier_claims(
               r.source_record_id,
               {sql_string(namespace)},
               s.value_raw,
-              trim(s.value_raw),
+              {normalized},
               {sql_string(claim_scope)},
               {nullable_sql_string(component_scope)},
               null,
-              json_object('source_field', {sql_string(field)})
+              json_object(
+                'source_field', {sql_string(field)},
+                'normalization', {sql_string(normalization)}
+              )
             from (
               select distinct
                 sha256(to_json(t)) source_row_sha256,
@@ -941,6 +1000,66 @@ def materialize_identifier_claims(
             "insert into identifier_claim_evidence " + " union all ".join(branches)
         )
     return set(fields)
+
+
+def materialize_composite_identifier_claims(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    claims: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    branches = []
+    for index, claim in enumerate(claims):
+        fields = [str(field) for field in claim["fields"]]
+        missing = sorted(set(fields) - available_fields)
+        if missing:
+            raise ValueError(
+                f"composite identifier fields missing from {table_name}: {missing}"
+            )
+        consumed.update(fields)
+        delimiter = str(claim.get("delimiter") or "")
+        parts = [sql_string(str(claim.get("prefix") or ""))]
+        for field_index, field in enumerate(fields):
+            if field_index:
+                parts.append(sql_string(delimiter))
+            parts.append(f"trim(cast({sql_identifier(field)} as varchar))")
+        parts.append(sql_string(str(claim.get("suffix") or "")))
+        value = " || ".join(parts)
+        nonblank = " and ".join(
+            f"nullif(trim(cast({sql_identifier(field)} as varchar)), '') is not null"
+            for field in fields
+        )
+        namespace = str(claim["namespace"])
+        branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('composite-identifier|' + namespace + '|' + str(index) + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(namespace)}, {value}, {value},
+              {sql_string(str(claim['claim_scope']))},
+              {nullable_sql_string(claim.get('component_scope'))}, null,
+              json_object(
+                'source_fields', {sql_string(json.dumps(fields))},
+                'construction', 'literal_prefix_delimiter_suffix_v1'
+              )
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where {nonblank}
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into identifier_claim_evidence " + " union all ".join(branches)
+        )
+    return consumed
 
 
 def optional_field_expression(field: str | None) -> str:
@@ -1646,6 +1765,106 @@ def materialize_configured_photometry(
     return consumed
 
 
+def materialize_configured_domain_measurements(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    measurements: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    branches_by_destination: dict[str, list[str]] = {}
+    for measurement in measurements:
+        destination = str(measurement["destination"])
+        field = str(measurement["value_field"])
+        uncertainty_field = measurement.get("uncertainty_field")
+        configured_fields = {field} | (
+            {str(uncertainty_field)} if uncertainty_field else set()
+        )
+        missing = sorted(configured_fields - available_fields)
+        if missing:
+            raise ValueError(
+                f"configured domain fields missing from {table_name}: {missing}"
+            )
+        consumed.update(configured_fields)
+        raw = text_expression(field)
+        missing_values = list(measurement.get("missing_values") or [])
+        predicate = missing_value_predicate(field, missing_values)
+        uncertainty = nullable_measurement_double_expression(
+            str(uncertainty_field) if uncertainty_field else None,
+            list(
+                measurement.get("uncertainty_missing_values", missing_values)
+            ),
+            absolute=True,
+        )
+        unit = nullable_sql_string(measurement.get("unit_raw"))
+        normalized_unit = nullable_sql_string(
+            measurement.get("normalized_unit", measurement.get("unit_raw"))
+        )
+        evidence_id = (
+            f"sha256({sql_string('configured-domain|' + destination + '|' + field + '|')} "
+            "|| r.source_record_id)"
+        )
+        common_from = f"""
+          from read_parquet({sql_string(str(path))}) t
+          join source_records r
+            on r.source_id={sql_string(source_id)}
+           and r.release_id={sql_string(release_id)}
+           and r.source_table={sql_string(table_name)}
+           and r.source_row_sha256=sha256(to_json(t))
+          where {predicate}
+        """
+        quality = f"""
+          json_object(
+            'source_field', {sql_string(field)},
+            'missing_values', {sql_string(json.dumps(missing_values))}
+          )
+        """
+        normalization = sql_string(
+            str(measurement.get("normalization_version") or "source_native_v1")
+        )
+        if destination == "astrometry_distance_evidence":
+            branch = f"""
+              select distinct
+                {evidence_id}, r.source_record_id,
+                {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
+                try_cast({sql_identifier(field)} as double), {normalized_unit},
+                {uncertainty}, {uncertainty}, 'measurement',
+                {nullable_sql_string(measurement.get('frame_raw'))},
+                {text_expression(measurement.get('epoch_field'))},
+                {nullable_sql_string(measurement.get('method'))},
+                {nullable_sql_string(measurement.get('model'))},
+                {text_expression(measurement.get('reference_field'))},
+                {quality}, {normalization}
+              {common_from}
+            """
+        elif destination == "variability_activity_rotation_evidence":
+            branch = f"""
+              select distinct
+                {evidence_id}, r.source_record_id,
+                {sql_string(str(measurement.get('evidence_kind') or 'variability'))},
+                {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
+                try_cast({sql_identifier(field)} as double), {normalized_unit},
+                {uncertainty}, {uncertainty},
+                {nullable_sql_string(measurement.get('method'))},
+                {nullable_sql_string(measurement.get('model'))},
+                {text_expression(measurement.get('reference_field'))},
+                {quality}, {normalization}
+              {common_from}
+            """
+        else:
+            raise ValueError(f"unsupported configured domain destination: {destination}")
+        branches_by_destination.setdefault(destination, []).append(branch)
+    for destination, branches in branches_by_destination.items():
+        con.execute(
+            f"insert into {sql_identifier(destination)} " + " union all ".join(branches)
+        )
+    return consumed
+
+
 def materialize_observation_products(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1870,6 +2089,78 @@ def materialize_orbital_solutions(
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
          and r.source_row_sha256=sha256(to_json(t))
+        where {str(orbital_solution.get('sql_predicate') or 'true')}
+        """
+    )
+    return consumed
+
+
+def materialize_extended_objects(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    extended_object: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    destination_fields = {str(field["column_name"]) for field in fields}
+    key_fields = [str(field) for field in extended_object["identity_key_fields"]]
+    geometry_fields = [str(field) for field in extended_object["geometry_fields"]]
+    distance_fields = [str(field) for field in extended_object.get("distance_fields") or []]
+    parameter_fields = [str(field) for field in extended_object["parameter_fields"]]
+    quality_fields = [str(field) for field in extended_object["quality_fields"]]
+    optional_fields = [
+        str(field)
+        for field in (extended_object.get("reference_field"),)
+        if field
+    ]
+    consumed = set(
+        key_fields
+        + geometry_fields
+        + distance_fields
+        + parameter_fields
+        + quality_fields
+        + optional_fields
+    )
+    missing = sorted(consumed - available_fields)
+    if missing:
+        raise ValueError(f"extended-object fields missing from {table_name}: {missing}")
+    unconsumed = sorted(destination_fields - consumed)
+    if unconsumed:
+        raise ValueError(
+            f"extended-object fields lack a typed role in {table_name}: {unconsumed}"
+        )
+    identity_key = logical_key_expression(key_fields)
+    geometry = logical_key_expression(geometry_fields)
+    distance = (
+        logical_key_expression(distance_fields) if distance_fields else "null::json"
+    )
+    parameters = logical_key_expression(parameter_fields)
+    quality = logical_key_expression(quality_fields)
+    reference = text_expression(extended_object.get("reference_field"))
+    namespace = f"extended-object|{table_name}|"
+    con.execute(
+        f"""
+        insert into extended_object_evidence
+        select distinct
+          sha256({sql_string(namespace)} || r.source_record_id),
+          r.source_record_id,
+          {sql_string(str(extended_object['extended_kind']))},
+          {geometry}, {distance}, {parameters},
+          {sql_string(str(extended_object['method']))},
+          {nullable_sql_string(extended_object.get('model'))},
+          {reference}, {quality},
+          {sql_string(str(extended_object['normalization_version']))}
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif(cast({identity_key} as varchar), '') is not null
         """
     )
     return consumed
@@ -2229,6 +2520,17 @@ def materialize_source(
             )
         )
         materialized_fields.update(
+            materialize_composite_identifier_claims(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                claims=list(table_contract.get("composite_identifier_claims") or []),
+                available_fields=set(columns),
+            )
+        )
+        materialized_fields.update(
             materialize_lifecycle_claims(
                 con,
                 source_id=source_id,
@@ -2244,11 +2546,21 @@ def materialize_source(
             if rule["disposition"] != "exclude":
                 fields_by_destination.setdefault(rule["destination"], []).append(field)
         scoped_stellar_fields = configured_scoped_stellar_fields(table_contract)
+        configured_domain_fields = {
+            str(row["value_field"])
+            for row in table_contract.get("configured_domain_measurements") or []
+        }
+        configured_domain_fields.update(
+            str(row["uncertainty_field"])
+            for row in table_contract.get("configured_domain_measurements") or []
+            if row.get("uncertainty_field")
+        )
         for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
             destination_fields = [
                 field
                 for field in (fields_by_destination.get(destination) or [])
                 if str(field["column_name"]) not in scoped_stellar_fields
+                and str(field["column_name"]) not in configured_domain_fields
                 and not (
                     destination == "photometry_extinction_evidence"
                     and str(field["column_name"])
@@ -2317,6 +2629,19 @@ def materialize_source(
                 available_fields=set(columns),
             )
         )
+        materialized_fields.update(
+            materialize_configured_domain_measurements(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                measurements=list(
+                    table_contract.get("configured_domain_measurements") or []
+                ),
+                available_fields=set(columns),
+            )
+        )
         observation_product_fields = fields_by_destination.get(
             "observation_product_lineage"
         ) or []
@@ -2362,6 +2687,27 @@ def materialize_source(
                     path=path,
                     fields=orbital_solution_fields,
                     orbital_solution=orbital_solution,
+                    available_fields=set(columns),
+                )
+            )
+        extended_object_fields = fields_by_destination.get(
+            "extended_object_evidence"
+        ) or []
+        extended_object = table_contract.get("extended_object")
+        if extended_object_fields or extended_object:
+            if not extended_object_fields or not extended_object:
+                raise ValueError(
+                    f"extended-object profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_extended_objects(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=extended_object_fields,
+                    extended_object=extended_object,
                     available_fields=set(columns),
                 )
             )

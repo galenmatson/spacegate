@@ -177,7 +177,9 @@ do not remove the current reference, a reproduction input, or a rollback build.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`
-(DEBCat) remain protected inputs to the combined E4/E5 build. Earlier
+(DEBCat), `d08c5aa9af7dc8bcdbf0d6c3` (Green SNR), and
+`255678b2daa6e8bf46e6dcd9` (TESS EB) remain protected inputs to the combined
+E4/E5 build. Earlier
 source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.

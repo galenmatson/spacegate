@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.scientific_evidence_contract.v2",
-  "contract_version": "2026-07-19.e4-foundation.18",
-  "compiler_version": "scientific_evidence_compiler_v18",
+  "schema_version": "spacegate.scientific_evidence_contract.v3",
+  "contract_version": "2026-07-19.e4-foundation.20",
+  "compiler_version": "scientific_evidence_compiler_v20",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -468,6 +468,52 @@
         "destination": "orbital_solution_evidence",
         "reason": "binary period and exact source-row quality lineage preserved as one coherent system solution"
       }
+    ],
+    "green_snr_extended_objects": [
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "extended_object_evidence",
+        "reason": "source-native SNR geometry, classification, flux, spectral index, aliases, detail locator, and row lineage"
+      }
+    ],
+    "tess_eb_observations": [
+      {
+        "pattern": "^tic_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "TIC observation-target identity"
+      },
+      {
+        "pattern": "^tmag$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "TESS-band target photometry"
+      },
+      {
+        "pattern": "^(teff_k|logg_cgs|metallicity_dex)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "unresolved TESS target stellar-context parameter set"
+      },
+      {
+        "pattern": "^(ra_deg|dec_deg|glon_deg|glat_deg|pm_ra_mas_yr|pm_dec_mas_yr)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "TESS target position and proper-motion context"
+      },
+      {
+        "pattern": "^(in_catalog|sectors|morphology|source|flags)$",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_evidence",
+        "reason": "catalog membership, observed sectors, EB morphology, light-curve source, and flags"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "TESS EB epoch and period solution with source uncertainties"
+      }
     ]
   },
   "source_adapters": {
@@ -891,6 +937,119 @@
               ]
             }
           ]
+        }
+      }
+    },
+    "extended.green_snr": {
+      "adapter_version": "green_snr_scientific_evidence_v1",
+      "tables": {
+        "green_snr_catalogue": {
+          "raw_artifact_name": "snrs_data_html",
+          "logical_key_fields": ["galactic_longitude", "galactic_latitude"],
+          "object_scope": "supernova_remnant",
+          "field_profile": "green_snr_extended_objects",
+          "composite_identifier_claims": [
+            {
+              "fields": ["galactic_longitude", "galactic_latitude"],
+              "prefix": "G",
+              "delimiter": "",
+              "namespace": "galactic_snr_name",
+              "claim_scope": "supernova_remnant"
+            }
+          ],
+          "extended_object": {
+            "extended_kind": "supernova_remnant",
+            "identity_key_fields": ["galactic_longitude", "galactic_latitude"],
+            "geometry_fields": [
+              "galactic_longitude",
+              "galactic_latitude",
+              "ra_hour",
+              "ra_minute",
+              "ra_second",
+              "dec_degree",
+              "dec_arcminute",
+              "angular_size"
+            ],
+            "parameter_fields": [
+              "snr_type",
+              "flux_1ghz",
+              "spectral_index",
+              "other_names"
+            ],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_field": "detail_href",
+            "method": "green_catalogue_compilation",
+            "normalization_version": "green_snr_source_native_lexical_v1"
+          }
+        }
+      }
+    },
+    "tess.villanova_eb": {
+      "adapter_version": "tess_eb_scientific_evidence_v1",
+      "tables": {
+        "tess_eb_catalog": {
+          "logical_key_fields": ["tic_id"],
+          "object_scope": "eclipsing_binary_observation_target",
+          "field_profile": "tess_eb_observations",
+          "identifier_claims": {
+            "tic_id": {
+              "namespace": "tic_id",
+              "claim_scope": "observation_target",
+              "normalization": "unsigned_integer_decimal_v1"
+            }
+          },
+          "photometry_measurements": [
+            {
+              "value_field": "tmag",
+              "quantity_key": "apparent_magnitude",
+              "bandpass": "TESS",
+              "unit_raw": "mag",
+              "method": "tess_eb_catalog_target_context",
+              "normalization_version": "tess_eb_source_native_v1"
+            }
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_deg", "quantity_key": "right_ascension", "unit_raw": "deg", "frame_raw": "ICRS", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_deg", "quantity_key": "declination", "unit_raw": "deg", "frame_raw": "ICRS", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "glon_deg", "quantity_key": "galactic_longitude", "unit_raw": "deg", "frame_raw": "Galactic", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "glat_deg", "quantity_key": "galactic_latitude", "unit_raw": "deg", "frame_raw": "Galactic", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_ra_mas_yr", "quantity_key": "proper_motion_ra", "unit_raw": "mas yr-1", "frame_raw": "ICRS", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_dec_mas_yr", "quantity_key": "proper_motion_dec", "unit_raw": "mas yr-1", "frame_raw": "ICRS", "method": "tess_eb_catalog_target_context", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "in_catalog", "quantity_key": "catalog_membership", "evidence_kind": "eclipsing_binary_catalog_status", "method": "tess_eb_catalog", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "sectors", "quantity_key": "observed_sectors", "evidence_kind": "tess_observation_coverage", "method": "tess_eb_catalog", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "morphology", "quantity_key": "light_curve_morphology", "evidence_kind": "eclipsing_binary_morphology", "method": "tess_eb_catalog", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "source", "quantity_key": "light_curve_source", "evidence_kind": "observation_source", "method": "tess_eb_catalog", "normalization_version": "tess_eb_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "flags", "quantity_key": "catalog_flags", "evidence_kind": "eclipsing_binary_quality", "method": "tess_eb_catalog", "normalization_version": "tess_eb_source_native_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "unresolved_target_context",
+              "parameter_set_kind": "tess_eb_target_context",
+              "method": "tess_eb_catalog_target_context",
+              "normalization_version": "tess_eb_source_native_v1",
+              "measurements": [
+                {"value_field": "teff_k", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_cgs", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "metallicity_dex", "quantity_key": "metallicity_m_h", "unit_raw": "dex"}
+              ]
+            }
+          ],
+          "orbital_solution": {
+            "solution_key_fields": ["tic_id", "period_days", "bjd0"],
+            "parameter_fields": [
+              "bjd0",
+              "bjd0_error",
+              "period_days",
+              "period_error_days",
+              "sectors",
+              "morphology"
+            ],
+            "quality_fields": ["in_catalog", "source", "flags"],
+            "epoch_field": "bjd0",
+            "method": "tess_eb_light_curve_solution",
+            "normalization_version": "tess_eb_source_native_v1",
+            "sql_predicate": "lower(in_catalog)='true' and period_days is not null"
+          }
         }
       }
     }

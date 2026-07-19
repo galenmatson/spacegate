@@ -71,6 +71,13 @@ Evidence Lake v2 staging rule:
   identity evidence, not instructions to manufacture endpoints. DEBCat primary
   and secondary measurements remain separate parameter sets, while metallicity
   and integrated photometry remain system scoped.
+- Scientific-evidence contract v3 adds `parameter_set_raw` to
+  `extended_object_evidence`; geometry, distance, and physical/source
+  parameters no longer share one overloaded JSON object. Composite source
+  identities are deterministic evidence claims, not canonical object creation.
+  Configured scalar measurements preserve raw values even when no numeric
+  normalization is valid, as with TESS EB status/sectors/flags and Green SNR
+  uncertainty-marked fluxes.
 
 ## Artifact Contract
 

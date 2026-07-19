@@ -1457,6 +1457,16 @@ Current status (July 19, 2026, in progress):
   solutions. Source `-9.99`, `-1.00`, and `none` sentinels remain in immutable
   source rows but cannot become measurements, classifications, or inflated
   uncertainties. Component bindings remain unresolved for E2/E5 reconciliation.
+- Green SNR checkpoint `d08c5aa9af7dc8bcdbf0d6c3` preserves all 310 rows and
+  15 fields as extended-object geometry and source-native parameter sets,
+  including uncertain 1-GHz flux and spectral-index strings. It constructs 310
+  deterministic Galactic `G...` identifiers without converting uncertain raw
+  values into overconfident numerics.
+- TESS EB checkpoint `255678b2daa6e8bf46e6dcd9` preserves all 17,605 rows and
+  20 fields. Decimal normalization makes zero-padded TIC identities searchable;
+  4,584 positive catalog members receive orbit solutions, while 13,021
+  nonmembers remain explicit catalog-status evidence. Sector, flag, morphology,
+  Tmag, astrometry, and unresolved target-context physics are typed separately.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 
