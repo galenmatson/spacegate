@@ -138,6 +138,15 @@ estate is 63 raw artifacts and 5,213,454,799 typed Parquet bytes across 27
 source releases; older immutable parser checkpoints explain why the physical
 typed directory is larger until E7 retirement.
 
+The July 19 E4 wide-binary compiler work produced bounded checkpoint
+`aaf262b1791d98ce3e9f96e7` (11,129,073,664 bytes) and several hidden temporary
+scientific-evidence directories from failed or deliberately interrupted
+diagnostic builds. Do not delete those directories manually while E3
+acquisitions or E4 verification are active. After the bounded checkpoint is
+referenced by the storage audit and a replacement/rollback decision is recorded,
+classify the diagnostic temporaries through the normal retention dry run; only
+then may a reviewed apply remove them.
+
 Evidence Lake identity graphs under
 `derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
 artifacts. Preserve the graph named by the adjacent atomic `current` pointer and

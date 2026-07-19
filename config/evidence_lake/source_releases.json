@@ -6,6 +6,7 @@
     "public_radius_ly": 1000.0,
     "buffer_radius_ly": 1250.0,
     "selection_policy": "buffered_parallax_plus_posterior_overlap_v1",
+    "uncertainty_sigma": 3.0,
     "candidate_rules": [
       "include sources whose accepted distance interval overlaps the 1000 ly public boundary",
       "include the deterministic 1250 ly acquisition buffer",

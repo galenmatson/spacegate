@@ -257,8 +257,8 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   typed as source-native evidence: 1,817,594 catalog rows across 217 columns,
   517,993 shifted-control rows across 201 columns, and both published method
   scripts. Immutable snapshot `aea36fe5a6753de90be33301` passes schema/row
-  verification and clean typed-hash reproduction. Relation materialization and
-  local envelope intersection remain E4 work.
+  verification and clean typed-hash reproduction. E4 now performs the local
+  envelope intersection and relation materialization described below.
 
 ### E4. Typed Scientific Evidence
 
@@ -293,6 +293,12 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   binding outcomes. `scripts/verify_scientific_evidence_reproduction.py`
   rebuilds into a temporary scratch root, compares deterministic logical hashes,
   and removes the scratch artifact; the NASA foundation reproduction passes.
+  Logical verification uses `sha256_bucketed_multiset_v1`, which hashes every
+  row and then deterministically hashes bounded prefix buckets. It is order
+  independent and duplicate sensitive without globally sorting full row JSON.
+  `scripts/verify_scientific_evidence_artifact.py` independently audits scope,
+  identifier, probability/statistic, citation, uncertainty, parameter-set, and
+  source-record integrity.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
@@ -310,6 +316,24 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   helpers are deliberately excluded from scientific evidence while remaining
   in the immutable typed source. This adapter passes; E4 remains in progress
   until the other registered source adapters meet the same gate.
+- Wide-binary checkpoint `aaf262b1791d98ce3e9f96e7` intersects the complete
+  El-Badry release with the registered 1,250-ly buffer when either component's
+  three-sigma parallax interval overlaps the boundary. It retains 877,307 main
+  candidate pairs and 239,406 shifted-sky controls while explicitly accounting
+  for 1,218,874 excluded rows. The source's `R_chance_align` value is a KDE
+  density ratio that approximates chance-alignment probability but is not a
+  strict probability and may exceed one. E4 therefore stores all 1,116,713
+  values as typed confidence statistics, stores zero strict probabilities,
+  preserves shifted controls as negative evidence, and promotes no relation to
+  canonical containment. Each retained pair has distinct `left` and `right`
+  Gaia EDR3 endpoint claims and binding scopes. All 422 source fields are
+  accounted as 24 materialized identity/relation/document fields or 398
+  reviewed copied-Gaia exclusions whose exact values remain in immutable typed
+  Parquet and are owned scientifically by release-native Gaia adapters.
+- The bounded wide-binary artifact is 11,129,073,664 bytes. Clean reproduction
+  matches logical hash `2b45feebcbe9bb3f18743b1043613ca2c454abf9cb393836e9a0c542d220dcaf`,
+  and the independent artifact audit reports zero endpoint, scope, sentinel,
+  citation, probability, uncertainty, parameter-set, or lineage failures.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

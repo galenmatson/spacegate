@@ -53,6 +53,13 @@ Evidence Lake v2 staging rule:
   coherent parameter sets, and indexes observation products for on-demand
   retrieval. Its `pass` status applies to that adapter, not to unimplemented E4
   sources or ARM/public promotion.
+- El-Badry checkpoint `aaf262b1791d98ce3e9f96e7` extends the same contract to
+  bounded relation evidence. `relation_claim_evidence` distinguishes strict
+  `probability` from raw/normalized confidence statistics and their semantics,
+  carries release-scoped namespaces for both endpoints, and labels candidate
+  versus negative-control polarity. Endpoint identifier claims and unresolved
+  binding outcomes carry `left`/`right` component scope. The source's KDE ratio
+  may exceed one, so it is never written to the strict probability column.
 
 ## Artifact Contract
 

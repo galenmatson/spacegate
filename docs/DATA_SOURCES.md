@@ -132,10 +132,16 @@ raw units and reference fragments remain preserved beside normalized aliases and
 parsed metadata.
 
 The El-Badry Gaia EDR3 wide-binary release is preserved under the same raw and
-typed contracts: 1,817,594 probability-bearing main-catalog rows (217 columns),
+typed contracts: 1,817,594 confidence-bearing main-catalog rows (217 columns),
 517,993 shifted-control rows (201 columns), and both published method scripts.
-Snapshot `aea36fe5a6753de90be33301` passes clean typed reproduction; it is not an
-accepted canonical containment source until E4 relation-policy materialization.
+Snapshot `aea36fe5a6753de90be33301` passes clean typed reproduction. E4 build
+`aaf262b1791d98ce3e9f96e7` retains 877,307 candidates and 239,406 negative
+controls whose three-sigma parallax intervals overlap the 1,250-ly buffer, and
+accounts for 1,218,874 excluded rows. `R_chance_align` is preserved as the
+paper's KDE chance-alignment density ratio, not converted to a strict
+probability or `1-R`. Every relation retains separate left/right Gaia EDR3
+identity and binding scope. No row is accepted as canonical containment at this
+stage; E5 owns versioned applicability and acceptance policy.
 
 ## Gaia Release Identity Evidence
 

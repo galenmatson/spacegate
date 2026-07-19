@@ -1378,7 +1378,7 @@ Current status (July 19, 2026, in progress):
   suspected variables, 25,696 bibliography rows, and its source
   documents/dictionaries
 - registered acquisition contracts now cover Bailer-Jones distances,
-  Hunt-Reffert clusters, El-Badry probability-bearing wide binaries, staged
+  Hunt-Reffert clusters, El-Badry confidence-bearing wide binaries, staged
   SIMBAD identity/naming evidence, complete relevant NASA KOI/TCE/TOI/K2 and
   planet/host/transit products, official high-value Gaia external crossmatches,
   and APOGEE/GALAH/LAMOST physical-parameter releases
@@ -1386,10 +1386,10 @@ Current status (July 19, 2026, in progress):
   preserve 206,989 rows and all 2,093 upstream fields with zero omissions,
   including the uppercase legacy Kepler KOI/TCE products missed by the earlier
   schema probe; clean raw-to-typed reproduction passes
-- the pinned El-Badry Gaia EDR3 probability-bearing wide-binary release is
+- the pinned El-Badry Gaia EDR3 confidence-bearing wide-binary release is
   source-native typed and reproducible: 1,817,594 main rows/217 columns,
   517,993 shifted-control rows/201 columns, and both published method scripts;
-  bounded relation materialization remains E4 work
+  E4 bounded relation materialization now passes separately
 - the large source transfers and typed cooks are still running; E3 remains open
   until every registered product is complete, field-accounted, typed, and
   covered by the machine-readable acquisition report
@@ -1437,6 +1437,14 @@ Current status (July 19, 2026, in progress):
   emits 9,689,745 typed science rows, 272,355 coherent parameter sets, 111,084
   validation-product locators, 2,961 citations, and 4,656,423 citation links.
   This source adapter passes while the overall E4 milestone remains in progress.
+- El-Badry checkpoint `aaf262b1791d98ce3e9f96e7` applies the registered
+  three-sigma 1,250-ly envelope and retains 877,307 candidate relations plus
+  239,406 shifted-sky negative controls. It accounts 1,218,874 filtered rows,
+  3,974,770 release-scoped identifier claims, two endpoint binding scopes per
+  retained relation, all 422 fields, and 1,116,713 evidence-citation links.
+  `R_chance_align` remains a non-strict confidence statistic, including 289,705
+  values above one; zero strict probabilities or canonical containment rows are
+  fabricated. Clean reproduction and the independent artifact audit pass.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v1",
-  "contract_version": "2026-07-19.e4-foundation.12",
-  "compiler_version": "scientific_evidence_compiler_v12",
+  "contract_version": "2026-07-19.e4-foundation.15",
+  "compiler_version": "scientific_evidence_compiler_v15",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -394,6 +394,34 @@
         "destination": "identifier_claim_evidence",
         "reason": "official archive identifier crosswalk"
       }
+    ],
+    "el_badry_wide_binary_pairs": [
+      {
+        "pattern": "^(source_id1|source_id2|dr2_source_id1|dr2_source_id2)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia component identity"
+      },
+      {
+        "pattern": "^(pairdistance|sep_AU|binary_type|Sigma18|R_chance_align|ref_epoch1|ref_epoch2)$",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "wide-pair relation, classification, separation, density, epoch, and confidence-statistic evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "copied Gaia component attribute remains losslessly preserved in source-native typed Parquet; release-native Gaia adapters own scalar scientific evidence and component scope"
+      }
+    ],
+    "source_method_document": [
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "pinned source method code retained line-for-line with release provenance"
+      }
     ]
   },
   "source_adapters": {
@@ -579,6 +607,85 @@
           "stellar_parameter_set": {"kind": "transit_reference_host", "reference_field": "st_refname"},
           "system_reference_field": "sy_refname",
           "signal_identifier_fields": ["pl_name"]
+        }
+      }
+    },
+    "multiplicity.el_badry_2021_wide_binary": {
+      "adapter_version": "el_badry_wide_binary_scientific_evidence_v2",
+      "tables": {
+        "el_badry_wide_binary_catalog": {
+          "logical_key_fields": ["source_id1", "source_id2"],
+          "object_scope": "relation_candidate",
+          "field_profile": "el_badry_wide_binary_pairs",
+          "row_selection": {
+            "policy_id": "buffered_parallax_3sigma_overlap_v1",
+            "sql_predicate": "(parallax1 + 3.0 * parallax_error1 >= 2.609272 or parallax2 + 3.0 * parallax_error2 >= 2.609272)",
+            "reason": "retain a relation when either component's three-sigma parallax interval overlaps the deterministic 1,250-ly ingestion buffer"
+          },
+          "identifier_claims": {
+            "source_id1": {"namespace": "gaia_edr3_source_id", "claim_scope": "star", "component_scope": "left"},
+            "source_id2": {"namespace": "gaia_edr3_source_id", "claim_scope": "star", "component_scope": "right"},
+            "dr2_source_id1": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "component_scope": "left", "excluded_values": ["0"]},
+            "dr2_source_id2": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "component_scope": "right", "excluded_values": ["0"]}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id1",
+            "left_identifier_namespace": "gaia_edr3_source_id",
+            "right_identifier_field": "source_id2",
+            "right_identifier_namespace": "gaia_edr3_source_id",
+            "relation_kind": "candidate_gravitationally_bound_wide_binary",
+            "relation_scope": "stellar_pair",
+            "evidence_polarity": "candidate",
+            "method": "empirical_7d_kde_density_ratio",
+            "reference_raw": "<a refstr=EL_BADRY_2021 href=https://ui.adsabs.harvard.edu/abs/2021MNRAS.506.2269E/abstract>El-Badry, Rix, and Heintz (2021)</a>",
+            "epoch_field": "ref_epoch1",
+            "confidence_statistic_field": "R_chance_align",
+            "confidence_statistic_key": "chance_alignment_density_ratio",
+            "confidence_statistic_unit": "dimensionless",
+            "confidence_statistic_semantics": "KDE-estimated chance-alignment to candidate density ratio; approximately but not strictly a probability and may exceed one",
+            "quality_fields": ["pairdistance", "sep_AU", "binary_type", "Sigma18", "R_chance_align", "ref_epoch1", "ref_epoch2"]
+          }
+        },
+        "el_badry_shifted_control_catalog": {
+          "logical_key_fields": ["source_id1", "source_id2"],
+          "object_scope": "control_relation",
+          "field_profile": "el_badry_wide_binary_pairs",
+          "row_selection": {
+            "policy_id": "buffered_parallax_3sigma_overlap_v1",
+            "sql_predicate": "(parallax1 + 3.0 * parallax_error1 >= 2.609272 or parallax2 + 3.0 * parallax_error2 >= 2.609272)",
+            "reason": "retain a control relation when either component's three-sigma parallax interval overlaps the deterministic 1,250-ly ingestion buffer"
+          },
+          "identifier_claims": {
+            "source_id1": {"namespace": "gaia_edr3_source_id", "claim_scope": "star", "component_scope": "left"},
+            "source_id2": {"namespace": "gaia_edr3_source_id", "claim_scope": "star", "component_scope": "right"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id1",
+            "left_identifier_namespace": "gaia_edr3_source_id",
+            "right_identifier_field": "source_id2",
+            "right_identifier_namespace": "gaia_edr3_source_id",
+            "relation_kind": "shifted_sky_chance_alignment_control",
+            "relation_scope": "stellar_pair_control",
+            "evidence_polarity": "negative_control",
+            "method": "empirical_declination_shift_control_7d_kde",
+            "reference_raw": "<a refstr=EL_BADRY_2021 href=https://ui.adsabs.harvard.edu/abs/2021MNRAS.506.2269E/abstract>El-Badry, Rix, and Heintz (2021)</a>",
+            "epoch_field": "ref_epoch1",
+            "confidence_statistic_field": "R_chance_align",
+            "confidence_statistic_key": "chance_alignment_density_ratio",
+            "confidence_statistic_unit": "dimensionless",
+            "confidence_statistic_semantics": "KDE-estimated chance-alignment to candidate density ratio; approximately but not strictly a probability and may exceed one",
+            "quality_fields": ["pairdistance", "sep_AU", "binary_type", "Sigma18", "R_chance_align", "ref_epoch1", "ref_epoch2"]
+          }
+        },
+        "el_badry_finder_code": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "method_document",
+          "field_profile": "source_method_document"
+        },
+        "el_badry_neighbor_code": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "method_document",
+          "field_profile": "source_method_document"
         }
       }
     }

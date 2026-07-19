@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import compile_scientific_evidence as compiler  # noqa: E402
+import verify_scientific_evidence_artifact as artifact_audit  # noqa: E402
 import verify_scientific_evidence_reproduction as reproduction  # noqa: E402
 
 
@@ -25,6 +26,15 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "nasa_exoplanet_archive.planetary_systems"
     ]
     assert len(nasa_adapter["tables"]) == 12
+    wide_adapter = contract["source_adapters"][
+        "multiplicity.el_badry_2021_wide_binary"
+    ]
+    assert set(wide_adapter["tables"]) == {
+        "el_badry_finder_code",
+        "el_badry_neighbor_code",
+        "el_badry_shifted_control_catalog",
+        "el_badry_wide_binary_catalog",
+    }
 
 
 def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
@@ -215,6 +225,23 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         assert binding_scopes == [("host",), ("object",)]
     assert snapshots[0] == snapshots[1]
 
+    selected_adapter = json.loads(json.dumps(adapter))
+    selected_adapter["tables"]["test_rows"]["row_selection"] = {
+        "policy_id": "alpha_only_v1",
+        "sql_predicate": "note = 'alpha'",
+        "reason": "test selection",
+    }
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        selected = compiler.materialize_source(
+            con, input_row, selected_adapter, contract
+        )
+        assert con.execute("select count(*) from source_records").fetchone()[0] == 1
+    assert selected["input_source_rows"] == 3
+    assert selected["source_rows"] == 2
+    assert selected["excluded_by_row_selection"] == 1
+    assert selected["tables"][0]["row_selection_policy"] == "alpha_only_v1"
+
 
 def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes() -> None:
     report = {
@@ -237,8 +264,14 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
             "by_disposition": {"CANDIDATE": 1},
             "by_polarity": {"candidate": 1},
         },
+        "relation_claim_counts": {
+            "by_kind_and_polarity": {},
+            "with_strict_probability": 0,
+            "with_confidence_statistic": 0,
+        },
         "citation_summary": {"citations": 1, "evidence_links": 1},
         "logical_content_sha256": "logical",
+        "logical_hash_algorithm": "sha256_bucketed_multiset_v1",
         "tables": [{"table": "source_records", "row_count": 1, "logical_sha256": "a"}],
         "created_at": "2026-07-19T00:00:00Z",
         "database_sha256": "runtime-only-a",
@@ -252,6 +285,45 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
     ]
 
 
+def test_bucketed_logical_hash_is_order_independent_and_duplicate_sensitive() -> None:
+    with duckdb.connect() as con:
+        con.execute("create table first_rows (id integer, value varchar)")
+        con.execute("create table second_rows (id integer, value varchar)")
+        con.execute("insert into first_rows values (1, 'a'), (2, 'b')")
+        con.execute("insert into second_rows values (2, 'b'), (1, 'a')")
+        first = compiler.table_logical_report(con, "first_rows")
+        second = compiler.table_logical_report(con, "second_rows")
+        assert first["logical_sha256"] == second["logical_sha256"]
+        assert first["logical_hash_algorithm"] == compiler.LOGICAL_HASH_ALGORITHM
+        con.execute("insert into second_rows values (1, 'a')")
+        duplicated = compiler.table_logical_report(con, "second_rows")
+    assert duplicated["row_count"] == 3
+    assert duplicated["logical_sha256"] != first["logical_sha256"]
+
+
+def test_artifact_audit_rejects_invalid_relation_probability() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        assert artifact_audit.audit_evidence(con)["status"] == "pass"
+        con.execute(
+            """
+            insert into relation_claim_evidence (
+              evidence_id, source_record_id,
+              left_identity_namespace, left_identity_raw,
+              right_identity_namespace, right_identity_raw,
+              relation_kind, relation_scope, probability, probability_semantics,
+              evidence_polarity
+            ) values (
+              'evidence', 'record', 'test', 'left', 'test', 'right',
+              'candidate_test', 'pair', 2.0, 'strict probability', 'candidate'
+            )
+            """
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["status"] == "fail"
+    assert report["checks"]["strict_probabilities_outside_unit_interval"] == 1
+
+
 def test_refuted_planet_claim_is_negative_evidence() -> None:
     expression = compiler.lifecycle_polarity_expression("disposition")
     with duckdb.connect() as con:
@@ -259,6 +331,120 @@ def test_refuted_planet_claim_is_negative_evidence() -> None:
             f"select {expression} from (select 'REFUTED' disposition)"
         ).fetchone()[0]
     assert polarity == "negative"
+
+
+def test_source_field_metadata_falls_back_to_source_native_fits_schema() -> None:
+    fields = compiler.source_field_metadata(
+        {
+            "source_name": "fits_rows",
+            "source_schema": {
+                "source_schema": [
+                    {
+                        "name": "source_id1",
+                        "arrow_type": "int64",
+                        "source_format": "K",
+                        "unit": None,
+                    },
+                    {
+                        "name": "sep_AU",
+                        "arrow_type": "double",
+                        "source_format": "D",
+                        "unit": "AU",
+                    },
+                ]
+            },
+        },
+        {},
+    )
+    assert fields == [
+        {
+            "column_name": "source_id1",
+            "datatype": "int64",
+            "unit": None,
+            "ucd": None,
+            "description": None,
+        },
+        {
+            "column_name": "sep_AU",
+            "datatype": "double",
+            "unit": "AU",
+            "ucd": None,
+            "description": None,
+        },
+    ]
+
+
+def test_relation_claim_preserves_non_probability_statistic_and_control_polarity(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "wide_pairs.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "(11::bigint,12::bigint,0.1::double,100::double),"
+            "(21::bigint,22::bigint,4.2::double,200::double)) "
+            "t(source_id1,source_id2,R_chance_align,sep_AU)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'test.wide', 'r1', 'control', 'control_relation', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [
+                [f"record-{index}", row_hash]
+                for index, (row_hash,) in enumerate(rows)
+            ],
+        )
+        consumed = compiler.materialize_relation_claims(
+            con,
+            source_id="test.wide",
+            release_id="r1",
+            table_name="control",
+            path=parquet,
+            relation_claim={
+                "left_identifier_field": "source_id1",
+                "left_identifier_namespace": "gaia_edr3_source_id",
+                "right_identifier_field": "source_id2",
+                "right_identifier_namespace": "gaia_edr3_source_id",
+                "relation_kind": "shifted_control",
+                "relation_scope": "stellar_pair_control",
+                "evidence_polarity": "negative_control",
+                "method": "test_kde",
+                "reference_raw": "test reference",
+                "confidence_statistic_field": "R_chance_align",
+                "confidence_statistic_key": "chance_alignment_density_ratio",
+                "confidence_statistic_unit": "dimensionless",
+                "confidence_statistic_semantics": "not a strict probability",
+                "quality_fields": ["sep_AU", "R_chance_align"],
+            },
+            available_fields={
+                "source_id1",
+                "source_id2",
+                "R_chance_align",
+                "sep_AU",
+            },
+        )
+        evidence = con.execute(
+            "select left_identity_raw, right_identity_raw, probability, "
+            "confidence_statistic_value, evidence_polarity, quality_json::varchar "
+            "from relation_claim_evidence order by left_identity_raw"
+        ).fetchall()
+    assert consumed == {
+        "source_id1",
+        "source_id2",
+        "R_chance_align",
+        "sep_AU",
+    }
+    assert [(row[0], row[1], row[2], row[3], row[4]) for row in evidence] == [
+        ("11", "12", None, 0.1, "negative_control"),
+        ("21", "22", None, 4.2, "negative_control"),
+    ]
+    assert all(json.loads(row[5])["sep_AU"] in {100.0, 200.0} for row in evidence)
 
 
 def test_scalar_grouping_preserves_measurement_companions() -> None:

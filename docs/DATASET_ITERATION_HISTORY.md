@@ -1023,7 +1023,35 @@ Representative commits:
 - Both published selection/neighbor method scripts are retained and typed as
   source documents. Schema/row verification and clean typed-hash reproduction
   pass. These rows remain relation evidence rather than canonical containment;
-  envelope intersection and E4 probability/quality policy are still pending.
+  envelope intersection and E4 probability/quality policy were completed in the
+  following iteration.
+
+### 33) Evidence Lake E4 Bounded Wide-Binary Relations
+
+- E4 added a generic relation-claim adapter rather than a catalog- or
+  named-system transform. Relation endpoints carry release-scoped identifier
+  namespaces and independent `left`/`right` component binding scopes.
+- The registered `buffered_parallax_3sigma_overlap_v1` policy retains a main or
+  shifted-control pair when either component's three-sigma parallax interval
+  overlaps the deterministic 1,250-ly buffer. From 2,335,587 FITS rows plus 360
+  method-code lines, checkpoint `aaf262b1791d98ce3e9f96e7` materializes 877,307
+  candidate pairs, 239,406 negative controls, and all method lines while
+  explicitly reporting 1,218,874 filtered rows.
+- The paper defines `R_chance_align` as the ratio of KDE-estimated
+  chance-alignment density to candidate density. It only approximates a
+  probability and can exceed one. The compiler therefore preserves 1,116,713
+  raw and normalized confidence statistics, including 289,705 above one, and
+  creates zero strict probabilities. It does not derive `1-R`, accept a binding,
+  or modify canonical containment.
+- All 422 source fields are dispositioned: 24 identity, relation, or method
+  fields are materialized; 398 copied Gaia component fields remain losslessly
+  preserved in typed Parquet and are deliberately excluded from the relation
+  projection so component facts cannot leak onto relation or system scope.
+- The 11,129,073,664-byte artifact reproduces logical hash
+  `2b45feebcbe9bb3f18743b1043613ca2c454abf9cb393836e9a0c542d220dcaf`.
+  A separate artifact audit finds zero missing endpoint claims/scopes, Gaia zero
+  sentinels, invalid probabilities, orphan citations/lineage, negative
+  uncertainty magnitudes, or parameter-set integrity failures.
 
 ## Recurrent Defect Classes and Mitigations
 

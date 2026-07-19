@@ -1106,7 +1106,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   catalog rows from page furniture
 - [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
-- [ ] E3: acquire/migrate current Gaia cluster and probability-bearing wide-
+- [ ] E3: acquire/migrate current Gaia cluster and confidence-bearing wide-
   binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
   multiplicity/compact/ultracool/extended sources under the new contracts
 - [x] E3 wide-binary checkpoint: pin, source-native type, verify, and clean-
@@ -1133,6 +1133,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and references into coherent parameter sets; materialize stellar, astrometric,
   photometric, rotation, classification, planet, transit, RV, product-lineage,
   and citation evidence; account all 2,093 fields with no pending tail
+- [x] E4 wide-binary checkpoint: apply the versioned three-sigma 1,250-ly
+  envelope, materialize candidate and shifted-control relation evidence with
+  distinct endpoint scopes, preserve `R_chance_align` as a non-strict
+  confidence statistic, account every field and filtered row, and pass clean
+  reproduction plus the independent artifact audit without canonical promotion
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

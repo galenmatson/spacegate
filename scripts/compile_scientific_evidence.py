@@ -23,6 +23,7 @@ DEFAULT_CONTRACT = ROOT / "config" / "evidence_lake" / "e4_scientific_evidence.j
 DEFAULT_REGISTRY = ROOT / "config" / "evidence_lake" / "source_releases.json"
 DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/state"))
 BUILD_CONTRACT = "spacegate.scientific_evidence_build.v1"
+LOGICAL_HASH_ALGORITHM = "sha256_bucketed_multiset_v1"
 
 
 DOMAIN_TABLES = {
@@ -136,6 +137,8 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
             errors.append(
                 "identifier claim fields, namespaces, and scopes must be non-empty"
             )
+        if any(not str(value).strip() for value in claim.get("excluded_values") or []):
+            errors.append(f"identifier claim has an empty excluded value: {field}")
     if not unit_normalizations:
         errors.append("unit_normalizations must not be empty")
     for raw_unit, normalized_unit in unit_normalizations.items():
@@ -167,6 +170,69 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 errors.append(f"{source_id}.{table_name} lacks logical key fields")
             if table.get("field_profile") not in profiles:
                 errors.append(f"{source_id}.{table_name} references an unknown field profile")
+            for field, claim in (table.get("identifier_claims") or {}).items():
+                if (
+                    not str(field).strip()
+                    or not str(claim.get("namespace") or "").strip()
+                    or not str(claim.get("claim_scope") or "").strip()
+                ):
+                    errors.append(
+                        f"{source_id}.{table_name} has an incomplete identifier claim"
+                    )
+                if any(
+                    not str(value).strip()
+                    for value in claim.get("excluded_values") or []
+                ):
+                    errors.append(
+                        f"{source_id}.{table_name}.{field} has an empty excluded value"
+                    )
+            relation_claim = table.get("relation_claim")
+            if relation_claim:
+                prefix = f"{source_id}.{table_name}.relation_claim"
+                required = {
+                    "left_identifier_field",
+                    "left_identifier_namespace",
+                    "right_identifier_field",
+                    "right_identifier_namespace",
+                    "relation_kind",
+                    "relation_scope",
+                    "evidence_polarity",
+                    "method",
+                    "reference_raw",
+                }
+                missing = sorted(required - set(relation_claim))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                probability_field = relation_claim.get("probability_field")
+                probability_semantics = relation_claim.get("probability_semantics")
+                if bool(probability_field) != bool(probability_semantics):
+                    errors.append(
+                        f"{prefix} must define probability field and semantics together"
+                    )
+                statistic_field = relation_claim.get("confidence_statistic_field")
+                statistic_key = relation_claim.get("confidence_statistic_key")
+                statistic_semantics = relation_claim.get(
+                    "confidence_statistic_semantics"
+                )
+                if any((statistic_field, statistic_key, statistic_semantics)) and not all(
+                    (statistic_field, statistic_key, statistic_semantics)
+                ):
+                    errors.append(
+                        f"{prefix} confidence statistic requires field, key, and semantics"
+                    )
+            row_selection = table.get("row_selection")
+            if row_selection:
+                prefix = f"{source_id}.{table_name}.row_selection"
+                missing = sorted(
+                    {"policy_id", "sql_predicate", "reason"} - set(row_selection)
+                )
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                if any(
+                    not str(row_selection.get(field) or "").strip()
+                    for field in ("policy_id", "sql_predicate", "reason")
+                ):
+                    errors.append(f"{prefix} values must be non-empty")
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
                 if not claim.get("claim_role"):
@@ -435,11 +501,20 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
         create table relation_claim_evidence (
           evidence_id varchar primary key,
           source_record_id varchar not null,
+          left_identity_namespace varchar not null,
           left_identity_raw varchar not null,
+          right_identity_namespace varchar not null,
           right_identity_raw varchar not null,
           relation_kind varchar not null,
           relation_scope varchar not null,
           probability double,
+          probability_semantics varchar,
+          confidence_statistic_key varchar,
+          confidence_statistic_value_raw varchar,
+          confidence_statistic_value double,
+          confidence_statistic_unit varchar,
+          confidence_statistic_semantics varchar,
+          evidence_polarity varchar not null,
           method varchar,
           reference_raw varchar,
           epoch_raw varchar,
@@ -650,11 +725,55 @@ def product_manifest(input_row: dict[str, Any], artifact: dict[str, Any]) -> dic
     return load_json(candidates[0])
 
 
+def source_field_metadata(
+    typed_table: dict[str, Any],
+    product: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return source-native field metadata for delimited, FITS, and document tables."""
+    dispositions = product.get("field_dispositions") or []
+    if dispositions:
+        return list(dispositions)
+
+    source_schema = typed_table.get("source_schema")
+    if isinstance(source_schema, dict):
+        source_schema = source_schema.get("source_schema")
+    if not isinstance(source_schema, list):
+        source_schema = typed_table.get("columns") or []
+
+    fields = []
+    for field in source_schema:
+        name = field.get("column_name") or field.get("name")
+        if not name:
+            raise ValueError(
+                f"source-native schema contains an unnamed field: {typed_table['source_name']}"
+            )
+        fields.append(
+            {
+                "column_name": str(name),
+                "datatype": (
+                    field.get("datatype")
+                    or field.get("type")
+                    or field.get("arrow_type")
+                    or field.get("source_format")
+                ),
+                "unit": field.get("unit"),
+                "ucd": field.get("ucd"),
+                "description": field.get("description"),
+            }
+        )
+    return fields
+
+
 def logical_key_expression(fields: list[str]) -> str:
     members = ", ".join(
         f"{sql_identifier(field)} := {sql_identifier(field)}" for field in fields
     )
     return f"to_json(struct_pack({members}))"
+
+
+def row_selection_predicate(table_contract: dict[str, Any]) -> str:
+    selection = table_contract.get("row_selection") or {}
+    return str(selection.get("sql_predicate") or "true")
 
 
 def normalized_disposition_expression(value: str) -> str:
@@ -709,6 +828,12 @@ def materialize_identifier_claims(
         claim = claim_by_field[field]
         namespace = claim["namespace"]
         claim_scope = claim["claim_scope"]
+        component_scope = claim.get("component_scope")
+        excluded_values = [str(value) for value in claim.get("excluded_values") or []]
+        excluded_predicate = ""
+        if excluded_values:
+            values = ", ".join(sql_string(value) for value in excluded_values)
+            excluded_predicate = f"and trim(cast({quoted} as varchar)) not in ({values})"
         evidence_namespace = f"identifier|{field}|"
         branches.append(
             f"""
@@ -719,7 +844,7 @@ def materialize_identifier_claims(
               s.value_raw,
               trim(s.value_raw),
               {sql_string(claim_scope)},
-              null,
+              {nullable_sql_string(component_scope)},
               null,
               json_object('source_field', {sql_string(field)})
             from (
@@ -728,6 +853,7 @@ def materialize_identifier_claims(
                 trim(cast({quoted} as varchar)) value_raw
               from read_parquet({sql_string(str(path))}) t
               where nullif(trim(cast({quoted} as varchar)), '') is not null
+                {excluded_predicate}
             ) s
             join source_records r
               on r.source_id={sql_string(source_id)}
@@ -1230,6 +1356,121 @@ def materialize_observation_products(
     return {str(field["column_name"]) for field in fields}
 
 
+def materialize_relation_claims(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    relation_claim: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    left_field = str(relation_claim["left_identifier_field"])
+    right_field = str(relation_claim["right_identifier_field"])
+    probability_field = relation_claim.get("probability_field")
+    statistic_field = relation_claim.get("confidence_statistic_field")
+    epoch_field = relation_claim.get("epoch_field")
+    quality_fields = [str(field) for field in relation_claim.get("quality_fields") or []]
+    required = {
+        left_field,
+        right_field,
+        *(str(field) for field in (probability_field, statistic_field, epoch_field) if field),
+        *quality_fields,
+    }
+    missing = sorted(required - available_fields)
+    if missing:
+        raise ValueError(f"relation fields missing from {table_name}: {missing}")
+
+    left = text_expression(left_field)
+    right = text_expression(right_field)
+    probability = (
+        f"try_cast({sql_identifier(str(probability_field))} as double)"
+        if probability_field
+        else "null::double"
+    )
+    probability_semantics = (
+        sql_string(str(relation_claim["probability_semantics"]))
+        if probability_field
+        else "null::varchar"
+    )
+    statistic_raw = (
+        text_expression(str(statistic_field))
+        if statistic_field
+        else "null::varchar"
+    )
+    statistic_value = (
+        f"try_cast({sql_identifier(str(statistic_field))} as double)"
+        if statistic_field
+        else "null::double"
+    )
+    epoch = text_expression(str(epoch_field)) if epoch_field else "null::varchar"
+    quality_members = [
+        "'source_table'",
+        sql_string(table_name),
+        "'source_evidence_polarity'",
+        sql_string(str(relation_claim["evidence_polarity"])),
+    ]
+    for field in quality_fields:
+        quality_members.extend((sql_string(field), sql_identifier(field)))
+    quality = "json_object(" + ", ".join(quality_members) + ")"
+    evidence_namespace = (
+        f"relation|{table_name}|{relation_claim['relation_kind']}|"
+    )
+    con.execute(
+        f"""
+        insert into relation_claim_evidence
+        select distinct
+          sha256({sql_string(evidence_namespace)} || r.source_record_id),
+          r.source_record_id,
+          {sql_string(str(relation_claim['left_identifier_namespace']))},
+          {left},
+          {sql_string(str(relation_claim['right_identifier_namespace']))},
+          {right},
+          {sql_string(str(relation_claim['relation_kind']))},
+          {sql_string(str(relation_claim['relation_scope']))},
+          {probability},
+          {probability_semantics},
+          {nullable_sql_string(relation_claim.get('confidence_statistic_key'))},
+          {statistic_raw},
+          {statistic_value},
+          {nullable_sql_string(relation_claim.get('confidence_statistic_unit'))},
+          {nullable_sql_string(relation_claim.get('confidence_statistic_semantics'))},
+          {sql_string(str(relation_claim['evidence_polarity']))},
+          {sql_string(str(relation_claim['method']))},
+          {sql_string(str(relation_claim['reference_raw']))},
+          {epoch},
+          {quality}
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif({left}, '') is not null
+          and nullif({right}, '') is not null
+        """
+    )
+    if probability_field:
+        invalid = int(
+            con.execute(
+                """
+                select count(*)
+                from relation_claim_evidence e
+                join source_records r using (source_record_id)
+                where r.source_id=? and r.release_id=? and r.source_table=?
+                  and (e.probability < 0 or e.probability > 1)
+                """,
+                [source_id, release_id, table_name],
+            ).fetchone()[0]
+        )
+        if invalid:
+            raise ValueError(
+                f"strict relation probabilities outside [0, 1] in {table_name}: {invalid}"
+            )
+    return required
+
+
 class ReferenceFragmentParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -1482,7 +1723,7 @@ def materialize_source(
         if missing_keys:
             raise ValueError(f"logical key fields missing from {table_name}: {missing_keys}")
         product = product_manifest(input_row, artifact)
-        dispositions = product.get("field_dispositions") or []
+        dispositions = source_field_metadata(typed_table, product)
         source_fields = [str(row["column_name"]) for row in dispositions]
         if columns != source_fields:
             raise ValueError(
@@ -1503,6 +1744,7 @@ def materialize_source(
         context_json = (
             logical_key_expression(context_fields) if context_fields else "'{}'::json"
         )
+        row_predicate = row_selection_predicate(table_contract)
         record_namespace = f"{source_id}|{release_id}|{table_name}|"
         retrieved_at = artifact.get("retrieved_at")
         con.execute(
@@ -1514,6 +1756,7 @@ def materialize_source(
                 {key_json} logical_key_json,
                 {context_json} source_context_json
               from read_parquet({sql_string(str(path))}) t
+              where {row_predicate}
             )
             select
               sha256({sql_string(record_namespace)} || source_row_sha256),
@@ -1545,7 +1788,10 @@ def materialize_source(
             """,
             [source_id, release_id, table_name],
         ).fetchone()
-        if int(source_rows) != int(typed_table["row_count"]):
+        typed_source_rows = int(typed_table["row_count"])
+        if int(source_rows) > typed_source_rows:
+            raise ValueError(f"source-record accounting overflow for {table_name}")
+        if not table_contract.get("row_selection") and int(source_rows) != typed_source_rows:
             raise ValueError(f"source-record accounting mismatch for {table_name}")
         identifier_fields = [
             str(field["column_name"])
@@ -1553,6 +1799,8 @@ def materialize_source(
             if rule["destination"] == "identifier_claim_evidence"
         ]
         materialized_fields = set(context_fields)
+        identifier_claims = dict(contract["identifier_claims"])
+        identifier_claims.update(table_contract.get("identifier_claims") or {})
         materialized_fields.update(
             materialize_identifier_claims(
                 con,
@@ -1561,7 +1809,7 @@ def materialize_source(
                 table_name=table_name,
                 path=path,
                 fields=identifier_fields,
-                claim_by_field=contract["identifier_claims"],
+                claim_by_field=identifier_claims,
             )
         )
         materialized_fields.update(
@@ -1625,6 +1873,19 @@ def materialize_source(
                     fields=observation_product_fields,
                 )
             )
+        relation_claim = table_contract.get("relation_claim")
+        if relation_claim:
+            materialized_fields.update(
+                materialize_relation_claims(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    relation_claim=relation_claim,
+                    available_fields=set(columns),
+                )
+            )
         materialize_parameter_sets(
             con,
             source_id=source_id,
@@ -1662,6 +1923,11 @@ def materialize_source(
             {
                 "source_table": table_name,
                 "source_rows": int(source_rows),
+                "input_source_rows": typed_source_rows,
+                "excluded_by_row_selection": typed_source_rows - int(source_rows),
+                "row_selection_policy": (
+                    table_contract.get("row_selection") or {}
+                ).get("policy_id"),
                 "source_records": int(records),
                 "exact_duplicate_rows": int(duplicate_rows),
                 "source_fields": len(columns),
@@ -1676,17 +1942,18 @@ def materialize_source(
         """
         insert into object_binding_outcomes
         with binding_scopes as (
-          select source_record_id, object_scope binding_scope
+          select source_record_id, object_scope binding_scope, null::varchar component_scope
           from source_records
           where source_id=? and release_id=?
           union
-          select i.source_record_id, i.claim_scope binding_scope
+          select i.source_record_id, i.claim_scope binding_scope, i.component_scope
           from identifier_claim_evidence i
           join source_records r using (source_record_id)
           where r.source_id=? and r.release_id=?
         )
         select
-          sha256('binding|unresolved|' || s.source_record_id || '|' || s.binding_scope),
+          sha256('binding|unresolved|' || s.source_record_id || '|' || s.binding_scope
+            || '|' || coalesce(s.component_scope, '')),
           s.source_record_id,
           'unresolved',
           s.binding_scope,
@@ -1694,7 +1961,7 @@ def materialize_source(
           null,
           null,
           null,
-          null,
+          s.component_scope,
           'awaiting release-scoped identity and component-scope binding',
           json_object(
             'source_id', r.source_id,
@@ -1713,6 +1980,10 @@ def materialize_source(
         "adapter_version": adapter["adapter_version"],
         "tables": report_tables,
         "source_rows": sum(row["source_rows"] for row in report_tables),
+        "input_source_rows": sum(row["input_source_rows"] for row in report_tables),
+        "excluded_by_row_selection": sum(
+            row["excluded_by_row_selection"] for row in report_tables
+        ),
         "source_records": sum(row["source_records"] for row in report_tables),
         "exact_duplicate_rows": sum(row["exact_duplicate_rows"] for row in report_tables),
         "source_fields": sum(row["source_fields"] for row in report_tables),
@@ -1736,13 +2007,36 @@ def table_logical_report(
     quoted = sql_identifier(table_name)
     rows, digest = con.execute(
         f"""
+        with row_hashes as (
+          select sha256(to_json(t)) row_hash
+          from {quoted} t
+        ),
+        bucket_hashes as (
+          select
+            substr(row_hash, 1, 2) bucket,
+            count(*)::bigint row_count,
+            sha256(string_agg(row_hash, '' order by row_hash)) bucket_hash
+          from row_hashes
+          group by bucket
+        )
         select
-          count(*)::bigint,
-          sha256(coalesce(string_agg(sha256(to_json(t)), '' order by to_json(t)), ''))
-        from {quoted} t
+          coalesce(sum(row_count), 0)::bigint,
+          sha256(coalesce(
+            string_agg(
+              bucket || ':' || cast(row_count as varchar) || ':' || bucket_hash,
+              '|' order by bucket
+            ),
+            ''
+          ))
+        from bucket_hashes
         """
     ).fetchone()
-    return {"table": table_name, "row_count": int(rows), "logical_sha256": digest}
+    return {
+        "table": table_name,
+        "row_count": int(rows),
+        "logical_sha256": digest,
+        "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
+    }
 
 
 def compile_evidence(
@@ -1890,6 +2184,35 @@ def compile_evidence(
                 ).fetchall()
             },
         }
+        relation_claim_counts = {
+            "by_kind_and_polarity": {
+                str(kind): {
+                    str(polarity): int(count)
+                    for polarity, count in con.execute(
+                        "select evidence_polarity, count(*) "
+                        "from relation_claim_evidence where relation_kind=? "
+                        "group by evidence_polarity order by evidence_polarity",
+                        [kind],
+                    ).fetchall()
+                }
+                for (kind,) in con.execute(
+                    "select distinct relation_kind from relation_claim_evidence "
+                    "order by relation_kind"
+                ).fetchall()
+            },
+            "with_strict_probability": int(
+                con.execute(
+                    "select count(*) from relation_claim_evidence "
+                    "where probability is not null"
+                ).fetchone()[0]
+            ),
+            "with_confidence_statistic": int(
+                con.execute(
+                    "select count(*) from relation_claim_evidence "
+                    "where confidence_statistic_value is not null"
+                ).fetchone()[0]
+            ),
+        }
         pending_fields = mapping_counts.get("declared_pending", 0)
         build_status = "pass" if not pending_fields else "in_progress"
         con.execute(
@@ -1924,8 +2247,10 @@ def compile_evidence(
         "identifier_claim_counts_by_scope": identifier_claim_scope_counts,
         "binding_outcome_counts_by_status_and_scope": binding_outcome_counts,
         "lifecycle_claim_counts": lifecycle_claim_counts,
+        "relation_claim_counts": relation_claim_counts,
         "citation_summary": citation_summary,
         "logical_content_sha256": logical_content_sha256,
+        "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
         "tables": tables,
         "created_at": created_at,
     }

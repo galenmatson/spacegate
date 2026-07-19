@@ -40,8 +40,10 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
             "binding_outcome_counts_by_status_and_scope"
         ],
         "lifecycle_claim_counts": report["lifecycle_claim_counts"],
+        "relation_claim_counts": report["relation_claim_counts"],
         "citation_summary": report["citation_summary"],
         "logical_content_sha256": report["logical_content_sha256"],
+        "logical_hash_algorithm": report["logical_hash_algorithm"],
         "tables": report["tables"],
         "created_at": report["created_at"],
     }
