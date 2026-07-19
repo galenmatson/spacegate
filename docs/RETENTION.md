@@ -144,10 +144,14 @@ scientific-evidence directories from failed or deliberately interrupted
 diagnostic builds. Never delete those directories manually. General state
 retention remains prohibited while E3 acquisition or E4 verification is active.
 When a stopped compiler diagnostic itself creates material storage pressure, the
-only allowed narrower exception is the explicit fail-closed command below. It
-accepts direct hidden children only, refuses manifests, symlinks, shared files,
-and live file descriptors, and requires a reviewed dry-run candidate hash before
-whole-directory removal:
+only allowed narrower exception is the explicit fail-closed command below. Its
+interrupted-build mode accepts direct hidden children only and refuses
+manifests, symlinks, shared files, and live file descriptors. A separate
+independent-audit mode accepts a manifest-bearing 24-hex build only when the
+external artifact audit has `status=fail`, identifies the same build and
+database, contains at least one nonzero check, and the database still matches
+the immutable manifest checksum. Both modes require a reviewed dry-run
+candidate hash before whole-directory removal:
 
 ```bash
 .venv/bin/python scripts/prune_evidence_lake_artifacts.py \
@@ -165,10 +169,25 @@ whole-directory removal:
   --report /data/spacegate/state/reports/evidence_lake_v2/e4_retention_applied.json
 ```
 
+For an immutable diagnostic that failed independent audit, substitute:
+
+```bash
+.venv/bin/python scripts/prune_evidence_lake_artifacts.py \
+  --state-dir /data/spacegate/state \
+  --failed-audit '<build-id>=/absolute/path/to/artifact_audit.json' \
+  --reason '<specific audit failure and preserved reproduction inputs>' \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e4_failed_build_dry_run.json
+```
+
+Apply still requires the exact dry-run `candidate_set_sha256`. The durable
+compiler and audit reports remain outside the retired artifact and preserve its
+identity, metrics, checksum, and failure reason.
+
 The minimum age is 60 minutes by default. Reducing it is an explicit operator
 decision and does not weaken the no-live-process, no-manifest, or whole-artifact
-gates. Accepted artifacts, source snapshots, typed snapshots, identity graphs,
-and individual files inside an artifact remain outside this command's scope.
+gates. Accepted, served, published, rollback, and merely superseded artifacts,
+source snapshots, typed snapshots, identity graphs, and individual files inside
+an artifact remain outside this command's scope.
 
 On July 19, the reviewed dry run
 `e4_simbad_failed_artifact_retention_dry_run.json` identified exactly two closed,

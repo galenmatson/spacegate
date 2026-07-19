@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -16,6 +18,36 @@ def temporary_artifact(root: Path, name: str = ".0123456789abcdef01234567.test")
     artifact.mkdir(parents=True)
     (artifact / "scientific_evidence.duckdb").write_bytes(b"diagnostic")
     return artifact
+
+
+def failed_artifact(root: Path, tmp_path: Path) -> tuple[Path, Path]:
+    artifact = root / "0123456789abcdef01234567"
+    artifact.mkdir(parents=True)
+    database = artifact / "scientific_evidence.duckdb"
+    database.write_bytes(b"failed diagnostic")
+    database_sha256 = hashlib.sha256(database.read_bytes()).hexdigest()
+    (artifact / "manifest.json").write_text(
+        json.dumps(
+            {
+                "build_id": artifact.name,
+                "database": database.name,
+                "database_sha256": database_sha256,
+            }
+        )
+    )
+    audit = tmp_path / "audit.json"
+    audit.write_text(
+        json.dumps(
+            {
+                "schema_version": "spacegate.scientific_evidence_artifact_audit.v1",
+                "status": "fail",
+                "build_id": artifact.name,
+                "database": str(database),
+                "checks": {"blank_identifier_claims": 2, "other": 0},
+            }
+        )
+    )
+    return artifact, audit
 
 
 def test_retention_dry_run_and_hash_gated_whole_artifact_apply(tmp_path: Path) -> None:
@@ -142,3 +174,69 @@ def test_retention_rejects_live_artifact_and_detects_tree_change(tmp_path: Path)
         proc_root=proc_root,
     )
     assert before["candidate_set_sha256"] != after["candidate_set_sha256"]
+
+
+def test_retention_accepts_only_independently_audit_failed_immutable_build(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "scientific_evidence"
+    artifact, audit = failed_artifact(root, tmp_path)
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    report = retention.retention_report(
+        root,
+        [],
+        failed_audits={artifact.name: audit},
+        reason="independent audit failed immutable diagnostic",
+        minimum_age_minutes=0,
+        proc_root=proc_root,
+    )
+    candidate = report["candidates"][0]
+    assert candidate["artifact_state"] == "immutable_independently_audit_failed"
+    assert candidate["failed_checks"] == {"blank_identifier_claims": 2}
+    assert candidate["database_sha256"] == hashlib.sha256(
+        (artifact / "scientific_evidence.duckdb").read_bytes()
+    ).hexdigest()
+    applied = retention.apply_retention(report, report["candidate_set_sha256"])
+    assert applied["action"] == "applied"
+    assert not artifact.exists()
+
+
+def test_failed_immutable_retention_rejects_passing_or_mismatched_audit(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "scientific_evidence"
+    artifact, audit = failed_artifact(root, tmp_path)
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    payload = json.loads(audit.read_text())
+    payload["status"] = "pass"
+    audit.write_text(json.dumps(payload))
+    try:
+        retention.inspect_failed_artifact(
+            root,
+            artifact.name,
+            audit,
+            minimum_age_minutes=0,
+            proc_root=proc_root,
+        )
+    except ValueError as error:
+        assert "does not fail" in str(error)
+    else:
+        raise AssertionError("passing audit authorized immutable retention")
+
+    payload["status"] = "fail"
+    payload["database"] = str(tmp_path / "other.duckdb")
+    audit.write_text(json.dumps(payload))
+    try:
+        retention.inspect_failed_artifact(
+            root,
+            artifact.name,
+            audit,
+            minimum_age_minutes=0,
+            proc_root=proc_root,
+        )
+    except ValueError as error:
+        assert "database does not match" in str(error)
+    else:
+        raise AssertionError("mismatched audit database authorized retention")
