@@ -437,6 +437,17 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   and cluster/scope audits pass with zero relation or orbit promotion, and clean
   reproduction matches logical hash
   `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`.
+- Compiler/contract v42 materializes the pinned OpenNGC and constituent nebula
+  catalogs as source-scoped extended-object evidence. Checkpoint
+  `54d1b0b6a841344c48327991` accounts all 19,868 rows and 238 fields: 19,012
+  catalog objects become extended-object records while 856 ReadMe lines remain
+  method documents. It emits 21,107 exact OpenNGC, Messier, NGC, IC, LBN, LDN,
+  Barnard, Magakian, vdB, Sharpless, Cederblad, and source-designation claims.
+  List-valued aliases remain raw parameters for E2 instead of being split by an
+  unreviewed parser; Cederblad component records never claim their base identity.
+  Independent artifact and extended-object scope audits pass with zero relation
+  or orbit promotion, and clean reproduction matches logical hash
+  `456e7a36cfd7e08ea5f7ce19c44817114de5d54d1e077ae365e2668c8191bd2d`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

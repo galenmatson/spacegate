@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.41",
-  "compiler_version": "scientific_evidence_compiler_v41",
+  "contract_version": "2026-07-19.e4-foundation.42",
+  "compiler_version": "scientific_evidence_compiler_v42",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -476,6 +476,14 @@
         "disposition": "domain",
         "destination": "extended_object_evidence",
         "reason": "source-native SNR geometry, classification, flux, spectral index, aliases, detail locator, and row lineage"
+      }
+    ],
+    "extended_catalog_objects": [
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "extended_object_evidence",
+        "reason": "complete source-native extended-object identity, geometry, distance, physical context, quality, and row lineage"
       }
     ],
     "tess_eb_observations": [
@@ -1802,6 +1810,195 @@
             }
           ]
         }
+      }
+    },
+    "extended.openngc_and_nebulae": {
+      "adapter_version": "extended_catalog_scientific_evidence_v1",
+      "table_order": [
+        "openngc_ngc",
+        "openngc_addendum",
+        "lbn_vii_9",
+        "ldn_vii_7a",
+        "barnard_vii_220a",
+        "magakian_2003",
+        "vdb_vii_21",
+        "sharpless_vii_20",
+        "cederblad_vii_231",
+        "lbn_vii_9_readme",
+        "ldn_vii_7a_readme",
+        "barnard_vii_220a_readme",
+        "magakian_2003_readme",
+        "vdb_vii_21_readme",
+        "sharpless_vii_20_readme",
+        "cederblad_vii_231_readme"
+      ],
+      "tables": {
+        "openngc_ngc": {
+          "logical_key_fields": ["Name"],
+          "object_scope": "extended_object_or_source_component",
+          "field_profile": "extended_catalog_objects",
+          "conditional_identifier_claims": [
+            {"value_field": "Name", "namespace": "openngc_designation", "claim_scope": "extended_object_or_source_component", "sql_predicate": "true"}
+          ],
+          "composite_identifier_claims": [
+            {"fields": ["M"], "prefix": "M ", "namespace": "messier_designation", "claim_scope": "extended_object_or_source_component"},
+            {"fields": ["NGC"], "prefix": "NGC ", "namespace": "ngc_designation", "claim_scope": "extended_object_or_source_component"},
+            {"fields": ["IC"], "prefix": "IC ", "namespace": "ic_designation", "claim_scope": "extended_object_or_source_component"}
+          ],
+          "extended_object": {
+            "extended_kind": "openngc_catalog_object",
+            "identity_key_fields": ["Name"],
+            "geometry_fields": ["RA", "Dec", "MajAx", "MinAx", "PosAng"],
+            "distance_fields": ["Pax"],
+            "parameter_fields": ["Type", "Const", "B-Mag", "V-Mag", "J-Mag", "H-Mag", "K-Mag", "SurfBr", "Hubble", "Pm-RA", "Pm-Dec", "RadVel", "Redshift", "Cstar U-Mag", "Cstar B-Mag", "Cstar V-Mag", "M", "NGC", "IC", "Cstar Names", "Identifiers", "Common names"],
+            "quality_fields": ["NED notes", "OpenNGC notes", "Sources"],
+            "reference_raw": "https://github.com/mattiaverga/OpenNGC",
+            "method": "openngc_catalog_compilation",
+            "normalization_version": "openngc_source_native_lexical_v1"
+          }
+        },
+        "openngc_addendum": {
+          "table_contract_ref": "openngc_ngc"
+        },
+        "lbn_vii_9": {
+          "logical_key_fields": ["Seq"],
+          "object_scope": "bright_nebula",
+          "field_profile": "extended_catalog_objects",
+          "conditional_identifier_claims": [
+            {"value_field": "Name", "namespace": "nebula_source_designation", "claim_scope": "extended_object_or_source_component", "sql_predicate": "true"}
+          ],
+          "composite_identifier_claims": [
+            {"fields": ["Seq"], "prefix": "LBN ", "namespace": "lbn_designation", "claim_scope": "bright_nebula"}
+          ],
+          "extended_object": {
+            "extended_kind": "bright_nebula",
+            "identity_key_fields": ["Seq"],
+            "geometry_fields": ["GLON", "GLAT", "RAh", "RAm", "DE-", "DEd", "DEm", "Diam1", "Diam2", "Area"],
+            "parameter_fields": ["Seq", "Color", "Bright", "ID", "Name"],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_raw": "CDS VII/9",
+            "method": "lynds_bright_nebula_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "ldn_vii_7a": {
+          "logical_key_fields": ["LDN"],
+          "object_scope": "dark_nebula",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["LDN"], "prefix": "LDN ", "namespace": "ldn_designation", "claim_scope": "dark_nebula"},
+            {"fields": ["Barn"], "prefix": "Barnard ", "namespace": "barnard_designation", "claim_scope": "dark_nebula"}
+          ],
+          "extended_object": {
+            "extended_kind": "dark_nebula",
+            "identity_key_fields": ["LDN"],
+            "geometry_fields": ["RAh", "RAm", "DE-", "DEd", "DEm", "GLON", "GLAT", "Area"],
+            "parameter_fields": ["LDN", "Opacity", "ID", "Seq", "Lynds2", "Barn"],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_raw": "CDS VII/7A",
+            "method": "lynds_dark_nebula_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "barnard_vii_220a": {
+          "logical_key_fields": ["Barn"],
+          "object_scope": "dark_nebula",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["Barn"], "prefix": "Barnard ", "namespace": "barnard_designation", "claim_scope": "dark_nebula"}
+          ],
+          "extended_object": {
+            "extended_kind": "dark_nebula",
+            "identity_key_fields": ["Barn"],
+            "geometry_fields": ["RAh", "RAm", "RAs", "DE-", "DEd", "DEm", "RA2000h", "RA2000m", "RA2000s", "DE2000-", "DE2000d", "DE2000m", "Diam"],
+            "parameter_fields": ["Barn"],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_raw": "CDS VII/220A",
+            "method": "barnard_dark_nebula_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "magakian_2003": {
+          "logical_key_fields": ["Seq"],
+          "object_scope": "reflection_nebula_or_source_component",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["Seq"], "prefix": "M2003 ", "namespace": "magakian_2003_entry", "claim_scope": "reflection_nebula_or_source_component"}
+          ],
+          "extended_object": {
+            "extended_kind": "reflection_nebula_or_source_component",
+            "identity_key_fields": ["Seq"],
+            "geometry_fields": ["RAh", "RAm", "RAs", "DE-", "DEd", "DEm", "DEs"],
+            "parameter_fields": ["Seq", "DG", "unnamed_27_27", "DG2", "[RK68]", "u_[RK68]", "VdB", "VdBH", "[B77]", "NGC/IC", "GN", "Bran", "Ced", "[SS62]", "Other", "DM", "HD", "IRAS", "Class"],
+            "quality_fields": ["source_line_number", "Comments", "raw_row"],
+            "reference_raw": "2003A&A...399..141M",
+            "method": "magakian_reflection_nebula_compilation",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "vdb_vii_21": {
+          "logical_key_fields": ["VdB"],
+          "object_scope": "reflection_nebula_or_source_component",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["VdB"], "prefix": "vdB ", "namespace": "vdb_designation", "claim_scope": "reflection_nebula_or_source_component"}
+          ],
+          "extended_object": {
+            "extended_kind": "reflection_nebula_or_source_component",
+            "identity_key_fields": ["VdB"],
+            "geometry_fields": ["oGLON", "oGLAT", "BRadMax", "RRadMax"],
+            "parameter_fields": ["VdB", "DM", "HD", "HD2", "SpType", "Vmag", "n_Vmag", "Type", "SurfBr", "Color", "Absorb"],
+            "quality_fields": ["source_line_number", "RemFlag", "u_BRadMax", "u_RRadMax", "raw_row"],
+            "reference_raw": "CDS VII/21",
+            "method": "van_den_bergh_reflection_nebula_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "sharpless_vii_20": {
+          "logical_key_fields": ["Sh2"],
+          "object_scope": "hii_region",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["Sh2"], "prefix": "Sh 2-", "namespace": "sharpless_designation", "claim_scope": "hii_region"}
+          ],
+          "extended_object": {
+            "extended_kind": "hii_region",
+            "identity_key_fields": ["Sh2"],
+            "geometry_fields": ["GLon", "GLat", "RAh", "RAm", "RAds", "DE-", "DEd", "DEm", "DEs", "RA1950h", "RA1950m", "RA1950ds", "DE1950-", "DE1950d", "DE1950m", "DE1950s", "Diam"],
+            "parameter_fields": ["Sh2", "GlLund", "GbLund", "Form", "Struct", "Bright", "Stars"],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_raw": "CDS VII/20",
+            "method": "sharpless_hii_region_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "cederblad_vii_231": {
+          "logical_key_fields": ["Ced", "m_Ced"],
+          "object_scope": "diffuse_nebula_or_source_component",
+          "field_profile": "extended_catalog_objects",
+          "composite_identifier_claims": [
+            {"fields": ["Ced"], "prefix": "Ced ", "namespace": "cederblad_designation", "claim_scope": "diffuse_nebula", "sql_predicate": "m_Ced is null"},
+            {"fields": ["Ced", "m_Ced"], "prefix": "Ced ", "delimiter": "", "namespace": "cederblad_component_designation", "claim_scope": "diffuse_nebula_or_source_component", "sql_predicate": "m_Ced is not null"}
+          ],
+          "extended_object": {
+            "extended_kind": "diffuse_nebula_or_source_component",
+            "identity_key_fields": ["Ced", "m_Ced"],
+            "geometry_fields": ["RAh", "RAm", "DE-", "DEd", "DEm", "G1Lon", "G1Lat", "Dim1", "Dim2", "x", "y", "z"],
+            "distance_fields": ["plx", "Dist"],
+            "parameter_fields": ["Ced", "m_Ced", "Name", "Star", "pmag", "vmag", "SpType", "loga1", "SpNeb", "Class", "Method"],
+            "quality_fields": ["source_line_number", "u_RAm", "u_DEd", "u_G1Lat", "u_pmag", "u_vmag", "n_loga1", "n_Dim2", "u_plx", "u_Dist", "raw_row"],
+            "reference_raw": "CDS VII/231",
+            "method": "cederblad_diffuse_nebula_catalog",
+            "normalization_version": "cds_source_native_lexical_v1"
+          }
+        },
+        "lbn_vii_9_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "ldn_vii_7a_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "barnard_vii_220a_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "magakian_2003_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "vdb_vii_21_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "sharpless_vii_20_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"},
+        "cederblad_vii_231_readme": {"logical_key_fields": ["source_line_number"], "object_scope": "source_method_document_line", "field_profile": "source_method_document"}
       }
     },
     "extended.green_snr": {

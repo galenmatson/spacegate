@@ -326,6 +326,9 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- OpenNGC and constituent nebula catalogs `54d1b0b6a841344c48327991`:
+  19,012 typed object rows, 856 ReadMe lines, all 238 fields, 21,107 exact
+  catalog identities, and no heuristic splitting of list-valued aliases
 - Hunt/Reffert 2024 `7e66e0690aa962c837d43a86`: 465 uncertainty-overlap
   clusters, 51,017 probability-bearing memberships, 451 literature
   crossmatches, all 161 fields, and zero canonical containment promotion

@@ -290,6 +290,9 @@ and clean-reproduction reports are likewise protected E4/E5 inputs.
 Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86`, complete raw and typed
 snapshot `cbfa7c6ec8c2e3bfbc226898`, and its compile, artifact-audit,
 cluster/scope-audit, and clean-reproduction reports are protected E4/E5 inputs.
+Extended-catalog checkpoint `54d1b0b6a841344c48327991`, complete raw and typed
+snapshot `7753816661175edcb526c676`, and its compile, artifact-audit,
+extended-scope-audit, and clean-reproduction reports are protected E4/E5 inputs.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

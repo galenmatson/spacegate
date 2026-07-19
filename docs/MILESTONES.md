@@ -1607,6 +1607,14 @@ Current status (July 19, 2026, in progress):
   membership becomes canonical containment. Artifact/cluster-scope audits and
   clean reproduction pass logical hash
   `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`.
+- Extended-catalog checkpoint `54d1b0b6a841344c48327991` accounts all 19,868
+  pinned OpenNGC/nebula rows and 238 fields as 19,012 extended-object records,
+  856 source-document lines, and 21,107 exact catalog identity claims. Raw
+  alias lists remain source parameters rather than guessed individual claims;
+  component-bearing Cederblad records do not also claim the base designation.
+  All bindings remain unresolved and no object evidence becomes a relation or
+  orbit. Artifact/extended-scope audits and clean reproduction pass logical hash
+  `456e7a36cfd7e08ea5f7ce19c44817114de5d54d1e077ae365e2668c8191bd2d`.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

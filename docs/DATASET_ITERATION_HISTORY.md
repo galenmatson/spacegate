@@ -1455,6 +1455,26 @@ Representative commits:
   `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`
   with no differing sections and removes the scratch artifact.
 
+### 48) Evidence Lake E4 Extended-Object Catalog Evidence
+
+- Compiler/contract v42 adds the active OpenNGC and constituent nebula release
+  to the general extended-object domain contract. All 19,868 rows and 238 field
+  occurrences are accounted: 19,012 catalog rows become extended-object
+  evidence, while 856 ReadMe lines remain source-method documents.
+- The adapter emits 21,107 exact OpenNGC, Messier, NGC, IC, LBN, LDN, Barnard,
+  Magakian, vdB, Sharpless, Cederblad, and source-designation claims. Comma- or
+  source-formatted alias lists remain raw parameter evidence for E2; E4 does not
+  split them with an ad hoc parser. Cederblad's 149 component-bearing records
+  claim only component designations, while 181 unsuffixed records claim the
+  base designation.
+- Eight catalog references link to all 19,012 object records. ReadMe rows cannot
+  become objects, all bindings remain unresolved, and no extended-object row
+  becomes a relation, orbit, or canonical inventory assertion.
+- Checkpoint `54d1b0b6a841344c48327991` passes the independent artifact and
+  extended-object scope audits. Clean reproduction matches logical hash
+  `456e7a36cfd7e08ea5f7ce19c44817114de5d54d1e077ae365e2668c8191bd2d`
+  with no differing sections and removes the scratch artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -75,6 +75,11 @@ Evidence Lake v2 staging rule:
   it does not turn membership into a relation claim or canonical containment.
   Exact source field names remain in lineage when typed query outputs require a
   legal alias.
+- Extended-catalog checkpoint `54d1b0b6a841344c48327991` keeps OpenNGC and
+  constituent nebula identities, geometry, distances, physical context, and
+  source documents separate from canonical object inventory. Catalog component
+  markers remain scoped, and raw list-valued aliases remain evidence until E2
+  applies an explicit parser/reconciliation policy.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

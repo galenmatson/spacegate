@@ -100,6 +100,18 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert member_selection["cross_table_memberships"][0][
         "target_sql_predicate"
     ] == "membership_target.dist16 <= 383.245"
+    extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
+    assert len(extended["tables"]) == 16
+    assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (
+        "openngc_ngc"
+    )
+    cederblad_claims = extended["tables"]["cederblad_vii_231"][
+        "composite_identifier_claims"
+    ]
+    assert [claim["sql_predicate"] for claim in cederblad_claims] == [
+        "m_Ced is null",
+        "m_Ced is not null",
+    ]
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:

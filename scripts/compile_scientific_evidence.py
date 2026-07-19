@@ -2994,11 +2994,8 @@ def materialize_extended_objects(
     distance_fields = [str(field) for field in extended_object.get("distance_fields") or []]
     parameter_fields = [str(field) for field in extended_object["parameter_fields"]]
     quality_fields = [str(field) for field in extended_object["quality_fields"]]
-    optional_fields = [
-        str(field)
-        for field in (extended_object.get("reference_field"),)
-        if field
-    ]
+    reference_field = extended_object.get("reference_field")
+    optional_fields = [str(reference_field)] if reference_field else []
     consumed = set(
         key_fields
         + geometry_fields
@@ -3024,7 +3021,11 @@ def materialize_extended_objects(
     )
     parameters = logical_key_expression(parameter_fields, "t")
     quality = logical_key_expression(quality_fields, "t")
-    reference = text_expression(extended_object.get("reference_field"))
+    reference = (
+        text_expression(str(reference_field))
+        if reference_field
+        else nullable_sql_string(extended_object.get("reference_raw"))
+    )
     namespace = f"extended-object|{table_name}|"
     con.execute(
         f"""
