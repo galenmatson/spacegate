@@ -1099,6 +1099,32 @@ Representative commits:
   uncertainty, parameter-set, and orphan-lineage checks. Neither changes the
   served database or canonical inventory.
 
+### 36) Evidence Lake E4 White-Dwarf Alternative Models
+
+- The 1,280,266-row Gaia EDR3 white-dwarf catalogue is retained losslessly in
+  raw/typed storage but is not projected wholesale into the hot evidence
+  database. `buffered_posterior_distance_overlap_v1` retains 337,272 rows whose
+  published geometric-distance posterior lower bound is within 383.245 pc,
+  explicitly reporting 942,994 outside-envelope rows.
+- Checkpoint `486e4975af015d4e5f5a3c9b` accounts all 161 source fields. It
+  materializes WDJ/Gaia EDR3/Gaia DR2/designation identity, candidate
+  probability/quality context, and 2,390,432 Teff/log-g/mass/chi-square
+  measurements in 597,608 coherent hydrogen, helium, and mixed-atmosphere
+  parameter sets. It selects no atmosphere winner.
+- The remaining 125 copied Gaia/SDSS fields stay exact in source-native typed
+  Parquet and source-record lineage, with reviewed exclusions assigning their
+  scientific semantics to release-native Gaia, distance, and survey adapters.
+- The first build attempt exposed a general SQL ambiguity between a catalog's
+  `source_id` field and compiler lineage. It failed before promotion. Compiler
+  v22 now qualifies every source-column JSON expression, preventing the same
+  defect in Gaia NSS and future adapters; the failed hidden temporary directory
+  remains subject to retention dry-run rather than manual deletion.
+- The 2,069,114,880-byte artifact passes the independent scope, identity,
+  probability, citation, compact-parameter, uncertainty, and lineage audit.
+  Clean reproduction matches logical hash
+  `02bfb585c0941285cf4fa10326b45f478df62685586cd76ae150883251f26278`
+  and removes its scratch artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

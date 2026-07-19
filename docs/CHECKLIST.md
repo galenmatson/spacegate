@@ -1150,6 +1150,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 TESS EB checkpoint: preserve all 17,605 rows/20 fields; normalize
   zero-padded TIC identity, distinguish 4,584 catalog members from 13,021
   nonmembers, and type sector/flag/morphology/Tmag/astrometry/orbit evidence
+- [x] E4 white-dwarf checkpoint: bound 1,280,266 candidates by posterior
+  distance-interval overlap; preserve 337,272 candidate contexts and separate
+  H/He/mixed atmosphere fits with all 161 fields accounted and no implicit
+  model winner; pass clean reproduction and artifact audit
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

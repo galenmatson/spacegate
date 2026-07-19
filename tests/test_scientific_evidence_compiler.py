@@ -352,6 +352,29 @@ def test_artifact_audit_rejects_extended_object_without_geometry() -> None:
     assert report["checks"]["empty_extended_object_geometry"] == 1
 
 
+def test_artifact_audit_rejects_compact_object_without_parameters() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into compact_object_evidence "
+            "(evidence_id,source_record_id,compact_kind) "
+            "values ('compact','record','test')"
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["status"] == "fail"
+    assert report["checks"]["empty_compact_object_parameter_sets"] == 1
+
+
+def test_logical_key_expression_qualifies_source_id_against_lineage_alias() -> None:
+    expression = compiler.logical_key_expression(["source_id"], "t")
+    with duckdb.connect() as con:
+        value = con.execute(
+            f"select {expression} from (values ('catalog-id')) t(source_id) "
+            "cross join (values ('lineage-id')) r(source_id)"
+        ).fetchone()[0]
+    assert json.loads(value) == {"source_id": "catalog-id"}
+
+
 def test_refuted_planet_claim_is_negative_evidence() -> None:
     expression = compiler.lifecycle_polarity_expression("disposition")
     with duckdb.connect() as con:

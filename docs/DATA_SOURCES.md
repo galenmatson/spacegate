@@ -258,6 +258,9 @@ Evidence Lake E4 source checkpoints:
   normalized TIC identity, positive/negative catalog membership, sector,
   morphology, flag, Tmag, astrometry, target-context physics, and 4,584
   positive-member orbit solutions
+- Gaia EDR3 White Dwarf `486e4975af015d4e5f5a3c9b`: 337,272 posterior-
+  interval-overlap candidates from 1,280,266 raw rows, 161 fields accounted,
+  and independent H/He/mixed atmosphere parameter sets with no implicit winner
 
 ### Exoplanet Lifecycle Notes
 

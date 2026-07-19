@@ -78,6 +78,12 @@ Evidence Lake v2 staging rule:
   Configured scalar measurements preserve raw values even when no numeric
   normalization is valid, as with TESS EB status/sectors/flags and Green SNR
   uncertainty-marked fluxes.
+- `compact_object_evidence` contains one provenance-bound source-native
+  parameter context; alternatives that are genuine stellar model solutions
+  remain separate `stellar_parameter_sets`. The EDR3 white-dwarf adapter uses
+  this division for candidate probability/quality versus H, He, and mixed
+  atmosphere fits. E5 must select a model through a versioned applicability and
+  fit-quality policy rather than flattening alternatives field by field.
 
 ## Artifact Contract
 

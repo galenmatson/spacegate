@@ -342,6 +342,24 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = extended_object.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+            compact_object = table.get("compact_object")
+            if compact_object:
+                prefix = f"{source_id}.{table_name}.compact_object"
+                required = {
+                    "compact_kind",
+                    "parameter_set_key_fields",
+                    "parameter_fields",
+                    "quality_fields",
+                    "method",
+                    "normalization_version",
+                }
+                missing = sorted(required - set(compact_object))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                for field in required:
+                    value = compact_object.get(field)
+                    if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
                 if not claim.get("claim_role"):
@@ -888,9 +906,16 @@ def source_field_metadata(
     return fields
 
 
-def logical_key_expression(fields: list[str]) -> str:
+def logical_key_expression(
+    fields: list[str],
+    table_alias: str | None = None,
+) -> str:
+    def source(field: str) -> str:
+        identifier = sql_identifier(field)
+        return f"{sql_identifier(table_alias)}.{identifier}" if table_alias else identifier
+
     members = ", ".join(
-        f"{sql_identifier(field)} := {sql_identifier(field)}" for field in fields
+        f"{sql_identifier(field)} := {source(field)}" for field in fields
     )
     return f"to_json(struct_pack({members}))"
 
@@ -1208,7 +1233,7 @@ def astrometry_frame(base_field: str) -> str | None:
 
 def signal_identifier_expression(table_contract: dict[str, Any]) -> str:
     fields = [str(field) for field in table_contract.get("signal_identifier_fields") or []]
-    return logical_key_expression(fields) if fields else "null::varchar"
+    return logical_key_expression(fields, "t") if fields else "null::varchar"
 
 
 def scalar_quality_expression(
@@ -2059,9 +2084,9 @@ def materialize_orbital_solutions(
         raise ValueError(
             f"orbital solution fields lack a typed role in {table_name}: {unconsumed}"
         )
-    solution_key = f"cast({logical_key_expression(key_fields)} as varchar)"
-    parameters = logical_key_expression(parameter_fields)
-    quality = logical_key_expression(quality_fields)
+    solution_key = f"cast({logical_key_expression(key_fields, 't')} as varchar)"
+    parameters = logical_key_expression(parameter_fields, "t")
+    quality = logical_key_expression(quality_fields, "t")
     epoch = text_expression(orbital_solution.get("epoch_field"))
     frame = text_expression(orbital_solution.get("frame_field"))
     reference = text_expression(orbital_solution.get("reference_field"))
@@ -2133,13 +2158,15 @@ def materialize_extended_objects(
         raise ValueError(
             f"extended-object fields lack a typed role in {table_name}: {unconsumed}"
         )
-    identity_key = logical_key_expression(key_fields)
-    geometry = logical_key_expression(geometry_fields)
+    identity_key = logical_key_expression(key_fields, "t")
+    geometry = logical_key_expression(geometry_fields, "t")
     distance = (
-        logical_key_expression(distance_fields) if distance_fields else "null::json"
+        logical_key_expression(distance_fields, "t")
+        if distance_fields
+        else "null::json"
     )
-    parameters = logical_key_expression(parameter_fields)
-    quality = logical_key_expression(quality_fields)
+    parameters = logical_key_expression(parameter_fields, "t")
+    quality = logical_key_expression(quality_fields, "t")
     reference = text_expression(extended_object.get("reference_field"))
     namespace = f"extended-object|{table_name}|"
     con.execute(
@@ -2161,6 +2188,67 @@ def materialize_extended_objects(
          and r.source_table={sql_string(table_name)}
          and r.source_row_sha256=sha256(to_json(t))
         where nullif(cast({identity_key} as varchar), '') is not null
+        """
+    )
+    return consumed
+
+
+def materialize_compact_objects(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    compact_object: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    destination_fields = {str(field["column_name"]) for field in fields}
+    key_fields = [str(field) for field in compact_object["parameter_set_key_fields"]]
+    parameter_fields = [str(field) for field in compact_object["parameter_fields"]]
+    quality_fields = [str(field) for field in compact_object["quality_fields"]]
+    optional_fields = [
+        str(field)
+        for field in (compact_object.get("reference_field"),)
+        if field
+    ]
+    consumed = set(key_fields + parameter_fields + quality_fields + optional_fields)
+    missing = sorted(consumed - available_fields)
+    if missing:
+        raise ValueError(f"compact-object fields missing from {table_name}: {missing}")
+    unconsumed = sorted(destination_fields - consumed)
+    if unconsumed:
+        raise ValueError(
+            f"compact-object fields lack a typed role in {table_name}: {unconsumed}"
+        )
+    parameter_set_key = logical_key_expression(key_fields, "t")
+    parameters = logical_key_expression(parameter_fields, "t")
+    quality = logical_key_expression(quality_fields, "t")
+    reference = (
+        text_expression(compact_object.get("reference_field"))
+        if compact_object.get("reference_field")
+        else nullable_sql_string(compact_object.get("reference_raw"))
+    )
+    namespace = f"compact-object|{table_name}|"
+    con.execute(
+        f"""
+        insert into compact_object_evidence
+        select distinct
+          sha256({sql_string(namespace)} || r.source_record_id),
+          r.source_record_id,
+          {sql_string(str(compact_object['compact_kind']))},
+          cast({parameter_set_key} as varchar), {parameters},
+          {sql_string(str(compact_object['method']))},
+          {nullable_sql_string(compact_object.get('model'))},
+          {reference}, {quality},
+          {sql_string(str(compact_object['normalization_version']))}
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
         """
     )
     return consumed
@@ -2309,7 +2397,9 @@ def materialize_lifecycle_claims(
             else sql_string(str(claim["implicit_disposition"]))
         )
         context_json = (
-            logical_key_expression(context_fields) if context_fields else "'{}'::json"
+            logical_key_expression(context_fields, "t")
+            if context_fields
+            else "'{}'::json"
         )
         normalized = normalized_disposition_expression("s.disposition_raw")
         polarity = lifecycle_polarity_expression("normalized_disposition")
@@ -2447,9 +2537,11 @@ def materialize_source(
                 context_fields.append(str(field["column_name"]))
 
         source_row_hash = "sha256(to_json(t))"
-        key_json = logical_key_expression(logical_fields)
+        key_json = logical_key_expression(logical_fields, "t")
         context_json = (
-            logical_key_expression(context_fields) if context_fields else "'{}'::json"
+            logical_key_expression(context_fields, "t")
+            if context_fields
+            else "'{}'::json"
         )
         row_predicate = row_selection_predicate(table_contract)
         record_namespace = f"{source_id}|{release_id}|{table_name}|"
@@ -2708,6 +2800,27 @@ def materialize_source(
                     path=path,
                     fields=extended_object_fields,
                     extended_object=extended_object,
+                    available_fields=set(columns),
+                )
+            )
+        compact_object_fields = fields_by_destination.get(
+            "compact_object_evidence"
+        ) or []
+        compact_object = table_contract.get("compact_object")
+        if compact_object_fields or compact_object:
+            if not compact_object_fields or not compact_object:
+                raise ValueError(
+                    f"compact-object profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_compact_objects(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=compact_object_fields,
+                    compact_object=compact_object,
                     available_fields=set(columns),
                 )
             )

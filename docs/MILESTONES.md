@@ -1467,6 +1467,13 @@ Current status (July 19, 2026, in progress):
   4,584 positive catalog members receive orbit solutions, while 13,021
   nonmembers remain explicit catalog-status evidence. Sector, flag, morphology,
   Tmag, astrometry, and unresolved target-context physics are typed separately.
+- White-dwarf checkpoint `486e4975af015d4e5f5a3c9b` uses the published
+  geometric-distance posterior lower bound to retain 337,272 of 1,280,266
+  candidates whose interval overlaps the 1,250-ly buffer. It emits 2,390,432
+  measurements in 597,608 separate H/He/mixed atmosphere parameter sets,
+  1,348,802 identity claims, and 337,272 compact-candidate contexts. All 161
+  fields are materialized or deliberately assigned to release-native Gaia,
+  distance, or SDSS adapters; no atmosphere model is silently selected.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

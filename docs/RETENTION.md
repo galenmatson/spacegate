@@ -179,10 +179,16 @@ The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`
 (DEBCat), `d08c5aa9af7dc8bcdbf0d6c3` (Green SNR), and
 `255678b2daa6e8bf46e6dcd9` (TESS EB) remain protected inputs to the combined
-E4/E5 build. Earlier
+E4/E5 build. White-dwarf checkpoint `486e4975af015d4e5f5a3c9b` and its
+clean-reproduction report are likewise protected. Earlier
 source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.
+
+The white-dwarf adapter's first v21 attempt failed closed before promotion when
+an unqualified source column collided with compiler lineage `source_id`. Its
+hidden temporary artifact remains a retention dry-run candidate; the v22
+replacement qualifies source expressions generally and reproduces cleanly.
 
 The July 19 dry-run against `/data/spacegate/state` identified eight old build
 trees and twelve old report trees with an estimated 148.86 GiB reclaimable. No

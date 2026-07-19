@@ -362,6 +362,17 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   solution is emitted; false rows remain negative catalog-membership evidence.
   Sectors, source/flags, morphology, Tmag, astrometry, and unresolved target
   stellar context remain independently typed and provenance-bound.
+- White-dwarf checkpoint `486e4975af015d4e5f5a3c9b` applies
+  `buffered_posterior_distance_overlap_v1`: a candidate is retained when the
+  published geometric-distance posterior lower bound is at or inside 383.245
+  pc, so its interval overlaps the 1,250-ly buffer. This retains 337,272 of
+  1,280,266 source rows and reports the 942,994 excluded rows explicitly.
+- Hydrogen, helium, and mixed-atmosphere Teff/log-g/mass/chi-square solutions
+  remain 597,608 distinct coherent parameter sets containing 2,390,432
+  measurements; E4 does not choose a preferred atmosphere. Candidate
+  probability/context is a separate compact-object parameter set. Copied
+  Gaia/SDSS scalars remain exact in typed Parquet and source-record lineage but
+  are deliberately owned by release-native Gaia, distance, and survey adapters.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

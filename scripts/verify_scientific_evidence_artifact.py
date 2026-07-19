@@ -137,6 +137,11 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "select count(*) from extended_object_evidence "
             "where geometry_raw is null or geometry_raw::varchar='{}'",
         ),
+        "empty_compact_object_parameter_sets": scalar_count(
+            con,
+            "select count(*) from compact_object_evidence "
+            "where parameter_set_raw is null or parameter_set_raw::varchar='{}'",
+        ),
         "orphan_planet_parameter_evidence": scalar_count(
             con,
             "select count(*) from planet_parameter_evidence e "

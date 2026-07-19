@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.20",
-  "compiler_version": "scientific_evidence_compiler_v20",
+  "contract_version": "2026-07-19.e4-foundation.22",
+  "compiler_version": "scientific_evidence_compiler_v22",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -513,6 +513,32 @@
         "disposition": "domain",
         "destination": "orbital_solution_evidence",
         "reason": "TESS EB epoch and period solution with source uncertainties"
+      }
+    ],
+    "gaia_edr3_white_dwarf_candidates": [
+      {
+        "pattern": "^(WDJ_name|source_id|dr2_source_id|designation)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped white-dwarf candidate and Gaia identity"
+      },
+      {
+        "pattern": "^(teff|eteff|logg|elogg|mass|emass|chisq)_(H|He|mixed)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "coherent hydrogen, helium, or mixed-atmosphere white-dwarf model fit"
+      },
+      {
+        "pattern": "^(ZP_correction|Pwd|density|absG|excess_flux_error|bright_N_flag|meanAV|minAV|maxAV|flag_ext|fidelity_v1)$",
+        "disposition": "domain",
+        "destination": "compact_object_evidence",
+        "reason": "white-dwarf candidate probability, density, extinction, absolute magnitude, fidelity, and source quality context"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "copied Gaia EDR3/DR2 or SDSS scalar remains losslessly preserved in source-native typed Parquet; release-native Gaia, distance, and survey adapters own its scientific quantity semantics"
       }
     ]
   },
@@ -1049,6 +1075,88 @@
             "method": "tess_eb_light_curve_solution",
             "normalization_version": "tess_eb_source_native_v1",
             "sql_predicate": "lower(in_catalog)='true' and period_days is not null"
+          }
+        }
+      }
+    },
+    "compact.gaia_edr3_white_dwarf": {
+      "adapter_version": "gaia_edr3_white_dwarf_scientific_evidence_v1",
+      "tables": {
+        "gaia_edr3_white_dwarf_main": {
+          "raw_artifact_name": "gaiaedr3_wd_main",
+          "logical_key_fields": ["source_id", "WDJ_name"],
+          "object_scope": "white_dwarf_candidate",
+          "field_profile": "gaia_edr3_white_dwarf_candidates",
+          "row_selection": {
+            "policy_id": "buffered_posterior_distance_overlap_v1",
+            "sql_predicate": "r_lo_geo <= 383.245",
+            "reason": "retain candidates whose published geometric-distance posterior interval overlaps the deterministic 1,250-ly ingestion buffer"
+          },
+          "identifier_claims": {
+            "WDJ_name": {"namespace": "wdj_name", "claim_scope": "star"},
+            "source_id": {"namespace": "gaia_edr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "dr2_source_id": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]},
+            "designation": {"namespace": "gaia_edr3_designation", "claim_scope": "star"}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "hydrogen_atmosphere_model",
+              "parameter_set_kind": "white_dwarf_atmosphere_fit",
+              "method": "photometric_white_dwarf_atmosphere_fit",
+              "model": "hydrogen_atmosphere",
+              "normalization_version": "gaia_edr3_wd_source_native_fit_v1",
+              "measurements": [
+                {"value_field": "teff_H", "uncertainty_field": "eteff_H", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_H", "uncertainty_field": "elogg_H", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "mass_H", "uncertainty_field": "emass_H", "quantity_key": "mass", "unit_raw": "M_sun"},
+                {"value_field": "chisq_H", "quantity_key": "fit_chi_square", "unit_raw": "dimensionless"}
+              ]
+            },
+            {
+              "scope_key": "helium_atmosphere_model",
+              "parameter_set_kind": "white_dwarf_atmosphere_fit",
+              "method": "photometric_white_dwarf_atmosphere_fit",
+              "model": "helium_atmosphere",
+              "normalization_version": "gaia_edr3_wd_source_native_fit_v1",
+              "measurements": [
+                {"value_field": "teff_He", "uncertainty_field": "eteff_He", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_He", "uncertainty_field": "elogg_He", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "mass_He", "uncertainty_field": "emass_He", "quantity_key": "mass", "unit_raw": "M_sun"},
+                {"value_field": "chisq_He", "quantity_key": "fit_chi_square", "unit_raw": "dimensionless"}
+              ]
+            },
+            {
+              "scope_key": "mixed_atmosphere_model",
+              "parameter_set_kind": "white_dwarf_atmosphere_fit",
+              "method": "photometric_white_dwarf_atmosphere_fit",
+              "model": "mixed_atmosphere",
+              "normalization_version": "gaia_edr3_wd_source_native_fit_v1",
+              "measurements": [
+                {"value_field": "teff_mixed", "uncertainty_field": "eteff_mixed", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_mixed", "uncertainty_field": "elogg_mixed", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "mass_mixed", "uncertainty_field": "emass_mixed", "quantity_key": "mass", "unit_raw": "M_sun"},
+                {"value_field": "chisq_mixed", "quantity_key": "fit_chi_square", "unit_raw": "dimensionless"}
+              ]
+            }
+          ],
+          "compact_object": {
+            "compact_kind": "white_dwarf_candidate",
+            "parameter_set_key_fields": ["source_id", "WDJ_name"],
+            "parameter_fields": [
+              "ZP_correction",
+              "Pwd",
+              "density",
+              "absG",
+              "excess_flux_error",
+              "meanAV",
+              "minAV",
+              "maxAV",
+              "fidelity_v1"
+            ],
+            "quality_fields": ["bright_N_flag", "flag_ext"],
+            "method": "gaia_edr3_white_dwarf_candidate_catalog",
+            "reference_raw": "Gaia EDR3 White Dwarf Catalogue gaia_edr3_wd_main",
+            "normalization_version": "gaia_edr3_wd_candidate_context_v1"
           }
         }
       }
