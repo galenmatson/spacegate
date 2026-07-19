@@ -141,11 +141,44 @@ typed directory is larger until E7 retirement.
 The July 19 E4 wide-binary compiler work produced bounded checkpoint
 `aaf262b1791d98ce3e9f96e7` (11,129,073,664 bytes) and several hidden temporary
 scientific-evidence directories from failed or deliberately interrupted
-diagnostic builds. Do not delete those directories manually while E3
-acquisitions or E4 verification are active. After the bounded checkpoint is
-referenced by the storage audit and a replacement/rollback decision is recorded,
-classify the diagnostic temporaries through the normal retention dry run; only
-then may a reviewed apply remove them.
+diagnostic builds. Never delete those directories manually. General state
+retention remains prohibited while E3 acquisition or E4 verification is active.
+When a stopped compiler diagnostic itself creates material storage pressure, the
+only allowed narrower exception is the explicit fail-closed command below. It
+accepts direct hidden children only, refuses manifests, symlinks, shared files,
+and live file descriptors, and requires a reviewed dry-run candidate hash before
+whole-directory removal:
+
+```bash
+.venv/bin/python scripts/prune_evidence_lake_artifacts.py \
+  --state-dir /data/spacegate/state \
+  --candidate .<build-id>.<temporary-suffix> \
+  --reason '<specific reproducible failure and replacement evidence>' \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e4_retention_dry_run.json
+
+.venv/bin/python scripts/prune_evidence_lake_artifacts.py \
+  --state-dir /data/spacegate/state \
+  --candidate .<build-id>.<temporary-suffix> \
+  --reason '<same reviewed reason>' \
+  --expected-candidate-set-sha256 '<exact dry-run hash>' \
+  --apply \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e4_retention_applied.json
+```
+
+The minimum age is 60 minutes by default. Reducing it is an explicit operator
+decision and does not weaken the no-live-process, no-manifest, or whole-artifact
+gates. Accepted artifacts, source snapshots, typed snapshots, identity graphs,
+and individual files inside an artifact remain outside this command's scope.
+
+On July 19, the reviewed dry run
+`e4_simbad_failed_artifact_retention_dry_run.json` identified exactly two closed,
+manifest-less SIMBAD compiler diagnostics affected by the confirmed
+199,495,267,914-row disjunctive citation-join plan. Candidate-set hash
+`39ba9c0104621131a5c4b1673bda9a086f6689e7491ec6b7c85467e14fa0eece`
+authorized the applied report
+`e4_simbad_failed_artifact_retention_applied.json`, reclaiming
+73,183,408,128 allocated bytes. Immutable raw and typed SIMBAD inputs were not
+changed; compiler v36 replaces the query with bounded equality hash joins.
 
 Evidence Lake identity graphs under
 `derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
