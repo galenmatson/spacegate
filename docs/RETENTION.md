@@ -149,6 +149,17 @@ removed only after the replacement passes
 longer references it. Clean reproduction graphs belong under `tmp/`; remove the
 whole scratch graph only after the comparison report is durably written.
 
+Scientific evidence compiler artifacts under
+`derived/evidence_lake_v2/scientific_evidence/<build_id>/` are also immutable
+units. Preserve any artifact named by a current pointer or referenced by a
+shadow/served build, report, publication, rollback, or adjudication packet.
+Never remove `scientific_evidence.duckdb` independently from its manifest. An
+in-progress compiler checkpoint may be retired only as a whole after its
+replacement has a durable logical-hash comparison; accepted E4/E5 inputs remain
+protected until E7 records that no retained projection references them. Clean
+reproduction uses `scripts/verify_scientific_evidence_reproduction.py`; its
+scratch tree is removed only after comparison and the durable report is written.
+
 Side-artifact rebuilds created by `scripts/rebuild_side_artifacts.py` are normal
 immutable `out/<build_id>/` artifacts once the `.tmp` directory is renamed into
 place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the

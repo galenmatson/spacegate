@@ -275,6 +275,29 @@ Every evidence row must retain the source record, object/component binding,
 method or model, reference, epoch, uncertainty or bound semantics, quality
 flags, and raw-to-normalized lineage.
 
+E4 compiler checkpoint (July 19, 2026, in progress):
+
+- `config/evidence_lake/e4_scientific_evidence.json` defines 22 bounded domain
+  tables, controlled binding/mapping states, and data-driven source adapters.
+  This is not a universal EAV store: each scientific family has its own typed
+  contract and controlled quantity vocabulary.
+- `scripts/compile_scientific_evidence.py` emits immutable, content-addressed
+  builds under `derived/evidence_lake_v2/scientific_evidence/<build_id>/` with
+  logical per-table hashes, source/field accounting, and explicit unresolved
+  binding outcomes. `scripts/verify_scientific_evidence_reproduction.py`
+  rebuilds into a temporary scratch root, compares deterministic logical hashes,
+  and removes the scratch artifact; the NASA foundation reproduction passes.
+- The NASA foundation build accounts 206,989 source rows as 203,932 exact
+  source records and preserves 3,057 repeated identical row occurrences through
+  duplicate counts. All 2,093 fields have dispositions; 103 reviewed lineage or
+  context fields are materialized in source-record JSON and 1,990 fields remain
+  `declared_pending` until their domain adapters write actual evidence rows.
+- Logical keys are source semantics, not artificial uniqueness claims. Exact
+  row hashes provide deterministic record identity when a catalog's apparent
+  key repeats; row-array position is never used. Compiler timestamps derive
+  from pinned retrieval lineage, and cached artifacts verify their DuckDB
+  checksum before reuse.
+
 ### E5. Selection and Derivation Compiler
 
 Versioned policies select public facts by quantity and applicability domain.

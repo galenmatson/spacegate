@@ -1119,6 +1119,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-
   lineage evidence contracts
+- [x] E4 foundation: add the immutable 22-domain compiler contract, deterministic
+  source-record identity, exact-duplicate accounting, explicit binding outcomes,
+  field dispositions, cached-artifact checksum verification, and clean logical-
+  hash reproduction; keep unmaterialized fields visibly pending
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

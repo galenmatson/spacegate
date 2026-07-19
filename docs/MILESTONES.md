@@ -1413,6 +1413,20 @@ Exit criteria:
 - component- and parameter-set scope prevent system-to-member leakage and
   accidental field-wise composites
 
+Current status (July 19, 2026, in progress):
+
+- the immutable scientific-evidence compiler and 22-domain schema contract are
+  implemented with deterministic source records, explicit binding outcomes,
+  field dispositions, logical per-table hashes, cached-artifact integrity
+  checks, and clean scratch reproduction
+- the NASA foundation accounts 206,989 rows, 203,932 exact records, 3,057
+  repeated identical row occurrences, and all 2,093 fields without using source
+  array positions as identity
+- 103 reviewed lineage/context fields are materialized; 1,990 fields remain
+  visibly `declared_pending`, so the compiler correctly reports `in_progress`
+  rather than treating a declaration or raw preservation as E4 completion; the
+  current logical-hash reproduction passes
+
 #### M8.3c-E5. Selection and Derivation Compiler
 
 Deliverables:

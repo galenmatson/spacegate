@@ -1,0 +1,313 @@
+{
+  "schema_version": "spacegate.scientific_evidence_contract.v1",
+  "contract_version": "2026-07-19.e4-foundation.2",
+  "compiler_version": "scientific_evidence_compiler_v2",
+  "artifact_family": "scientific_evidence",
+  "binding_statuses": [
+    "accepted",
+    "missing",
+    "excluded",
+    "ambiguous",
+    "quarantined",
+    "unresolved"
+  ],
+  "field_dispositions": [
+    "domain",
+    "identity",
+    "lineage",
+    "context",
+    "exclude"
+  ],
+  "mapping_statuses": [
+    "materialized",
+    "declared_pending",
+    "excluded"
+  ],
+  "domain_tables": [
+    "identifier_claim_evidence",
+    "stellar_parameter_sets",
+    "stellar_parameter_evidence",
+    "stellar_classification_evidence",
+    "astrometry_distance_evidence",
+    "photometry_extinction_evidence",
+    "spectra_product_index",
+    "variability_activity_rotation_evidence",
+    "relation_claim_evidence",
+    "orbital_solution_evidence",
+    "cluster_evidence",
+    "cluster_membership_evidence",
+    "planet_parameter_sets",
+    "planet_parameter_evidence",
+    "planet_lifecycle_evidence",
+    "transit_observation_evidence",
+    "radial_velocity_evidence",
+    "compact_object_evidence",
+    "extended_object_evidence",
+    "citations",
+    "evidence_citations",
+    "observation_product_lineage"
+  ],
+  "field_profiles": {
+    "nasa_planet_archive": [
+      {
+        "pattern": "^(pl_name|pl_letter|hostname|hd_name|hip_name|tic_id|gaia_dr2_id|gaia_dr3_id|epic_candname|epic_hostname|k2_name)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-scoped object or observation-target identity"
+      },
+      {
+        "pattern": "(^.*_(refname|reflink|solnid)$|^(rowupdate|releasedate|pl_pubdate|default_flag)$)",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "reference, solution, release, or preferred-row lineage"
+      },
+      {
+        "pattern": "^(disposition|disp_refname|disc_.*)$",
+        "disposition": "domain",
+        "destination": "planet_lifecycle_evidence",
+        "reason": "planet discovery or disposition evidence"
+      },
+      {
+        "pattern": "^pl_rvamp.*$",
+        "disposition": "domain",
+        "destination": "radial_velocity_evidence",
+        "reason": "radial-velocity semi-amplitude observation"
+      },
+      {
+        "pattern": "^pl_(tran.*|occ.*|imppar.*|ratdor.*|ratror.*|ttv.*)$",
+        "disposition": "domain",
+        "destination": "transit_observation_evidence",
+        "reason": "transit, occultation, or timing observation"
+      },
+      {
+        "pattern": "^pl_.*$",
+        "disposition": "domain",
+        "destination": "planet_parameter_evidence",
+        "reason": "planet parameter-set evidence"
+      },
+      {
+        "pattern": "^st_.*$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "host-star parameter-set evidence"
+      },
+      {
+        "pattern": "^sy_.*mag.*$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "system or host photometry"
+      },
+      {
+        "pattern": "^(ra|dec|glat|glon|elat|elon|sy_(dist|plx|pm|pmra|pmdec|rv).*)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "position, motion, velocity, parallax, or distance evidence"
+      },
+      {
+        "pattern": "^sy_.*$",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "system context retained with the exact source record"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "source-native ancillary context pending scientific-use review"
+      }
+    ],
+    "nasa_toi": [
+      {
+        "pattern": "^(tid|toi|toipfx|ctoi_alias)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "TIC/TOI observation-target identity"
+      },
+      {
+        "pattern": "^(tfopwg_disp|toi_created|rowupdate)$",
+        "disposition": "domain",
+        "destination": "planet_lifecycle_evidence",
+        "reason": "TOI disposition and lifecycle timestamp"
+      },
+      {
+        "pattern": "^pl_(tran.*|imppar.*|ror.*)$",
+        "disposition": "domain",
+        "destination": "transit_observation_evidence",
+        "reason": "TOI transit observation"
+      },
+      {
+        "pattern": "^pl_.*$",
+        "disposition": "domain",
+        "destination": "planet_parameter_evidence",
+        "reason": "TOI planet-candidate parameter evidence"
+      },
+      {
+        "pattern": "^st_.*$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "TOI host-star parameter evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "TOI ancillary context retained with the source record"
+      }
+    ],
+    "nasa_koi": [
+      {
+        "pattern": "^(kepid|kepoi_name|kepler_name)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "Kepler target and candidate identity"
+      },
+      {
+        "pattern": "^koi_(disposition|pdisposition|disp_prov|delivname)$",
+        "disposition": "domain",
+        "destination": "planet_lifecycle_evidence",
+        "reason": "KOI disposition and delivery lineage"
+      },
+      {
+        "pattern": "^koi_s(teff|logg|met|rad).*$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "KOI host-star parameter evidence"
+      },
+      {
+        "pattern": "^koi_(kepmag|gmag|rmag|imag|zmag|jmag|hmag|kmag).*$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "KOI target photometry"
+      },
+      {
+        "pattern": "^koi_(sra|sdec|g[lr]on).*$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "KOI target position"
+      },
+      {
+        "pattern": "^koi_(period|time0bk|impact|duration|depth|ror|dor|incl|teq|insol|model_snr|num_transits|tce).*$",
+        "disposition": "domain",
+        "destination": "transit_observation_evidence",
+        "reason": "KOI transit or linked TCE evidence"
+      },
+      {
+        "pattern": "^koi_.*$",
+        "disposition": "domain",
+        "destination": "planet_parameter_evidence",
+        "reason": "KOI candidate parameter evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "KOI ancillary context retained with the source record"
+      }
+    ],
+    "nasa_tce": [
+      {
+        "pattern": "^(kepid|tce_plnt_num|tce_delivname)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "Kepler target, signal number, and delivery identity"
+      },
+      {
+        "pattern": "^tce_.*$",
+        "disposition": "domain",
+        "destination": "transit_observation_evidence",
+        "reason": "threshold-crossing event evidence"
+      },
+      {
+        "pattern": "^rowupdate$",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "source update lineage"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "TCE ancillary context retained with the source record"
+      }
+    ],
+    "nasa_names": [
+      {
+        "pattern": ".*",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "official archive identifier crosswalk"
+      }
+    ]
+  },
+  "source_adapters": {
+    "nasa_exoplanet_archive.planetary_systems": {
+      "adapter_version": "nasa_scientific_evidence_v1",
+      "tables": {
+        "nasa_ps_reference_v2": {
+          "logical_key_fields": ["pl_name", "pl_refname"],
+          "object_scope": "planet",
+          "field_profile": "nasa_planet_archive"
+        },
+        "nasa_pscomppars_v2": {
+          "logical_key_fields": ["pl_name"],
+          "object_scope": "planet",
+          "field_profile": "nasa_planet_archive"
+        },
+        "nasa_stellarhosts_v2": {
+          "logical_key_fields": ["hostname", "st_refname"],
+          "object_scope": "host",
+          "field_profile": "nasa_planet_archive"
+        },
+        "nasa_toi_full_v2": {
+          "logical_key_fields": ["toi"],
+          "object_scope": "observation_target",
+          "field_profile": "nasa_toi"
+        },
+        "nasa_k2_planets_candidates_v2": {
+          "logical_key_fields": ["pl_name", "pl_refname"],
+          "object_scope": "planet_or_candidate",
+          "field_profile": "nasa_planet_archive"
+        },
+        "nasa_kepler_names_v2": {
+          "logical_key_fields": ["kepid", "pl_name", "koi_name", "kepler_name"],
+          "object_scope": "identifier_crosswalk",
+          "field_profile": "nasa_names"
+        },
+        "nasa_k2_names_v2": {
+          "logical_key_fields": ["epic_id", "pl_name", "k2_name"],
+          "object_scope": "identifier_crosswalk",
+          "field_profile": "nasa_names"
+        },
+        "nasa_kepler_dr25_koi_v2": {
+          "logical_key_fields": ["kepoi_name"],
+          "object_scope": "observation_target",
+          "field_profile": "nasa_koi"
+        },
+        "nasa_kepler_dr25_supplemental_koi_v2": {
+          "logical_key_fields": ["kepoi_name"],
+          "object_scope": "observation_target",
+          "field_profile": "nasa_koi"
+        },
+        "nasa_kepler_cumulative_koi_v2": {
+          "logical_key_fields": ["kepoi_name"],
+          "object_scope": "observation_target",
+          "field_profile": "nasa_koi"
+        },
+        "nasa_kepler_dr25_tce_v2": {
+          "logical_key_fields": ["kepid", "tce_plnt_num"],
+          "object_scope": "observation_target",
+          "field_profile": "nasa_tce"
+        },
+        "nasa_transit_detection_reference_v2": {
+          "logical_key_fields": ["pl_name", "pl_refname"],
+          "object_scope": "planet",
+          "field_profile": "nasa_planet_archive"
+        }
+      }
+    }
+  }
+}

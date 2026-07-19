@@ -34,6 +34,15 @@ Evidence Lake v2 staging rule:
 - E4 will materialize source-native scientific domain evidence from the typed
   lake. E6 then shadow-builds this schema from those contracts; no E2 graph row
   is promoted into ARM merely because it has an accepted identity binding.
+- E4 compiler artifacts live at
+  `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/scientific_evidence/<build_id>/`.
+  Each contains `scientific_evidence.duckdb` and a manifest with input,
+  contract, logical-table, and integrity hashes. This pre-ARM artifact owns the
+  bounded domain tables, exact source-record lineage, field dispositions, and
+  accepted/missing/excluded/ambiguous/quarantined/unresolved binding outcomes.
+  A field declaration is not materialization: `declared_pending` fields keep an
+  E4 build in progress until the destination table contains their evidence or a
+  reviewed exclusion is recorded.
 
 ## Artifact Contract
 

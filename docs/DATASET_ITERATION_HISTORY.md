@@ -987,6 +987,23 @@ Representative commits:
   wide-binary, NASA, SIMBAD, and spectroscopy acquisitions remain in progress;
   no served database has changed.
 
+### 31) Evidence Lake E4 Scientific Evidence Compiler Foundation
+
+- On July 19, E4 established a separate immutable pre-ARM compiler artifact
+  rather than writing new source semantics directly into the served ARM. The
+  contract defines 22 bounded scientific domain tables plus exact source
+  records, field dispositions, and explicit identity/component binding outcomes.
+- The first NASA foundation build accounts 206,989 source rows as 203,932 exact
+  records. It preserves 3,057 repeated identical upstream rows through duplicate
+  counts and retains non-unique logical keys without manufacturing uniqueness
+  from source array positions.
+- All 2,093 NASA fields receive a machine-readable disposition. Only 103
+  reviewed lineage/context fields are currently materialized in source-record
+  context; 1,990 remain `declared_pending`. The build therefore reports
+  `in_progress`, preventing schema declaration or raw preservation from being
+  mistaken for completed scientific normalization. A clean scratch rebuild
+  reproduces the build ID and every logical table hash exactly.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

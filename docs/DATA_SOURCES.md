@@ -113,6 +113,13 @@ Kepler/K2 name bridges, DR25 and cumulative KOIs, DR25 TCEs, and transit-
 detection metadata. Product manifests account every upstream field as selected;
 winner selection and scientific normalization occur only in E4/E5.
 
+E4 source adapters are declared in
+`config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream
+field a domain, identity, lineage, context, or reviewed-exclusion disposition
+and separately report whether that destination has actually been materialized.
+The compiler uses exact row hashes plus source-native logical keys, preserving
+duplicate occurrences and avoiding point/array position as scientific identity.
+
 ## Gaia Release Identity Evidence
 
 Gaia DR2 and DR3 source IDs are different release-scoped namespaces. Spacegate
