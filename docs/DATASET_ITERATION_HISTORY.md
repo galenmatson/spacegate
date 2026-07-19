@@ -1699,6 +1699,34 @@ Representative commits:
   failure. The mechanism is general; the following survey adapters consume it
   without named-object or survey-specific production branches.
 
+### 57) Bounded APOGEE DR17 Evidence
+
+- APOGEE's `GAIAEDR3_SOURCE_ID` is now correctly declared as a Gaia EDR3
+  namespace. Compiler/contract v58 intersects it with the exact registered
+  Bailer-Jones EDR3 typed snapshot; the source, release, snapshots, content
+  hash, table, field, and Parquet hash are part of build identity.
+- Accepted checkpoint `efc517c3dd6f6389abab7603` retains 178,099 of 733,901
+  allStar rows plus all 2,215 field-version occurrences and the model-grid row.
+  It emits 3,280,268 coherent calibrated ASPCAP measurements across 27 populated
+  quantities, 1,357,072 target photometry/extinction measurements, 529,676
+  coordinates/RV measurements, 173,478 spectrum-product locators, and 890,495
+  source/release-scoped identity claims. All bindings remain unresolved.
+- All 243 table-field occurrences are accounted: 211 materialize and 32 are
+  reviewed exclusions. Copied Gaia astrometry and redundant vector products
+  remain byte-preserved in E1 Parquet; they are not duplicated into E4 or
+  allowed to compete with release-native Gaia evidence. Fixed release citations
+  link all 5,167,016 scientific measurements.
+- The generic and APOGEE-specific audits pass with all checks zero. Logical hash
+  `d2609ad76ea2ffc4f66d9bfd01c5fb7084aa0d88c937c513d8f416ebeced2a18`
+  is the scientific A/B reference. The build required 41:53 and peaked at
+  9.17 GB RSS because large branch unions repeatedly scan a wide Parquet source
+  and buffer derived rows. An identical-hash selected-row cache and incremental
+  insert correction is required before the larger GALAH/LAMOST adapters.
+- The parallel Gaia AP spectroscopy uncertainty supplement also completed all
+  17 resumable TAP buckets. The overall E3 acquisition remains open because its
+  manifest still reports 12 pending products; no partial milestone is promoted
+  into a false whole-program completion.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

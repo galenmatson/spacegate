@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.56",
-  "compiler_version": "scientific_evidence_compiler_v56",
+  "contract_version": "2026-07-19.e4-foundation.58",
+  "compiler_version": "scientific_evidence_compiler_v58",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1311,6 +1311,50 @@
         "reason": "unrecognized targeted Gaia field retained pending schema review"
       }
     ],
+    "apogee_dr17_allstar": [
+      {
+        "pattern": "^(APOGEE_ID|TARGET_ID|APSTAR_ID|ASPCAP_ID|GAIAEDR3_SOURCE_ID)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "APOGEE observation, target, reduction-product, and explicit Gaia EDR3 identity evidence"
+      },
+      {
+        "pattern": "^(TEFF|TEFF_ERR|LOGG|LOGG_ERR|M_H|M_H_ERR|ALPHA_M|ALPHA_M_ERR|VMICRO|VMACRO|VSINI|[A-Z]+_FE|[A-Z]+_FE_ERR|[A-Z]+_FE_FLAG|[A-Z]+_FE_SPEC|SNR|STARFLAG|ASPCAPFLAG|PARAMFLAG)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "coherent APOGEE ASPCAP stellar physics, abundance, uncertainty, and quality evidence"
+      },
+      {
+        "pattern": "^(RA|DEC|VHELIO_AVG|VERR|VSCATTER|RV_FLAG)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "APOGEE target coordinates and visit-combined radial-velocity evidence"
+      },
+      {
+        "pattern": "^(J|J_ERR|H|H_ERR|K|K_ERR|WASH_M|WASH_M_ERR|WASH_T2|WASH_T2_ERR|DDO51|DDO51_ERR|IRAC_3_6|IRAC_3_6_ERR|IRAC_4_5|IRAC_4_5_ERR|IRAC_5_8|IRAC_5_8_ERR|IRAC_8_0|IRAC_8_0_ERR|WISE_4_5|WISE_4_5_ERR|TARG_4_5|TARG_4_5_ERR|AK_TARG|AK_WISE|SFD_EBV|AK_TARG_METHOD)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "APOGEE target-selection photometry and extinction evidence with source uncertainties and method context"
+      },
+      {
+        "pattern": "^FILE$",
+        "disposition": "lineage",
+        "destination": "observation_product_lineage",
+        "reason": "APOGEE release spectrum/product locator retained for on-demand retrieval"
+      },
+      {
+        "pattern": "^(GAIAEDR3_(PARALLAX|PARALLAX_ERROR|PMRA|PMRA_ERROR|PMDEC|PMDEC_ERROR|PHOT_G_MEAN_MAG|PHOT_BP_MEAN_MAG|PHOT_RP_MEAN_MAG|DR2_RADIAL_VELOCITY|DR2_RADIAL_VELOCITY_ERROR|R_MED_GEO|R_LO_GEO|R_HI_GEO|R_MED_PHOTOGEO|R_LO_PHOTOGEO|R_HI_PHOTOGEO)|FPARAM|FPARAM_COV|PARAM|PARAM_COV|FELEM|FELEM_ERR|X_H|X_H_ERR|X_M|X_M_ERR|ELEM_CHI2|ELEMFRAC|ELEMFLAG|X_H_SPEC|X_M_SPEC)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "copied Gaia values and redundant ASPCAP vector products remain in source-native E1 Parquet; Gaia owns astrometric evidence and calibrated scalar abundance columns provide the interrogable E4 values"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "remaining APOGEE targeting, photometry, copied crossmatch, visit, fit-array, flag, and release context retained source-natively"
+      }
+    ],
     "bailer_jones_edr3_distance": [
       {
         "pattern": "^Source$",
@@ -1340,6 +1384,146 @@
     ]
   },
   "source_adapters": {
+    "spectroscopy.apogee_dr17": {
+      "adapter_version": "apogee_dr17_scientific_evidence_v1",
+      "tables": {
+        "apogee_dr17_allstar": {
+          "raw_artifact_name": "apogee_dr17_allstar_synspec_rev1",
+          "logical_key_fields": ["APSTAR_ID", "ASPCAP_ID", "APOGEE_ID"],
+          "object_scope": "spectroscopic_observation_target",
+          "field_profile": "apogee_dr17_allstar",
+          "row_selection": {
+            "policy_id": "registered_bailer_jones_edr3_envelope_v1",
+            "sql_predicate": "true",
+            "reason": "retain APOGEE rows whose explicit Gaia EDR3 identity occurs in the checksum-bound Spacegate uncertainty-aware EDR3 envelope",
+            "external_membership_groups": [
+              {
+                "membership_id": "spacegate_gaia_edr3_distance_envelope_v1",
+                "local_field": "GAIAEDR3_SOURCE_ID",
+                "normalization": "unsigned_integer_decimal_v1",
+                "match": "any",
+                "targets": [
+                  {
+                    "source_id": "distance.gaia_edr3_bailer_jones",
+                    "release_id": "vizier_i_352_2021",
+                    "raw_snapshot_id": "8920e4e6eda798c9567ca7a8",
+                    "typed_snapshot_id": "5a60000592215924b3305095",
+                    "typed_content_sha256": "f8e73d90cf65250e74b24b3849dc59ac9493f92ebdaf9abefdd812cd02f94aa8",
+                    "target_table": "bailer_jones_edr3_distance_envelope_v1",
+                    "target_field": "Source",
+                    "target_table_sha256": "761329ad83f6fc06c9b8f824855088054518b5eb70e4dca26364a99fad42737f"
+                  }
+                ]
+              }
+            ]
+          },
+          "identifier_claims": {
+            "APOGEE_ID": {"namespace": "apogee_id", "claim_scope": "observation_target"},
+            "TARGET_ID": {"namespace": "apogee_target_id", "claim_scope": "observation_target"},
+            "APSTAR_ID": {"namespace": "apogee_apstar_id", "claim_scope": "observation_product"},
+            "ASPCAP_ID": {"namespace": "apogee_aspcap_id", "claim_scope": "observation_product"},
+            "GAIAEDR3_SOURCE_ID": {
+              "namespace": "gaia_edr3_source_id",
+              "claim_scope": "star",
+              "normalization": "unsigned_integer_decimal_v1",
+              "excluded_values": ["0"]
+            }
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "aspcap_calibrated_parameters",
+              "parameter_set_kind": "apogee_dr17_aspcap_calibrated_stellar_parameters_and_abundances",
+              "method": "apogee_dr17_aspcap_pipeline",
+              "model": "APOGEE_DR17_ASPCAP",
+              "reference_raw": "SDSS DR17 APOGEE allStar",
+              "normalization_version": "apogee_dr17_source_native_v1",
+              "quality_fields": [
+                "SNR", "STARFLAG", "ASPCAPFLAG", "PARAMFLAG",
+                "C_FE_SPEC", "C_FE_FLAG", "CI_FE_SPEC", "CI_FE_FLAG",
+                "N_FE_SPEC", "N_FE_FLAG", "O_FE_SPEC", "O_FE_FLAG",
+                "NA_FE_SPEC", "NA_FE_FLAG", "MG_FE_SPEC", "MG_FE_FLAG",
+                "AL_FE_SPEC", "AL_FE_FLAG", "SI_FE_SPEC", "SI_FE_FLAG",
+                "P_FE_SPEC", "P_FE_FLAG", "S_FE_SPEC", "S_FE_FLAG",
+                "K_FE_SPEC", "K_FE_FLAG", "CA_FE_SPEC", "CA_FE_FLAG",
+                "TI_FE_SPEC", "TI_FE_FLAG", "TIII_FE_SPEC", "TIII_FE_FLAG",
+                "V_FE_SPEC", "V_FE_FLAG", "CR_FE_SPEC", "CR_FE_FLAG",
+                "MN_FE_SPEC", "MN_FE_FLAG", "FE_H_SPEC", "FE_H_FLAG",
+                "CO_FE_SPEC", "CO_FE_FLAG", "NI_FE_SPEC", "NI_FE_FLAG",
+                "CU_FE_SPEC", "CU_FE_FLAG", "CE_FE_SPEC", "CE_FE_FLAG",
+                "YB_FE_SPEC", "YB_FE_FLAG"
+              ],
+              "measurements": [
+                {"value_field": "TEFF", "uncertainty_field": "TEFF_ERR", "quantity_key": "effective_temperature", "unit_raw": "K", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "LOGG", "uncertainty_field": "LOGG_ERR", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "M_H", "uncertainty_field": "M_H_ERR", "quantity_key": "metallicity_m_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "ALPHA_M", "uncertainty_field": "ALPHA_M_ERR", "quantity_key": "alpha_to_metals_abundance", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "VMICRO", "quantity_key": "microturbulence_velocity", "unit_raw": "km s-1", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "VMACRO", "quantity_key": "macroturbulence_velocity", "unit_raw": "km s-1", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "VSINI", "quantity_key": "projected_rotation_velocity", "unit_raw": "km s-1", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "C_FE", "uncertainty_field": "C_FE_ERR", "quantity_key": "abundance_c_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CI_FE", "uncertainty_field": "CI_FE_ERR", "quantity_key": "abundance_ci_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "N_FE", "uncertainty_field": "N_FE_ERR", "quantity_key": "abundance_n_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "O_FE", "uncertainty_field": "O_FE_ERR", "quantity_key": "abundance_o_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "NA_FE", "uncertainty_field": "NA_FE_ERR", "quantity_key": "abundance_na_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "MG_FE", "uncertainty_field": "MG_FE_ERR", "quantity_key": "abundance_mg_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "AL_FE", "uncertainty_field": "AL_FE_ERR", "quantity_key": "abundance_al_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "SI_FE", "uncertainty_field": "SI_FE_ERR", "quantity_key": "abundance_si_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "P_FE", "uncertainty_field": "P_FE_ERR", "quantity_key": "abundance_p_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "S_FE", "uncertainty_field": "S_FE_ERR", "quantity_key": "abundance_s_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "K_FE", "uncertainty_field": "K_FE_ERR", "quantity_key": "abundance_k_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CA_FE", "uncertainty_field": "CA_FE_ERR", "quantity_key": "abundance_ca_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "TI_FE", "uncertainty_field": "TI_FE_ERR", "quantity_key": "abundance_ti_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "TIII_FE", "uncertainty_field": "TIII_FE_ERR", "quantity_key": "abundance_tiii_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "V_FE", "uncertainty_field": "V_FE_ERR", "quantity_key": "abundance_v_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CR_FE", "uncertainty_field": "CR_FE_ERR", "quantity_key": "abundance_cr_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "MN_FE", "uncertainty_field": "MN_FE_ERR", "quantity_key": "abundance_mn_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "FE_H", "uncertainty_field": "FE_H_ERR", "quantity_key": "abundance_fe_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CO_FE", "uncertainty_field": "CO_FE_ERR", "quantity_key": "abundance_co_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "NI_FE", "uncertainty_field": "NI_FE_ERR", "quantity_key": "abundance_ni_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CU_FE", "uncertainty_field": "CU_FE_ERR", "quantity_key": "abundance_cu_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "CE_FE", "uncertainty_field": "CE_FE_ERR", "quantity_key": "abundance_ce_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "YB_FE", "uncertainty_field": "YB_FE_ERR", "quantity_key": "abundance_yb_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}
+              ]
+            }
+          ],
+          "photometry_measurements": [
+            {"value_field": "J", "uncertainty_field": "J_ERR", "quantity_key": "apparent_magnitude", "bandpass": "2MASS J", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "H", "uncertainty_field": "H_ERR", "quantity_key": "apparent_magnitude", "bandpass": "2MASS H", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "K", "uncertainty_field": "K_ERR", "quantity_key": "apparent_magnitude", "bandpass": "2MASS Ks", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "WASH_M", "uncertainty_field": "WASH_M_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Washington M", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "WASH_T2", "uncertainty_field": "WASH_T2_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Washington T2", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "DDO51", "uncertainty_field": "DDO51_ERR", "quantity_key": "apparent_magnitude", "bandpass": "DDO51", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "IRAC_3_6", "uncertainty_field": "IRAC_3_6_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC 3.6um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "IRAC_4_5", "uncertainty_field": "IRAC_4_5_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC 4.5um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "IRAC_5_8", "uncertainty_field": "IRAC_5_8_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC 5.8um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "IRAC_8_0", "uncertainty_field": "IRAC_8_0_ERR", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC 8.0um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "WISE_4_5", "uncertainty_field": "WISE_4_5_ERR", "quantity_key": "apparent_magnitude", "bandpass": "WISE 4.5um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_catalog_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "TARG_4_5", "uncertainty_field": "TARG_4_5_ERR", "quantity_key": "target_selection_apparent_magnitude", "bandpass": "4.5um", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_selection_photometry", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "AK_TARG", "quantity_key": "extinction", "bandpass": "K", "unit_raw": "mag", "quality_fields": ["AK_TARG_METHOD"], "missing_values": ["-9999", "-9999.0"], "method": "apogee_target_extinction_estimate", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "AK_WISE", "quantity_key": "extinction", "bandpass": "K", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "apogee_wise_extinction_estimate", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"value_field": "SFD_EBV", "quantity_key": "reddening", "bandpass": "E(B-V)", "unit_raw": "mag", "missing_values": ["-9999", "-9999.0"], "method": "sfd_reddening_as_distributed_by_apogee", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "RA", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "apogee_target_coordinate", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "DEC", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "apogee_target_coordinate", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "VHELIO_AVG", "uncertainty_field": "VERR", "quantity_key": "heliocentric_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "quality_fields": ["VSCATTER", "RV_FLAG"], "method": "apogee_visit_combined_radial_velocity", "reference_raw": "SDSS DR17 APOGEE allStar", "normalization_version": "apogee_dr17_source_native_v1", "missing_values": ["-9999", "-9999.0"]}
+          ],
+          "observation_product_missing_values": {"FILE": ["null", "nan"]}
+        },
+        "apogee_dr17_model_grid_metadata": {
+          "raw_artifact_name": "apogee_dr17_allstar_synspec_rev1",
+          "logical_key_fields": ["WAVE"],
+          "object_scope": "source_method_document",
+          "field_profile": "source_method_document"
+        },
+        "apogee_dr17_field_versions": {
+          "raw_artifact_name": "apogee_dr17_allstar_synspec_rev1",
+          "logical_key_fields": ["TELESCOPE", "FIELD", "APOGEE_VERS"],
+          "object_scope": "source_release_field",
+          "field_profile": "source_method_document"
+        }
+      }
+    },
     "distance.gaia_edr3_bailer_jones": {
       "adapter_version": "bailer_jones_edr3_distance_evidence_v1",
       "tables": {

@@ -1144,10 +1144,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and clean-reproduce APOGEE DR17, GALAH DR4, and the three LAMOST DR11 stellar
   products; preserve every configured APOGEE table HDU and fixed-size array
   rather than selecting only the primary catalog extension
+- [x] E3 Gaia AP spectroscopy supplement checkpoint: complete and validate all
+  17 uncertainty-envelope TAP partitions while leaving the remaining E3 product
+  tail explicitly pending
 - [ ] E4: materialize typed stellar, astrometric/distance, photometric,
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-
   lineage evidence contracts
+- [x] E4 APOGEE checkpoint: bind explicit Gaia EDR3 IDs through the exact
+  Bailer-Jones envelope; account all 243 source fields and independently audit
+  coherent stellar/abundance, photometry/extinction, coordinate/RV, identity,
+  citation, and product-lineage evidence with zero pending fields
+- [ ] E4 compiler scaling: cache checksum-bound selected rows and insert large
+  evidence branches incrementally; prove the APOGEE logical hash unchanged
+  before materializing GALAH or LAMOST
 - [x] E4 foundation: add the immutable 23-domain compiler contract, deterministic
   source-record identity, exact-duplicate accounting, explicit binding outcomes,
   field dispositions, cached-artifact checksum verification, and clean logical-

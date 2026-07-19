@@ -150,6 +150,24 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert ultracool_sheet["observation_product_missing_values"] == {
         "url_simpleDB": ["null", "nan"]
     }
+    apogee = contract["source_adapters"]["spectroscopy.apogee_dr17"]
+    assert set(apogee["tables"]) == {
+        "apogee_dr17_allstar",
+        "apogee_dr17_model_grid_metadata",
+        "apogee_dr17_field_versions",
+    }
+    apogee_allstar = apogee["tables"]["apogee_dr17_allstar"]
+    assert len(apogee_allstar["scoped_stellar_parameter_sets"][0]["measurements"]) == 30
+    apogee_membership = apogee_allstar["row_selection"][
+        "external_membership_groups"
+    ][0]
+    assert apogee_membership["normalization"] == "unsigned_integer_decimal_v1"
+    assert apogee_membership["targets"][0]["source_id"] == (
+        "distance.gaia_edr3_bailer_jones"
+    )
+    assert apogee_allstar["identifier_claims"]["GAIAEDR3_SOURCE_ID"][
+        "namespace"
+    ] == "gaia_edr3_source_id"
     extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
     assert len(extended["tables"]) == 16
     assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (
@@ -1577,6 +1595,7 @@ def test_scoped_stellar_evidence_supports_dynamic_component_scope(
                     "classification_field": "Sp",
                     "classification_scheme": "spectral_type",
                     "method": "msc_source_component",
+                    "reference_raw": "2026TEST...1A",
                     "normalization_version": "msc_source_native_v1",
                     "measurements": [
                         {
@@ -1596,9 +1615,13 @@ def test_scoped_stellar_evidence_supports_dynamic_component_scope(
             "select component_scope,classification_raw "
             "from stellar_classification_evidence"
         ).fetchall()
+        references = con.execute(
+            "select distinct reference_raw from stellar_parameter_evidence"
+        ).fetchall()
     assert consumed == {"WDS", "Comp", "Sp", "Mass"}
     assert scopes == [("00001+0001:Aa",)]
     assert classifications == [("00001+0001:Aa", "M3V")]
+    assert references == [("2026TEST...1A",)]
 
 
 def test_numeric_zero_missing_semantics_reject_signed_zero_lexemes() -> None:

@@ -2686,6 +2686,11 @@ def materialize_scoped_stellar_evidence(
         method = str(config["method"])
         normalization = str(config["normalization_version"])
         reference_field = config.get("reference_field")
+        reference_raw = config.get("reference_raw")
+        if reference_field and reference_raw is not None:
+            raise ValueError(
+                "scoped stellar evidence cannot declare both reference_field and reference_raw"
+            )
         quality_fields = [str(field) for field in config.get("quality_fields") or []]
         configured_fields = {
             str(value)
@@ -2711,7 +2716,11 @@ def materialize_scoped_stellar_evidence(
                 f"scoped stellar fields missing from {table_name}.{scope}: {missing}"
             )
         consumed.update(configured_fields)
-        reference = text_expression(reference_field)
+        reference = (
+            sql_string(str(reference_raw))
+            if reference_raw is not None
+            else text_expression(reference_field)
+        )
         source_quality = (
             logical_key_expression(quality_fields, "source_row")
             if quality_fields
@@ -2885,6 +2894,11 @@ def materialize_configured_photometry(
         )
         bandpass_field = measurement.get("bandpass_field")
         reference_field = measurement.get("reference_field")
+        reference_raw = measurement.get("reference_raw")
+        if reference_field and reference_raw is not None:
+            raise ValueError(
+                "configured photometry cannot declare both reference_field and reference_raw"
+            )
         quality_fields = [str(value) for value in measurement.get("quality_fields") or []]
         fields = {
             field,
@@ -2969,7 +2983,7 @@ def materialize_configured_photometry(
               {uncertainty_lower}, {uncertainty_upper}, 'measurement',
               {nullable_sql_string(measurement.get('method'))},
               {nullable_sql_string(measurement.get('model'))},
-              {text_expression(reference_field)},
+              {sql_string(str(reference_raw)) if reference_raw is not None else text_expression(reference_field)},
               {quality},
               {sql_string(str(measurement.get('normalization_version') or 'source_native_v1'))}
             from read_parquet({sql_string(str(path))}) source_row

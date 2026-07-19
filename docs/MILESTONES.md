@@ -1438,6 +1438,10 @@ Current status (July 19, 2026, in progress):
   than silently selecting one extension: 733,901 allStar rows/234 fields, the
   one-row six-field model-grid definition, and 2,215 field-version rows/three
   fields all pass typed verification and clean reproduction
+- the Gaia AP spectroscopy uncertainty supplement completed all 17 resumable
+  TAP partitions. Its final three partitions contain 970, 936, and 963 rows;
+  the acquisition manifest is atomic and the remaining 12-product E3 tail stays
+  explicitly pending rather than being hidden by this checkpoint
 - the remaining large source transfers and typed cooks are still running; E3
   remains open until every registered product is complete, field-accounted,
   typed, and covered by the machine-readable acquisition report
@@ -1476,6 +1480,15 @@ Current status (July 19, 2026, in progress):
   lineage changes immutable build identity and reproduction comparison; OR
   groups and unsigned-decimal Gaia-ID normalization support bounded survey
   joins without release-ID conflation or source-specific distance heuristics
+- APOGEE checkpoint `efc517c3dd6f6389abab7603` passes generic and source-
+  specific audits with 178,099 bounded allStar rows, 3,280,268 coherent stellar
+  measurements, 1,357,072 photometry/extinction measurements, 529,676
+  coordinate/RV measurements, 173,478 product locators, all 243 field
+  occurrences accounted, and no pending fields. Its logical hash is
+  `d2609ad76ea2ffc4f66d9bfd01c5fb7084aa0d88c937c513d8f416ebeced2a18`.
+  Compile runtime (41:53) and peak RSS (9.17 GB) make selected-row caching and
+  incremental evidence insertion a required identical-hash optimization before
+  GALAH/LAMOST are materialized
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308

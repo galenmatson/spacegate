@@ -362,6 +362,14 @@ authorized removal of failed v54 plus four closed manifestless Bailer-Jones
 attempts. Apply reclaimed 44,452,454,400 allocated bytes while preserving v56,
 raw/typed inputs, and diagnostic/acceptance reports.
 
+The accepted APOGEE DR17 E4 checkpoint `efc517c3dd6f6389abab7603`, its exact
+raw/typed inputs, and its compile, generic-audit, and APOGEE-source-audit reports
+are protected E4/E5 inputs and scientific A/B references. Its 5.4-GB database
+is not a cleanup candidate. The APOGEE source-audit schema is allowlisted only
+to classify a failed whole artifact for the existing fail-closed retention
+workflow; it cannot authorize deletion without the other checksum, age,
+live-handle, candidate-hash, and explicit-apply gates.
+
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`
 (DEBCat), `d08c5aa9af7dc8bcdbf0d6c3` (Green SNR), and

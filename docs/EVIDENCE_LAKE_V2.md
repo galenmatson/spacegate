@@ -415,6 +415,21 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   Clean reproduction matches that logical hash with no differing sections and
   removes its USB scratch tree. v56 is the accepted checkpoint; neither v54 nor
   v55 is accepted.
+- Compiler/contract v58 applies the checksum-bound external-membership contract
+  to APOGEE DR17's explicit Gaia EDR3 identifiers. Checkpoint
+  `efc517c3dd6f6389abab7603` retains 178,099 of 733,901 allStar rows inside the
+  registered Bailer-Jones EDR3 envelope, plus all model-grid and field-version
+  metadata. It emits 3,280,268 coherent ASPCAP stellar measurements,
+  1,357,072 photometry/extinction measurements, 529,676 coordinate/RV
+  measurements, 173,478 spectrum-product locators, and 890,495 release-scoped
+  identifier claims. All 243 table-field occurrences are accounted as 211
+  materialized and 32 reviewed exclusions with zero pending fields. Copied Gaia
+  values and redundant ASPCAP arrays remain in E1 Parquet rather than becoming
+  duplicate E4 facts. Generic and APOGEE-specific audits pass; the logical hash
+  is `d2609ad76ea2ffc4f66d9bfd01c5fb7084aa0d88c937c513d8f416ebeced2a18`.
+  The measured 41:53 compile and 9.17-GB peak RSS expose repeated wide-source
+  scans and branch buffering; selected-row caching and incremental inserts must
+  prove the identical logical hash before GALAH/LAMOST materialization.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

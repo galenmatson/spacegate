@@ -212,6 +212,13 @@ artifacts and source-native typed Parquet. The FITS contract supports fixed-size
 numeric/string arrays and registry-declared multiple table HDUs. APOGEE's
 allStar, model-grid, and field-version extensions therefore remain distinct and
 schema-gated; no extension or vector-valued parameter set is silently dropped.
+APOGEE E4 admission is bounded through the exact registered Bailer-Jones EDR3
+typed snapshot because `GAIAEDR3_SOURCE_ID` is release-specific; it is never
+compared directly with Gaia DR3 IDs. The accepted v58 checkpoint retains
+178,099 allStar rows and materializes calibrated scalar ASPCAP physics,
+abundances, target photometry/extinction, coordinates/RV, release-scoped
+identities, citations, and product locators. Copied Gaia columns and redundant
+ASPCAP arrays remain preserved in E1 but are deliberate E4 exclusions.
 
 E4 source adapters are declared in
 `config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream

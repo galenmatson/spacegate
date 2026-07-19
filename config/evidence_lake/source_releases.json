@@ -1068,7 +1068,7 @@
       "citation_url": "https://www.sdss.org/dr17/irspec/spectro_data/",
       "license": {"name": "SDSS data-use policy", "url": "https://www.sdss.org/collaboration/citing-sdss/"},
       "cadence": "published release",
-      "identity_namespaces": ["apogee_id", "gaia_source_id", "2mass_id"],
+      "identity_namespaces": ["apogee_id", "gaia_edr3_source_id", "2mass_id"],
       "frame_epoch": "source-specific",
       "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
       "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "apogee_dr17_allstar_synspec_rev1"}],
@@ -1109,7 +1109,7 @@
       "citation_url": "https://www.lamost.org/dr11/v2.0/",
       "license": {"name": "LAMOST data-use policy", "url": "https://www.lamost.org/dr11/v2.0/doc/data-policy"},
       "cadence": "published release",
-      "identity_namespaces": ["lamost_obsid", "gaia_source_id"],
+      "identity_namespaces": ["lamost_obsid", "gaia_dr3_source_id"],
       "frame_epoch": "source-specific",
       "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
       "manifest_entries": [
