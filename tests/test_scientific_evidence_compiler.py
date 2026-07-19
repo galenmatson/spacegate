@@ -23,6 +23,7 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     contract = compiler.load_json(CONTRACT_PATH)
     assert compiler.validate_contract(contract) == []
     assert set(contract["domain_tables"]) == compiler.DOMAIN_TABLES
+    assert compiler.CITATION_LINK_BUCKET_COUNT >= 16
     nasa_adapter = contract["source_adapters"][
         "nasa_exoplanet_archive.planetary_systems"
     ]

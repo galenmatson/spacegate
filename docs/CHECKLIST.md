@@ -1147,6 +1147,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   source-record identity, exact-duplicate accounting, explicit binding outcomes,
   field dispositions, cached-artifact checksum verification, and clean logical-
   hash reproduction; keep unmaterialized fields visibly pending
+- [ ] E4 SIMBAD scale checkpoint: rebuild the complete envelope with v38's
+  32-bucket astrometry-citation materialization, then pass independent artifact
+  audit and clean logical-hash reproduction under the bounded memory policy
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

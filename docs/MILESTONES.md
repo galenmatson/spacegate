@@ -1571,6 +1571,13 @@ Current status (July 19, 2026, in progress):
   `Orbital`, `AstroSpectroSB1`, targeted-search, validated-search, and
   alternative models stay distinct, and no missing companion endpoint is
   fabricated. Clean reproduction and the independent artifact audit pass.
+- the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
+  or artifact promotion, when one bundled-astrometry citation join reached the
+  configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general
+  operation into 32 exhaustive source-record hash buckets, disables unnecessary
+  insertion-order preservation, and retains ordered duplicate-sensitive
+  logical hashes. The retry, independent audit, and clean reproduction remain
+  open acceptance gates.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

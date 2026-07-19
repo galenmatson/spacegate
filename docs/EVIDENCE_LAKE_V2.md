@@ -365,11 +365,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   produced from component-suffixed aliases such as `HIP 10280A`; v36 is not an
   accepted checkpoint.
 - Compiler/contract v37 records every failed numeric normalization in an
-  explicit rejection table and emits only usable normalized claims. Citation
-  matching uses one bounded key table, materialization defaults to a 16-GB
-  DuckDB memory limit, and operator-configured scratch can place disposable
-  spill outside `/data`. Final SIMBAD v37 compilation waits on the complete-
-  envelope supplement, then requires independent audit and clean reproduction.
+  explicit rejection table and emits only usable normalized claims. Its final
+  SIMBAD diagnostic failed closed at the intentional 16-GB DuckDB limit while
+  expanding all bundled astrometry citations in one join; the host did not OOM
+  and no artifact was promoted. Compiler/contract v38 partitions that exact
+  join into 32 deterministic source-record hash buckets and disables
+  unnecessary insertion-order preservation while retaining explicitly ordered,
+  duplicate-sensitive logical hashes. Operator-configured scratch still places
+  disposable spill outside `/data`. The v38 retry requires independent audit
+  and clean reproduction before it can become a checkpoint.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

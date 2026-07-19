@@ -37,6 +37,7 @@ LOGICAL_HASH_THREADS = max(
     1,
     min(int(os.environ.get("SPACEGATE_E4_HASH_THREADS", "4")), os.cpu_count() or 1),
 )
+CITATION_LINK_BUCKET_COUNT = 32
 
 
 DOMAIN_TABLES = {
@@ -3133,21 +3134,26 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
             where nullif(trim(e.reference_raw), '') is not null
             """
         )
-    con.execute(
-        """
-        insert into evidence_citations
-        select
-          'astrometry_distance_evidence_bundles', measurement.evidence_id,
-          c.citation_id, 'source_reference'
-        from astrometry_distance_evidence_bundles b
-        join source_records r using (source_record_id),
-        unnest(b.measurements) as nested(measurement)
-        join citation_match_keys c
-          on c.source_id=r.source_id
-         and c.match_key=measurement.reference_raw
-        where nullif(trim(measurement.reference_raw), '') is not null
-        """
-    )
+    for bucket in range(CITATION_LINK_BUCKET_COUNT):
+        con.execute(
+            f"""
+            insert into evidence_citations
+            select
+              'astrometry_distance_evidence_bundles', measurement.evidence_id,
+              c.citation_id, 'source_reference'
+            from (
+              select source_record_id, measurements
+              from astrometry_distance_evidence_bundles
+              where hash(source_record_id) % {CITATION_LINK_BUCKET_COUNT} = {bucket}
+            ) b
+            join source_records r using (source_record_id),
+            unnest(b.measurements) as nested(measurement)
+            join citation_match_keys c
+              on c.source_id=r.source_id
+             and c.match_key=measurement.reference_raw
+            where nullif(trim(measurement.reference_raw), '') is not null
+            """
+        )
     link_count = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
     con.execute("drop table citation_match_keys")
     return {
@@ -3953,7 +3959,7 @@ def compile_evidence(
         con.execute(f"set temp_directory={sql_string(str(duckdb_temporary))}")
         con.execute(f"set memory_limit={sql_string(MATERIALIZATION_MEMORY_LIMIT)}")
         con.execute("set threads=1")
-        con.execute("set preserve_insertion_order=true")
+        con.execute("set preserve_insertion_order=false")
         create_schema(con)
         for input_row in inputs:
             source_reports.append(
@@ -4126,6 +4132,8 @@ def compile_evidence(
         "materialization_execution": {
             "memory_limit": MATERIALIZATION_MEMORY_LIMIT,
             "threads": 1,
+            "preserve_insertion_order": False,
+            "astrometry_citation_link_bucket_count": CITATION_LINK_BUCKET_COUNT,
             "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
             * 1024,
             "temporary_storage_policy": temporary_storage_policy,

@@ -1325,6 +1325,14 @@ Representative commits:
   artifact family. Two explicitly identified failed compiler temporaries were
   removed only through hash-gated retention, reclaiming 73,183,408,128 allocated
   bytes; ambiguous or immutable artifacts were preserved.
+- The first complete-envelope v37 retry proved that the remaining peak was not
+  the key match itself but the single expansion of every bundled astrometry
+  measurement into citation links. DuckDB failed closed at 14.9 GiB used under
+  the configured 16-GB cap; Photon retained over 100 GiB available and the
+  temporary build was not promoted. Compiler/contract v38 processes the same
+  relation in 32 exhaustive source-record hash buckets and turns off insertion-
+  order preservation. Scientific identity, citation matching, and logical
+  hashing are unchanged; the batching policy is recorded in every build report.
 
 ## Recurrent Defect Classes and Mitigations
 
