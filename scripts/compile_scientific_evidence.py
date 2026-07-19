@@ -344,6 +344,35 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                         errors.append(
                             f"{membership_prefix}.target_table is not in adapter"
                         )
+                    if membership.get("target_sql_predicate") is not None and not str(
+                        membership.get("target_sql_predicate") or ""
+                    ).strip():
+                        errors.append(
+                            f"{membership_prefix}.target_sql_predicate must be non-empty"
+                        )
+            cluster_context = table.get("cluster_context")
+            if cluster_context:
+                prefix = f"{source_id}.{table_name}.cluster_context"
+                required = {
+                    "cluster_identity_field",
+                    "method",
+                    "normalization_version",
+                }
+                missing = sorted(required - set(cluster_context))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+            cluster_membership = table.get("cluster_membership")
+            if cluster_membership:
+                prefix = f"{source_id}.{table_name}.cluster_membership"
+                required = {
+                    "cluster_identity_field",
+                    "member_identity_field",
+                    "membership_probability_field",
+                    "method",
+                }
+                missing = sorted(required - set(cluster_membership))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
             orbital_solution = table.get("orbital_solution")
             if orbital_solution:
                 prefix = f"{source_id}.{table_name}.orbital_solution"
@@ -1161,6 +1190,43 @@ def source_field_metadata(
     """Return source-native field metadata for delimited, FITS, and document tables."""
     dispositions = product.get("field_dispositions") or []
     if dispositions:
+        selected_fields = product.get("selected_fields") or []
+        typed_columns = typed_table.get("columns") or []
+        if selected_fields and all(isinstance(row, dict) for row in selected_fields):
+            disposition_by_source = {
+                str(row["column_name"]): row for row in dispositions
+            }
+            selected_by_output = {
+                str(row["output_name"]): row for row in selected_fields
+            }
+            typed_names = [
+                str(row.get("column_name") or row.get("name"))
+                for row in typed_columns
+            ]
+            if len(disposition_by_source) != len(dispositions):
+                raise ValueError("source product has duplicate field dispositions")
+            if len(selected_by_output) != len(selected_fields):
+                raise ValueError("source product has duplicate selected output fields")
+            if set(typed_names) != set(selected_by_output):
+                raise ValueError(
+                    "typed columns do not match selected product output fields: "
+                    f"typed_only={sorted(set(typed_names) - set(selected_by_output))} "
+                    f"selected_only={sorted(set(selected_by_output) - set(typed_names))}"
+                )
+            fields = []
+            for typed_name in typed_names:
+                selected = selected_by_output[typed_name]
+                source_name = str(selected["source_name"])
+                source = disposition_by_source.get(source_name)
+                if source is None:
+                    raise ValueError(
+                        f"selected source field lacks disposition: {source_name}"
+                    )
+                field = dict(source)
+                field["source_column_name"] = source_name
+                field["column_name"] = typed_name
+                fields.append(field)
+            return fields
         return list(dispositions)
 
     source_schema = typed_table.get("source_schema")
@@ -1246,10 +1312,13 @@ def row_selection_predicate(
         target_path = typed_root / str(target["parquet_path"])
         if not target_path.exists():
             raise FileNotFoundError(target_path)
+        target_predicate = str(membership.get("target_sql_predicate") or "true")
         predicates.append(
             "exists (select 1 from read_parquet("
             + sql_string(str(target_path))
-            + ") membership_target where "
+            + ") membership_target where ("
+            + target_predicate
+            + ") and "
             + f"trim(cast(membership_target.{sql_identifier(target_field)} as varchar)) = "
             + f"trim(cast(t.{sql_identifier(local_field)} as varchar)))"
         )
@@ -3337,6 +3406,163 @@ def materialize_source_citation_links(
     return consumed
 
 
+def materialize_cluster_context(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    cluster_context: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    identity_field = str(cluster_context["cluster_identity_field"])
+    reference_field = cluster_context.get("reference_field")
+    quality_fields = [str(value) for value in cluster_context.get("quality_fields") or []]
+    parameter_fields = [str(field["column_name"]) for field in fields]
+    configured_fields = {
+        identity_field,
+        *parameter_fields,
+        *quality_fields,
+        *(str(reference_field) for _ in [0] if reference_field),
+    }
+    missing = sorted(configured_fields - available_fields)
+    if missing:
+        raise ValueError(f"cluster context fields missing from {table_name}: {missing}")
+    reference = (
+        text_expression(str(reference_field))
+        if reference_field
+        else nullable_sql_string(cluster_context.get("reference_raw"))
+    )
+    parameters = (
+        logical_key_expression(parameter_fields, "t")
+        if parameter_fields
+        else "'{}'::json"
+    )
+    source_quality = (
+        logical_key_expression(quality_fields, "t")
+        if quality_fields
+        else "'{}'::json"
+    )
+    predicate = str(cluster_context.get("sql_predicate") or "true")
+    con.execute(
+        f"""
+        insert into cluster_evidence
+        select distinct
+          sha256({sql_string('cluster-context|' + table_name + '|')} || r.source_record_id),
+          r.source_record_id,
+          trim(cast({sql_identifier(identity_field)} as varchar)),
+          {parameters},
+          {sql_string(str(cluster_context['method']))},
+          {nullable_sql_string(cluster_context.get('model'))},
+          {reference},
+          json_object(
+            'source_table', {sql_string(table_name)},
+            'source_quality', {source_quality},
+            'row_selection_policy', {nullable_sql_string((cluster_context.get('selection_context') or {}).get('policy_id'))}
+          ),
+          {sql_string(str(cluster_context['normalization_version']))}
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif(trim(cast({sql_identifier(identity_field)} as varchar)), '') is not null
+          and ({predicate})
+        """
+    )
+    return configured_fields
+
+
+def materialize_cluster_memberships(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    cluster_membership: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    cluster_field = str(cluster_membership["cluster_identity_field"])
+    member_field = str(cluster_membership["member_identity_field"])
+    probability_field = str(cluster_membership["membership_probability_field"])
+    reference_field = cluster_membership.get("reference_field")
+    quality_fields = [str(field["column_name"]) for field in fields]
+    configured_fields = {
+        cluster_field,
+        member_field,
+        probability_field,
+        *quality_fields,
+        *(str(reference_field) for _ in [0] if reference_field),
+    }
+    missing = sorted(configured_fields - available_fields)
+    if missing:
+        raise ValueError(f"cluster membership fields missing from {table_name}: {missing}")
+    invalid_probability_count = int(
+        con.execute(
+            f"""
+            select count(*)
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where try_cast({sql_identifier(probability_field)} as double) is not null
+              and try_cast({sql_identifier(probability_field)} as double) not between 0 and 1
+            """
+        ).fetchone()[0]
+    )
+    if invalid_probability_count:
+        raise ValueError(
+            f"cluster membership probability outside [0,1] in {table_name}: "
+            f"{invalid_probability_count}"
+        )
+    reference = (
+        text_expression(str(reference_field))
+        if reference_field
+        else nullable_sql_string(cluster_membership.get("reference_raw"))
+    )
+    source_quality = (
+        logical_key_expression(quality_fields, "t")
+        if quality_fields
+        else "'{}'::json"
+    )
+    predicate = str(cluster_membership.get("sql_predicate") or "true")
+    con.execute(
+        f"""
+        insert into cluster_membership_evidence
+        select distinct
+          sha256({sql_string('cluster-membership|' + table_name + '|')} || r.source_record_id),
+          r.source_record_id,
+          trim(cast({sql_identifier(cluster_field)} as varchar)),
+          trim(cast({sql_identifier(member_field)} as varchar)),
+          try_cast({sql_identifier(probability_field)} as double),
+          {sql_string(str(cluster_membership['method']))},
+          {reference},
+          json_object(
+            'source_table', {sql_string(table_name)},
+            'probability_semantics', {nullable_sql_string(cluster_membership.get('probability_semantics'))},
+            'source_membership_record', {source_quality}
+          )
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif(trim(cast({sql_identifier(cluster_field)} as varchar)), '') is not null
+          and nullif(trim(cast({sql_identifier(member_field)} as varchar)), '') is not null
+          and ({predicate})
+        """
+    )
+    return configured_fields
+
+
 def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     reference_branches = [
         f"""
@@ -3909,6 +4135,46 @@ def materialize_source(
                     path=path,
                     fields=orbital_solution_fields,
                     orbital_solution=orbital_solution,
+                    available_fields=set(columns),
+                )
+            )
+        cluster_fields = fields_by_destination.get("cluster_evidence") or []
+        cluster_context = table_contract.get("cluster_context")
+        if cluster_fields or cluster_context:
+            if not cluster_fields or not cluster_context:
+                raise ValueError(
+                    f"cluster-context profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_cluster_context(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=cluster_fields,
+                    cluster_context=cluster_context,
+                    available_fields=set(columns),
+                )
+            )
+        membership_fields = fields_by_destination.get(
+            "cluster_membership_evidence"
+        ) or []
+        cluster_membership = table_contract.get("cluster_membership")
+        if membership_fields or cluster_membership:
+            if not membership_fields or not cluster_membership:
+                raise ValueError(
+                    f"cluster-membership profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_cluster_memberships(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=membership_fields,
+                    cluster_membership=cluster_membership,
                     available_fields=set(columns),
                 )
             )

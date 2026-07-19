@@ -68,6 +68,13 @@ Evidence Lake v2 staging rule:
   variable classes and spectral classes occupy separate typed domains; repeated
   source-key bibliography lines aggregate deterministically. All bindings stay
   unresolved until the E2/E5 identity and selection policies adjudicate them.
+- Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86` keeps cluster physical
+  contexts, probability-bearing membership claims, literature crossmatches,
+  and both cluster/member endpoint identities source scoped. Cross-table
+  selection follows the chosen cluster's published distance-posterior overlap;
+  it does not turn membership into a relation claim or canonical containment.
+  Exact source field names remain in lineage when typed query outputs require a
+  legal alias.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

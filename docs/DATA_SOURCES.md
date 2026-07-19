@@ -117,6 +117,15 @@ and 29,956 literature-crossmatch rows/17 fields. Its raw/typed verification and
 clean reproduction pass. E4, not E1, owns interpretation of membership
 probabilities and cluster physical parameter sets.
 
+E4 Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86` selects clusters whose
+published 16th-percentile distance overlaps 383.245 pc, then retains every
+membership and literature-crossmatch row attached to those selected cluster
+IDs. The result is 465 clusters, 51,017 probability-bearing member claims, and
+451 crossmatches with all 161 fields accounted. Exact VizieR source names map
+through the pinned query output-name contract rather than losing lineage when a
+legal Parquet alias is required. Membership remains evidence, never canonical
+containment.
+
 SIMBAD is not bulk-mirrored or used as inventory: its release-pinned Gaia DR3
 bridge is intersected locally before targeted alias, basic-data, and
 bibliography acquisition. Full TIC, Gaia observation products, and survey
@@ -317,6 +326,9 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- Hunt/Reffert 2024 `7e66e0690aa962c837d43a86`: 465 uncertainty-overlap
+  clusters, 51,017 probability-bearing memberships, 451 literature
+  crossmatches, all 161 fields, and zero canonical containment promotion
 - GCVS `a6f6669d2bd48eac5d6204d2`: all 340,839 rows from six release
   tables, 705,684 scoped identity claims, typed astrometry, distinct variable
   and stellar classifications, deterministic bibliography aggregation, and no

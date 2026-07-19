@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.40",
-  "compiler_version": "scientific_evidence_compiler_v40",
+  "contract_version": "2026-07-19.e4-foundation.41",
+  "compiler_version": "scientific_evidence_compiler_v41",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -772,6 +772,48 @@
         "reason": "physical line order and exact fixed-width reference row lineage"
       }
     ],
+    "hunt_reffert_clusters": [
+      {
+        "pattern": "^(Name|ID)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped cluster name and Hunt-Reffert cluster identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "cluster_evidence",
+        "reason": "complete source-native cluster position, structure, distance, motion, age, extinction, mass, membership-count, merge, crossmatch, and quality context"
+      }
+    ],
+    "hunt_reffert_members": [
+      {
+        "pattern": "^(Name|ID|GaiaDR3)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped cluster, cluster-name, and Gaia DR3 member identity evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "cluster_membership_evidence",
+        "reason": "complete probability-bearing cluster membership record with source astrometry, correlations, photometry, velocity, quality, variability, NSS/RVS, and mass-posterior context"
+      }
+    ],
+    "hunt_reffert_crossmatch": [
+      {
+        "pattern": "^(ID|NameLit)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Hunt-Reffert cluster and source-literature cluster designation evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "cluster_evidence",
+        "reason": "complete source-native literature crossmatch catalog, type, separation, tidal-radius, proper-motion, parallax, and sigma context"
+      }
+    ],
     "simbad_identifiers": [
       {
         "pattern": ".*",
@@ -1061,6 +1103,101 @@
           "logical_key_fields": ["source_line_number"],
           "object_scope": "source_method_document_line",
           "field_profile": "source_method_document"
+        }
+      }
+    },
+    "clusters.hunt_reffert_2024": {
+      "adapter_version": "hunt_reffert_cluster_evidence_v1",
+      "table_order": [
+        "hunt_reffert_2024_clusters",
+        "hunt_reffert_2024_members",
+        "hunt_reffert_2024_crossmatch"
+      ],
+      "tables": {
+        "hunt_reffert_2024_clusters": {
+          "logical_key_fields": ["ID"],
+          "object_scope": "open_cluster",
+          "field_profile": "hunt_reffert_clusters",
+          "identifier_claims": {
+            "Name": {"namespace": "cluster_name", "claim_scope": "open_cluster"},
+            "ID": {"namespace": "hunt_reffert_cluster_id", "claim_scope": "open_cluster", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "row_selection": {
+            "policy_id": "cluster_distance_p16_overlaps_1250ly_v1",
+            "sql_predicate": "dist16 <= 383.245",
+            "reason": "retain clusters whose published 16th-percentile distance overlaps the uncertainty-aware 1,250-ly evidence envelope"
+          },
+          "cluster_context": {
+            "cluster_identity_field": "ID",
+            "method": "hunt_reffert_2024_hdbscan_cluster_characterization",
+            "model": "source_published_cluster_parameter_posteriors",
+            "reference_raw": "2024A&A...686A..42H",
+            "quality_fields": ["Type", "CST", "N", "CSTt", "Nt", "globalPlx", "isMerged", "isGMMMemb", "NXmatches", "XmatchType", "Note"],
+            "selection_context": {"policy_id": "cluster_distance_p16_overlaps_1250ly_v1"},
+            "normalization_version": "hunt_reffert_source_native_v1"
+          }
+        },
+        "hunt_reffert_2024_members": {
+          "logical_key_fields": ["recno"],
+          "object_scope": "probability_bearing_cluster_member_claim",
+          "field_profile": "hunt_reffert_members",
+          "identifier_claims": {
+            "Name": {"namespace": "cluster_name", "claim_scope": "open_cluster"},
+            "ID": {"namespace": "hunt_reffert_cluster_id", "claim_scope": "open_cluster", "normalization": "unsigned_integer_decimal_v1"},
+            "GaiaDR3": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "member", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "row_selection": {
+            "policy_id": "member_of_cluster_distance_p16_overlaps_1250ly_v1",
+            "sql_predicate": "true",
+            "reason": "retain all published probability-bearing members of selected uncertainty-overlap clusters",
+            "cross_table_memberships": [
+              {
+                "local_field": "ID",
+                "target_table": "hunt_reffert_2024_clusters",
+                "target_field": "ID",
+                "target_sql_predicate": "membership_target.dist16 <= 383.245"
+              }
+            ]
+          },
+          "cluster_membership": {
+            "cluster_identity_field": "ID",
+            "member_identity_field": "GaiaDR3",
+            "membership_probability_field": "Prob",
+            "probability_semantics": "source_published_HDBSCAN_membership_probability",
+            "method": "hunt_reffert_2024_hdbscan_membership",
+            "reference_raw": "2024A&A...686A..42H"
+          }
+        },
+        "hunt_reffert_2024_crossmatch": {
+          "logical_key_fields": ["recno"],
+          "object_scope": "cluster_literature_crossmatch",
+          "field_profile": "hunt_reffert_crossmatch",
+          "identifier_claims": {
+            "ID": {"namespace": "hunt_reffert_cluster_id", "claim_scope": "open_cluster", "normalization": "unsigned_integer_decimal_v1"},
+            "NameLit": {"namespace": "cluster_literature_designation", "claim_scope": "open_cluster_alias"}
+          },
+          "row_selection": {
+            "policy_id": "crossmatch_of_cluster_distance_p16_overlaps_1250ly_v1",
+            "sql_predicate": "true",
+            "reason": "retain literature crossmatches only for selected uncertainty-overlap clusters",
+            "cross_table_memberships": [
+              {
+                "local_field": "ID",
+                "target_table": "hunt_reffert_2024_clusters",
+                "target_field": "ID",
+                "target_sql_predicate": "membership_target.dist16 <= 383.245"
+              }
+            ]
+          },
+          "cluster_context": {
+            "cluster_identity_field": "ID",
+            "method": "hunt_reffert_2024_literature_crossmatch",
+            "model": "source_published_crossmatch_diagnostics",
+            "reference_raw": "2024A&A...686A..42H",
+            "quality_fields": ["SourceCat", "TypeSourceCat", "maxSigma", "meanSigma"],
+            "selection_context": {"policy_id": "crossmatch_of_cluster_distance_p16_overlaps_1250ly_v1"},
+            "normalization_version": "hunt_reffert_source_native_v1"
+          }
         }
       }
     },

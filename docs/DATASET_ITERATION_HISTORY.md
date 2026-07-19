@@ -1429,6 +1429,32 @@ Representative commits:
   retired those two whole artifacts and reclaimed 1,855,528,960 allocated bytes
   while preserving the accepted build, raw/typed inputs, and reports.
 
+### 47) Evidence Lake E4 Hunt/Reffert Cluster Evidence
+
+- Compiler/contract v41 adds general cluster-context and probability-bearing
+  membership materializers. Cross-table row selection can now require both an
+  exact key match and a target-table predicate, allowing member and crossmatch
+  rows to follow a selected cluster boundary without a named-cluster rule.
+- Source schema accounting now reconciles each exact upstream field through the
+  pinned TAP query's source-to-output mapping. VizieR fields such as
+  `CMDCl2.5`, `CMDCl97.5`, and `_RA.icrs` retain their exact upstream lineage
+  while E4 consumes the legal typed aliases. Counts and schemas must agree; a
+  positional or guessed rename cannot pass.
+- Checkpoint `7e66e0690aa962c837d43a86` applies the published 16th-percentile
+  distance overlap at 383.245 pc. Of 7,167 clusters, 465 qualify; all 51,017
+  member rows and 451 literature crossmatches attached to those clusters are
+  retained. The other 1,277,119 source rows remain accounted as boundary
+  exclusions, not missing evidence.
+- All 161 fields materialize into 916 coherent cluster/crossmatch contexts and
+  51,017 probability-bearing membership records. The source contributes
+  154,883 cluster/member/alias identity claims, one authoritative citation, and
+  51,933 evidence links. Every binding remains unresolved; no membership row is
+  promoted to a relation, orbit, or canonical containment edge.
+- Independent artifact and cluster/scope audits pass. Clean reproduction
+  matches logical hash
+  `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`
+  with no differing sections and removes the scratch artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

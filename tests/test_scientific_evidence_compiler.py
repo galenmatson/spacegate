@@ -88,6 +88,18 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert gcvs["tables"]["gcvs_suspected_variables"][
         "conditional_identifier_claims"
     ][0]["sql_predicate"] == "m_NSV is null"
+    clusters = contract["source_adapters"]["clusters.hunt_reffert_2024"]
+    assert set(clusters["tables"]) == {
+        "hunt_reffert_2024_clusters",
+        "hunt_reffert_2024_crossmatch",
+        "hunt_reffert_2024_members",
+    }
+    member_selection = clusters["tables"]["hunt_reffert_2024_members"][
+        "row_selection"
+    ]
+    assert member_selection["cross_table_memberships"][0][
+        "target_sql_predicate"
+    ] == "membership_target.dist16 <= 383.245"
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -148,6 +160,34 @@ def test_table_contract_reference_rejects_missing_and_cyclic_references() -> Non
             raise AssertionError(f"invalid contract reference accepted: {table_name}")
 
 
+def test_source_field_metadata_reconciles_source_and_selected_output_names() -> None:
+    fields = compiler.source_field_metadata(
+        {
+            "columns": [
+                {"name": "ID", "type": "BIGINT"},
+                {"name": "CMDCl2_5", "type": "DOUBLE"},
+            ]
+        },
+        {
+            "field_dispositions": [
+                {"column_name": "ID", "datatype": "long", "unit": None},
+                {
+                    "column_name": "CMDCl2.5",
+                    "datatype": "double",
+                    "unit": "mag",
+                },
+            ],
+            "selected_fields": [
+                {"source_name": "ID", "output_name": "ID"},
+                {"source_name": "CMDCl2.5", "output_name": "CMDCl2_5"},
+            ],
+        },
+    )
+    assert [row["column_name"] for row in fields] == ["ID", "CMDCl2_5"]
+    assert fields[1]["source_column_name"] == "CMDCl2.5"
+    assert fields[1]["unit"] == "mag"
+
+
 def test_cross_table_row_selection_is_bounded_and_schema_checked(
     tmp_path: Path,
 ) -> None:
@@ -159,7 +199,7 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
             f"to '{rows}' (format parquet)"
         )
         con.execute(
-            f"copy (select * from (values (2), (3)) t(oid)) "
+            f"copy (select * from (values (2, false), (3, true)) t(oid, in_scope)) "
             f"to '{members}' (format parquet)"
         )
     table_contract = {
@@ -170,6 +210,7 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
                     "local_field": "oidref",
                     "target_table": "members",
                     "target_field": "oid",
+                    "target_sql_predicate": "membership_target.in_scope",
                 }
             ],
         }
@@ -189,8 +230,11 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
     with duckdb.connect() as con:
         assert con.execute(
             f"select oidref from read_parquet('{rows}') t where {predicate} order by 1"
-        ).fetchall() == [(2,), (3,)]
-    typed_tables["members"]["columns"] = [{"name": "different"}]
+        ).fetchall() == [(3,)]
+    typed_tables["members"]["columns"] = [
+        {"name": "different"},
+        {"name": "in_scope"},
+    ]
     try:
         compiler.row_selection_predicate(
             table_contract,
@@ -202,6 +246,107 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
         assert "target field missing" in str(error)
     else:
         raise AssertionError("missing cross-table target field was accepted")
+
+
+def test_cluster_context_and_probability_membership_preserve_source_records(
+    tmp_path: Path,
+) -> None:
+    cluster_path = tmp_path / "clusters.parquet"
+    member_path = tmp_path / "members.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 7::bigint as \"ID\", 'Nearby Cluster' as \"Name\", "
+            f"300.5::double as dist16) to '{cluster_path}' (format parquet)"
+        )
+        con.execute(
+            f"copy (select 7::bigint ID, 123456789012345678::bigint GaiaDR3, "
+            f"0.875::double Prob, 1.1::double Mass50) "
+            f"to '{member_path}' (format parquet)"
+        )
+        cluster_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{cluster_path}') t"
+        ).fetchone()[0]
+        member_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{member_path}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'clusters.test', 'r1', ?, ?, '{}', '{}', ?, 1, "
+            "'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [
+                ("cluster-record", "clusters", "open_cluster", cluster_hash),
+                (
+                    "member-record",
+                    "members",
+                    "probability_bearing_cluster_member_claim",
+                    member_hash,
+                ),
+            ],
+        )
+        cluster_fields = [
+            {"column_name": "Name"},
+            {"column_name": "dist16"},
+        ]
+        consumed_cluster = compiler.materialize_cluster_context(
+            con,
+            source_id="clusters.test",
+            release_id="r1",
+            table_name="clusters",
+            path=cluster_path,
+            fields=cluster_fields,
+            cluster_context={
+                "cluster_identity_field": "ID",
+                "method": "test_cluster_method",
+                "model": "test_model",
+                "reference_raw": "2024TEST",
+                "quality_fields": ["Name"],
+                "normalization_version": "source_native_v1",
+            },
+            available_fields={"ID", "Name", "dist16"},
+        )
+        member_fields = [
+            {"column_name": "Prob"},
+            {"column_name": "Mass50"},
+        ]
+        consumed_member = compiler.materialize_cluster_memberships(
+            con,
+            source_id="clusters.test",
+            release_id="r1",
+            table_name="members",
+            path=member_path,
+            fields=member_fields,
+            cluster_membership={
+                "cluster_identity_field": "ID",
+                "member_identity_field": "GaiaDR3",
+                "membership_probability_field": "Prob",
+                "probability_semantics": "test_probability",
+                "method": "test_membership_method",
+                "reference_raw": "2024TEST",
+            },
+            available_fields={"ID", "GaiaDR3", "Prob", "Mass50"},
+        )
+        cluster = con.execute(
+            "select cluster_identity_raw, parameter_set_raw->>'dist16', method, "
+            "reference_raw from cluster_evidence"
+        ).fetchone()
+        member = con.execute(
+            "select cluster_identity_raw, member_identity_raw, "
+            "membership_probability, quality_json->>'probability_semantics', "
+            "quality_json->'source_membership_record'->>'Mass50' "
+            "from cluster_membership_evidence"
+        ).fetchone()
+    assert consumed_cluster == {"ID", "Name", "dist16"}
+    assert consumed_member == {"ID", "GaiaDR3", "Prob", "Mass50"}
+    assert cluster == ("7", "300.5", "test_cluster_method", "2024TEST")
+    assert member == (
+        "7",
+        "123456789012345678",
+        0.875,
+        "test_probability",
+        "1.1",
+    )
 
 
 def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:

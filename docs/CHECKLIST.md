@@ -1167,6 +1167,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and evidence links; preserve component suffixes, conflicting raw sign fields,
   and unresolved bindings; pass artifact, source/scope, and clean-reproduction
   gates
+- [x] E4 Hunt/Reffert cluster checkpoint: apply the uncertainty-overlap boundary
+  to retain 465 clusters, all 51,017 published probability-bearing member rows,
+  and 451 literature crossmatches; materialize all 161 fields as source-scoped
+  cluster/membership evidence with endpoint identities and citations; pass
+  artifact, cluster/scope, and clean-reproduction gates without promoting
+  membership to canonical containment
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

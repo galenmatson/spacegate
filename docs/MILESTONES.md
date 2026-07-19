@@ -1598,6 +1598,15 @@ Current status (July 19, 2026, in progress):
   canonical binding. Artifact/source-scope audits and clean reproduction pass
   logical hash
   `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`.
+- Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86` retains 465 clusters
+  whose published distance posterior overlaps the 1,250-ly evidence boundary,
+  plus all 51,017 probability-bearing member rows and 451 literature
+  crossmatches attached to those clusters. All 161 fields materialize as 916
+  cluster contexts, 51,017 membership records, 154,883 endpoint identity
+  claims, and 51,933 citation links. All bindings remain unresolved and no
+  membership becomes canonical containment. Artifact/cluster-scope audits and
+  clean reproduction pass logical hash
+  `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

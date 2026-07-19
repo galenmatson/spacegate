@@ -424,6 +424,19 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   Independent artifact and source/scope audits pass, and clean reproduction
   matches logical hash
   `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`.
+- Compiler/contract v41 adds typed cluster context and probability-bearing
+  membership adapters plus target-predicate cross-table row selection. It also
+  reconciles exact source column names to pinned query output names before E4
+  field accounting, so VizieR names such as `CMDCl2.5` retain upstream lineage
+  through their legal typed alias `CMDCl2_5`. Hunt/Reffert checkpoint
+  `7e66e0690aa962c837d43a86` applies the published 16th-percentile distance
+  overlap policy and materializes 465 clusters, 51,017 member claims, and 451
+  literature crossmatches as 916 cluster contexts and 51,017 memberships. All
+  161 fields are materialized; 154,883 endpoint identity claims and 51,933
+  source citations remain release scoped and unresolved. Independent artifact
+  and cluster/scope audits pass with zero relation or orbit promotion, and clean
+  reproduction matches logical hash
+  `14351918254e338cd28f796b3d1837eeeed1ad094c23d0ea27d408effea8d78b`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
