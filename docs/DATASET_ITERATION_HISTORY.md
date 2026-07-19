@@ -1341,6 +1341,12 @@ Representative commits:
   relation in 32 exhaustive source-record hash buckets and turns off insertion-
   order preservation. Scientific identity, citation matching, and logical
   hashing are unchanged; the batching policy is recorded in every build report.
+- Storage fell below the acquisition target while the closed 36.9-GB v37
+  temporary and its replacement coexisted. A one-candidate, zero-age retention
+  dry run proved the tree was manifestless, unreferenced, and idle; exact hash
+  `0dc54bd5a607cff1da7f5315ea147a5075f6389c6cb28e29a2523215fca23204`
+  authorized whole-tree removal. Raw/typed inputs, logs, reports, immutable v36,
+  and the active v38 replacement were not changed.
 
 ## Recurrent Defect Classes and Mitigations
 

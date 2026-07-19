@@ -201,6 +201,17 @@ changed. Compiler v36 removed the disjunctive join but failed a later identity
 audit; v37 retains bounded equality matching and explicitly quarantines failed
 identifier normalizations.
 
+The complete-envelope v37 retry then failed closed at the configured 16-GB
+DuckDB limit while expanding bundled astrometry citations in one operation. Its
+manifestless temporary had no live file descriptors and contained only the
+compiler database. Under storage pressure, the explicit zero-age dry run
+`e4_simbad_v37_failed_temporary_retention_dry_run.json` selected only that tree
+with candidate hash
+`0dc54bd5a607cff1da7f5315ea147a5075f6389c6cb28e29a2523215fca23204`.
+The matching applied report reclaimed 36,925,886,464 allocated bytes. Raw/typed
+inputs, failure logs, immutable v36, and the active v38 replacement remained
+protected.
+
 Evidence Lake identity graphs under
 `derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
 artifacts. Preserve the graph named by the adjacent atomic `current` pointer and
