@@ -975,8 +975,9 @@ Representative commits:
   legacy TAP names. E3 now explicitly preserves DR25 KOIs, supplemental and
   cumulative KOIs, DR25 threshold-crossing events, and the transit-detection
   reference table alongside complete planet, composite, host, TOI, K2, and
-  name tables. The earlier schema miss is fixed generally, not by a named-
-  object transform.
+  name tables. The completed immutable slice contains 12 typed tables, 206,989
+  rows, and all 2,093 upstream fields with zero omissions. The earlier schema
+  miss is fixed generally, not by a named-object transform.
 - SIMBAD is treated as an ODbL identity/naming evidence service rather than a
   catalog mirror. E3 first acquires its 14,188,016-row Gaia DR3 identifier
   bridge, then locally intersects it with the Spacegate envelope before any

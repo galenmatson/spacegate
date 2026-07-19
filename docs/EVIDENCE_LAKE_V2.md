@@ -238,11 +238,14 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   supplementary, NSS orbit, variability summary, and rotation-modulation
   tables; large exact acquisitions continue in crash-resilient tmux jobs.
 - Expanded NSS already preserves 50,762 complete 77-column orbit rows. The
-  Bailer-Jones distance envelope, Hunt-Reffert cluster tables, complete NASA
-  planet/host/TOI/K2/Kepler KOI/TCE/transit products, a staged SIMBAD Gaia DR3
-  bridge, El-Badry wide binaries, and APOGEE/GALAH/LAMOST releases now have
-  explicit registered contracts. Completion and typed coverage remain E3 exit
-  gates, not assumed outcomes.
+  complete NASA acquisition is also typed and verified: 12 planet, host, TOI,
+  K2, Kepler-name, KOI, TCE, and transit-detection tables preserve 206,989 rows
+  and all 2,093 upstream fields with zero omissions; a clean raw-to-typed
+  reproduction matches the promoted typed hashes. The Bailer-Jones distance
+  envelope, Hunt-Reffert cluster tables, staged SIMBAD Gaia DR3 bridge,
+  El-Badry wide binaries, and APOGEE/GALAH/LAMOST releases now have explicit
+  registered contracts. Completion and typed coverage for those remaining
+  sources remain E3 exit gates, not assumed outcomes.
 - SIMBAD is deliberately staged rather than mirrored: acquire the release-
   pinned Gaia DR3 identity bridge, intersect locally with the Evidence Lake
   envelope, then request basic, alias, and bibliography evidence for the

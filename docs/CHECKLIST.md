@@ -1112,6 +1112,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E3: acquire complete relevant NASA reference-specific/composite planet,
   host, TOI, Kepler/K2 candidate/status, transit, and RV metadata plus matched
   APOGEE/GALAH/LAMOST stellar-physics evidence
+- [x] E3 NASA checkpoint: preserve and verify 12 source-native tables, 206,989
+  rows, and all 2,093 planet/host/TOI/K2/Kepler KOI/TCE/transit fields with zero
+  omissions
 - [ ] E4: materialize typed stellar, astrometric/distance, photometric,
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-

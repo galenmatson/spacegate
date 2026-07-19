@@ -69,6 +69,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "spectroscopy.galah_dr4": "evidence_typed_cook_fits_v1",
     "spectroscopy.lamost_dr11": "evidence_typed_cook_fits_v1",
     "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
+    "nasa_exoplanet_archive.planetary_systems": "evidence_typed_cook_tap_csv_v1",
     "naming.iau_wgsn": "evidence_typed_cook_html_table_v2",
     "classification.gcvs": "evidence_typed_cook_cds_v1",
     "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",

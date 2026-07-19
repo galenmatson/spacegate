@@ -100,6 +100,13 @@ identity and linked resources, and excludes unrelated page tables and footer
 controls with machine-counted reasons. The exact HTML remains the immutable raw
 authority.
 
+The July 19 NASA Exoplanet Archive snapshot preserves 12 independent TAP
+tables rather than pre-merging parameter sets: 206,989 rows and 2,093 fields
+cover reference-specific planets, composite parameters, hosts, TOIs, K2,
+Kepler/K2 name bridges, DR25 and cumulative KOIs, DR25 TCEs, and transit-
+detection metadata. Product manifests account every upstream field as selected;
+winner selection and scientific normalization occur only in E4/E5.
+
 ## Gaia Release Identity Evidence
 
 Gaia DR2 and DR3 source IDs are different release-scoped namespaces. Spacegate

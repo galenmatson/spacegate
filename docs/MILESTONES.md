@@ -1382,6 +1382,10 @@ Current status (July 19, 2026, in progress):
   SIMBAD identity/naming evidence, complete relevant NASA KOI/TCE/TOI/K2 and
   planet/host/transit products, official high-value Gaia external crossmatches,
   and APOGEE/GALAH/LAMOST physical-parameter releases
+- the NASA slice is acquired, typed, and verified: 12 source-native tables
+  preserve 206,989 rows and all 2,093 upstream fields with zero omissions,
+  including the uppercase legacy Kepler KOI/TCE products missed by the earlier
+  schema probe; clean raw-to-typed reproduction passes
 - the large source transfers and typed cooks are still running; E3 remains open
   until every registered product is complete, field-accounted, typed, and
   covered by the machine-readable acquisition report
