@@ -516,7 +516,13 @@ def test_coverage_report_accounts_for_completed_and_pending_products(tmp_path: P
                 "field_disposition_report": str(product_report),
                 "row_count": 2,
                 "bytes_written": 10,
-            }
+            },
+            {
+                "source_name": "retired",
+                "field_disposition_report": str(product_report),
+                "row_count": 99,
+                "bytes_written": 999,
+            },
         ],
     )
     assert report["status"] == "in_progress"
@@ -524,10 +530,12 @@ def test_coverage_report_accounts_for_completed_and_pending_products(tmp_path: P
         "expected_products": 2,
         "completed_products": 1,
         "pending_products": 1,
+        "retained_superseded_products": 1,
         "completed_rows": 2,
         "completed_bytes": 10,
     }
     assert report["pending"] == ["pending"]
+    assert report["retained_superseded"] == ["retired"]
     assert report["table_field_coverage"][1]["selected_field_count"] == 2
 
 
@@ -581,7 +589,13 @@ def test_progress_publish_uses_durable_merged_manifest(tmp_path: Path) -> None:
                 "field_disposition_report": str(product_report),
                 "row_count": 2,
                 "bytes_written": 10,
-            }
+            },
+            {
+                "source_name": "retired",
+                "field_disposition_report": str(product_report),
+                "row_count": 99,
+                "bytes_written": 999,
+            },
         ],
     )
     report = acquire.publish_acquisition_progress(program, tmp_path)
@@ -591,7 +605,12 @@ def test_progress_publish_uses_durable_merged_manifest(tmp_path: Path) -> None:
         "row_count": 2,
         "bytes": 10,
         "pending_product_count": 0,
+        "retained_superseded_product_count": 1,
     }
+    assert [row["source_name"] for row in report["products"]] == ["complete"]
+    assert [
+        row["source_name"] for row in report["retained_superseded_products"]
+    ] == ["retired"]
     assert json.loads(
         (tmp_path / "reports" / "evidence_lake_v2" / "e3_acquisition_report.json").read_text()
     ) == report

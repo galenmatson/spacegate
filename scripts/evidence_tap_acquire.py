@@ -952,6 +952,7 @@ def build_coverage_report(
     expected = {str(product["product_name"]): product for product in program["products"]}
     completed = sorted(set(expected) & set(by_name))
     pending = sorted(set(expected) - set(by_name))
+    retained_superseded = sorted(set(by_name) - set(expected))
     table_reports: list[dict[str, Any]] = []
     for table_name in sorted({str(product["table"]) for product in program["products"]}):
         products = [product for product in program["products"] if product["table"] == table_name]
@@ -1016,11 +1017,13 @@ def build_coverage_report(
             "expected_products": len(expected),
             "completed_products": len(completed),
             "pending_products": len(pending),
+            "retained_superseded_products": len(retained_superseded),
             "completed_rows": sum(int(by_name[name]["row_count"]) for name in completed),
             "completed_bytes": sum(int(by_name[name]["bytes_written"]) for name in completed),
         },
         "completed": completed,
         "pending": pending,
+        "retained_superseded": retained_superseded,
         "table_field_coverage": table_reports,
         "checked_at": utc_now(),
     }
@@ -1040,16 +1043,26 @@ def publish_acquisition_progress(
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         merged = json.loads(manifest_path.read_text(encoding="utf-8"))
         coverage = build_coverage_report(program, merged)
+        active_names = set(coverage["completed"])
+        active_products = [
+            row for row in merged if str(row["source_name"]) in active_names
+        ]
+        retained_names = set(coverage["retained_superseded"])
+        retained_products = [
+            row for row in merged if str(row["source_name"]) in retained_names
+        ]
         report = {
             "schema_version": CONTRACT,
             "program_version": program["program_version"],
             "status": coverage["status"],
-            "products": merged,
+            "products": active_products,
+            "retained_superseded_products": retained_products,
             "summary": {
-                "product_count": len(merged),
-                "row_count": sum(int(row["row_count"]) for row in merged),
-                "bytes": sum(int(row["bytes_written"]) for row in merged),
+                "product_count": len(active_products),
+                "row_count": sum(int(row["row_count"]) for row in active_products),
+                "bytes": sum(int(row["bytes_written"]) for row in active_products),
                 "pending_product_count": coverage["summary"]["pending_products"],
+                "retained_superseded_product_count": len(retained_products),
             },
             "checked_at": utc_now(),
         }
