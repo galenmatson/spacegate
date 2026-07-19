@@ -1228,6 +1228,9 @@ Deliverables:
 - field-disposition registry accounting for every upstream field as preserved,
   normalized, index-only, or deliberately omitted with a reason
 - retention audit and explicit raw/typed/build/report/product-cache budgets
+- fail-closed retention for explicit interrupted scientific-evidence compiler
+  temporaries, with immutable tree identity, live-process and manifest refusal,
+  reviewed candidate-set hashes, and durable whole-artifact apply reports
 - uncertainty-aware ingestion-envelope policy around the public 1,000-ly sphere
 - schema-drift and source-release delta reports
 
@@ -1250,6 +1253,10 @@ Current status (July 18, 2026):
 - retention added explicit protected-build inputs, preserved 11 referenced
   lineage builds, reclaimed 196.21 GiB, and left raw/cooked/catalog/scratch
   science state untouched; `/data` now has about 385 GiB free
+- a separate compiler-temporary retention gate now handles only explicit hidden,
+  manifest-less artifacts; its first reviewed apply removed two reproducible
+  SIMBAD citation-join diagnostics and reclaimed 73,183,408,128 allocated bytes
+  without touching immutable raw or typed evidence
 - current source-delta baseline accounts for 63 manifest entries with zero
   unexplained changes after baseline update
 
@@ -1371,8 +1378,11 @@ Current status (July 19, 2026, in progress):
   locked shared manifests
 - the hard-parallax branch of the 1,250-ly Gaia envelope contains 31,987,126
   source rows and is atomically published with all 152 `gaia_source` fields;
-  a disjoint uncertainty supplement is acquiring Gaia-only rows selected by an
-  official Archive join to Bailer-Jones EDR3 geometric-distance posteriors
+  its disjoint uncertainty supplement now accounts all 189,145 posterior-
+  overlap rows across 127 uncapped partitions, giving a 32,176,271-row union;
+  combined raw snapshot `fcd1f77edf401a7e19c72197` and typed snapshot
+  `35a41010cf74f950e61b5412` are immutable and verified, with clean reproduction
+  running from external scratch
 - all 764 fields across the six foundational Gaia table families are assigned
   to source-native products, and expanded NSS has completed with 50,762 full
   77-column orbit rows
@@ -1404,6 +1414,19 @@ Current status (July 19, 2026, in progress):
   and all three LAMOST DR11 stellar products are source-native typed, verified,
   and clean-reproducible; together they preserve 47,474,126 typed rows before
   APOGEE is counted
+- a checksum-bound SIMBAD hard-envelope delta accounts the 64 matched objects
+  absent from the base slice, including 293 aliases and 173 bibliography links;
+  the resulting eight-table 35,088,164-row typed snapshot cleanly reproduces,
+  while complete-union target seed `8d940fdc1bc8eee0dc8efa7e` identifies 24,218
+  remaining SIMBAD objects for bounded, checksum-pinned acquisition
+- all 15 Gaia AP, supplementary-AP, NSS, variability/rotation, and official
+  external-crossmatch hard-parallax products now have registered, disjoint
+  posterior-overlap companions guarded by an executable source/field/predicate
+  parity test
+- Gaia AP multiple-object analysis now uses 31 deterministic partitions after
+  the first 17-way attempt hit `MAXREC` in every bucket; all 7,862,084 rows are
+  present in canonical snapshot `9a262636fd0c7b48d8063169`, with no partition
+  above 254,593 rows
 - APOGEE DR17 now uses a general registry-gated multi-HDU FITS contract rather
   than silently selecting one extension: 733,901 allStar rows/234 fields, the
   one-row six-field model-grid definition, and 2,215 field-version rows/three
@@ -1437,7 +1460,7 @@ Exit criteria:
 
 Current status (July 19, 2026, in progress):
 
-- the immutable scientific-evidence compiler and 22-domain schema contract are
+- the immutable scientific-evidence compiler and 23-domain schema contract are
   implemented with deterministic source records, explicit binding outcomes,
   field dispositions, logical per-table hashes, cached-artifact integrity
   checks, and clean scratch reproduction

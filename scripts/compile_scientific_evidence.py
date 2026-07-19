@@ -8,6 +8,8 @@ import hashlib
 import json
 import os
 import re
+import resource
+import shutil
 import sys
 import tempfile
 from html.parser import HTMLParser
@@ -24,6 +26,17 @@ DEFAULT_REGISTRY = ROOT / "config" / "evidence_lake" / "source_releases.json"
 DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/state"))
 BUILD_CONTRACT = "spacegate.scientific_evidence_build.v2"
 LOGICAL_HASH_ALGORITHM = "sha256_bucketed_multiset_v1"
+LOGICAL_HASH_BATCH_SIZE = 65_536
+LOGICAL_HASH_MEMORY_LIMIT = os.environ.get(
+    "SPACEGATE_E4_HASH_MEMORY_LIMIT", "16GB"
+)
+MATERIALIZATION_MEMORY_LIMIT = os.environ.get(
+    "SPACEGATE_E4_MEMORY_LIMIT", "16GB"
+)
+LOGICAL_HASH_THREADS = max(
+    1,
+    min(int(os.environ.get("SPACEGATE_E4_HASH_THREADS", "4")), os.cpu_count() or 1),
+)
 
 
 DOMAIN_TABLES = {
@@ -32,6 +45,7 @@ DOMAIN_TABLES = {
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
     "astrometry_distance_evidence",
+    "astrometry_distance_evidence_bundles",
     "photometry_extinction_evidence",
     "spectra_product_index",
     "variability_activity_rotation_evidence",
@@ -76,6 +90,22 @@ def stable_hash(value: Any) -> str:
     ).hexdigest()
 
 
+def create_duckdb_temporary_directory(
+    artifact_temporary: Path, build_id: str
+) -> tuple[Path, str]:
+    configured_root = os.environ.get("SPACEGATE_E4_TEMP_DIRECTORY")
+    if not configured_root:
+        path = artifact_temporary / ".duckdb_tmp"
+        path.mkdir()
+        return path, "artifact_family_staging"
+    root = Path(configured_root).expanduser()
+    root.mkdir(parents=True, exist_ok=True)
+    path = Path(
+        tempfile.mkdtemp(prefix=f"scientific-evidence-{build_id}.", dir=root)
+    )
+    return path, "external_operator_scratch"
+
+
 def file_hash(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -113,6 +143,34 @@ def sql_identifier(value: str) -> str:
 
 def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "_", value.lower()).strip("._-")
+
+
+def resolve_table_contract(
+    adapter: dict[str, Any],
+    table_name: str,
+    stack: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Resolve a table contract that reuses another table's scientific mapping."""
+    tables = adapter.get("tables") or {}
+    if table_name not in tables:
+        raise ValueError(f"unknown table contract reference: {table_name}")
+    if table_name in stack:
+        cycle = " -> ".join((*stack, table_name))
+        raise ValueError(f"cyclic table contract reference: {cycle}")
+    table = tables[table_name]
+    reference = table.get("table_contract_ref")
+    if not reference:
+        return dict(table)
+    reference_name = str(reference)
+    inherited = resolve_table_contract(
+        adapter,
+        reference_name,
+        (*stack, table_name),
+    )
+    overrides = {
+        key: value for key, value in table.items() if key != "table_contract_ref"
+    }
+    return {**inherited, **overrides}
 
 
 def validate_contract(contract: dict[str, Any]) -> list[str]:
@@ -171,7 +229,12 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 errors.append(f"{source_id}.table_order contains duplicates")
             if set(table_order) != set(adapter.get("tables") or {}):
                 errors.append(f"{source_id}.table_order must cover every table exactly")
-        for table_name, table in (adapter.get("tables") or {}).items():
+        for table_name in adapter.get("tables") or {}:
+            try:
+                table = resolve_table_contract(adapter, table_name)
+            except ValueError as error:
+                errors.append(f"{source_id}.{table_name}: {error}")
+                continue
             if not table.get("logical_key_fields"):
                 errors.append(f"{source_id}.{table_name} lacks logical key fields")
             if table.get("field_profile") not in profiles:
@@ -258,6 +321,28 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     for field in ("policy_id", "sql_predicate", "reason")
                 ):
                     errors.append(f"{prefix} values must be non-empty")
+                for index, membership in enumerate(
+                    row_selection.get("cross_table_memberships") or []
+                ):
+                    membership_prefix = (
+                        f"{prefix}.cross_table_memberships[{index}]"
+                    )
+                    required = {"local_field", "target_table", "target_field"}
+                    missing = sorted(required - set(membership))
+                    if missing:
+                        errors.append(f"{membership_prefix} lacks {missing}")
+                        continue
+                    if any(
+                        not str(membership.get(field) or "").strip()
+                        for field in required
+                    ):
+                        errors.append(
+                            f"{membership_prefix} values must be non-empty"
+                        )
+                    if membership.get("target_table") not in adapter["tables"]:
+                        errors.append(
+                            f"{membership_prefix}.target_table is not in adapter"
+                        )
             orbital_solution = table.get("orbital_solution")
             if orbital_solution:
                 prefix = f"{source_id}.{table_name}.orbital_solution"
@@ -349,6 +434,24 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     "variability_activity_rotation_evidence",
                 }:
                     errors.append(f"{prefix}.destination is unsupported")
+            configured_storage = table.get("configured_domain_storage") or {}
+            configured_destinations = {
+                str(row.get("destination"))
+                for row in table.get("configured_domain_measurements") or []
+            }
+            for destination, storage in configured_storage.items():
+                prefix = f"{source_id}.{table_name}.configured_domain_storage"
+                if destination not in configured_destinations:
+                    errors.append(
+                        f"{prefix}.{destination} has no configured measurements"
+                    )
+                if (destination, storage) != (
+                    "astrometry_distance_evidence",
+                    "typed_measurement_bundle_v1",
+                ):
+                    errors.append(
+                        f"{prefix}.{destination} storage mode is unsupported"
+                    )
             for index, claim in enumerate(
                 table.get("composite_identifier_claims") or []
             ):
@@ -379,6 +482,15 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 prefix = f"{source_id}.{table_name}.citation_catalog"
                 for field in ("reference_key_field", "citation_text_field"):
                     if not str(citation_catalog.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            for index, link in enumerate(table.get("source_citation_links") or []):
+                prefix = f"{source_id}.{table_name}.source_citation_links[{index}]"
+                for field in (
+                    "identifier_claim_field",
+                    "reference_key_field",
+                    "citation_role",
+                ):
+                    if not str(link.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
             extended_object = table.get("extended_object")
             if extended_object:
@@ -597,6 +709,15 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           reference_raw varchar,
           quality_json json
         );
+        create table identifier_normalization_rejections (
+          rejection_id varchar primary key,
+          source_record_id varchar not null,
+          source_field varchar not null,
+          requested_namespace varchar not null,
+          identifier_raw varchar not null,
+          normalization varchar not null,
+          reason varchar not null
+        );
         create table stellar_parameter_sets (
           parameter_set_id varchar primary key,
           source_record_id varchar not null,
@@ -658,6 +779,29 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           reference_raw varchar,
           quality_json json,
           normalization_version varchar
+        );
+        create table astrometry_distance_evidence_bundles (
+          bundle_id varchar primary key,
+          source_record_id varchar not null,
+          bundle_semantics varchar not null,
+          measurements struct(
+            evidence_id varchar,
+            quantity_key varchar,
+            value_raw varchar,
+            unit_raw varchar,
+            normalized_value double,
+            normalized_unit varchar,
+            uncertainty_lower double,
+            uncertainty_upper double,
+            bound_semantics varchar,
+            frame_raw varchar,
+            epoch_raw varchar,
+            method varchar,
+            model varchar,
+            reference_raw varchar,
+            quality_json json,
+            normalization_version varchar
+          )[] not null
         );
         create table photometry_extinction_evidence (
           evidence_id varchar primary key,
@@ -999,9 +1143,44 @@ def logical_key_expression(
     return f"to_json(struct_pack({members}))"
 
 
-def row_selection_predicate(table_contract: dict[str, Any]) -> str:
+def row_selection_predicate(
+    table_contract: dict[str, Any],
+    *,
+    typed_tables: dict[str, dict[str, Any]] | None = None,
+    typed_root: Path | None = None,
+    available_fields: set[str] | None = None,
+) -> str:
     selection = table_contract.get("row_selection") or {}
-    return str(selection.get("sql_predicate") or "true")
+    predicates = [f"({str(selection.get('sql_predicate') or 'true')})"]
+    memberships = list(selection.get("cross_table_memberships") or [])
+    if memberships and (typed_tables is None or typed_root is None):
+        raise ValueError("cross-table row selection requires typed table context")
+    for membership in memberships:
+        local_field = str(membership["local_field"])
+        target_table = str(membership["target_table"])
+        target_field = str(membership["target_field"])
+        if available_fields is not None and local_field not in available_fields:
+            raise ValueError(f"row-selection local field missing: {local_field}")
+        assert typed_tables is not None and typed_root is not None
+        target = typed_tables.get(target_table)
+        if target is None:
+            raise ValueError(f"row-selection target table missing: {target_table}")
+        target_fields = {str(column["name"]) for column in target["columns"]}
+        if target_field not in target_fields:
+            raise ValueError(
+                f"row-selection target field missing from {target_table}: {target_field}"
+            )
+        target_path = typed_root / str(target["parquet_path"])
+        if not target_path.exists():
+            raise FileNotFoundError(target_path)
+        predicates.append(
+            "exists (select 1 from read_parquet("
+            + sql_string(str(target_path))
+            + ") membership_target where "
+            + f"trim(cast(membership_target.{sql_identifier(target_field)} as varchar)) = "
+            + f"trim(cast(t.{sql_identifier(local_field)} as varchar)))"
+        )
+    return " and ".join(predicates)
 
 
 def normalized_disposition_expression(value: str) -> str:
@@ -1051,6 +1230,7 @@ def materialize_identifier_claims(
     if missing:
         raise ValueError(f"identifier namespace mappings missing for {table_name}: {missing}")
     branches = []
+    rejection_branches = []
     for field in fields:
         quoted = sql_identifier(field)
         claim = claim_by_field[field]
@@ -1071,6 +1251,21 @@ def materialize_identifier_claims(
             if normalization == "strip_trailing_hash_footnote_v1"
             else "trim(s.value_raw)"
         )
+        source_rows = f"""
+          from (
+            select distinct
+              sha256(to_json(t)) source_row_sha256,
+              trim(cast({quoted} as varchar)) value_raw
+            from read_parquet({sql_string(str(path))}) t
+            where nullif(trim(cast({quoted} as varchar)), '') is not null
+              {excluded_predicate}
+          ) s
+          join source_records r
+            on r.source_id={sql_string(source_id)}
+           and r.release_id={sql_string(release_id)}
+           and r.source_table={sql_string(table_name)}
+           and r.source_row_sha256=s.source_row_sha256
+        """
         branches.append(
             f"""
             select
@@ -1086,20 +1281,25 @@ def materialize_identifier_claims(
                 'source_field', {sql_string(field)},
                 'normalization', {sql_string(normalization)}
               )
-            from (
-              select distinct
-                sha256(to_json(t)) source_row_sha256,
-                trim(cast({quoted} as varchar)) value_raw
-              from read_parquet({sql_string(str(path))}) t
-              where nullif(trim(cast({quoted} as varchar)), '') is not null
-                {excluded_predicate}
-            ) s
-            join source_records r
-              on r.source_id={sql_string(source_id)}
-             and r.release_id={sql_string(release_id)}
-             and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=s.source_row_sha256
+            {source_rows}
+            where nullif({normalized}, '') is not null
             """
+        )
+        rejection_branches.append(
+            f"""
+            select
+              sha256({sql_string('identifier-normalization-rejection|' + field + '|')} || r.source_record_id || '|' || s.value_raw),
+              r.source_record_id, {sql_string(field)}, {sql_string(namespace)},
+              s.value_raw, {sql_string(normalization)},
+              'normalization did not produce a usable identifier'
+            {source_rows}
+            where nullif({normalized}, '') is null
+            """
+        )
+    if rejection_branches:
+        con.execute(
+            "insert into identifier_normalization_rejections "
+            + " union all ".join(rejection_branches)
         )
     if branches:
         con.execute(
@@ -1180,6 +1380,7 @@ def materialize_conditional_identifier_claims(
 ) -> set[str]:
     consumed: set[str] = set()
     branches = []
+    rejection_branches = []
     for index, claim in enumerate(claims):
         field = str(claim["value_field"])
         if field not in available_fields:
@@ -1217,7 +1418,31 @@ def materialize_conditional_identifier_claims(
              and r.source_row_sha256=sha256(to_json(t))
             where ({str(claim['sql_predicate'])})
               and nullif({raw}, '') is not null
+              and nullif({normalized}, '') is not null
             """
+        )
+        rejection_branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('conditional-identifier-normalization-rejection|' + namespace + '|' + str(index) + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(field)}, {sql_string(namespace)},
+              {raw}, {sql_string(normalization)},
+              'normalization did not produce a usable identifier'
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where ({str(claim['sql_predicate'])})
+              and nullif({raw}, '') is not null
+              and nullif({normalized}, '') is null
+            """
+        )
+    if rejection_branches:
+        con.execute(
+            "insert into identifier_normalization_rejections "
+            + " union all ".join(rejection_branches)
         )
     if branches:
         con.execute(
@@ -1966,6 +2191,25 @@ def materialize_configured_photometry(
     return consumed
 
 
+def configured_domain_measurement_fields(
+    measurements: list[dict[str, Any]],
+) -> set[str]:
+    fields: set[str] = set()
+    for measurement in measurements:
+        fields.add(str(measurement["value_field"]))
+        fields.update(
+            str(value)
+            for value in (
+                measurement.get("uncertainty_field"),
+                measurement.get("epoch_field"),
+                measurement.get("reference_field"),
+            )
+            if value
+        )
+        fields.update(str(value) for value in measurement.get("quality_fields") or [])
+    return fields
+
+
 def materialize_configured_domain_measurements(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1975,9 +2219,12 @@ def materialize_configured_domain_measurements(
     path: Path,
     measurements: list[dict[str, Any]],
     available_fields: set[str],
+    storage_modes: dict[str, str] | None = None,
 ) -> set[str]:
     consumed: set[str] = set()
     branches_by_destination: dict[str, list[str]] = {}
+    bundle_structs_by_destination: dict[str, list[str]] = {}
+    storage_modes = storage_modes or {}
     for measurement in measurements:
         destination = str(measurement["destination"])
         field = str(measurement["value_field"])
@@ -2025,7 +2272,6 @@ def materialize_configured_domain_measurements(
            and r.release_id={sql_string(release_id)}
            and r.source_table={sql_string(table_name)}
            and r.source_row_sha256=sha256(to_json(t))
-          where {predicate}
         """
         quality_members = [
             "'source_field'",
@@ -2042,6 +2288,30 @@ def materialize_configured_domain_measurements(
             str(measurement.get("normalization_version") or "source_native_v1")
         )
         if destination == "astrometry_distance_evidence":
+            if storage_modes.get(destination) == "typed_measurement_bundle_v1":
+                bundle_structs_by_destination.setdefault(destination, []).append(
+                    f"""
+                    case when {predicate} then struct_pack(
+                      evidence_id := {evidence_id},
+                      quantity_key := {sql_string(str(measurement['quantity_key']))},
+                      value_raw := {raw},
+                      unit_raw := {unit},
+                      normalized_value := try_cast({sql_identifier(field)} as double),
+                      normalized_unit := {normalized_unit},
+                      uncertainty_lower := {uncertainty},
+                      uncertainty_upper := {uncertainty},
+                      bound_semantics := 'measurement',
+                      frame_raw := {nullable_sql_string(measurement.get('frame_raw'))},
+                      epoch_raw := {text_expression(epoch_field)},
+                      method := {nullable_sql_string(measurement.get('method'))},
+                      model := {nullable_sql_string(measurement.get('model'))},
+                      reference_raw := {text_expression(reference_field)},
+                      quality_json := {quality},
+                      normalization_version := {normalization}
+                    ) else null end
+                    """
+                )
+                continue
             branch = f"""
               select distinct
                 {evidence_id}, r.source_record_id,
@@ -2055,6 +2325,7 @@ def materialize_configured_domain_measurements(
                 {text_expression(reference_field)},
                 {quality}, {normalization}
               {common_from}
+              where {predicate}
             """
         elif destination == "variability_activity_rotation_evidence":
             branch = f"""
@@ -2069,6 +2340,7 @@ def materialize_configured_domain_measurements(
                 {text_expression(reference_field)},
                 {quality}, {normalization}
               {common_from}
+              where {predicate}
             """
         else:
             raise ValueError(f"unsupported configured domain destination: {destination}")
@@ -2076,6 +2348,29 @@ def materialize_configured_domain_measurements(
     for destination, branches in branches_by_destination.items():
         con.execute(
             f"insert into {sql_identifier(destination)} " + " union all ".join(branches)
+        )
+    for destination, structs in bundle_structs_by_destination.items():
+        if destination != "astrometry_distance_evidence":
+            raise ValueError(f"unsupported bundle destination: {destination}")
+        bundle_values = "[" + ",".join(structs) + "]"
+        con.execute(
+            f"""
+            insert into astrometry_distance_evidence_bundles
+            with bundled as (
+              select distinct
+                sha256({sql_string('configured-domain-bundle|' + destination + '|' + table_name + '|')} || r.source_record_id) bundle_id,
+                r.source_record_id,
+                'storage_group_only_no_parameter_coherence' bundle_semantics,
+                list_filter({bundle_values}, measurement -> measurement is not null) measurements
+              from read_parquet({sql_string(str(path))}) t
+              join source_records r
+                on r.source_id={sql_string(source_id)}
+               and r.release_id={sql_string(release_id)}
+               and r.source_table={sql_string(table_name)}
+               and r.source_row_sha256=sha256(to_json(t))
+            )
+            select * from bundled where len(measurements)>0
+            """
         )
     return consumed
 
@@ -2596,9 +2891,20 @@ def materialize_citation_catalog(
     text_field = str(citation_catalog["citation_text_field"])
     context_fields = [str(field) for field in citation_catalog.get("context_fields") or []]
     url_field = citation_catalog.get("citation_url_field")
+    bibcode_field = citation_catalog.get("bibcode_field")
+    doi_field = citation_catalog.get("doi_field")
+    publication_year_field = citation_catalog.get("publication_year_field")
     consumed = {key_field, text_field, *context_fields}
-    if url_field:
-        consumed.add(str(url_field))
+    consumed.update(
+        str(field)
+        for field in (
+            url_field,
+            bibcode_field,
+            doi_field,
+            publication_year_field,
+        )
+        if field
+    )
     missing = sorted(consumed - available_fields)
     if missing:
         raise ValueError(f"citation-catalog fields missing from {table_name}: {missing}")
@@ -2614,6 +2920,9 @@ def materialize_citation_catalog(
           trim(cast(t.{sql_identifier(key_field)} as varchar)),
           trim(cast(t.{sql_identifier(text_field)} as varchar)),
           {text_expression(str(url_field) if url_field else None)},
+          {text_expression(str(bibcode_field) if bibcode_field else None)},
+          {text_expression(str(doi_field) if doi_field else None)},
+          {text_expression(str(publication_year_field) if publication_year_field else None)},
           cast({context} as varchar)
         from read_parquet({sql_string(str(path))}) t
         join source_records r
@@ -2627,9 +2936,27 @@ def materialize_citation_catalog(
         """
     ).fetchall()
     inserts = []
-    for reference_key, citation_text, citation_url, context_json in rows:
+    for (
+        reference_key,
+        citation_text,
+        citation_url,
+        source_bibcode,
+        source_doi,
+        source_year,
+        context_json,
+    ) in rows:
         parsed = parse_reference_fragment(str(citation_text))
         parsed["source_context"] = json.loads(str(context_json))
+        bibcode = str(source_bibcode).strip() if source_bibcode else parsed["bibcode"]
+        doi = str(source_doi).strip() if source_doi else parsed["doi"]
+        publication_year = (
+            int(source_year)
+            if source_year and str(source_year).strip().isdigit()
+            else parsed["publication_year"]
+        )
+        url = str(citation_url).strip() if citation_url else parsed["url"]
+        if not url and bibcode:
+            url = f"https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"
         citation_id = hashlib.sha256(
             f"citation-catalog|{source_id}|{reference_key}|{citation_text}".encode()
         ).hexdigest()
@@ -2639,10 +2966,10 @@ def materialize_citation_catalog(
                 source_id,
                 str(reference_key),
                 str(citation_text),
-                str(citation_url) if citation_url else parsed["url"],
-                parsed["bibcode"],
-                parsed["doi"],
-                parsed["publication_year"],
+                url,
+                bibcode,
+                doi,
+                publication_year,
                 json.dumps(parsed, sort_keys=True),
             ]
         )
@@ -2651,8 +2978,72 @@ def materialize_citation_catalog(
     return consumed
 
 
+def materialize_source_citation_links(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    links: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    for link in links:
+        claim_field = str(link["identifier_claim_field"])
+        reference_field = str(link["reference_key_field"])
+        required_fields = {claim_field, reference_field}
+        missing = sorted(required_fields - available_fields)
+        if missing:
+            raise ValueError(f"source citation-link fields missing from {table_name}: {missing}")
+        consumed.update(required_fields)
+        evidence_id = (
+            f"sha256({sql_string('identifier|' + claim_field + '|')} || "
+            f"r.source_record_id || '|' || trim(cast(t.{sql_identifier(claim_field)} as varchar)))"
+        )
+        before = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
+        con.execute(
+            f"""
+            insert into evidence_citations
+            select distinct
+              'identifier_claim_evidence', e.evidence_id, c.citation_id,
+              {sql_string(str(link['citation_role']))}
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            join identifier_claim_evidence e on e.evidence_id={evidence_id}
+            join citations c
+              on c.source_id={sql_string(source_id)}
+             and c.source_reference_key=trim(cast(t.{sql_identifier(reference_field)} as varchar))
+            where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
+              and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+            """
+        )
+        if link.get("required"):
+            expected = int(
+                con.execute(
+                    f"""
+                    select count(distinct sha256(to_json(t)))
+                    from read_parquet({sql_string(str(path))}) t
+                    where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
+                      and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+                    """
+                ).fetchone()[0]
+            )
+            inserted = int(con.execute("select count(*) from evidence_citations").fetchone()[0]) - before
+            if inserted != expected:
+                raise ValueError(
+                    f"required source citation links unresolved in {table_name}: "
+                    f"inserted={inserted} expected={expected}"
+                )
+    return consumed
+
+
 def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
-    reference_union = " union all ".join(
+    reference_branches = [
         f"""
         select r.source_id, e.reference_raw
         from {sql_identifier(table)} e
@@ -2660,22 +3051,39 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         where nullif(trim(e.reference_raw), '') is not null
         """
         for table in sorted(EVIDENCE_REFERENCE_TABLES)
+    ]
+    reference_branches.append(
+        """
+        select r.source_id, measurement.reference_raw
+        from astrometry_distance_evidence_bundles b
+        join source_records r using (source_record_id),
+        unnest(b.measurements) as nested(measurement)
+        where nullif(trim(measurement.reference_raw), '') is not null
+        """
     )
+    reference_union = " union all ".join(reference_branches)
     references = con.execute(
-        f"select distinct source_id, reference_raw from ({reference_union}) "
-        "order by source_id, reference_raw"
+        f"""
+        with source_references as (
+          select distinct source_id, reference_raw from ({reference_union})
+        )
+        select r.source_id, r.reference_raw
+        from source_references r
+        where not exists (
+          select 1 from citations c
+          where c.source_id=r.source_id
+            and c.source_reference_key=r.reference_raw
+        )
+          and not exists (
+            select 1 from citations c
+            where c.source_id=r.source_id
+              and c.citation_text_raw=r.reference_raw
+          )
+        order by r.source_id, r.reference_raw
+        """
     ).fetchall()
     citation_rows = []
     for source_id, raw in references:
-        existing = int(
-            con.execute(
-                "select count(*) from citations where source_id=? "
-                "and (source_reference_key=? or citation_text_raw=?)",
-                [source_id, raw, raw],
-            ).fetchone()[0]
-        )
-        if existing:
-            continue
         parsed = parse_reference_fragment(str(raw))
         citation_id = hashlib.sha256(
             f"citation|{source_id}|{raw}".encode("utf-8")
@@ -2698,6 +3106,19 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
             "insert into citations values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             citation_rows,
         )
+    con.execute(
+        """
+        create temp table citation_match_keys as
+        select source_id, source_reference_key match_key, citation_id
+        from citations
+        where nullif(trim(source_reference_key), '') is not null
+        union all
+        select source_id, citation_text_raw match_key, citation_id
+        from citations
+        where nullif(trim(citation_text_raw), '') is not null
+          and citation_text_raw is distinct from source_reference_key
+        """
+    )
     for table in sorted(EVIDENCE_REFERENCE_TABLES):
         con.execute(
             f"""
@@ -2706,14 +3127,29 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
               {sql_string(table)}, e.evidence_id, c.citation_id, 'source_reference'
             from {sql_identifier(table)} e
             join source_records r using (source_record_id)
-            join citations c
+            join citation_match_keys c
               on c.source_id=r.source_id
-             and (c.source_reference_key=e.reference_raw
-               or c.citation_text_raw=e.reference_raw)
+             and c.match_key=e.reference_raw
             where nullif(trim(e.reference_raw), '') is not null
             """
         )
+    con.execute(
+        """
+        insert into evidence_citations
+        select
+          'astrometry_distance_evidence_bundles', measurement.evidence_id,
+          c.citation_id, 'source_reference'
+        from astrometry_distance_evidence_bundles b
+        join source_records r using (source_record_id),
+        unnest(b.measurements) as nested(measurement)
+        join citation_match_keys c
+          on c.source_id=r.source_id
+         and c.match_key=measurement.reference_raw
+        where nullif(trim(measurement.reference_raw), '') is not null
+        """
+    )
     link_count = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
+    con.execute("drop table citation_match_keys")
     return {
         "citations": int(con.execute("select count(*) from citations").fetchone()[0]),
         "evidence_links": link_count,
@@ -2830,7 +3266,8 @@ def materialize_source(
     configured_tables = set(adapter["tables"])
     configured_raw_artifacts = {
         str(table.get("raw_artifact_name") or table_name)
-        for table_name, table in adapter["tables"].items()
+        for table_name in adapter["tables"]
+        for table in [resolve_table_contract(adapter, table_name)]
     }
     if (
         set(typed_tables) != configured_tables
@@ -2863,7 +3300,7 @@ def materialize_source(
         for value in (adapter.get("table_order") or sorted(configured_tables))
     ]
     for table_name in table_order:
-        table_contract = adapter["tables"][table_name]
+        table_contract = resolve_table_contract(adapter, table_name)
         typed_table = typed_tables[table_name]
         raw_artifact_name = str(
             table_contract.get("raw_artifact_name") or table_name
@@ -2906,7 +3343,12 @@ def materialize_source(
             if context_fields
             else "'{}'::json"
         )
-        row_predicate = row_selection_predicate(table_contract)
+        row_predicate = row_selection_predicate(
+            table_contract,
+            typed_tables=typed_tables,
+            typed_root=input_row["typed_path"],
+            available_fields=set(columns),
+        )
         record_namespace = f"{source_id}|{release_id}|{table_name}|"
         retrieved_at = artifact.get("retrieved_at")
         con.execute(
@@ -3012,14 +3454,8 @@ def materialize_source(
             if rule["disposition"] != "exclude":
                 fields_by_destination.setdefault(rule["destination"], []).append(field)
         scoped_stellar_fields = configured_scoped_stellar_fields(table_contract)
-        configured_domain_fields = {
-            str(row["value_field"])
-            for row in table_contract.get("configured_domain_measurements") or []
-        }
-        configured_domain_fields.update(
-            str(row["uncertainty_field"])
-            for row in table_contract.get("configured_domain_measurements") or []
-            if row.get("uncertainty_field")
+        configured_domain_fields = configured_domain_measurement_fields(
+            list(table_contract.get("configured_domain_measurements") or [])
         )
         for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
             destination_fields = [
@@ -3096,17 +3532,20 @@ def materialize_source(
             )
         )
         materialized_fields.update(
-            materialize_configured_domain_measurements(
+                materialize_configured_domain_measurements(
                 con,
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
                 path=path,
-                measurements=list(
-                    table_contract.get("configured_domain_measurements") or []
-                ),
-                available_fields=set(columns),
-            )
+                    measurements=list(
+                        table_contract.get("configured_domain_measurements") or []
+                    ),
+                    available_fields=set(columns),
+                    storage_modes=dict(
+                        table_contract.get("configured_domain_storage") or {}
+                    ),
+                )
         )
         observation_product_fields = fields_by_destination.get(
             "observation_product_lineage"
@@ -3219,6 +3658,24 @@ def materialize_source(
                     path=path,
                     citation_catalog=citation_catalog,
                     fields=citation_fields,
+                    available_fields=set(columns),
+                )
+            )
+        source_citation_fields = fields_by_destination.get("evidence_citations") or []
+        source_citation_links = list(table_contract.get("source_citation_links") or [])
+        if source_citation_fields or source_citation_links:
+            if not source_citation_fields or not source_citation_links:
+                raise ValueError(
+                    f"source citation-link profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_source_citation_links(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    links=source_citation_links,
                     available_fields=set(columns),
                 )
             )
@@ -3360,37 +3817,54 @@ def table_logical_report(
     table_name: str,
 ) -> dict[str, Any]:
     quoted = sql_identifier(table_name)
-    rows, digest = con.execute(
-        f"""
-        with row_hashes as (
-          select sha256(to_json(t)) row_hash
-          from {quoted} t
-        ),
-        bucket_hashes as (
-          select
-            substr(row_hash, 1, 2) bucket,
-            count(*)::bigint row_count,
-            sha256(string_agg(row_hash, '' order by row_hash)) bucket_hash
-          from row_hashes
-          group by bucket
+    cursor = con.execute(
+        f"select sha256(to_json(t)) row_hash from {quoted} t order by row_hash"
+    )
+    bucket_parts: list[str] = []
+    current_bucket: str | None = None
+    bucket_rows = 0
+    total_rows = 0
+    bucket_digest = hashlib.sha256()
+    while batch := cursor.fetchmany(LOGICAL_HASH_BATCH_SIZE):
+        for (row_hash_value,) in batch:
+            row_hash = str(row_hash_value)
+            bucket = row_hash[:2]
+            if current_bucket is None:
+                current_bucket = bucket
+            elif bucket != current_bucket:
+                bucket_parts.append(
+                    f"{current_bucket}:{bucket_rows}:{bucket_digest.hexdigest()}"
+                )
+                current_bucket = bucket
+                bucket_rows = 0
+                bucket_digest = hashlib.sha256()
+            bucket_digest.update(row_hash.encode("ascii"))
+            bucket_rows += 1
+            total_rows += 1
+    if current_bucket is not None:
+        bucket_parts.append(
+            f"{current_bucket}:{bucket_rows}:{bucket_digest.hexdigest()}"
         )
-        select
-          coalesce(sum(row_count), 0)::bigint,
-          sha256(coalesce(
-            string_agg(
-              bucket || ':' || cast(row_count as varchar) || ':' || bucket_hash,
-              '|' order by bucket
-            ),
-            ''
-          ))
-        from bucket_hashes
-        """
-    ).fetchone()
+    digest = hashlib.sha256("|".join(bucket_parts).encode("ascii")).hexdigest()
     return {
         "table": table_name,
-        "row_count": int(rows),
+        "row_count": total_rows,
         "logical_sha256": digest,
         "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
+    }
+
+
+def database_block_report(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
+    row = con.execute(
+        "select database_size,block_size,total_blocks,used_blocks,free_blocks "
+        "from pragma_database_size()"
+    ).fetchone()
+    return {
+        "database_size": str(row[0]),
+        "block_size": int(row[1]),
+        "total_blocks": int(row[2]),
+        "used_blocks": int(row[3]),
+        "free_blocks": int(row[4]),
     }
 
 
@@ -3408,6 +3882,7 @@ def compile_evidence(
     if errors:
         raise ValueError("; ".join(errors))
     registry = load_json(registry_path)
+    contract_sha256 = file_hash(contract_path)
     compiler_sha256 = file_hash(Path(__file__).resolve())
     registry_sha256 = file_hash(registry_path)
     runtime_versions = {
@@ -3430,7 +3905,7 @@ def compile_evidence(
     input_fingerprint = stable_hash(
         {
             "compiler_sha256": compiler_sha256,
-            "contract_sha256": file_hash(contract_path),
+            "contract_sha256": contract_sha256,
             "registry_version": registry["registry_version"],
             "registry_sha256": registry_sha256,
             "runtime_versions": runtime_versions,
@@ -3468,10 +3943,15 @@ def compile_evidence(
     family_root.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{build_id}.", dir=family_root))
     database_path = temporary / "scientific_evidence.duckdb"
+    duckdb_temporary, temporary_storage_policy = create_duckdb_temporary_directory(
+        temporary, build_id
+    )
     created_at = deterministic_build_timestamp(inputs)
     con = duckdb.connect(str(database_path))
     source_reports: list[dict[str, Any]] = []
     try:
+        con.execute(f"set temp_directory={sql_string(str(duckdb_temporary))}")
+        con.execute(f"set memory_limit={sql_string(MATERIALIZATION_MEMORY_LIMIT)}")
         con.execute("set threads=1")
         con.execute("set preserve_insertion_order=true")
         create_schema(con)
@@ -3505,6 +3985,30 @@ def compile_evidence(
                 "select claim_scope, count(*) from identifier_claim_evidence "
                 "group by claim_scope order by claim_scope"
             ).fetchall()
+        }
+        identifier_normalization_rejections = {
+            "total": int(
+                con.execute(
+                    "select count(*) from identifier_normalization_rejections"
+                ).fetchone()[0]
+            ),
+            "by_source_table_field_namespace": [
+                {
+                    "source_id": str(source_id),
+                    "release_id": str(release_id),
+                    "source_table": str(source_table),
+                    "source_field": str(source_field),
+                    "requested_namespace": str(namespace),
+                    "count": int(count),
+                }
+                for source_id, release_id, source_table, source_field, namespace, count in con.execute(
+                    "select r.source_id, r.release_id, r.source_table, x.source_field, "
+                    "x.requested_namespace, count(*) "
+                    "from identifier_normalization_rejections x "
+                    "join source_records r using (source_record_id) "
+                    "group by all order by all"
+                ).fetchall()
+            ],
         }
         binding_outcome_counts = {
             str(status): {
@@ -3582,15 +4086,27 @@ def compile_evidence(
             ],
         )
         con.execute("checkpoint")
+        database_blocks_before_hash = database_block_report(con)
+        con.execute(f"set memory_limit={sql_string(LOGICAL_HASH_MEMORY_LIMIT)}")
+        con.execute(f"set threads={LOGICAL_HASH_THREADS}")
         tables = [table_logical_report(con, table) for table in user_tables(con)]
+        database_blocks_after_hash = database_block_report(con)
+        if database_blocks_after_hash != database_blocks_before_hash:
+            raise ValueError(
+                "logical hashing changed persistent database allocation: "
+                f"before={database_blocks_before_hash} "
+                f"after={database_blocks_after_hash}"
+            )
     finally:
         con.close()
+        shutil.rmtree(duckdb_temporary, ignore_errors=True)
     logical_content_sha256 = stable_hash(tables)
     report = {
         "schema_version": "spacegate.scientific_evidence_report.v1",
         "build_id": build_id,
         "contract_version": contract["contract_version"],
         "compiler_version": contract["compiler_version"],
+        "contract_sha256": contract_sha256,
         "compiler_sha256": compiler_sha256,
         "registry_sha256": registry_sha256,
         "runtime_versions": runtime_versions,
@@ -3600,12 +4116,29 @@ def compile_evidence(
         "mapping_status_counts": mapping_counts,
         "identifier_claim_counts_by_namespace": identifier_claim_counts,
         "identifier_claim_counts_by_scope": identifier_claim_scope_counts,
+        "identifier_normalization_rejections": identifier_normalization_rejections,
         "binding_outcome_counts_by_status_and_scope": binding_outcome_counts,
         "lifecycle_claim_counts": lifecycle_claim_counts,
         "relation_claim_counts": relation_claim_counts,
         "citation_summary": citation_summary,
         "logical_content_sha256": logical_content_sha256,
         "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
+        "materialization_execution": {
+            "memory_limit": MATERIALIZATION_MEMORY_LIMIT,
+            "threads": 1,
+            "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            * 1024,
+            "temporary_storage_policy": temporary_storage_policy,
+            "temporary_storage_removed": not duckdb_temporary.exists(),
+        },
+        "logical_hash_execution": {
+            "implementation": "ordered_stream_v1",
+            "batch_size": LOGICAL_HASH_BATCH_SIZE,
+            "memory_limit": LOGICAL_HASH_MEMORY_LIMIT,
+            "threads": LOGICAL_HASH_THREADS,
+            "database_blocks_before": database_blocks_before_hash,
+            "database_blocks_after": database_blocks_after_hash,
+        },
         "tables": tables,
         "created_at": created_at,
     }
@@ -3614,7 +4147,7 @@ def compile_evidence(
         "build_id": build_id,
         "input_fingerprint": input_fingerprint,
         "contract_path": str(contract_path.relative_to(ROOT)),
-        "contract_sha256": file_hash(contract_path),
+        "contract_sha256": contract_sha256,
         "registry_version": registry["registry_version"],
         "registry_sha256": registry_sha256,
         "compiler_sha256": compiler_sha256,

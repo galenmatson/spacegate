@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.30",
-  "compiler_version": "scientific_evidence_compiler_v30",
+  "contract_version": "2026-07-19.e4-foundation.37",
+  "compiler_version": "scientific_evidence_compiler_v37",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -104,6 +104,7 @@
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
     "astrometry_distance_evidence",
+    "astrometry_distance_evidence_bundles",
     "photometry_extinction_evidence",
     "spectra_product_index",
     "variability_activity_rotation_evidence",
@@ -659,6 +660,68 @@
         "reason": "complete coherent Gaia NSS fitted solution, uncertainties, correlations, diagnostics, model, and source lineage"
       }
     ],
+    "simbad_identifiers": [
+      {
+        "pattern": ".*",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped SIMBAD object key, preferred identifier, or alias evidence"
+      }
+    ],
+    "simbad_basic_object": [
+      {
+        "pattern": "^(main_id|oid)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SIMBAD preferred identifier and release-scoped object key"
+      },
+      {
+        "pattern": "^(sp_type|sp_qual|sp_bibcode)$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source spectral classification, quality, and bibliography lineage"
+      },
+      {
+        "pattern": "^(ra|ra_prec|dec|dec_prec|coo_err_maj|coo_err_maj_prec|coo_err_min|coo_err_min_prec|coo_err_angle|coo_qual|coo_wavelength|coo_bibcode|pmra|pmra_prec|pmdec|pmdec_prec|pm_err_maj|pm_err_maj_prec|pm_err_min|pm_err_min_prec|pm_err_angle|pm_qual|pm_bibcode|plx_value|plx_prec|plx_err|plx_qual|plx_err_prec|plx_bibcode|rvz_type|rvz_radvel|rvz_radvel_prec|rvz_redshift|rvz_redshift_prec|rvz_err|rvz_err_prec|rvz_nature|rvz_qual|rvz_wavelength|rvz_bibcode|vlsr|vlsr_err|vlsr_wavelength|vlsr_bibcode|vlsr_min|vlsr_max)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "SIMBAD position, motion, parallax, velocity, uncertainty, quality, and reference evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "SIMBAD object type, morphology, dimensions, update, count, index, and ancillary context retained on the exact source record"
+      }
+    ],
+    "simbad_bibliography_links": [
+      {
+        "pattern": "^(oidref|ref_raw_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "SIMBAD object key and exact source identifier used by the publication"
+      },
+      {
+        "pattern": "^oidbibref$",
+        "disposition": "lineage",
+        "destination": "evidence_citations",
+        "reason": "authoritative SIMBAD object-to-reference association"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "SIMBAD reference flag and object-frequency context retained on the association record"
+      }
+    ],
+    "simbad_reference_index": [
+      {
+        "pattern": ".*",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "SIMBAD bibliography key, bibcode, DOI, title, abstract, journal, pagination, year, and object-count metadata"
+      }
+    ],
     "sbx_systems": [
       {
         "pattern": "^(sn|component)$",
@@ -741,6 +804,133 @@
     ]
   },
   "source_adapters": {
+    "identity.simbad": {
+      "adapter_version": "simbad_scientific_evidence_v5",
+      "table_order": [
+        "simbad_reference_index_v1",
+        "simbad_gaia_dr3_identity_bridge_v1",
+        "simbad_nearby_basic_v1",
+        "simbad_gaia_envelope_basic_supplement_v1",
+        "simbad_nearby_identifiers_v1",
+        "simbad_gaia_envelope_identifier_supplement_v1",
+        "simbad_nearby_bibliography_links_v1",
+        "simbad_gaia_envelope_bibliography_supplement_v1"
+      ],
+      "tables": {
+        "simbad_reference_index_v1": {
+          "logical_key_fields": ["oidbib"],
+          "object_scope": "source_reference",
+          "field_profile": "simbad_reference_index",
+          "citation_catalog": {
+            "reference_key_field": "oidbib",
+            "citation_text_field": "bibcode",
+            "bibcode_field": "bibcode",
+            "doi_field": "doi",
+            "publication_year_field": "year",
+            "context_fields": ["title", "year", "journal", "page", "last_page", "volume", "abstract", "nbobject", "doi"]
+          }
+        },
+        "simbad_gaia_dr3_identity_bridge_v1": {
+          "logical_key_fields": ["oidref", "id"],
+          "object_scope": "identity_bridge",
+          "field_profile": "simbad_identifiers",
+          "row_selection": {
+            "policy_id": "source_release_cross_table_object_membership_v1",
+            "sql_predicate": "true",
+            "reason": "materialize only whole-sky staging bridge rows whose SIMBAD object is present in the bounded basic-data slice",
+            "cross_table_memberships": [
+              {"local_field": "oidref", "target_table": "simbad_nearby_basic_v1", "target_field": "oid"}
+            ]
+          },
+          "identifier_claims": {
+            "id": {"namespace": "simbad_identifier", "claim_scope": "object"},
+            "oidref": {"namespace": "simbad_oid", "claim_scope": "object", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "id", "namespace": "gaia_dr3_source_id", "claim_scope": "star", "sql_predicate": "id like 'Gaia DR3 %'", "strip_prefix": "Gaia DR3 ", "normalization": "unsigned_integer_decimal_v1"}
+          ]
+        },
+        "simbad_nearby_basic_v1": {
+          "logical_key_fields": ["oid"],
+          "object_scope": "simbad_object",
+          "field_profile": "simbad_basic_object",
+          "identifier_claims": {
+            "main_id": {"namespace": "simbad_main_id", "claim_scope": "object"},
+            "oid": {"namespace": "simbad_oid", "claim_scope": "object", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "parameter_set_kind": "simbad_source_spectral_classification",
+              "scope_key": "source_object",
+              "classification_field": "sp_type",
+              "classification_scheme": "spectral_type",
+              "reference_field": "sp_bibcode",
+              "quality_fields": ["sp_qual"],
+              "measurements": [],
+              "method": "simbad_basic_source_classification",
+              "normalization_version": "simbad_source_native_lexical_v1"
+            }
+          ],
+          "configured_domain_storage": {
+            "astrometry_distance_evidence": "typed_measurement_bundle_v1"
+          },
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "reference_field": "coo_bibcode", "quality_fields": ["ra_prec", "coo_qual", "coo_wavelength"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "reference_field": "coo_bibcode", "quality_fields": ["dec_prec", "coo_qual", "coo_wavelength"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "coo_err_maj", "quantity_key": "position_error_ellipse_major_axis", "unit_raw": "mas", "normalized_unit": "mas", "frame_raw": "ICRS", "reference_field": "coo_bibcode", "quality_fields": ["coo_err_maj_prec", "coo_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "coo_err_min", "quantity_key": "position_error_ellipse_minor_axis", "unit_raw": "mas", "normalized_unit": "mas", "frame_raw": "ICRS", "reference_field": "coo_bibcode", "quality_fields": ["coo_err_min_prec", "coo_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "coo_err_angle", "quantity_key": "position_error_ellipse_angle", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "reference_field": "coo_bibcode", "quality_fields": ["coo_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "mas.yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "reference_field": "pm_bibcode", "quality_fields": ["pmra_prec", "pm_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec", "quantity_key": "proper_motion_dec", "unit_raw": "mas.yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "reference_field": "pm_bibcode", "quality_fields": ["pmdec_prec", "pm_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_err_maj", "quantity_key": "proper_motion_error_ellipse_major_axis", "unit_raw": "mas.yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "reference_field": "pm_bibcode", "quality_fields": ["pm_err_maj_prec", "pm_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_err_min", "quantity_key": "proper_motion_error_ellipse_minor_axis", "unit_raw": "mas.yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "reference_field": "pm_bibcode", "quality_fields": ["pm_err_min_prec", "pm_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_err_angle", "quantity_key": "proper_motion_error_ellipse_angle", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "reference_field": "pm_bibcode", "quality_fields": ["pm_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_value", "uncertainty_field": "plx_err", "quantity_key": "parallax", "unit_raw": "mas", "normalized_unit": "mas", "frame_raw": "ICRS", "reference_field": "plx_bibcode", "quality_fields": ["plx_prec", "plx_err_prec", "plx_qual"], "method": "simbad_basic_astrometry", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rvz_radvel", "uncertainty_field": "rvz_err", "quantity_key": "radial_velocity", "unit_raw": "km.s-1", "normalized_unit": "km s-1", "reference_field": "rvz_bibcode", "quality_fields": ["rvz_type", "rvz_radvel_prec", "rvz_err_prec", "rvz_nature", "rvz_qual", "rvz_wavelength"], "method": "simbad_basic_radial_velocity", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rvz_redshift", "quantity_key": "redshift", "unit_raw": null, "normalized_unit": null, "reference_field": "rvz_bibcode", "quality_fields": ["rvz_type", "rvz_redshift_prec", "rvz_err", "rvz_err_prec", "rvz_nature", "rvz_qual", "rvz_wavelength"], "method": "simbad_basic_redshift", "normalization_version": "simbad_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "vlsr", "uncertainty_field": "vlsr_err", "quantity_key": "radial_velocity_lsr", "unit_raw": "km.s-1", "normalized_unit": "km s-1", "reference_field": "vlsr_bibcode", "quality_fields": ["vlsr_wavelength", "vlsr_min", "vlsr_max"], "method": "simbad_basic_lsr_velocity", "normalization_version": "simbad_source_native_v1"}
+          ]
+        },
+        "simbad_nearby_identifiers_v1": {
+          "logical_key_fields": ["oidref", "id"],
+          "object_scope": "object_alias",
+          "field_profile": "simbad_identifiers",
+          "identifier_claims": {
+            "id": {"namespace": "simbad_identifier", "claim_scope": "object"},
+            "oidref": {"namespace": "simbad_oid", "claim_scope": "object", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "id", "namespace": "gaia_dr1_source_id", "claim_scope": "star", "sql_predicate": "id like 'Gaia DR1 %'", "strip_prefix": "Gaia DR1 ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "id", "namespace": "gaia_dr2_source_id", "claim_scope": "star", "sql_predicate": "id like 'Gaia DR2 %'", "strip_prefix": "Gaia DR2 ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "id", "namespace": "gaia_dr3_source_id", "claim_scope": "star", "sql_predicate": "id like 'Gaia DR3 %'", "strip_prefix": "Gaia DR3 ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "id", "namespace": "tic_id", "claim_scope": "observation_target", "sql_predicate": "id like 'TIC %'", "strip_prefix": "TIC ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "id", "namespace": "hip_id", "claim_scope": "object", "sql_predicate": "id like 'HIP %'", "strip_prefix": "HIP ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "id", "namespace": "hd_id", "claim_scope": "object", "sql_predicate": "id like 'HD %' and regexp_full_match(substr(id, 4), '[0-9]+')", "strip_prefix": "HD ", "normalization": "unsigned_integer_decimal_v1"}
+          ]
+        },
+        "simbad_nearby_bibliography_links_v1": {
+          "logical_key_fields": ["oidref", "oidbibref", "ref_raw_id", "ref_flag", "obj_freq"],
+          "object_scope": "object_reference",
+          "field_profile": "simbad_bibliography_links",
+          "identifier_claims": {
+            "oidref": {"namespace": "simbad_oid", "claim_scope": "object", "normalization": "unsigned_integer_decimal_v1"},
+            "ref_raw_id": {"namespace": "simbad_bibliographic_identifier", "claim_scope": "object"}
+          },
+          "source_citation_links": [
+            {"identifier_claim_field": "oidref", "reference_key_field": "oidbibref", "citation_role": "simbad_object_bibliography", "required": true}
+          ]
+        },
+        "simbad_gaia_envelope_basic_supplement_v1": {
+          "table_contract_ref": "simbad_nearby_basic_v1"
+        },
+        "simbad_gaia_envelope_identifier_supplement_v1": {
+          "table_contract_ref": "simbad_nearby_identifiers_v1"
+        },
+        "simbad_gaia_envelope_bibliography_supplement_v1": {
+          "table_contract_ref": "simbad_nearby_bibliography_links_v1"
+        }
+      }
+    },
     "gaia.dr3.non_single_star": {
       "adapter_version": "gaia_dr3_nss_scientific_evidence_v1",
       "tables": {
@@ -784,6 +974,9 @@
             "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_non--single_stars/ssec_dm_nss_two_body_orbit.html",
             "normalization_version": "gaia_dr3_source_native_lexical_v1"
           }
+        },
+        "gaia_dr3_nss_two_body_orbit_uncertain_distance_supplement_v1": {
+          "table_contract_ref": "gaia_dr3_nss_two_body_orbit_full_v2"
         }
       }
     },

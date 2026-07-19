@@ -28,6 +28,15 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "select count(*) from identifier_claim_evidence "
             "where nullif(trim(identifier_normalized), '') is null",
         ),
+        "malformed_identifier_normalization_rejections": scalar_count(
+            con,
+            "select count(*) from identifier_normalization_rejections where "
+            "nullif(trim(identifier_raw), '') is null or "
+            "nullif(trim(source_field), '') is null or "
+            "nullif(trim(requested_namespace), '') is null or "
+            "nullif(trim(normalization), '') is null or "
+            "nullif(trim(reason), '') is null",
+        ),
         "gaia_zero_sentinel_identifiers": scalar_count(
             con,
             "select count(*) from identifier_claim_evidence "
@@ -134,6 +143,23 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "select count(*) from orbital_solution_evidence "
             "where parameter_set_raw is null or parameter_set_raw::varchar='{}'",
         ),
+        "empty_astrometry_measurement_bundles": scalar_count(
+            con,
+            "select count(*) from astrometry_distance_evidence_bundles "
+            "where len(measurements)=0",
+        ),
+        "duplicate_astrometry_bundle_measurement_ids": scalar_count(
+            con,
+            "select count(*)-count(distinct measurement.evidence_id) "
+            "from astrometry_distance_evidence_bundles b, "
+            "unnest(b.measurements) as nested(measurement)",
+        ),
+        "blank_astrometry_bundle_measurement_ids": scalar_count(
+            con,
+            "select count(*) from astrometry_distance_evidence_bundles b, "
+            "unnest(b.measurements) as nested(measurement) "
+            "where nullif(trim(measurement.evidence_id), '') is null",
+        ),
         "orphan_orbital_solution_relations": scalar_count(
             con,
             "select count(*) from orbital_solution_evidence o "
@@ -230,6 +256,11 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             f"select count(*) from {table} where uncertainty_lower<0 or uncertainty_upper<0",
         )
         for table in uncertainty_tables
+    ) + scalar_count(
+        con,
+        "select count(*) from astrometry_distance_evidence_bundles b, "
+        "unnest(b.measurements) as nested(measurement) "
+        "where measurement.uncertainty_lower<0 or measurement.uncertainty_upper<0",
     )
     checks["referenced_evidence_without_citations"] = sum(
         scalar_count(
@@ -241,6 +272,15 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "and c.evidence_id is null",
         )
         for table in sorted(EVIDENCE_REFERENCE_TABLES)
+    ) + scalar_count(
+        con,
+        "select count(*) from astrometry_distance_evidence_bundles b, "
+        "unnest(b.measurements) as nested(measurement) "
+        "left join evidence_citations c "
+        "on c.evidence_table='astrometry_distance_evidence_bundles' "
+        "and c.evidence_id=measurement.evidence_id "
+        "where nullif(trim(measurement.reference_raw), '') is not null "
+        "and c.evidence_id is null",
     )
 
     source_record_tables = [

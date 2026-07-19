@@ -1293,6 +1293,39 @@ Representative commits:
   by the Bailer-Jones-side source ID so the join completes without treating an
   EDR3 identifier as interchangeable with a different Gaia release namespace.
 
+### 44) Complete Gaia Envelope, SIMBAD Delta, and E4 Audit Hardening
+
+- The disjoint Gaia uncertainty branch completed all 127 partitions with
+  189,145 rows and no `MAXREC` saturation. Together with the 31,987,126-row
+  hard branch, immutable raw snapshot `fcd1f77edf401a7e19c72197` and typed
+  snapshot `35a41010cf74f950e61b5412` preserve 32,176,271 source-native rows in
+  separate 152-field tables. The official EDR3-distance join selects scope; it
+  does not merge distance estimates into Gaia facts or interchange DR2 IDs.
+- A general coverage audit found that 15 downstream Gaia products still used
+  only the hard-parallax branch. AP, supplementary AP, NSS, variability,
+  rotation, and official external-crossmatch products now have explicit,
+  disjoint posterior-overlap companions. A checked parity contract requires
+  each pair to preserve the same source, table, field selection, partition key,
+  cap, and field-disposition semantics.
+- The complete Gaia union changes the staged SIMBAD target from a 64-object
+  pilot to 24,218 matched objects absent from the base SIMBAD slice. Target seed
+  `8d940fdc1bc8eee0dc8efa7e` is checksum-pinned. The generic TAP compiler splits
+  integer target IDs by the product's modulo buckets, persists every exact
+  query, and independently applies the same modulo guard; no named object or
+  catalog row receives production special handling.
+- SIMBAD E4 diagnostic v36 completed but failed independent audit because 285
+  component-suffixed aliases matched the broad HIP family while failing numeric
+  normalization. They remain valid full SIMBAD identifiers but are not valid
+  numeric HIP claims. Compiler v37 quarantines every such failed normalization
+  with source record, field, requested namespace, raw value, policy, and reason,
+  while refusing to emit blank normalized identity.
+- The same diagnostic reached about 65 GiB resident memory. Materialization now
+  defaults to a 16-GB DuckDB limit, citation matching uses one bounded key table,
+  and disposable spill can be directed to operator scratch outside the immutable
+  artifact family. Two explicitly identified failed compiler temporaries were
+  removed only through hash-gated retention, reclaiming 73,183,408,128 allocated
+  bytes; ambiguous or immutable artifacts were preserved.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

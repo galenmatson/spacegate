@@ -22,6 +22,7 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
     return {
         "build_id": report["build_id"],
         "contract_version": report["contract_version"],
+        "contract_sha256": report.get("contract_sha256"),
         "compiler_version": report["compiler_version"],
         "compiler_sha256": report["compiler_sha256"],
         "registry_sha256": report["registry_sha256"],
@@ -35,6 +36,9 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         ],
         "identifier_claim_counts_by_scope": report[
             "identifier_claim_counts_by_scope"
+        ],
+        "identifier_normalization_rejections": report[
+            "identifier_normalization_rejections"
         ],
         "binding_outcome_counts_by_status_and_scope": report[
             "binding_outcome_counts_by_status_and_scope"

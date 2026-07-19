@@ -541,10 +541,8 @@ def resolve_target_values(
     field_expression = str(contract["field_expression"])
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", field_expression):
         raise ValueError("unsafe target-value field expression")
-    target_predicate = f"{field_expression} in ({','.join(normalized)})"
     resolved = dict(product)
-    resolved["where"] = f"({product['where']}) and ({target_predicate})"
-    resolved["target_values_lineage"] = {
+    lineage = {
         "build_id": expected_build_id,
         "manifest_relpath": str(contract["manifest_relpath"]),
         "artifact": artifact_name,
@@ -554,6 +552,29 @@ def resolve_target_values(
         "value_count": len(normalized),
         "values_sha256": stable_hash(normalized),
     }
+    if contract.get("partition_values_by_bucket", False):
+        buckets = int(product["buckets"])
+        if buckets <= 0:
+            raise ValueError("target-value bucket count must be positive")
+        values_by_bucket = [[] for _ in range(buckets)]
+        for value in normalized:
+            values_by_bucket[int(value) % buckets].append(value)
+        counts = [len(values) for values in values_by_bucket]
+        resolved["target_values_by_bucket"] = values_by_bucket
+        resolved["target_value_field_expression"] = field_expression
+        lineage.update(
+            {
+                "partition_policy": "unsigned_integer_modulo_product_bucket_v1",
+                "bucket_count": buckets,
+                "nonempty_bucket_count": sum(count > 0 for count in counts),
+                "min_bucket_value_count": min(counts),
+                "max_bucket_value_count": max(counts),
+            }
+        )
+    else:
+        target_predicate = f"{field_expression} in ({','.join(normalized)})"
+        resolved["where"] = f"({product['where']}) and ({target_predicate})"
+    resolved["target_values_lineage"] = lineage
     return resolved
 
 
@@ -582,9 +603,23 @@ def product_identity(program: dict[str, Any], product: dict[str, Any]) -> str:
 
 
 def render_query(product: dict[str, Any], bucket: int) -> str:
+    buckets = int(product["buckets"])
+    if bucket < 0 or bucket >= buckets:
+        raise ValueError(f"bucket outside product range: {bucket} not in 0..{buckets - 1}")
     selected = ",\n  ".join(product["select"])
     from_clause = product.get("from") or product["table"]
     order_by = product.get("order_by") or product["partition_expression"]
+    target_clause = ""
+    values_by_bucket = product.get("target_values_by_bucket")
+    if values_by_bucket is not None:
+        if len(values_by_bucket) != buckets:
+            raise ValueError("target-value bucket partition does not match product")
+        values = values_by_bucket[bucket]
+        field_expression = str(product["target_value_field_expression"])
+        predicate = (
+            f"{field_expression} in ({','.join(values)})" if values else "1=0"
+        )
+        target_clause = f"\n  and ({predicate})"
     query = (
         "select\n  "
         + selected
@@ -592,9 +627,11 @@ def render_query(product: dict[str, Any], bucket: int) -> str:
         + from_clause
         + "\nwhere ("
         + product["where"]
-        + ")\n  and mod("
+        + ")"
+        + target_clause
+        + "\n  and mod("
         + product["partition_expression"]
-        + f", {int(product['buckets'])}) = {bucket}"
+        + f", {buckets}) = {bucket}"
     )
     if product.get("ordered", True):
         query += "\norder by " + order_by

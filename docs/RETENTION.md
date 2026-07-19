@@ -178,7 +178,9 @@ manifest-less SIMBAD compiler diagnostics affected by the confirmed
 authorized the applied report
 `e4_simbad_failed_artifact_retention_applied.json`, reclaiming
 73,183,408,128 allocated bytes. Immutable raw and typed SIMBAD inputs were not
-changed; compiler v36 replaces the query with bounded equality hash joins.
+changed. Compiler v36 removed the disjunctive join but failed a later identity
+audit; v37 retains bounded equality matching and explicitly quarantines failed
+identifier normalizations.
 
 Evidence Lake identity graphs under
 `derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
@@ -201,6 +203,13 @@ replacement has a durable logical-hash comparison; accepted E4/E5 inputs remain
 protected until E7 records that no retained projection references them. Clean
 reproduction uses `scripts/verify_scientific_evidence_reproduction.py`; its
 scratch tree is removed only after comparison and the durable report is written.
+Large local compiles may set `SPACEGATE_E4_TEMP_DIRECTORY` to an operator-owned
+scratch root such as `/mnt/space/spacegate/tmp/evidence_lake_v2/e4_spill`.
+DuckDB spill there is disposable execution state, never an evidence artifact;
+the compiler assigns a build-specific directory and removes it after closing the
+database. A spill tree left by a crash must still be associated with a dead
+process and explicit failed build before whole-tree cleanup. Never direct this
+setting into raw, typed, served, rollback, or published artifact storage.
 
 The field-complete NASA checkpoint `cb82c09179afa740b02e2cdf` is approximately
 4.2 GiB (`4,497,354,752` database bytes) and is protected as the current E4

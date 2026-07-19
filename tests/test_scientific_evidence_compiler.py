@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -75,6 +76,106 @@ def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
     assert "compact.atnf.table_order must cover every table exactly" in errors
 
 
+def test_table_contract_reference_inherits_mapping_with_local_overrides() -> None:
+    adapter = {
+        "tables": {
+            "base": {
+                "logical_key_fields": ["oid"],
+                "object_scope": "object",
+                "field_profile": "basic",
+                "identifier_claims": {"oid": {"namespace": "oid"}},
+            },
+            "supplement": {
+                "table_contract_ref": "base",
+                "raw_artifact_name": "supplement_raw",
+                "object_scope": "supplement_object",
+            },
+        }
+    }
+    resolved = compiler.resolve_table_contract(adapter, "supplement")
+    assert resolved["logical_key_fields"] == ["oid"]
+    assert resolved["field_profile"] == "basic"
+    assert resolved["raw_artifact_name"] == "supplement_raw"
+    assert resolved["object_scope"] == "supplement_object"
+    assert "table_contract_ref" not in resolved
+
+
+def test_table_contract_reference_rejects_missing_and_cyclic_references() -> None:
+    adapter = {
+        "tables": {
+            "missing": {"table_contract_ref": "absent"},
+            "cycle_a": {"table_contract_ref": "cycle_b"},
+            "cycle_b": {"table_contract_ref": "cycle_a"},
+        }
+    }
+    for table_name, expected in (
+        ("missing", "unknown table contract reference"),
+        ("cycle_a", "cyclic table contract reference"),
+    ):
+        try:
+            compiler.resolve_table_contract(adapter, table_name)
+        except ValueError as error:
+            assert expected in str(error)
+        else:
+            raise AssertionError(f"invalid contract reference accepted: {table_name}")
+
+
+def test_cross_table_row_selection_is_bounded_and_schema_checked(
+    tmp_path: Path,
+) -> None:
+    rows = tmp_path / "rows.parquet"
+    members = tmp_path / "members.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values (1), (2), (3)) t(oidref)) "
+            f"to '{rows}' (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from (values (2), (3)) t(oid)) "
+            f"to '{members}' (format parquet)"
+        )
+    table_contract = {
+        "row_selection": {
+            "sql_predicate": "oidref >= 2",
+            "cross_table_memberships": [
+                {
+                    "local_field": "oidref",
+                    "target_table": "members",
+                    "target_field": "oid",
+                }
+            ],
+        }
+    }
+    typed_tables = {
+        "members": {
+            "parquet_path": members.name,
+            "columns": [{"name": "oid"}],
+        }
+    }
+    predicate = compiler.row_selection_predicate(
+        table_contract,
+        typed_tables=typed_tables,
+        typed_root=tmp_path,
+        available_fields={"oidref"},
+    )
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select oidref from read_parquet('{rows}') t where {predicate} order by 1"
+        ).fetchall() == [(2,), (3,)]
+    typed_tables["members"]["columns"] = [{"name": "different"}]
+    try:
+        compiler.row_selection_predicate(
+            table_contract,
+            typed_tables=typed_tables,
+            typed_root=tmp_path,
+            available_fields={"oidref"},
+        )
+    except ValueError as error:
+        assert "target field missing" in str(error)
+    else:
+        raise AssertionError("missing cross-table target field was accepted")
+
+
 def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
     with duckdb.connect() as con:
         compiler.create_schema(con)
@@ -86,6 +187,7 @@ def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
         "source_records",
         "source_field_dispositions",
         "object_binding_outcomes",
+        "identifier_normalization_rejections",
     } <= tables
 
 
@@ -296,6 +398,10 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
         "mapping_status_counts": {"declared_pending": 1},
         "identifier_claim_counts_by_namespace": {"test_id": 1},
         "identifier_claim_counts_by_scope": {"host": 1},
+        "identifier_normalization_rejections": {
+            "total": 0,
+            "by_source_table_field_namespace": [],
+        },
         "binding_outcome_counts_by_status_and_scope": {
             "unresolved": {"host": 1, "object": 1}
         },
@@ -324,20 +430,81 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
     ]
 
 
+def test_duckdb_temporary_directory_can_use_operator_scratch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    artifact_temporary = tmp_path / "artifact"
+    artifact_temporary.mkdir()
+    external_root = tmp_path / "external"
+    monkeypatch.setenv("SPACEGATE_E4_TEMP_DIRECTORY", str(external_root))
+    temporary, policy = compiler.create_duckdb_temporary_directory(
+        artifact_temporary, "build"
+    )
+    assert policy == "external_operator_scratch"
+    assert temporary.parent == external_root
+    assert temporary.name.startswith("scientific-evidence-build.")
+
+    monkeypatch.delenv("SPACEGATE_E4_TEMP_DIRECTORY")
+    local, local_policy = compiler.create_duckdb_temporary_directory(
+        artifact_temporary, "local"
+    )
+    assert local_policy == "artifact_family_staging"
+    assert local == artifact_temporary / ".duckdb_tmp"
+
+
 def test_bucketed_logical_hash_is_order_independent_and_duplicate_sensitive() -> None:
     with duckdb.connect() as con:
         con.execute("create table first_rows (id integer, value varchar)")
         con.execute("create table second_rows (id integer, value varchar)")
         con.execute("insert into first_rows values (1, 'a'), (2, 'b')")
         con.execute("insert into second_rows values (2, 'b'), (1, 'a')")
+        reference = con.execute(
+            """
+            with row_hashes as (
+              select sha256(to_json(t)) row_hash from first_rows t
+            ), bucket_hashes as (
+              select substr(row_hash,1,2) bucket, count(*) row_count,
+                sha256(string_agg(row_hash,'' order by row_hash)) bucket_hash
+              from row_hashes group by bucket
+            )
+            select sha256(string_agg(
+              bucket || ':' || row_count || ':' || bucket_hash,
+              '|' order by bucket)) from bucket_hashes
+            """
+        ).fetchone()[0]
         first = compiler.table_logical_report(con, "first_rows")
         second = compiler.table_logical_report(con, "second_rows")
+        assert first["logical_sha256"] == reference
         assert first["logical_sha256"] == second["logical_sha256"]
         assert first["logical_hash_algorithm"] == compiler.LOGICAL_HASH_ALGORITHM
         con.execute("insert into second_rows values (1, 'a')")
         duplicated = compiler.table_logical_report(con, "second_rows")
+        con.execute("create table empty_rows (id integer)")
+        empty = compiler.table_logical_report(con, "empty_rows")
     assert duplicated["row_count"] == 3
     assert duplicated["logical_sha256"] != first["logical_sha256"]
+    assert empty["row_count"] == 0
+    assert empty["logical_sha256"] == hashlib.sha256(b"").hexdigest()
+
+
+def test_streaming_logical_hash_does_not_allocate_persistent_blocks(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "hash.duckdb"
+    scratch = tmp_path / "hash-tmp"
+    scratch.mkdir()
+    with duckdb.connect(str(database)) as con:
+        con.execute(f"set temp_directory='{scratch}'")
+        con.execute(
+            "create table rows as select i id, repeat('evidence-', 20) payload "
+            "from range(10000) t(i)"
+        )
+        con.execute("checkpoint")
+        before = compiler.database_block_report(con)
+        report = compiler.table_logical_report(con, "rows")
+        after = compiler.database_block_report(con)
+    assert report["row_count"] == 10_000
+    assert after == before
 
 
 def test_artifact_audit_rejects_invalid_relation_probability() -> None:
@@ -979,6 +1146,90 @@ def test_scalar_grouping_preserves_measurement_companions() -> None:
     ]
 
 
+def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "astrometry.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values (10.0, 0.5, '2025A&A...1A', null)) "
+            f"t(parallax,parallax_error,reference,radial_velocity)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.catalog','r1','astrometry','star',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_hash],
+        )
+        measurements = [
+            {
+                "destination": "astrometry_distance_evidence",
+                "value_field": "parallax",
+                "uncertainty_field": "parallax_error",
+                "quantity_key": "parallax",
+                "unit_raw": "mas",
+                "normalized_unit": "mas",
+                "reference_field": "reference",
+                "method": "source_astrometry",
+                "normalization_version": "source_native_v1",
+            },
+            {
+                "destination": "astrometry_distance_evidence",
+                "value_field": "radial_velocity",
+                "quantity_key": "radial_velocity",
+                "unit_raw": "km/s",
+                "normalized_unit": "km s-1",
+                "reference_field": "reference",
+                "method": "source_velocity",
+                "normalization_version": "source_native_v1",
+            },
+        ]
+        consumed = compiler.materialize_configured_domain_measurements(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="astrometry",
+            path=parquet,
+            measurements=measurements,
+            available_fields={
+                "parallax",
+                "parallax_error",
+                "reference",
+                "radial_velocity",
+            },
+            storage_modes={
+                "astrometry_distance_evidence": "typed_measurement_bundle_v1"
+            },
+        )
+        citation_summary = compiler.materialize_citations(con)
+        nested = con.execute(
+            "select measurement.quantity_key,measurement.value_raw,"
+            "measurement.uncertainty_lower,measurement.reference_raw "
+            "from astrometry_distance_evidence_bundles b, "
+            "unnest(b.measurements) as nested(measurement)"
+        ).fetchall()
+        flat_count = con.execute(
+            "select count(*) from astrometry_distance_evidence"
+        ).fetchone()[0]
+        audit = artifact_audit.audit_evidence(con)
+    assert consumed == {
+        "parallax",
+        "parallax_error",
+        "reference",
+        "radial_velocity",
+    }
+    assert nested == [("parallax", "10.0", 0.5, "2025A&A...1A")]
+    assert flat_count == 0
+    assert citation_summary == {"citations": 1, "evidence_links": 1}
+    assert audit["status"] == "pass"
+
+
 def test_planet_scalar_materialization_preserves_units_errors_bounds_and_reference(
     tmp_path: Path,
 ) -> None:
@@ -1138,7 +1389,8 @@ def test_conditional_identifier_claim_strips_prefix_before_numeric_normalization
     parquet = tmp_path / "aliases.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select * from (values ('GAIADR3 000123'),('HIP 7')) t(Name)) "
+            f"copy (select * from (values "
+            "('GAIADR3 000123'),('GAIADR3 123A'),('HIP 7')) t(Name)) "
             f"to '{parquet}' (format parquet)"
         )
         rows = con.execute(
@@ -1173,7 +1425,20 @@ def test_conditional_identifier_claim_strips_prefix_before_numeric_normalization
         claim = con.execute(
             "select identifier_raw,identifier_normalized from identifier_claim_evidence"
         ).fetchone()
+        rejection = con.execute(
+            "select identifier_raw,requested_namespace,normalization,reason "
+            "from identifier_normalization_rejections"
+        ).fetchone()
+        audit = artifact_audit.audit_evidence(con)
     assert claim == ("GAIADR3 000123", "123")
+    assert rejection == (
+        "GAIADR3 123A",
+        "gaia_dr3_source_id",
+        "unsigned_integer_decimal_v1",
+        "normalization did not produce a usable identifier",
+    )
+    assert audit["checks"]["blank_identifier_claims"] == 0
+    assert audit["status"] == "pass"
 
 
 def test_identifier_normalization_strips_only_trailing_hash_footnotes(
@@ -1303,8 +1568,8 @@ def test_authoritative_citation_catalog_validates_compact_references(
     with duckdb.connect() as con:
         con.execute(
             f"copy (select * from (values "
-            "('REF1','Author et al. 2025','source block')) "
-            "t(reference_code,citation_text,raw_block)) "
+            "('REF1','Author et al. 2025','source block','2025ApJ...1A','10.1/test','2025')) "
+            "t(reference_code,citation_text,raw_block,bibcode,doi,year)) "
             f"to '{citation_parquet}' (format parquet)"
         )
         con.execute(
@@ -1340,7 +1605,14 @@ def test_authoritative_citation_catalog_validates_compact_references(
         )
         citation_fields = [
             {"column_name": name}
-            for name in ("reference_code", "citation_text", "raw_block")
+            for name in (
+                "reference_code",
+                "citation_text",
+                "raw_block",
+                "bibcode",
+                "doi",
+                "year",
+            )
         ]
         compiler.materialize_citation_catalog(
             con,
@@ -1352,9 +1624,19 @@ def test_authoritative_citation_catalog_validates_compact_references(
                 "reference_key_field": "reference_code",
                 "citation_text_field": "citation_text",
                 "context_fields": ["raw_block"],
+                "bibcode_field": "bibcode",
+                "doi_field": "doi",
+                "publication_year_field": "year",
             },
             fields=citation_fields,
-            available_fields={"reference_code", "citation_text", "raw_block"},
+            available_fields={
+                "reference_code",
+                "citation_text",
+                "raw_block",
+                "bibcode",
+                "doi",
+                "year",
+            },
         )
         compiler.materialize_compact_objects(
             con,
@@ -1396,14 +1678,114 @@ def test_authoritative_citation_catalog_validates_compact_references(
         ).fetchall()
         citation = con.execute(
             "select source_reference_key,citation_text_raw,"
-            "parsed_json->'source_context'->>'raw_block' from citations"
+            "parsed_json->'source_context'->>'raw_block',bibcode,doi,publication_year "
+            "from citations"
         ).fetchone()
     assert evidence == [
         ("PSR A", "REF1", "REF1"),
         ("PSR B", None, "not-a-reference"),
     ]
-    assert citation == ("REF1", "Author et al. 2025", "source block")
+    assert citation == (
+        "REF1",
+        "Author et al. 2025",
+        "source block",
+        "2025ApJ...1A",
+        "10.1/test",
+        2025,
+    )
     assert summary == {"citations": 1, "evidence_links": 1}
+
+
+def test_citation_materialization_matches_key_or_text_without_duplicate_links(
+    tmp_path: Path,
+) -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','identity.test','r1','rows','object',"
+            "'{}','{}','row-hash',1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')"
+        )
+        con.execute(
+            "insert into stellar_classification_evidence values "
+            "('evidence','record',null,'spectral_type','G2V','G2V',null,"
+            "'source',null,'same-reference','{}')"
+        )
+        con.execute(
+            "insert into citations values "
+            "('same','identity.test','same-reference','same-reference',"
+            "null,null,null,null,'{}'),"
+            "('text','identity.test','different-key','same-reference',"
+            "null,null,null,null,'{}')"
+        )
+        summary = compiler.materialize_citations(con)
+        links = con.execute(
+            "select citation_id from evidence_citations order by citation_id"
+        ).fetchall()
+    assert summary == {"citations": 2, "evidence_links": 2}
+    assert links == [("same",), ("text",)]
+
+
+def test_source_citation_link_attaches_catalog_reference_to_identifier_claim(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "bibliography.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '508' oidref, '423709' oidbibref) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','identity.test','r1','bibliography','object_reference',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_hash],
+        )
+        compiler.materialize_identifier_claims(
+            con,
+            source_id="identity.test",
+            release_id="r1",
+            table_name="bibliography",
+            path=parquet,
+            fields=["oidref"],
+            claim_by_field={
+                "oidref": {
+                    "namespace": "source_oid",
+                    "claim_scope": "object",
+                }
+            },
+        )
+        con.execute(
+            "insert into citations values "
+            "('citation','identity.test','423709','Reference',null,null,null,null,'{}')"
+        )
+        consumed = compiler.materialize_source_citation_links(
+            con,
+            source_id="identity.test",
+            release_id="r1",
+            table_name="bibliography",
+            path=parquet,
+            links=[
+                {
+                    "identifier_claim_field": "oidref",
+                    "reference_key_field": "oidbibref",
+                    "citation_role": "object_bibliography",
+                    "required": True,
+                }
+            ],
+            available_fields={"oidref", "oidbibref"},
+        )
+        row = con.execute(
+            "select evidence_table,citation_id,citation_role from evidence_citations"
+        ).fetchone()
+    assert consumed == {"oidref", "oidbibref"}
+    assert row == ("identifier_claim_evidence", "citation", "object_bibliography")
 
 
 def test_nasa_reference_fragment_parser_preserves_lineage_and_parses_ads() -> None:

@@ -47,6 +47,15 @@ Evidence Lake v2 staging rule:
   A field declaration is not materialization: `declared_pending` fields keep an
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
+- `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
+  physical parameter set or selected-fact record. It keeps multiple typed
+  astrometry/distance/velocity measurements attached to one exact source record
+  without multiplying very large source tables into one physical row per
+  field. Every nested measurement retains its own stable evidence ID, quantity,
+  raw/normalized value and unit, uncertainty, frame/epoch, method/model,
+  reference, quality, and normalization version. Selection must unnest these
+  measurements and may not infer compatibility merely because they share a
+  storage bundle.
 - NASA checkpoint `cb82c09179afa740b02e2cdf` is the first field-complete source
   adapter. It preserves source units/reference fragments, adds versioned unit
   aliases and parsed citation metadata, groups measurement companions into

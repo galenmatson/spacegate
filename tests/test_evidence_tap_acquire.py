@@ -18,6 +18,53 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import evidence_tap_acquire as acquire  # noqa: E402
 
 
+def test_gaia_derived_products_cover_both_envelope_branches() -> None:
+    program = json.loads(
+        (ROOT / "config" / "evidence_lake" / "e3_acquisition_program.json").read_text()
+    )
+    products = {product["product_name"]: product for product in program["products"]}
+    pairs = {
+        "gaia_dr3_ap_classifier_v2": "gaia_dr3_ap_classifier_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_photometry_flame_v2": "gaia_dr3_ap_photometry_flame_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_spectroscopy_v2": "gaia_dr3_ap_spectroscopy_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_activity_specialized_v2": "gaia_dr3_ap_activity_specialized_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_multiple_oa_v2": "gaia_dr3_ap_multiple_oa_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_supp_photometric_models_v2": "gaia_dr3_ap_supp_photometric_models_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_supp_spectroscopic_models_v2": "gaia_dr3_ap_supp_spectroscopic_models_uncertain_distance_supplement_v1",
+        "gaia_dr3_nss_two_body_orbit_full_v2": "gaia_dr3_nss_two_body_orbit_uncertain_distance_supplement_v1",
+        "gaia_dr3_variability_summary_v2": "gaia_dr3_variability_summary_uncertain_distance_supplement_v1",
+        "gaia_dr3_rotation_modulation_v2": "gaia_dr3_rotation_modulation_uncertain_distance_supplement_v1",
+        "gaia_dr3_allwise_best_neighbour_v1": "gaia_dr3_allwise_best_neighbour_uncertain_distance_supplement_v1",
+        "gaia_dr3_tmass_best_neighbour_v1": "gaia_dr3_tmass_best_neighbour_uncertain_distance_supplement_v1",
+        "gaia_dr3_hipparcos2_best_neighbour_v1": "gaia_dr3_hipparcos2_best_neighbour_uncertain_distance_supplement_v1",
+        "gaia_dr3_tycho2_best_neighbour_v1": "gaia_dr3_tycho2_best_neighbour_uncertain_distance_supplement_v1",
+        "gaia_dr3_ravedr6_best_neighbour_v1": "gaia_dr3_ravedr6_best_neighbour_uncertain_distance_supplement_v1",
+    }
+    field_contract_keys = {
+        "source_id",
+        "release_id",
+        "endpoint",
+        "table",
+        "table_alias",
+        "include_fields",
+        "include_prefixes",
+        "include_contains",
+        "preserve_all_fields",
+        "partition_expression",
+        "max_rec",
+        "unselected_field_reason",
+    }
+    for hard_name, supplement_name in pairs.items():
+        hard = products[hard_name]
+        supplement = products[supplement_name]
+        assert "parallax >= 2.609272" in hard["where"]
+        assert "external.gaiaedr3_distance bj" in supplement["from"]
+        assert "parallax < 2.60927200 or" in supplement["where"]
+        assert "bj.r_med_geo <= 383.245 or bj.r_lo_geo <= 306.601" in supplement["where"]
+        for key in field_contract_keys:
+            assert hard.get(key) == supplement.get(key), (hard_name, supplement_name, key)
+
+
 def test_target_values_are_checksum_bounded_and_part_of_query_identity(
     tmp_path: Path,
 ) -> None:
@@ -63,6 +110,113 @@ def test_target_values_are_checksum_bounded_and_part_of_query_identity(
         assert "checksum mismatch" in str(error)
     else:
         raise AssertionError("modified target seed was accepted")
+
+
+def test_target_values_can_be_partitioned_into_bounded_bucket_queries(
+    tmp_path: Path,
+) -> None:
+    seed = tmp_path / "derived" / "targets" / "partitioned"
+    seed.mkdir(parents=True)
+    artifact = seed / "missing.json"
+    artifact.write_text('{"ids":[1,2,3,9,10]}\n', encoding="utf-8")
+    artifact_sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    manifest = seed / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "build_id": "partitioned",
+                "artifacts": [
+                    {"path": "missing.json", "sha256": artifact_sha256}
+                ],
+                "report": {"coverage": "complete"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    product = {
+        "select": ["rows.oid"],
+        "table": "test.rows",
+        "where": "quality = 1",
+        "partition_expression": "rows.oid",
+        "buckets": 3,
+        "target_values": {
+            "manifest_relpath": "derived/targets/partitioned/manifest.json",
+            "build_id": "partitioned",
+            "artifact": "missing.json",
+            "json_path": ["ids"],
+            "coverage": "complete",
+            "field_expression": "rows.oid",
+            "max_values": 10,
+            "partition_values_by_bucket": True,
+        },
+    }
+
+    resolved = acquire.resolve_target_values(product, tmp_path)
+    assert resolved["where"] == "quality = 1"
+    assert resolved["target_values_by_bucket"] == [["3", "9"], ["1", "10"], ["2"]]
+    assert resolved["target_values_lineage"] == {
+        "build_id": "partitioned",
+        "manifest_relpath": "derived/targets/partitioned/manifest.json",
+        "artifact": "missing.json",
+        "artifact_sha256": artifact_sha256,
+        "coverage": "complete",
+        "field_expression": "rows.oid",
+        "value_count": 5,
+        "values_sha256": acquire.stable_hash(["1", "10", "2", "3", "9"]),
+        "partition_policy": "unsigned_integer_modulo_product_bucket_v1",
+        "bucket_count": 3,
+        "nonempty_bucket_count": 3,
+        "min_bucket_value_count": 1,
+        "max_bucket_value_count": 2,
+    }
+    queries = [acquire.render_query(resolved, bucket) for bucket in range(3)]
+    assert "rows.oid in (3,9)" in queries[0]
+    assert "rows.oid in (1,10)" in queries[1]
+    assert "rows.oid in (2)" in queries[2]
+    for bucket, query in enumerate(queries):
+        assert f"mod(rows.oid, 3) = {bucket}" in query
+
+
+def test_partitioned_target_values_make_empty_buckets_explicit(tmp_path: Path) -> None:
+    seed = tmp_path / "derived" / "targets" / "sparse"
+    seed.mkdir(parents=True)
+    artifact = seed / "missing.json"
+    artifact.write_text('{"ids":[8]}\n', encoding="utf-8")
+    artifact_sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    (seed / "manifest.json").write_text(
+        json.dumps(
+            {
+                "build_id": "sparse",
+                "artifacts": [
+                    {"path": "missing.json", "sha256": artifact_sha256}
+                ],
+                "report": {"coverage": "complete"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    product = {
+        "select": ["rows.oid"],
+        "table": "test.rows",
+        "where": "1=1",
+        "partition_expression": "rows.oid",
+        "buckets": 3,
+        "target_values": {
+            "manifest_relpath": "derived/targets/sparse/manifest.json",
+            "build_id": "sparse",
+            "artifact": "missing.json",
+            "json_path": ["ids"],
+            "coverage": "complete",
+            "field_expression": "rows.oid",
+            "partition_values_by_bucket": True,
+        },
+    }
+    resolved = acquire.resolve_target_values(product, tmp_path)
+    assert "and (1=0)" in acquire.render_query(resolved, 0)
+    assert "and (1=0)" in acquire.render_query(resolved, 1)
+    assert "rows.oid in (8)" in acquire.render_query(resolved, 2)
+    assert resolved["target_values_lineage"]["nonempty_bucket_count"] == 1
+    assert resolved["target_values_lineage"]["min_bucket_value_count"] == 0
 
 
 def test_untargeted_product_identity_remains_backward_compatible() -> None:

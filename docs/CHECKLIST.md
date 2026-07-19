@@ -1073,6 +1073,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   the current 817 GB immutable `out/` footprint through the documented process
 - [x] E0: set explicit raw, typed, build, report, document, and observation-
   product cache budgets; verify backup policy before large acquisition
+- [x] E0: add hash-gated, whole-artifact retention for explicit interrupted
+  Evidence Lake compiler temporaries; refuse manifests, links, shared files,
+  and live processes, and preserve machine-readable dry-run/applied reports
 - [x] E1: materialize immutable raw snapshots for all 25 available non-planned
   releases with atomic manifests, checksums, source metadata, and verification
 - [x] E1: add source-specific typed parser versioning, fail-closed field/row
@@ -1100,6 +1103,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   HTTP acquisition with exact responses, checksum/row/MAXREC gates,
   inter-process manifest locking, atomic promotion, and source-native
   VOTable/FITS Parquet support
+- [x] E3 envelope contract: pair every Gaia AP, supplementary AP, NSS,
+  variability/rotation, and official external-crossmatch hard-parallax product
+  with a disjoint posterior-overlap acquisition and executable parity gate
 - [x] E3 naming/variability slice: pin, snapshot, type, and verify official WGSN
   plus GCVS catalog, cross-identifier, suspected-variable, bibliography, and
   source-document artifacts; validate all 16 WGSN fields and separate its 597
@@ -1137,7 +1143,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-
   lineage evidence contracts
-- [x] E4 foundation: add the immutable 22-domain compiler contract, deterministic
+- [x] E4 foundation: add the immutable 23-domain compiler contract, deterministic
   source-record identity, exact-duplicate accounting, explicit binding outcomes,
   field dispositions, cached-artifact checksum verification, and clean logical-
   hash reproduction; keep unmaterialized fields visibly pending

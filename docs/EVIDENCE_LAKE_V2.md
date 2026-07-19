@@ -242,6 +242,19 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   posterior median is within 383.245 pc or its lower 16th-percentile bound is
   within the 306.601-pc public sphere. Bailer-Jones values remain a separate
   evidence source; the selection join does not merge them into Gaia rows.
+- The uncertainty branch acquisition is complete at 189,145 rows. All 127
+  partitions account exactly, the largest contains 1,592 rows against a
+  400,000-row cap, and the hard/uncertain union therefore contains 32,176,271
+  source-native Gaia rows. Raw snapshot `fcd1f77edf401a7e19c72197` preserves
+  the two branches as separate 152-field tables. Typed snapshot
+  `35a41010cf74f950e61b5412` preserves all rows in separate Parquet tables and
+  passes raw/typed verification; clean reproduction is running from `/mnt/space`
+  scratch as the remaining Gaia-source boundary gate.
+- Fifteen Gaia-derived AP, supplementary-AP, NSS, variability/rotation, and
+  official external-crossmatch products now have explicit disjoint posterior-
+  overlap companions. A checked acquisition contract requires matching source,
+  table, field-selection, partition, cap, and disposition semantics so later
+  products cannot silently fall back to hard-parallax-only coverage.
 - The program accounts for all 764 upstream columns across `gaia_source`, AP
   main and supplementary, NSS orbit, variability summary, and rotation-
   modulation tables; large exact acquisitions continue in crash-resilient
@@ -264,6 +277,25 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   envelope, then request basic, alias, and bibliography evidence for the
   matched object set. SIMBAD remains identity/naming evidence, not a canonical
   inventory catalog.
+- The hard-envelope SIMBAD pilot proved the staged contract end to end. Of
+  1,807,040 matched SIMBAD objects, 64 were absent from the bounded basic slice;
+  checksum-bound targeted queries added their 64 basic rows, 293 aliases, and
+  173 bibliography links. Raw/typed snapshot `716d91848006667527d3e588`
+  preserves 35,088,164 source-native rows across all eight pilot tables and
+  cleanly reproduces.
+- The complete 32,176,271-row Gaia union has now regenerated final SIMBAD target
+  seed `8d940fdc1bc8eee0dc8efa7e`: 14,188,016 Gaia-bridge rows bind 1,831,202
+  target bridge rows to 1,831,201 SIMBAD objects. Of those, 24,218 are absent
+  from the base basic-data slice. The acquisition compiler checksum-pins that
+  exact list and deterministically divides it into 31 modulo buckets of
+  732-835 object IDs; basic, alias, and bibliography queries retain separate
+  content identities and independent response caps. Final acquisition and
+  raw/typed reproduction remain in progress.
+- The 7,862,084-row Gaia AP multiple-object-analysis table initially saturated
+  every 400,000-row response under a 17-way partition. The reviewed 31-way
+  contract completes exactly at 252,595-254,593 rows per partition; canonical
+  acquisition snapshot `9a262636fd0c7b48d8063169` replaces the transient
+  partition experiment without changing source rows.
 - The El-Badry, Rix, and Heintz Gaia EDR3 wide-binary release is pinned and
   typed as source-native evidence: 1,817,594 catalog rows across 217 columns,
   517,993 shifted-control rows across 201 columns, and both published method
@@ -304,7 +336,7 @@ flags, and raw-to-normalized lineage.
 
 E4 compiler checkpoint (July 19, 2026, in progress):
 
-- `config/evidence_lake/e4_scientific_evidence.json` defines 22 bounded domain
+- `config/evidence_lake/e4_scientific_evidence.json` defines 23 bounded domain
   tables, controlled binding/mapping states, and data-driven source adapters.
   This is not a universal EAV store: each scientific family has its own typed
   contract and controlled quantity vocabulary.
@@ -315,11 +347,29 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   rebuilds into a temporary scratch root, compares deterministic logical hashes,
   and removes the scratch artifact; the NASA foundation reproduction passes.
   Logical verification uses `sha256_bucketed_multiset_v1`, which hashes every
-  row and then deterministically hashes bounded prefix buckets. It is order
-  independent and duplicate sensitive without globally sorting full row JSON.
+  row, streams globally ordered fixed-width row hashes in 65,536-row batches,
+  and deterministically hashes bounded prefix buckets. It is order independent
+  and duplicate sensitive without aggregating or sorting full row JSON in
+  memory. Hash sorting has a dedicated spill directory and fails if persistent
+  DuckDB block allocation changes during verification.
   `scripts/verify_scientific_evidence_artifact.py` independently audits scope,
   identifier, probability/statistic, citation, uncertainty, parameter-set, and
   source-record integrity.
+- The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
+  source spectral classifications, release-scoped identifier claims,
+  authoritative bibliography rows, and object/reference links without selecting
+  public winners. A diagnostic exposed an `OR` citation join whose physical
+  plan estimated 199,495,267,914 intermediate rows. Compiler v36 replaced it
+  with bounded equality matching and completed a 42.8-GB diagnostic artifact,
+  but the independent audit correctly rejected 285 blank normalized HIP claims
+  produced from component-suffixed aliases such as `HIP 10280A`; v36 is not an
+  accepted checkpoint.
+- Compiler/contract v37 records every failed numeric normalization in an
+  explicit rejection table and emits only usable normalized claims. Citation
+  matching uses one bounded key table, materialization defaults to a 16-GB
+  DuckDB memory limit, and operator-configured scratch can place disposable
+  spill outside `/data`. Final SIMBAD v37 compilation waits on the complete-
+  envelope supplement, then requires independent audit and clean reproduction.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

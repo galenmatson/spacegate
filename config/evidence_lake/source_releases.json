@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.8",
+  "registry_version": "2026-07-19.9",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -87,7 +87,12 @@
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_photometry_flame_v2"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_spectroscopy_v2"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_activity_specialized_v2"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_multiple_oa_v2"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_multiple_oa_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_classifier_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_photometry_flame_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_spectroscopy_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_activity_specialized_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_multiple_oa_uncertain_distance_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
@@ -106,7 +111,9 @@
       "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
       "manifest_entries": [
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_photometric_models_v2"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_spectroscopic_models_v2"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_spectroscopic_models_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_photometric_models_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_spectroscopic_models_uncertain_distance_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
@@ -124,7 +131,8 @@
       "frame_epoch": "Gaia DR3 solution-specific",
       "retrieval": {"kind": "bounded_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync", "implementation": "scripts/evidence_tap_acquire.py"},
       "manifest_entries": [
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit_full_v2"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit_full_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit_uncertain_distance_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
@@ -143,7 +151,9 @@
       "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
       "manifest_entries": [
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_variability_summary_v2"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_rotation_modulation_v2"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_rotation_modulation_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_variability_summary_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_rotation_modulation_uncertain_distance_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
@@ -276,7 +286,12 @@
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tmass_best_neighbour_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_hipparcos2_best_neighbour_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tycho2_best_neighbour_v1"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ravedr6_best_neighbour_v1"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ravedr6_best_neighbour_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_allwise_best_neighbour_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tmass_best_neighbour_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_hipparcos2_best_neighbour_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tycho2_best_neighbour_uncertain_distance_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ravedr6_best_neighbour_uncertain_distance_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
@@ -956,9 +971,9 @@
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_nearby_identifiers_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_nearby_bibliography_links_v1"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_reference_index_v1"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_basic_supplement_v1"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_identifier_supplement_v1"},
-        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_hard_bibliography_supplement_v1"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_envelope_basic_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_envelope_identifier_supplement_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_envelope_bibliography_supplement_v1"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "tap_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
