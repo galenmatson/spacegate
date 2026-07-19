@@ -31,8 +31,10 @@ Evidence Lake v2 staging rule:
 - M8.3c-E2's release-scoped identity/scope graph is a pre-CORE/pre-ARM compiler
   artifact, not an ARM build. It references the current CORE only as a labeled
   stability reference.
-- E4 will materialize source-native scientific domain evidence from the typed
-  lake. E6 then shadow-builds this schema from those contracts; no E2 graph row
+- E4 materializes source-native scientific domain evidence from the typed lake;
+  the current NASA checkpoint includes source-scoped identifier and lifecycle
+  evidence but deliberately leaves object bindings unresolved. E6 then
+  shadow-builds this schema from those contracts; no E2 graph row
   is promoted into ARM merely because it has an accepted identity binding.
 - E4 compiler artifacts live at
   `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/scientific_evidence/<build_id>/`.

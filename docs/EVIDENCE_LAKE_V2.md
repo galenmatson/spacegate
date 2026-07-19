@@ -287,11 +287,18 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   binding outcomes. `scripts/verify_scientific_evidence_reproduction.py`
   rebuilds into a temporary scratch root, compares deterministic logical hashes,
   and removes the scratch artifact; the NASA foundation reproduction passes.
-- The NASA foundation build accounts 206,989 source rows as 203,932 exact
+- NASA checkpoint build `2d9e5a0871ad2f7a5505c953` accounts 206,989 source
+  rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
-  duplicate counts. All 2,093 fields have dispositions; 103 reviewed lineage or
-  context fields are materialized in source-record JSON and 1,990 fields remain
-  `declared_pending` until their domain adapters write actual evidence rows.
+  duplicate counts. It materializes 750,151 release-scoped identifier claims
+  and 72,809 planet-lifecycle claims while leaving every source record's object
+  binding explicitly unresolved for later E2-graph reconciliation. Confirmed
+  claims are positive evidence, candidates remain candidate evidence, and false
+  positives, false alarms, and refuted claims are negative evidence; none of
+  these rows alter canonical planet inventory.
+- All 2,093 fields have dispositions; 188 reviewed identity, lifecycle, lineage,
+  or context fields are materialized and 1,905 fields remain `declared_pending`
+  until their domain adapters write actual evidence rows.
 - Logical keys are source semantics, not artificial uniqueness claims. Exact
   row hashes provide deterministic record identity when a catalog's apparent
   key repeats; row-array position is never used. Compiler timestamps derive

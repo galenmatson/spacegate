@@ -119,6 +119,10 @@ field a domain, identity, lineage, context, or reviewed-exclusion disposition
 and separately report whether that destination has actually been materialized.
 The compiler uses exact row hashes plus source-native logical keys, preserving
 duplicate occurrences and avoiding point/array position as scientific identity.
+NASA checkpoint `2d9e5a0871ad2f7a5505c953` materializes 750,151 identifier
+claims and 72,809 planet-lifecycle claims from the 12 pinned products. Candidate
+and negative claims remain evidence only and cannot inflate canonical planet
+inventory.
 
 ## Gaia Release Identity Evidence
 

@@ -101,7 +101,13 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
         errors.append("domain_tables must exactly match the compiler contract")
     dispositions = set(contract.get("field_dispositions") or [])
     mapping_statuses = set(contract.get("mapping_statuses") or [])
+    identifier_namespaces = contract.get("identifier_namespaces") or {}
     profiles = contract.get("field_profiles") or {}
+    if not identifier_namespaces:
+        errors.append("identifier_namespaces must not be empty")
+    for field, namespace in identifier_namespaces.items():
+        if not str(field).strip() or not str(namespace).strip():
+            errors.append("identifier namespace fields and values must be non-empty")
     for profile_name, rules in profiles.items():
         if not rules:
             errors.append(f"field profile has no rules: {profile_name}")
@@ -128,6 +134,25 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 errors.append(f"{source_id}.{table_name} lacks logical key fields")
             if table.get("field_profile") not in profiles:
                 errors.append(f"{source_id}.{table_name} references an unknown field profile")
+            for index, claim in enumerate(table.get("lifecycle_claims") or []):
+                prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
+                if not claim.get("claim_role"):
+                    errors.append(f"{prefix} lacks claim_role")
+                if not claim.get("identifier_field"):
+                    errors.append(f"{prefix} lacks identifier_field")
+                elif claim["identifier_field"] not in identifier_namespaces:
+                    errors.append(f"{prefix} identifier lacks a namespace")
+                disposition_sources = sum(
+                    bool(claim.get(field))
+                    for field in ("disposition_field", "implicit_disposition")
+                )
+                if disposition_sources != 1:
+                    errors.append(
+                        f"{prefix} must define exactly one disposition source"
+                    )
+                for field in claim.get("context_fields") or []:
+                    if not str(field).strip():
+                        errors.append(f"{prefix} contains an empty context field")
     if mapping_statuses != {"materialized", "declared_pending", "excluded"}:
         errors.append("mapping_statuses do not match the compiler contract")
     return errors
@@ -599,6 +624,182 @@ def logical_key_expression(fields: list[str]) -> str:
     return f"to_json(struct_pack({members}))"
 
 
+def normalized_disposition_expression(value: str) -> str:
+    normalized = f"upper(trim(cast({value} as varchar)))"
+    return f"""
+      case {normalized}
+        when 'CP' then 'CONFIRMED'
+        when 'KP' then 'CONFIRMED'
+        when 'CONFIRMED' then 'CONFIRMED'
+        when 'KNOWN PLANET' then 'CONFIRMED'
+        when 'PC' then 'CANDIDATE'
+        when 'APC' then 'CANDIDATE'
+        when 'CANDIDATE' then 'CANDIDATE'
+        when 'FP' then 'FALSE_POSITIVE'
+        when 'FALSE POSITIVE' then 'FALSE_POSITIVE'
+        when 'FA' then 'FALSE_ALARM'
+        when 'FALSE ALARM' then 'FALSE_ALARM'
+        else replace({normalized}, ' ', '_')
+      end
+    """
+
+
+def lifecycle_polarity_expression(value: str) -> str:
+    return f"""
+      case {value}
+        when 'CONFIRMED' then 'positive'
+        when 'CANDIDATE' then 'candidate'
+        when 'FALSE_POSITIVE' then 'negative'
+        when 'FALSE_ALARM' then 'negative'
+        when 'REFUTED' then 'negative'
+        else 'ambiguous'
+      end
+    """
+
+
+def materialize_identifier_claims(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    object_scope: str,
+    path: Path,
+    fields: list[str],
+    namespace_by_field: dict[str, str],
+) -> set[str]:
+    missing = sorted(set(fields) - set(namespace_by_field))
+    if missing:
+        raise ValueError(f"identifier namespace mappings missing for {table_name}: {missing}")
+    branches = []
+    for field in fields:
+        quoted = sql_identifier(field)
+        namespace = namespace_by_field[field]
+        evidence_namespace = f"identifier|{field}|"
+        branches.append(
+            f"""
+            select
+              sha256({sql_string(evidence_namespace)} || r.source_record_id || '|' || s.value_raw),
+              r.source_record_id,
+              {sql_string(namespace)},
+              s.value_raw,
+              trim(s.value_raw),
+              {sql_string(object_scope)},
+              null,
+              null,
+              json_object('source_field', {sql_string(field)})
+            from (
+              select distinct
+                sha256(to_json(t)) source_row_sha256,
+                trim(cast({quoted} as varchar)) value_raw
+              from read_parquet({sql_string(str(path))}) t
+              where nullif(trim(cast({quoted} as varchar)), '') is not null
+            ) s
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=s.source_row_sha256
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into identifier_claim_evidence " + " union all ".join(branches)
+        )
+    return set(fields)
+
+
+def optional_field_expression(field: str | None) -> str:
+    return (
+        f"cast({sql_identifier(field)} as varchar)"
+        if field
+        else "null::varchar"
+    )
+
+
+def materialize_lifecycle_claims(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    claims: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    for claim in claims:
+        identifier_field = str(claim["identifier_field"])
+        disposition_field = claim.get("disposition_field")
+        effective_field = claim.get("effective_field")
+        reference_field = claim.get("reference_field")
+        context_fields = [str(field) for field in claim.get("context_fields") or []]
+        required = {
+            identifier_field,
+            *(str(value) for value in (disposition_field, effective_field, reference_field) if value),
+            *context_fields,
+        }
+        missing = sorted(required - available_fields)
+        if missing:
+            raise ValueError(f"lifecycle fields missing from {table_name}: {missing}")
+        consumed.update(required)
+        disposition_source = (
+            optional_field_expression(str(disposition_field))
+            if disposition_field
+            else sql_string(str(claim["implicit_disposition"]))
+        )
+        context_json = (
+            logical_key_expression(context_fields) if context_fields else "'{}'::json"
+        )
+        normalized = normalized_disposition_expression("s.disposition_raw")
+        polarity = lifecycle_polarity_expression("normalized_disposition")
+        role = str(claim["claim_role"])
+        con.execute(
+            f"""
+            insert into planet_lifecycle_evidence
+            with source_claims as (
+              select distinct
+                sha256(to_json(t)) source_row_sha256,
+                trim(cast({sql_identifier(identifier_field)} as varchar)) identifier_raw,
+                {disposition_source} disposition_raw,
+                {optional_field_expression(str(effective_field) if effective_field else None)} effective_raw,
+                {optional_field_expression(str(reference_field) if reference_field else None)} reference_raw,
+                {context_json} context_json
+              from read_parquet({sql_string(str(path))}) t
+            ), normalized as (
+              select *, {normalized} normalized_disposition
+              from source_claims s
+              where nullif(identifier_raw, '') is not null
+                and nullif(trim(cast(disposition_raw as varchar)), '') is not null
+            )
+            select
+              sha256(
+                {sql_string('lifecycle|' + role + '|')}
+                || r.source_record_id || '|' || n.normalized_disposition
+              ),
+              r.source_record_id,
+              n.identifier_raw,
+              cast(n.disposition_raw as varchar),
+              n.normalized_disposition,
+              {polarity},
+              n.effective_raw,
+              null,
+              n.reference_raw,
+              json_object(
+                'claim_role', {sql_string(role)},
+                'source_context', n.context_json
+              )
+            from normalized n
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=n.source_row_sha256
+            """
+        )
+    return consumed
+
+
 def materialize_source(
     con: duckdb.DuckDBPyConnection,
     input_row: dict[str, Any],
@@ -660,37 +861,12 @@ def materialize_source(
             )
         rules = contract["field_profiles"][table_contract["field_profile"]]
         context_fields: list[str] = []
+        classified_fields: list[tuple[dict[str, Any], dict[str, str], int]] = []
         for field in dispositions:
             rule, rule_index = classify_field(str(field["column_name"]), rules)
-            mapping_status = (
-                rule["mapping_status"]
-                if rule.get("mapping_status")
-                else
-                "materialized"
-                if rule["destination"] == "source_records"
-                else "excluded"
-                if rule["disposition"] == "exclude"
-                else "declared_pending"
-            )
+            classified_fields.append((field, rule, rule_index))
             if rule["destination"] == "source_records":
                 context_fields.append(str(field["column_name"]))
-            disposition_rows.append(
-                [
-                    source_id,
-                    release_id,
-                    table_name,
-                    field["column_name"],
-                    field.get("datatype"),
-                    field.get("unit"),
-                    field.get("ucd"),
-                    field.get("description"),
-                    rule["disposition"],
-                    rule["destination"],
-                    mapping_status,
-                    f"rule[{rule_index}]: {rule['reason']}",
-                    adapter["adapter_version"],
-                ]
-            )
 
         source_row_hash = "sha256(to_json(t))"
         key_json = logical_key_expression(logical_fields)
@@ -741,6 +917,61 @@ def materialize_source(
         ).fetchone()
         if int(source_rows) != int(typed_table["row_count"]):
             raise ValueError(f"source-record accounting mismatch for {table_name}")
+        identifier_fields = [
+            str(field["column_name"])
+            for field, rule, _index in classified_fields
+            if rule["destination"] == "identifier_claim_evidence"
+        ]
+        materialized_fields = set(context_fields)
+        materialized_fields.update(
+            materialize_identifier_claims(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                object_scope=str(table_contract["object_scope"]),
+                path=path,
+                fields=identifier_fields,
+                namespace_by_field=contract["identifier_namespaces"],
+            )
+        )
+        materialized_fields.update(
+            materialize_lifecycle_claims(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                claims=list(table_contract.get("lifecycle_claims") or []),
+                available_fields=set(columns),
+            )
+        )
+        for field, rule, rule_index in classified_fields:
+            field_name = str(field["column_name"])
+            mapping_status = (
+                "excluded"
+                if rule["disposition"] == "exclude"
+                else "materialized"
+                if field_name in materialized_fields and not rule.get("mapping_status")
+                else str(rule.get("mapping_status") or "declared_pending")
+            )
+            disposition_rows.append(
+                [
+                    source_id,
+                    release_id,
+                    table_name,
+                    field_name,
+                    field.get("datatype"),
+                    field.get("unit"),
+                    field.get("ucd"),
+                    field.get("description"),
+                    rule["disposition"],
+                    rule["destination"],
+                    mapping_status,
+                    f"rule[{rule_index}]: {rule['reason']}",
+                    adapter["adapter_version"],
+                ]
+            )
         report_tables.append(
             {
                 "source_table": table_name,
@@ -906,6 +1137,31 @@ def compile_evidence(
                 "group by mapping_status order by mapping_status"
             ).fetchall()
         }
+        identifier_claim_counts = {
+            str(namespace): int(count)
+            for namespace, count in con.execute(
+                "select namespace, count(*) from identifier_claim_evidence "
+                "group by namespace order by namespace"
+            ).fetchall()
+        }
+        lifecycle_claim_counts = {
+            "by_disposition": {
+                str(disposition): int(count)
+                for disposition, count in con.execute(
+                    "select disposition_normalized, count(*) "
+                    "from planet_lifecycle_evidence "
+                    "group by disposition_normalized order by disposition_normalized"
+                ).fetchall()
+            },
+            "by_polarity": {
+                str(polarity): int(count)
+                for polarity, count in con.execute(
+                    "select evidence_polarity, count(*) "
+                    "from planet_lifecycle_evidence "
+                    "group by evidence_polarity order by evidence_polarity"
+                ).fetchall()
+            },
+        }
         pending_fields = mapping_counts.get("declared_pending", 0)
         build_status = "pass" if not pending_fields else "in_progress"
         con.execute(
@@ -933,6 +1189,8 @@ def compile_evidence(
         "status": "pass" if not mapping_counts.get("declared_pending", 0) else "in_progress",
         "sources": source_reports,
         "mapping_status_counts": mapping_counts,
+        "identifier_claim_counts_by_namespace": identifier_claim_counts,
+        "lifecycle_claim_counts": lifecycle_claim_counts,
         "logical_content_sha256": logical_content_sha256,
         "tables": tables,
         "created_at": created_at,

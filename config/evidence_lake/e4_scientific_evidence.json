@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v1",
-  "contract_version": "2026-07-19.e4-foundation.2",
-  "compiler_version": "scientific_evidence_compiler_v2",
+  "contract_version": "2026-07-19.e4-foundation.5",
+  "compiler_version": "scientific_evidence_compiler_v5",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -23,6 +23,30 @@
     "declared_pending",
     "excluded"
   ],
+  "identifier_namespaces": {
+    "ctoi_alias": "ctoi_id",
+    "epic_candname": "epic_candidate_id",
+    "epic_hostname": "epic_host_id",
+    "epic_id": "epic_id",
+    "gaia_dr2_id": "gaia_dr2_source_id",
+    "gaia_dr3_id": "gaia_dr3_source_id",
+    "hd_name": "hd_designation",
+    "hip_name": "hip_designation",
+    "hostname": "nasa_hostname",
+    "k2_name": "k2_planet_name",
+    "kepid": "kepler_target_id",
+    "kepler_name": "kepler_planet_name",
+    "kepoi_name": "koi_id",
+    "koi_name": "koi_id",
+    "pl_letter": "planet_component_label",
+    "pl_name": "nasa_planet_name",
+    "tce_delivname": "kepler_tce_delivery_id",
+    "tce_plnt_num": "kepler_tce_signal_number",
+    "tic_id": "tic_id",
+    "tid": "tic_id",
+    "toi": "toi_id",
+    "toipfx": "toi_host_prefix"
+  },
   "domain_tables": [
     "identifier_claim_evidence",
     "stellar_parameter_sets",
@@ -245,7 +269,7 @@
   },
   "source_adapters": {
     "nasa_exoplanet_archive.planetary_systems": {
-      "adapter_version": "nasa_scientific_evidence_v1",
+      "adapter_version": "nasa_scientific_evidence_v2",
       "tables": {
         "nasa_ps_reference_v2": {
           "logical_key_fields": ["pl_name", "pl_refname"],
@@ -255,7 +279,23 @@
         "nasa_pscomppars_v2": {
           "logical_key_fields": ["pl_name"],
           "object_scope": "planet",
-          "field_profile": "nasa_planet_archive"
+          "field_profile": "nasa_planet_archive",
+          "lifecycle_claims": [
+            {
+              "claim_role": "confirmed_archive_composite",
+              "identifier_field": "pl_name",
+              "implicit_disposition": "CONFIRMED",
+              "reference_field": "disc_refname",
+              "context_fields": [
+                "disc_year",
+                "disc_pubdate",
+                "disc_facility",
+                "disc_telescope",
+                "disc_instrument",
+                "disc_locale"
+              ]
+            }
+          ]
         },
         "nasa_stellarhosts_v2": {
           "logical_key_fields": ["hostname", "st_refname"],
@@ -265,12 +305,38 @@
         "nasa_toi_full_v2": {
           "logical_key_fields": ["toi"],
           "object_scope": "observation_target",
-          "field_profile": "nasa_toi"
+          "field_profile": "nasa_toi",
+          "lifecycle_claims": [
+            {
+              "claim_role": "toi_tfopwg_disposition",
+              "identifier_field": "toi",
+              "disposition_field": "tfopwg_disp",
+              "effective_field": "rowupdate",
+              "context_fields": ["toi_created"]
+            }
+          ]
         },
         "nasa_k2_planets_candidates_v2": {
           "logical_key_fields": ["pl_name", "pl_refname"],
           "object_scope": "planet_or_candidate",
-          "field_profile": "nasa_planet_archive"
+          "field_profile": "nasa_planet_archive",
+          "lifecycle_claims": [
+            {
+              "claim_role": "k2_archive_disposition",
+              "identifier_field": "pl_name",
+              "disposition_field": "disposition",
+              "reference_field": "disp_refname",
+              "effective_field": "rowupdate",
+              "context_fields": [
+                "disc_year",
+                "disc_pubdate",
+                "disc_facility",
+                "disc_telescope",
+                "disc_instrument",
+                "disc_locale"
+              ]
+            }
+          ]
         },
         "nasa_kepler_names_v2": {
           "logical_key_fields": ["kepid", "pl_name", "koi_name", "kepler_name"],
@@ -285,17 +351,65 @@
         "nasa_kepler_dr25_koi_v2": {
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
-          "field_profile": "nasa_koi"
+          "field_profile": "nasa_koi",
+          "lifecycle_claims": [
+            {
+              "claim_role": "koi_archive_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_disposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            },
+            {
+              "claim_role": "koi_pipeline_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_pdisposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            }
+          ]
         },
         "nasa_kepler_dr25_supplemental_koi_v2": {
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
-          "field_profile": "nasa_koi"
+          "field_profile": "nasa_koi",
+          "lifecycle_claims": [
+            {
+              "claim_role": "koi_archive_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_disposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            },
+            {
+              "claim_role": "koi_pipeline_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_pdisposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            }
+          ]
         },
         "nasa_kepler_cumulative_koi_v2": {
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
-          "field_profile": "nasa_koi"
+          "field_profile": "nasa_koi",
+          "lifecycle_claims": [
+            {
+              "claim_role": "koi_archive_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_disposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            },
+            {
+              "claim_role": "koi_pipeline_disposition",
+              "identifier_field": "kepoi_name",
+              "disposition_field": "koi_pdisposition",
+              "reference_field": "koi_disp_prov",
+              "context_fields": ["koi_delivname"]
+            }
+          ]
         },
         "nasa_kepler_dr25_tce_v2": {
           "logical_key_fields": ["kepid", "tce_plnt_num"],

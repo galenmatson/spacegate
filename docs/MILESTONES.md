@@ -1422,10 +1422,15 @@ Current status (July 19, 2026, in progress):
 - the NASA foundation accounts 206,989 rows, 203,932 exact records, 3,057
   repeated identical row occurrences, and all 2,093 fields without using source
   array positions as identity
-- 103 reviewed lineage/context fields are materialized; 1,990 fields remain
+- 188 reviewed identity/lifecycle/lineage/context fields are materialized;
+  1,905 fields remain
   visibly `declared_pending`, so the compiler correctly reports `in_progress`
   rather than treating a declaration or raw preservation as E4 completion; the
   current logical-hash reproduction passes
+- NASA checkpoint `2d9e5a0871ad2f7a5505c953` materializes 750,151
+  source-scoped identifier claims and 72,809 lifecycle claims. Confirmed,
+  candidate, false-positive, false-alarm, and refuted evidence remain explicitly
+  separated and do not change canonical planet counts.
 
 #### M8.3c-E5. Selection and Derivation Compiler
 

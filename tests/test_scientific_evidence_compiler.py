@@ -68,6 +68,13 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                         "ucd": None,
                         "description": "source context",
                     },
+                    {
+                        "column_name": "disposition",
+                        "datatype": "char",
+                        "unit": None,
+                        "ucd": None,
+                        "description": "candidate disposition",
+                    },
                 ]
             }
         ),
@@ -76,8 +83,10 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
     parquet = tables_path / "test_rows.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select * from (values ('1','alpha'),('1','alpha'),('1','beta')) "
-            f"t(source_id,note)) to '{parquet}' (format parquet, compression zstd)"
+            f"copy (select * from (values "
+            f"('1','alpha','PC'),('1','alpha','PC'),('1','beta','FP')) "
+            f"t(source_id,note,disposition)) to '{parquet}' "
+            f"(format parquet, compression zstd)"
         )
 
     input_row = {
@@ -118,10 +127,19 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                 "logical_key_fields": ["source_id"],
                 "object_scope": "object",
                 "field_profile": "test",
+                "lifecycle_claims": [
+                    {
+                        "claim_role": "test_disposition",
+                        "identifier_field": "source_id",
+                        "disposition_field": "disposition",
+                        "context_fields": ["note"],
+                    }
+                ],
             }
         },
     }
     contract = {
+        "identifier_namespaces": {"source_id": "test_id"},
         "field_profiles": {
             "test": [
                 {
@@ -129,6 +147,12 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                     "disposition": "identity",
                     "destination": "identifier_claim_evidence",
                     "reason": "source identity",
+                },
+                {
+                    "pattern": "disposition",
+                    "disposition": "domain",
+                    "destination": "planet_lifecycle_evidence",
+                    "reason": "candidate lifecycle",
                 },
                 {
                     "pattern": "note",
@@ -158,6 +182,14 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
             binding_count = con.execute(
                 "select count(*) from object_binding_outcomes"
             ).fetchone()[0]
+            identifier_claims = con.execute(
+                "select identifier_normalized from identifier_claim_evidence "
+                "order by evidence_id"
+            ).fetchall()
+            lifecycle = con.execute(
+                "select disposition_normalized, evidence_polarity "
+                "from planet_lifecycle_evidence order by disposition_normalized"
+            ).fetchall()
         snapshots.append(records)
         assert report["source_rows"] == 3
         assert report["source_records"] == 2
@@ -165,8 +197,14 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         assert sorted(row[2] for row in records) == [1, 2]
         assert {json.loads(row[3])["note"] for row in records} == {"alpha", "beta"}
         assert dispositions == [
+            ("disposition", "materialized"),
             ("note", "materialized"),
-            ("source_id", "declared_pending"),
+            ("source_id", "materialized"),
+        ]
+        assert identifier_claims == [("1",), ("1",)]
+        assert lifecycle == [
+            ("CANDIDATE", "candidate"),
+            ("FALSE_POSITIVE", "negative"),
         ]
         assert binding_count == 2
     assert snapshots[0] == snapshots[1]
@@ -181,6 +219,11 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
         "status": "in_progress",
         "sources": [],
         "mapping_status_counts": {"declared_pending": 1},
+        "identifier_claim_counts_by_namespace": {"test_id": 1},
+        "lifecycle_claim_counts": {
+            "by_disposition": {"CANDIDATE": 1},
+            "by_polarity": {"candidate": 1},
+        },
         "logical_content_sha256": "logical",
         "tables": [{"table": "source_records", "row_count": 1, "logical_sha256": "a"}],
         "created_at": "2026-07-19T00:00:00Z",
@@ -193,3 +236,12 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
     assert reproduction.compare_reports(report, reproduced) == [
         "logical_content_sha256"
     ]
+
+
+def test_refuted_planet_claim_is_negative_evidence() -> None:
+    expression = compiler.lifecycle_polarity_expression("disposition")
+    with duckdb.connect() as con:
+        polarity = con.execute(
+            f"select {expression} from (select 'REFUTED' disposition)"
+        ).fetchone()[0]
+    assert polarity == "negative"
