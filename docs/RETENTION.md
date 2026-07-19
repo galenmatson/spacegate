@@ -255,6 +255,14 @@ and its compile, artifact-audit, source/scope-audit, and clean-reproduction
 reports are protected E4/E5 inputs. Provisional GCVS compiler artifacts may be
 retired only as whole immutable units through the retention dry-run after this
 accepted replacement and its reports are durable.
+The source-specific GCVS scientific audit is an explicitly allowlisted failed-
+artifact audit contract; arbitrary audit schemas cannot authorize cleanup. On
+July 19, candidate-set hash
+`d4d63bcd3f16cea22353667725c5e1ec2bb27c6a29854f1b05c2f07ebac21ca5`
+authorized whole-artifact removal of independently failed provisional builds
+`4d5c71f6e7e537f4c7d56693` and `41c15d3394bba2eef8d278a5`, reclaiming
+1,855,528,960 allocated bytes. Their audit and retention reports remain; the
+accepted checkpoint and every raw/typed input remain protected.
 
 Large local compiles may set `SPACEGATE_E4_TEMP_DIRECTORY` to an operator-owned
 scratch root such as `/mnt/space/spacegate/tmp/evidence_lake_v2/e4_spill`.

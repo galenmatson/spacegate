@@ -18,6 +18,10 @@ DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/stat
 TEMPORARY_NAME = re.compile(r"^\.[0-9a-f]{24}\.[A-Za-z0-9_-]+$")
 BUILD_NAME = re.compile(r"^[0-9a-f]{24}$")
 CONTRACT = "spacegate.evidence_artifact_retention.v1"
+SUPPORTED_FAILED_ARTIFACT_AUDITS = {
+    "spacegate.scientific_evidence_artifact_audit.v1",
+    "spacegate.gcvs_scientific_evidence_audit.v1",
+}
 
 
 def utc_now() -> str:
@@ -200,7 +204,7 @@ def inspect_failed_artifact(
     else:
         raise ValueError("failed artifact audit must be stored outside the candidate")
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
-    if audit.get("schema_version") != "spacegate.scientific_evidence_artifact_audit.v1":
+    if audit.get("schema_version") not in SUPPORTED_FAILED_ARTIFACT_AUDITS:
         raise ValueError(f"unsupported failed-artifact audit contract: {audit_path}")
     if audit.get("status") != "fail" or audit.get("build_id") != candidate.name:
         raise ValueError(f"audit does not fail the requested artifact: {value}")
@@ -247,6 +251,7 @@ def inspect_failed_artifact(
         "manifest_sha256": file_hash(manifest_path),
         "database_sha256": manifest["database_sha256"],
         "audit_report": str(audit_path),
+        "audit_schema_version": audit["schema_version"],
         "audit_sha256": file_hash(audit_path),
         "failed_checks": failed_checks,
     }

@@ -240,3 +240,41 @@ def test_failed_immutable_retention_rejects_passing_or_mismatched_audit(
         assert "database does not match" in str(error)
     else:
         raise AssertionError("mismatched audit database authorized retention")
+
+
+def test_failed_immutable_retention_accepts_allowlisted_source_audit(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "scientific_evidence"
+    artifact, audit = failed_artifact(root, tmp_path)
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    payload = json.loads(audit.read_text())
+    payload["schema_version"] = "spacegate.gcvs_scientific_evidence_audit.v1"
+    payload["checks"] = {"invalid_normalized_coordinates": 1020}
+    audit.write_text(json.dumps(payload))
+
+    inspected = retention.inspect_failed_artifact(
+        root,
+        artifact.name,
+        audit,
+        minimum_age_minutes=0,
+        proc_root=proc_root,
+    )
+    assert inspected["audit_schema_version"] == payload["schema_version"]
+    assert inspected["failed_checks"] == {"invalid_normalized_coordinates": 1020}
+
+    payload["schema_version"] = "spacegate.unreviewed_source_audit.v1"
+    audit.write_text(json.dumps(payload))
+    try:
+        retention.inspect_failed_artifact(
+            root,
+            artifact.name,
+            audit,
+            minimum_age_minutes=0,
+            proc_root=proc_root,
+        )
+    except ValueError as error:
+        assert "unsupported failed-artifact audit contract" in str(error)
+    else:
+        raise AssertionError("unreviewed source audit authorized retention")

@@ -1421,6 +1421,13 @@ Representative commits:
   matches logical hash
   `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`
   with no differing sections and removes the scratch artifact.
+- The retention tool now accepts only an explicit allowlist of independently
+  reviewed source-audit contracts in addition to its general artifact audit.
+  GCVS audits proved both provisional builds scientifically invalid; hashed
+  candidate set
+  `d4d63bcd3f16cea22353667725c5e1ec2bb27c6a29854f1b05c2f07ebac21ca5`
+  retired those two whole artifacts and reclaimed 1,855,528,960 allocated bytes
+  while preserving the accepted build, raw/typed inputs, and reports.
 
 ## Recurrent Defect Classes and Mitigations
 
