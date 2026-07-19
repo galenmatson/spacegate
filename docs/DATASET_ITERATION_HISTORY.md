@@ -1522,6 +1522,29 @@ Representative commits:
   logical hash
   `7b277d9f190599a1b0cf797dabffa864b5991d956973c3ac29ff4ff3af20cba6`.
 
+### 51) Evidence Lake E4 Gaia UCD Association Evidence
+
+- Registry v13 corrects the source role for `J/A+A/669/A139 table4`. Its four
+  published columns are Gaia identity, HMAC cluster label, BANYAN best
+  hypothesis, and BANYAN probability; it contains no spectral type. The release
+  therefore supports sample and association evidence, not an inferred
+  classification authority.
+- Compiler/contract v45 adds a general multiple-membership contract. Each
+  membership family receives an explicit deterministic key, so one source row
+  can retain independent methods without evidence-ID collisions. Published
+  hard assignments may omit a probability; the normalized probability remains
+  null rather than becoming an invented zero or one.
+- Accepted checkpoint `78016b90e02689547c3f53dd` accounts all 7,630 catalog
+  rows, 93 ReadMe lines, and eight typed field occurrences. It emits 7,630 Gaia
+  DR3 identity claims, 6,259 HMAC assignments with null probability, and 2,840
+  BANYAN memberships with source probabilities from 0.5 through 1.0. The `--`
+  placeholder creates no membership.
+- One parsed ADS citation links all 9,099 membership records. Every binding
+  remains unresolved; no classification, generic relation, orbit, containment,
+  or canonical inventory row is promoted. Generic artifact and source/scope
+  audits pass, and clean reproduction matches logical hash
+  `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

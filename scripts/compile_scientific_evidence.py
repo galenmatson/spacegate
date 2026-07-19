@@ -380,17 +380,44 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 if missing:
                     errors.append(f"{prefix} lacks {missing}")
             cluster_membership = table.get("cluster_membership")
-            if cluster_membership:
-                prefix = f"{source_id}.{table_name}.cluster_membership"
+            cluster_memberships = table.get("cluster_memberships")
+            if cluster_membership and cluster_memberships:
+                errors.append(
+                    f"{source_id}.{table_name} cannot define both "
+                    "cluster_membership and cluster_memberships"
+                )
+            membership_contracts = (
+                list(cluster_memberships)
+                if cluster_memberships
+                else [cluster_membership]
+                if cluster_membership
+                else []
+            )
+            evidence_keys: list[str] = []
+            for index, membership in enumerate(membership_contracts):
+                prefix = (
+                    f"{source_id}.{table_name}.cluster_memberships[{index}]"
+                    if cluster_memberships
+                    else f"{source_id}.{table_name}.cluster_membership"
+                )
                 required = {
                     "cluster_identity_field",
                     "member_identity_field",
-                    "membership_probability_field",
                     "method",
                 }
-                missing = sorted(required - set(cluster_membership))
+                missing = sorted(required - set(membership))
                 if missing:
                     errors.append(f"{prefix} lacks {missing}")
+                if cluster_memberships:
+                    evidence_key = str(membership.get("evidence_key") or "").strip()
+                    if not evidence_key:
+                        errors.append(f"{prefix}.evidence_key must be non-empty")
+                    evidence_keys.append(evidence_key)
+            if len(evidence_keys) != len(set(evidence_keys)):
+                errors.append(
+                    f"{source_id}.{table_name}.cluster_memberships "
+                    "contains duplicate evidence_key values"
+                )
             orbital_solution = table.get("orbital_solution")
             if orbital_solution:
                 prefix = f"{source_id}.{table_name}.orbital_solution"
@@ -3655,37 +3682,41 @@ def materialize_cluster_memberships(
     fields: list[dict[str, Any]],
     cluster_membership: dict[str, Any],
     available_fields: set[str],
+    evidence_key: str | None = None,
 ) -> set[str]:
     cluster_field = str(cluster_membership["cluster_identity_field"])
     member_field = str(cluster_membership["member_identity_field"])
-    probability_field = str(cluster_membership["membership_probability_field"])
+    probability_field = cluster_membership.get("membership_probability_field")
+    probability_field = str(probability_field) if probability_field else None
     reference_field = cluster_membership.get("reference_field")
     quality_fields = [str(field["column_name"]) for field in fields]
     configured_fields = {
         cluster_field,
         member_field,
-        probability_field,
         *quality_fields,
+        *(probability_field for _ in [0] if probability_field),
         *(str(reference_field) for _ in [0] if reference_field),
     }
     missing = sorted(configured_fields - available_fields)
     if missing:
         raise ValueError(f"cluster membership fields missing from {table_name}: {missing}")
-    invalid_probability_count = int(
-        con.execute(
-            f"""
-            select count(*)
-            from read_parquet({sql_string(str(path))}) source_row
-            join source_records r
-              on r.source_id={sql_string(source_id)}
-             and r.release_id={sql_string(release_id)}
-             and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(source_row))
-            where try_cast({sql_identifier(probability_field)} as double) is not null
-              and try_cast({sql_identifier(probability_field)} as double) not between 0 and 1
-            """
-        ).fetchone()[0]
-    )
+    invalid_probability_count = 0
+    if probability_field:
+        invalid_probability_count = int(
+            con.execute(
+                f"""
+                select count(*)
+                from read_parquet({sql_string(str(path))}) source_row
+                join source_records r
+                  on r.source_id={sql_string(source_id)}
+                 and r.release_id={sql_string(release_id)}
+                 and r.source_table={sql_string(table_name)}
+                 and r.source_row_sha256=sha256(to_json(source_row))
+                where try_cast({sql_identifier(probability_field)} as double) is not null
+                  and try_cast({sql_identifier(probability_field)} as double) not between 0 and 1
+                """
+            ).fetchone()[0]
+        )
     if invalid_probability_count:
         raise ValueError(
             f"cluster membership probability outside [0,1] in {table_name}: "
@@ -3702,19 +3733,28 @@ def materialize_cluster_memberships(
         else "'{}'::json"
     )
     predicate = str(cluster_membership.get("sql_predicate") or "true")
+    evidence_prefix = f"cluster-membership|{table_name}|"
+    if evidence_key:
+        evidence_prefix += f"{evidence_key}|"
+    probability = (
+        f"try_cast({sql_identifier(probability_field)} as double)"
+        if probability_field
+        else "null::double"
+    )
     con.execute(
         f"""
         insert into cluster_membership_evidence
         select distinct
-          sha256({sql_string('cluster-membership|' + table_name + '|')} || r.source_record_id),
+          sha256({sql_string(evidence_prefix)} || r.source_record_id),
           r.source_record_id,
           trim(cast({sql_identifier(cluster_field)} as varchar)),
           trim(cast({sql_identifier(member_field)} as varchar)),
-          try_cast({sql_identifier(probability_field)} as double),
+          {probability},
           {sql_string(str(cluster_membership['method']))},
           {reference},
           json_object(
             'source_table', {sql_string(table_name)},
+            'evidence_key', {nullable_sql_string(evidence_key)},
             'probability_semantics', {nullable_sql_string(cluster_membership.get('probability_semantics'))},
             'source_membership_record', {source_quality}
           )
@@ -4330,23 +4370,34 @@ def materialize_source(
             "cluster_membership_evidence"
         ) or []
         cluster_membership = table_contract.get("cluster_membership")
-        if membership_fields or cluster_membership:
-            if not membership_fields or not cluster_membership:
+        cluster_memberships = table_contract.get("cluster_memberships")
+        membership_contracts = (
+            [(None, cluster_membership)]
+            if cluster_membership
+            else [
+                (str(row["evidence_key"]), row)
+                for row in (cluster_memberships or [])
+            ]
+        )
+        if membership_fields or membership_contracts:
+            if not membership_fields or not membership_contracts:
                 raise ValueError(
                     f"cluster-membership profile/config mismatch for {table_name}"
                 )
-            materialized_fields.update(
-                materialize_cluster_memberships(
-                    con,
-                    source_id=source_id,
-                    release_id=release_id,
-                    table_name=table_name,
-                    path=path,
-                    fields=membership_fields,
-                    cluster_membership=cluster_membership,
-                    available_fields=set(columns),
+            for evidence_key, membership_contract in membership_contracts:
+                materialized_fields.update(
+                    materialize_cluster_memberships(
+                        con,
+                        source_id=source_id,
+                        release_id=release_id,
+                        table_name=table_name,
+                        path=path,
+                        fields=membership_fields,
+                        cluster_membership=membership_contract,
+                        available_fields=set(columns),
+                        evidence_key=evidence_key,
+                    )
                 )
-            )
         extended_object_fields = fields_by_destination.get(
             "extended_object_evidence"
         ) or []

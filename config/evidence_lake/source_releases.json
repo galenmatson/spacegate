@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.12",
+  "registry_version": "2026-07-19.13",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -721,7 +721,10 @@
       "source_id": "ultracool.gaia_dr3_sample",
       "release_id": "aa_669_a139_table4",
       "state": "active",
-      "authority_roles": {"inventory": "sample_membership", "classification": "ultracool_type"},
+      "authority_roles": {
+        "inventory": "published_ultracool_dwarf_sample_rows",
+        "cluster": "published_HMAC_assignment_and_BANYAN_best_hypothesis"
+      },
       "publisher": "CDS/VizieR",
       "citation_url": "https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/ReadMe",
       "license": {"name": "CDS catalog terms", "url": "https://cds.unistra.fr/vizier-org/licences_vizier.html"},

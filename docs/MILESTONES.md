@@ -1588,6 +1588,16 @@ Current status (July 19, 2026, in progress):
   positional relations with angular-distance statistics, zero probabilities,
   and no accepted identity, containment, or orbit. Artifact, WDS source/scope,
   and clean-reproduction gates pass.
+- Gaia UCD association checkpoint `78016b90e02689547c3f53dd` accounts all
+  7,630 catalog rows, 93 source-document lines, and eight field occurrences.
+  Compiler v45 can emit multiple independently keyed cluster memberships from
+  one source row: 6,259 HMAC assignments retain null probability, while 2,840
+  BANYAN best hypotheses retain their published 0.5-1.0 probabilities. The
+  table does not contain spectral types, so sample membership creates no
+  classification. All 7,630 Gaia identities remain release scoped and
+  unresolved; placeholder, citation, artifact, scope, and clean-reproduction
+  gates pass at logical hash
+  `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
 - Gaia NSS checkpoint `e198804d34abcf04d209d116` materializes all 50,762
   expanded two-body rows as distinct coherent orbital solutions. All 77 fields
   are accounted as 75 solution/model/quality fields plus Gaia source and NSS

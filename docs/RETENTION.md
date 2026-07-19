@@ -307,6 +307,12 @@ WDS checkpoint `ad98d4e369c5a0addc6477a0`, WDS raw snapshot
 audit, and clean-reproduction reports are protected E4/E5 inputs. The WDS
 scientific audit is an explicitly allowlisted failed-artifact audit contract;
 it does not authorize removal of this accepted checkpoint or source snapshots.
+Gaia UCD association checkpoint `78016b90e02689547c3f53dd`, raw snapshot
+`d1be498af5b1dfe7964c3891`, typed snapshot `60f97d02344bdd773438fac2`,
+and its compile, artifact-audit, source/scope-audit, and clean-reproduction
+reports are protected E4/E5 inputs. The Gaia UCD scientific audit is an
+explicitly allowlisted failed-artifact audit contract; it does not authorize
+removal of this accepted checkpoint or either source snapshot.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

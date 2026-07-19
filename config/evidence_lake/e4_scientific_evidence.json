@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.44",
-  "compiler_version": "scientific_evidence_compiler_v44",
+  "contract_version": "2026-07-19.e4-foundation.45",
+  "compiler_version": "scientific_evidence_compiler_v45",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -820,6 +820,26 @@
         "disposition": "domain",
         "destination": "cluster_evidence",
         "reason": "complete source-native literature crossmatch catalog, type, separation, tidal-radius, proper-motion, parallax, and sigma context"
+      }
+    ],
+    "gaia_dr3_ultracool_associations": [
+      {
+        "pattern": "^GaiaDR3$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia DR3 identity for each published ultracool-dwarf association row"
+      },
+      {
+        "pattern": "^(HMACcl|BANYANcl|BANYANprob)$",
+        "disposition": "domain",
+        "destination": "cluster_membership_evidence",
+        "reason": "source-published HMAC unsupervised cluster assignment and BANYAN best-hypothesis membership probability"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "exact fixed-width row, source line, and source-document lineage"
       }
     ],
     "wds_summary": [
@@ -2545,6 +2565,50 @@
               "sql_predicate": "coalesce(nullif(trim(Assoc), ''), nullif(trim(OptIR), ''), nullif(trim(Bands), ''), nullif(trim(Activity), '')) is not null",
               "method": "mcgill_source_context",
               "normalization_version": "mcgill_source_native_lexical_v1"
+            }
+          ]
+        }
+      }
+    },
+    "ultracool.gaia_dr3_sample": {
+      "adapter_version": "gaia_dr3_ultracool_association_evidence_v1",
+      "table_order": ["table4_readme", "table4"],
+      "tables": {
+        "table4_readme": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "source_method_document"
+        },
+        "table4": {
+          "logical_key_fields": ["GaiaDR3"],
+          "object_scope": "ultracool_dwarf_association_assignment",
+          "field_profile": "gaia_dr3_ultracool_associations",
+          "identifier_claims": {
+            "GaiaDR3": {
+              "namespace": "gaia_dr3_source_id",
+              "claim_scope": "star",
+              "normalization": "unsigned_integer_decimal_v1"
+            }
+          },
+          "cluster_memberships": [
+            {
+              "evidence_key": "hmac_assignment",
+              "cluster_identity_field": "HMACcl",
+              "member_identity_field": "GaiaDR3",
+              "method": "hmac_unsupervised_cluster_assignment",
+              "reference_raw": "2023A&A...669A.139S",
+              "probability_semantics": "no source probability; integer label identifies one of the paper's 57 kinematically homogeneous groups",
+              "sql_predicate": "trim(HMACcl) <> '--'"
+            },
+            {
+              "evidence_key": "banyan_best_hypothesis",
+              "cluster_identity_field": "BANYANcl",
+              "member_identity_field": "GaiaDR3",
+              "membership_probability_field": "BANYANprob",
+              "method": "banyan_sigma_best_hypothesis",
+              "reference_raw": "2023A&A...669A.139S",
+              "probability_semantics": "source-published BANYAN SIGMA probability for the largest-probability hypothesis",
+              "sql_predicate": "trim(BANYANcl) <> '--' and try_cast(BANYANprob as double) between 0 and 1"
             }
           ]
         }

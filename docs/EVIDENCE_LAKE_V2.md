@@ -485,6 +485,21 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   canonical containment. Artifact and WDS source/scope audits pass; clean
   reproduction matches logical hash
   `7b277d9f190599a1b0cf797dabffa864b5991d956973c3ac29ff4ff3af20cba6`.
+- Compiler/contract v45 supports multiple independently keyed cluster-
+  membership claims from one source row and permits deterministic published
+  assignments with no probability. The latter remain null; the compiler never
+  synthesizes a confidence value to fit a probability-bearing schema.
+- Gaia DR3 ultracool-association checkpoint `78016b90e02689547c3f53dd`
+  accounts all 7,630 catalog rows, 93 ReadMe lines, and eight field occurrences.
+  It materializes 7,630 release-scoped Gaia DR3 identities, 6,259 HMAC
+  unsupervised cluster assignments with null probability, and 2,840 BANYAN
+  best-hypothesis memberships with source probabilities from 0.5 to 1.0. The
+  source table contains association assignments, not spectral types; no
+  classification is invented from sample membership. All bindings remain
+  unresolved, placeholders remain source context, and no relation, orbit, or
+  canonical containment is promoted. Generic artifact and source/scope audits
+  pass; clean reproduction matches logical hash
+  `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

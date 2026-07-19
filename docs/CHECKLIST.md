@@ -1189,6 +1189,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   bounded numeric measurements, and candidate angular crossmatches with zero
   strict probabilities; pass artifact, WDS source/scope, and clean-reproduction
   gates without identity, containment, or orbit promotion
+- [x] E4 Gaia UCD association checkpoint: preserve all 7,630 published Gaia
+  DR3 sample rows and 93 ReadMe lines; materialize separate HMAC hard
+  assignments and BANYAN probability-bearing best hypotheses without treating
+  sample membership as a spectral classification; pass artifact, source/scope,
+  placeholder, citation, and clean-reproduction gates
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

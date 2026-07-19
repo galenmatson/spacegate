@@ -554,13 +554,24 @@ Classification: `auxiliary`
 
 Role:
 
-- Gaia DR3 source-level ultracool dwarf support tags
-- cluster/membership enrichment fields (`HMACcl`, `BANYANcl`, `BANYANprob`)
+- published Gaia DR3 ultracool-dwarf sample identity
+- HMAC unsupervised cluster assignments and BANYAN best-hypothesis membership
+  probabilities (`HMACcl`, `BANYANcl`, `BANYANprob`)
 - evidence-only enrichment; does not define canonical star existence
+- this table contains no spectral-type field; UCD sample membership cannot by
+  itself become a selected stellar classification
 
 Source endpoint:
 
 - CDS HTTPS mirror (`https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/table4.dat`)
+
+Evidence Lake v2 checkpoint:
+
+- raw snapshot `d1be498af5b1dfe7964c3891`; typed snapshot
+  `60f97d02344bdd773438fac2`
+- E4 build `78016b90e02689547c3f53dd` preserves 7,630 catalog rows and
+  93 ReadMe lines, with separate HMAC hard-assignment and BANYAN probability
+  semantics; all bindings remain unresolved for E5
 
 ## Core Auxiliary Multiplicity Sources
 

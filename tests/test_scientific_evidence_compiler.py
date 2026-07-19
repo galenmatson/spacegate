@@ -126,6 +126,15 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert member_selection["cross_table_memberships"][0][
         "target_sql_predicate"
     ] == "membership_target.dist16 <= 383.245"
+    ultracool = contract["source_adapters"]["ultracool.gaia_dr3_sample"]
+    assert set(ultracool["tables"]) == {"table4", "table4_readme"}
+    assert [
+        membership["evidence_key"]
+        for membership in ultracool["tables"]["table4"]["cluster_memberships"]
+    ] == ["hmac_assignment", "banyan_best_hypothesis"]
+    assert "membership_probability_field" not in ultracool["tables"]["table4"][
+        "cluster_memberships"
+    ][0]
     extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
     assert len(extended["tables"]) == 16
     assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (
@@ -152,6 +161,19 @@ def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
     adapter["table_order"] = original[:-1]
     errors = compiler.validate_contract(contract)
     assert "compact.atnf.table_order must cover every table exactly" in errors
+
+
+def test_multiple_cluster_memberships_require_distinct_evidence_keys() -> None:
+    contract = compiler.load_json(CONTRACT_PATH)
+    table = contract["source_adapters"]["ultracool.gaia_dr3_sample"]["tables"][
+        "table4"
+    ]
+    table["cluster_memberships"][1]["evidence_key"] = "hmac_assignment"
+    errors = compiler.validate_contract(contract)
+    assert (
+        "ultracool.gaia_dr3_sample.table4.cluster_memberships contains duplicate "
+        "evidence_key values"
+    ) in errors
 
 
 def test_table_contract_reference_inherits_mapping_with_local_overrides() -> None:
@@ -339,7 +361,7 @@ def test_cluster_context_and_probability_membership_preserve_source_records(
         )
         con.execute(
             f"copy (select 7::bigint ID, 123456789012345678::bigint GaiaDR3, "
-            f"0.875::double Prob, 1.1::double Mass50) "
+            f"0.875::double Prob, 12::bigint HMACcl, 1.1::double Mass50) "
             f"to '{member_path}' (format parquet)"
         )
         cluster_hash = con.execute(
@@ -404,28 +426,55 @@ def test_cluster_context_and_probability_membership_preserve_source_records(
                 "method": "test_membership_method",
                 "reference_raw": "2024TEST",
             },
-            available_fields={"ID", "GaiaDR3", "Prob", "Mass50"},
+            available_fields={"ID", "GaiaDR3", "Prob", "HMACcl", "Mass50"},
+        )
+        consumed_hard_assignment = compiler.materialize_cluster_memberships(
+            con,
+            source_id="clusters.test",
+            release_id="r1",
+            table_name="members",
+            path=member_path,
+            fields=[{"column_name": "HMACcl"}],
+            cluster_membership={
+                "cluster_identity_field": "HMACcl",
+                "member_identity_field": "GaiaDR3",
+                "probability_semantics": "hard_assignment_without_probability",
+                "method": "test_hard_assignment",
+                "reference_raw": "2024TEST",
+            },
+            available_fields={"ID", "GaiaDR3", "Prob", "HMACcl", "Mass50"},
+            evidence_key="hmac_assignment",
         )
         cluster = con.execute(
             "select cluster_identity_raw, parameter_set_raw->>'dist16', method, "
             "reference_raw from cluster_evidence"
         ).fetchone()
-        member = con.execute(
+        members = con.execute(
             "select cluster_identity_raw, member_identity_raw, "
             "membership_probability, quality_json->>'probability_semantics', "
             "quality_json->'source_membership_record'->>'Mass50' "
-            "from cluster_membership_evidence"
-        ).fetchone()
+            "from cluster_membership_evidence order by method"
+        ).fetchall()
     assert consumed_cluster == {"ID", "Name", "dist16"}
     assert consumed_member == {"ID", "GaiaDR3", "Prob", "Mass50"}
+    assert consumed_hard_assignment == {"HMACcl", "GaiaDR3"}
     assert cluster == ("7", "300.5", "test_cluster_method", "2024TEST")
-    assert member == (
-        "7",
-        "123456789012345678",
-        0.875,
-        "test_probability",
-        "1.1",
-    )
+    assert members == [
+        (
+            "12",
+            "123456789012345678",
+            None,
+            "hard_assignment_without_probability",
+            None,
+        ),
+        (
+            "7",
+            "123456789012345678",
+            0.875,
+            "test_probability",
+            "1.1",
+        ),
+    ]
 
 
 def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:

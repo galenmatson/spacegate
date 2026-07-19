@@ -1274,6 +1274,21 @@ not a probability, accepted physical identity, containment edge, or orbital
 solution. Copied Gaia columns in the bridge are match context, while the
 release-native Gaia adapters own their scientific parameter semantics.
 
+## Gaia UCD Association Evidence Policy
+
+The pinned `J/A+A/669/A139 table4` release is a published set of HMAC and
+BANYAN association assignments for Gaia DR3 ultracool-dwarf sample rows. It is
+not a spectral-type table and does not independently define canonical object
+existence. E4 preserves the Gaia identity, exact source row, and method
+document, then emits two separately keyed membership families.
+
+HMAC integer cluster labels are deterministic source assignments with null
+membership probability. BANYAN rows retain only the published best-hypothesis
+label and its probability. A missing `--` assignment stays source context; ARM
+must not turn it into a cluster identity or a zero-confidence membership.
+Neither family creates containment or a selected stellar classification until
+E5 resolves identity and applies a quantity-specific policy.
+
 ## MSC Policy
 
 MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.
