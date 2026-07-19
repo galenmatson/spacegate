@@ -1270,6 +1270,29 @@ Representative commits:
   companions. Independent artifact audit and clean reproduction pass logical
   hash `cadc76e161e0042dbcb4cc7bed43e9c3fef273ede390e86b9588f8e8e5351e51`.
 
+### 43) Evidence Lake E3 Distance and Cluster Source Fidelity
+
+- The bounded Bailer-Jones EDR3 response set exposed a general typed-storage
+  defect: VizieR legally distinguishes posterior lower and upper percentiles
+  only by case (`b_rgeo` and `B_rgeo`), while DuckDB treats those identifiers
+  as equal and silently suffixes one. The reusable VOTable cooker now assigns
+  deterministic case-collision aliases before Parquet serialization and stores
+  each exact source name in schema lineage. No catalog-specific value rewrite
+  or named-object rule was introduced.
+- Typed snapshot `5a60000592215924b3305095` preserves all 17,310,560 selected
+  distance rows and 10 source fields in 1,407,151,086 bytes. Raw/typed
+  verification and clean reproduction match content hash
+  `f8e73d90cf65250e74b24b3849dc59ac9493f92ebdaf9abefdd812cd02f94aa8`.
+- Hunt-Reffert typed snapshot `cbfa7c6ec8c2e3bfbc226898` preserves 7,167
+  cluster rows, 1,291,929 probability-bearing membership rows, and 29,956
+  literature-crossmatch rows. All 161 table-column occurrences and 1,329,052
+  rows verify and clean-reproduce; E1 makes no membership or cluster winner
+  selection.
+- The uncertainty-envelope Gaia query remains a separate official Archive join
+  and a disjoint source-row acquisition. The Archive execution path is bounded
+  by the Bailer-Jones-side source ID so the join completes without treating an
+  EDR3 identifier as interchangeable with a different Gaia release namespace.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

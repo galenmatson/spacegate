@@ -372,3 +372,34 @@ def test_votable_writer_preserves_native_types_nulls_and_arrays(tmp_path: Path) 
         assert con.execute(
             f"select source_id, value, samples from read_parquet('{output}') order by source_id"
         ).fetchall() == [(1, 2.5, [1.0, 2.0]), (2, None, [3.0, 4.0])]
+
+
+def test_votable_writer_preserves_case_only_source_field_distinctions(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "case-fields.vot"
+    source.write_text(
+        """<?xml version="1.0"?>
+<VOTABLE version="1.3" xmlns="http://www.ivoa.net/xml/VOTable/v1.3">
+  <RESOURCE><TABLE>
+    <FIELD name="b_rgeo" datatype="double" unit="pc" />
+    <FIELD name="B_rgeo" datatype="double" unit="pc" />
+    <DATA><TABLEDATA><TR><TD>10.0</TD><TD>20.0</TD></TR></TABLEDATA></DATA>
+  </TABLE></RESOURCE>
+</VOTABLE>
+""",
+        encoding="ascii",
+    )
+    output = tmp_path / "case-fields.parquet"
+    report = write_votable_files_parquet([source], output)
+    assert report["source_schema"][0]["name"] == "b_rgeo"
+    assert report["source_schema"][1]["name"] == "B_rgeo__source_case_2"
+    assert report["source_schema"][1]["source_name"] == "B_rgeo"
+    assert (
+        report["source_schema"][1]["name_normalization"]
+        == "case_insensitive_collision_alias_v1"
+    )
+    with duckdb.connect() as con:
+        assert con.execute(
+            f'''select b_rgeo, "B_rgeo__source_case_2" from read_parquet('{output}')'''
+        ).fetchone() == (10.0, 20.0)

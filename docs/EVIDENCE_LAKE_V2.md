@@ -250,11 +250,15 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   complete NASA acquisition is also typed and verified: 12 planet, host, TOI,
   K2, Kepler-name, KOI, TCE, and transit-detection tables preserve 206,989 rows
   and all 2,093 upstream fields with zero omissions; a clean raw-to-typed
-  reproduction matches the promoted typed hashes. The Bailer-Jones distance
-  envelope, Hunt-Reffert cluster tables, staged SIMBAD Gaia DR3 bridge,
-  El-Badry wide binaries, and APOGEE/GALAH/LAMOST releases now have explicit
-  registered contracts. Completion and typed coverage for those remaining
-  sources remain E3 exit gates, not assumed outcomes.
+  reproduction matches the promoted typed hashes. The bounded Bailer-Jones
+  EDR3 distance release is also immutable, typed, and clean-reproducible:
+  17,310,560 rows preserve all 10 fields. Its typed schema records
+  deterministic aliases for case-only lower/upper percentile name collisions
+  while retaining the exact VizieR names in lineage. Hunt-Reffert is complete
+  at this layer with 7,167 cluster, 1,291,929 membership, and 29,956 crossmatch
+  rows across 161 field occurrences. These are source-native facts; E4/E5 still
+  own scope and scientific selection. Remaining registered sources retain E3
+  completion and typed-coverage exit gates.
 - SIMBAD is deliberately staged rather than mirrored: acquire the release-
   pinned Gaia DR3 identity bridge, intersect locally with the Evidence Lake
   envelope, then request basic, alias, and bibliography evidence for the

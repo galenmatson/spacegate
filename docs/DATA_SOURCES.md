@@ -102,6 +102,21 @@ within the 383.245-pc build buffer or the lower 16th-percentile bound overlaps
 the 306.601-pc public sphere. The Bailer-Jones release is acquired separately;
 its estimates are evidence and never replace Gaia source astrometry.
 
+The separate Bailer-Jones envelope snapshot contains 17,310,560 rows and all
+10 source fields; typed snapshot `5a60000592215924b3305095` passes verification
+and clean reproduction. VizieR names its lower and upper percentile columns
+with case-only distinctions such as `b_rgeo` and `B_rgeo`. Because DuckDB
+resolves identifiers case-insensitively, the VOTable cooker assigns a
+deterministic `__source_case_N` typed alias to the later collision and records
+the exact upstream name beside it in schema lineage. Values remain distinct;
+the query engine can no longer rename one silently.
+
+Hunt-Reffert typed snapshot `cbfa7c6ec8c2e3bfbc226898` independently
+preserves 7,167 cluster rows/78 fields, 1,291,929 membership rows/66 fields,
+and 29,956 literature-crossmatch rows/17 fields. Its raw/typed verification and
+clean reproduction pass. E4, not E1, owns interpretation of membership
+probabilities and cluster physical parameter sets.
+
 SIMBAD is not bulk-mirrored or used as inventory: its release-pinned Gaia DR3
 bridge is intersected locally before targeted alias, basic-data, and
 bibliography acquisition. Full TIC, Gaia observation products, and survey

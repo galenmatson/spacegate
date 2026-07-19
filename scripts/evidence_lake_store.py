@@ -62,7 +62,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "gaia.dr3.non_single_star": "evidence_typed_cook_votable_v1",
     "gaia.dr3.variability": "evidence_typed_cook_votable_v1",
     "gaia.dr3.external_crossmatches": "evidence_typed_cook_votable_v1",
-    "distance.gaia_edr3_bailer_jones": "evidence_typed_cook_votable_v1",
+    "distance.gaia_edr3_bailer_jones": "evidence_typed_cook_votable_case_collision_v2",
     "clusters.hunt_reffert_2024": "evidence_typed_cook_votable_v1",
     "identity.simbad": "evidence_typed_cook_tap_csv_v1",
     "spectroscopy.apogee_dr17": "evidence_typed_cook_fits_multi_hdu_v2",

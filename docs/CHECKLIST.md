@@ -1110,6 +1110,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Bailer-Jones-selected Gaia uncertainty supplement; report hard, posterior,
   overlap, and union counts without treating EDR3/DR3 identity as an
   undocumented equality
+- [x] E3 distance/cluster source-native checkpoint: preserve, type, verify, and
+  clean-reproduce all 17,310,560 bounded Bailer-Jones distance rows plus the
+  1,329,052 Hunt-Reffert cluster, membership, and literature-crossmatch rows;
+  retain case-distinct percentile fields and all 171 table-column occurrences
 - [ ] E3: acquire/migrate current Gaia cluster and confidence-bearing wide-
   binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
   multiplicity/compact/ultracool/extended sources under the new contracts

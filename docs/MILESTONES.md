@@ -1376,6 +1376,11 @@ Current status (July 19, 2026, in progress):
 - all 764 fields across the six foundational Gaia table families are assigned
   to source-native products, and expanded NSS has completed with 50,762 full
   77-column orbit rows
+- the separately acquired Bailer-Jones EDR3 distance envelope now preserves
+  17,310,560 rows and all 10 published fields; Hunt-Reffert preserves 7,167
+  cluster rows, 1,291,929 membership rows, and 29,956 literature-crossmatch
+  rows across all 161 table-column occurrences. Both releases pass immutable
+  raw/typed verification and clean reproduction
 - official WGSN and GCVS release artifacts are pinned and pass raw/typed
   verification; WGSN preserves 597 distinct named rows, all 16 declared
   columns, source row identity, and linked resources under a schema-drift gate;
@@ -1403,9 +1408,9 @@ Current status (July 19, 2026, in progress):
   than silently selecting one extension: 733,901 allStar rows/234 fields, the
   one-row six-field model-grid definition, and 2,215 field-version rows/three
   fields all pass typed verification and clean reproduction
-- the large source transfers and typed cooks are still running; E3 remains open
-  until every registered product is complete, field-accounted, typed, and
-  covered by the machine-readable acquisition report
+- the remaining large source transfers and typed cooks are still running; E3
+  remains open until every registered product is complete, field-accounted,
+  typed, and covered by the machine-readable acquisition report
 
 #### M8.3c-E4. Typed Evidence Contracts
 

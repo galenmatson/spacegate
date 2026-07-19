@@ -1058,12 +1058,32 @@ def write_votable_files_parquet(
                 payload = gzip.decompress(payload)
             table = parse_single_table(io.BytesIO(payload))
             fields = list(table.fields)
-            field_names = [str(field.name or field.ID or field._unique_name) for field in fields]
-            if len(field_names) != len(set(field_names)):
+            source_field_names = [
+                str(field.name or field.ID or field._unique_name) for field in fields
+            ]
+            if len(source_field_names) != len(set(source_field_names)):
                 raise ValueError(f"VOTable contains duplicate field names: {path}")
+            field_names: list[str] = []
+            casefold_names: set[str] = set()
+            for source_name in source_field_names:
+                name = source_name
+                occurrence = 2
+                while name.casefold() in casefold_names:
+                    name = f"{source_name}__source_case_{occurrence}"
+                    occurrence += 1
+                casefold_names.add(name.casefold())
+                field_names.append(name)
             current_source_schema = [
                 {
                     "name": name,
+                    **(
+                        {
+                            "source_name": source_name,
+                            "name_normalization": "case_insensitive_collision_alias_v1",
+                        }
+                        if name != source_name
+                        else {}
+                    ),
                     "id": field.ID,
                     "datatype": field.datatype,
                     "arraysize": field.arraysize,
@@ -1071,7 +1091,9 @@ def write_votable_files_parquet(
                     "ucd": field.ucd,
                     "description": field.description,
                 }
-                for name, field in zip(field_names, fields, strict=True)
+                for name, source_name, field in zip(
+                    field_names, source_field_names, fields, strict=True
+                )
             ]
             if source_schema is None:
                 source_schema = current_source_schema
