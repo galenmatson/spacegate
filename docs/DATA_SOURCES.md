@@ -49,6 +49,16 @@ Evidence Lake v2 active storage paths are:
   reverse-universe, collision, quarantine, scope, and artifact accounting
 - `reports/evidence_lake_v2/e2_identity_reproduction.json`: independent graph
   compile comparison by rows, bytes, and SHA-256
+- `raw/evidence_lake_v2_acquisition/<source>/<release>/snapshots/`: E3 exact
+  TAP response sets with ADQL, UWS lineage, source schemas, field dispositions,
+  row/MAXREC checks, and response hashes
+- `raw/evidence_lake_v2_http/<source>/<release>/snapshots/`: E3 pinned release
+  files with resumable transfer state, expected size/checksum gates, and
+  content-addressed product manifests
+- `reports/evidence_lake_v2/e3_source_coverage_report.json`: registered TAP
+  product, row, byte, upstream-field, and deliberate-omission coverage
+- `reports/evidence_lake_v2/e3_http_acquisition_report.json`: pinned release-
+  file completion, byte, checksum, and pending-product coverage
 
 Run the complete E1 gates with:
 
@@ -69,6 +79,20 @@ lineage stay in the typed lake, while spectra, light curves, and imagery are
 retrieved into a bounded checksum-addressed cache only on an approved trigger.
 Arbitrary caller URLs, unbounded transfers, and bulk Gaia/TIC/product mirrors
 are prohibited.
+
+E3 collectors are data-driven:
+
+```bash
+.venv/bin/python scripts/evidence_tap_acquire.py --product PRODUCT_NAME
+.venv/bin/python scripts/evidence_http_acquire.py --source-id SOURCE_ID
+```
+
+The Gaia program uses a measured 1,250-ly parallax envelope of 31,987,126
+`gaia_source` rows. SIMBAD is not bulk-mirrored or used as inventory: its
+release-pinned Gaia DR3 bridge is intersected locally before targeted alias,
+basic-data, and bibliography acquisition. Full TIC, Gaia observation products,
+and survey spectra remain excluded from bulk mirroring; registered metadata
+and product locators drive bounded on-demand retrieval.
 
 ## Gaia Release Identity Evidence
 

@@ -1197,7 +1197,7 @@ July 17, 2026 catalog-wide follow-up:
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
-E3 is next.
+E3 acquisition is in progress.
 
 Goal:
 
@@ -1360,6 +1360,29 @@ Exit criteria:
   source, field, object scope, and scientific objective
 - large observation products are discoverable and retrievable without requiring
   an unbounded local mirror
+
+Current status (July 19, 2026, in progress):
+
+- deterministic TAP and HTTP acquisition programs now preserve exact queries or
+  release bytes, upstream schemas, source field dispositions, timestamps,
+  checksums, row counts, UWS jobs, resumable partial transfers, and atomically
+  locked shared manifests
+- the measured 1,250-ly Gaia envelope contains 31,987,126 source rows; all 764
+  fields across the six foundational Gaia table families are assigned to
+  source-native products, and expanded NSS has completed with 50,762 full
+  77-column orbit rows
+- official WGSN and GCVS release artifacts are pinned and pass raw/typed
+  verification; GCVS preserves 60,894 catalog rows, 226,060 cross-identifiers,
+  26,018 suspected variables, 25,696 bibliography rows, and its source
+  documents/dictionaries
+- registered acquisition contracts now cover Bailer-Jones distances,
+  Hunt-Reffert clusters, El-Badry probability-bearing wide binaries, staged
+  SIMBAD identity/naming evidence, complete relevant NASA KOI/TCE/TOI/K2 and
+  planet/host/transit products, official high-value Gaia external crossmatches,
+  and APOGEE/GALAH/LAMOST physical-parameter releases
+- the large source transfers and typed cooks are still running; E3 remains open
+  until every registered product is complete, field-accounted, typed, and
+  covered by the machine-readable acquisition report
 
 #### M8.3c-E4. Typed Evidence Contracts
 

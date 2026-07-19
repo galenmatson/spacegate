@@ -950,6 +950,37 @@ Representative commits:
   attempted source family disappeared and that 18 accepted components sharing
   root systems remain distinct permanent stars.
 
+### 30) Evidence Lake E3 Acquisition Foundation
+
+- On July 19, E3 replaced ad hoc wide-table downloads with two data-driven
+  collectors. TAP products preserve exact ADQL, official schema descriptions,
+  deterministic partitions, UWS job history, exact responses, row/MAXREC
+  checks, and field dispositions. HTTP products preserve exact release bytes,
+  resumable Range transfers, expected sizes/checksums, and immutable snapshot
+  manifests. Shared manifest promotion is inter-process locked and atomic.
+- Official Gaia schema enumeration found 764 columns across `gaia_source`, AP
+  main/supplementary, NSS two-body orbit, variability summary, and rotation
+  modulation. The measured 1,250-ly source envelope contains 31,987,126 rows;
+  the expanded NSS product already increased retained orbit evidence from
+  36,151 narrow rows to 50,762 complete 77-column rows.
+- The first completed source slice pinned and typed the IAU WGSN page and all
+  registered GCVS release files. GCVS now contributes 60,894 variable-star
+  catalog rows, 226,060 cross-identifiers, 26,018 suspected variables, 25,696
+  bibliography rows, and the exact classification dictionary and source schema
+  documents. Raw/typed hash and artifact accounting pass.
+- NASA archive probing exposed that current Kepler KOI/TCE tables use uppercase
+  legacy TAP names. E3 now explicitly preserves DR25 KOIs, supplemental and
+  cumulative KOIs, DR25 threshold-crossing events, and the transit-detection
+  reference table alongside complete planet, composite, host, TOI, K2, and
+  name tables. The earlier schema miss is fixed generally, not by a named-
+  object transform.
+- SIMBAD is treated as an ODbL identity/naming evidence service rather than a
+  catalog mirror. E3 first acquires its 14,188,016-row Gaia DR3 identifier
+  bridge, then locally intersects it with the Spacegate envelope before any
+  targeted basic/alias/bibliography follow-up. Large Gaia, distance, cluster,
+  wide-binary, NASA, SIMBAD, and spectroscopy acquisitions remain in progress;
+  no served database has changed.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -227,3 +227,63 @@ def test_delimited_continuation_uses_one_header_and_accounts_for_all_rows(
     assert table["status"] == "typed"
     assert table["row_count"] == 3
     assert [row["row_count"] for row in table["source_row_accounting"]] == [1, 2]
+
+
+def test_generic_fits_cook_ignores_acquisition_metadata_wrapper(tmp_path: Path) -> None:
+    import hashlib
+
+    import numpy as np
+    from astropy.io import fits
+
+    state = tmp_path / "state"
+    snapshot = state / "raw" / "snapshot"
+    artifact_dir = snapshot / "artifacts" / "wide_binary"
+    artifact_dir.mkdir(parents=True)
+    fits_path = artifact_dir / "wide_binary.fits"
+    fits.BinTableHDU.from_columns(
+        [
+            fits.Column(name="source_id1", format="K", array=np.array([1, 2])),
+            fits.Column(name="source_id2", format="K", array=np.array([3, 4])),
+            fits.Column(name="chance_alignment", format="D", array=np.array([0.01, 0.5])),
+        ]
+    ).writeto(fits_path)
+    metadata_path = artifact_dir / "product_manifest.json"
+    metadata_path.write_text('{"schema_version":"test"}\n', encoding="utf-8")
+    files = []
+    for path in (fits_path, metadata_path):
+        files.append(
+            {
+                "path": path.name,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "bytes": path.stat().st_size,
+            }
+        )
+    raw_manifest = {
+        "snapshot_id": "raw_fits",
+        "content_sha256": "fits-content",
+        "artifacts": [
+            {
+                "source_name": "wide_binary",
+                "artifact_path": "artifacts/wide_binary",
+                "tree_sha256": "tree-hash",
+                "expected_row_count": 2,
+                "files": files,
+            }
+        ],
+    }
+    (snapshot / "snapshot_manifest.json").write_text(
+        json.dumps(raw_manifest), encoding="utf-8"
+    )
+    source = source_contract()
+    source["source_id"] = "multiplicity.el_badry_2021_wide_binary"
+    source["schema_policy"]["kind"] = "fits_and_method_documents"
+    typed = build_typed_snapshot(source, snapshot, state / "typed")
+    table = typed["tables"][0]
+    assert table["status"] == "typed"
+    assert table["parser"] == "fits_binary_table_source_native_v1"
+    assert table["row_count"] == 2
+    assert [column["name"] for column in table["columns"]] == [
+        "source_id1",
+        "source_id2",
+        "chance_alignment",
+    ]

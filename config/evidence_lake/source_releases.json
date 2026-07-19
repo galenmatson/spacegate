@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-18.2",
+  "registry_version": "2026-07-19.1",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -12,7 +12,9 @@
       "retain boundary exclusions and reasons",
       "do not use a distance estimate as an identity replacement"
     ],
-    "status": "policy_defined_measurement_pending"
+    "parallax_floor_mas": 2.609272,
+    "measured_gaia_dr3_source_count": 31987126,
+    "status": "measured_acquisition_in_progress"
   },
   "storage_budgets": {
     "internal_min_free_before_acquisition_gib": 300,
@@ -50,8 +52,8 @@
   "sources": [
     {
       "source_id": "gaia.dr3.gaia_source",
-      "release_id": "gaia_dr3",
-      "state": "active",
+      "release_id": "gaia_dr3_1250ly_envelope_v2",
+      "state": "active_expansion_pending",
       "authority_roles": {"inventory": "backbone", "identity": "authoritative_release", "astrometry": "primary", "stellar_parameters": "calibrated_model"},
       "publisher": "ESA Gaia",
       "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
@@ -59,14 +61,14 @@
       "cadence": "mission data release",
       "identity_namespaces": ["gaia_dr3_source_id"],
       "frame_epoch": "ICRS J2016.0",
-      "retrieval": {"kind": "tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync", "implementation": "scripts/fetch_gaia_backbone.py"},
-      "manifest_entries": [{"manifest": "gaia_backbone_manifest.json", "source_name": "gaia_dr3_backbone"}],
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_source_envelope_v2"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
       "source_id": "gaia.dr3.astrophysical_parameters",
-      "release_id": "gaia_dr3",
+      "release_id": "gaia_dr3_1250ly_parameter_sets_v2",
       "state": "active_expansion_pending",
       "authority_roles": {"classification": "primary_calibrated_model", "stellar_parameters": "primary_calibrated_model"},
       "publisher": "ESA Gaia",
@@ -75,14 +77,39 @@
       "cadence": "mission data release",
       "identity_namespaces": ["gaia_dr3_source_id"],
       "frame_epoch": "Gaia DR3 source binding",
-      "retrieval": {"kind": "tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync", "implementation": "scripts/fetch_gaia_classprob_core.py"},
-      "manifest_entries": [{"manifest": "gaia_classprob_manifest.json", "source_name": "gaia_dr3_astrophysical_classprob"}],
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_classifier_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_photometry_flame_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_spectroscopy_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_activity_specialized_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_multiple_oa_v2"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.astrophysical_parameters_supp",
+      "release_id": "gaia_dr3_1250ly_parameter_sets_v2",
+      "state": "active_expansion_pending",
+      "authority_roles": {"stellar_parameters": "supplementary_calibrated_model_alternatives"},
+      "publisher": "ESA Gaia",
+      "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/",
+      "license": {"name": "Gaia Archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/data-use"},
+      "cadence": "mission data release",
+      "identity_namespaces": ["gaia_dr3_source_id"],
+      "frame_epoch": "Gaia DR3 source binding",
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_photometric_models_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ap_supp_spectroscopic_models_v2"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
       "source_id": "gaia.dr3.non_single_star",
-      "release_id": "gaia_dr3",
+      "release_id": "gaia_dr3_1250ly_nss_v2",
       "state": "active_expansion_pending",
       "authority_roles": {"astrometry": "source_solution", "multiplicity": "primary_solution_evidence"},
       "publisher": "ESA Gaia",
@@ -91,13 +118,31 @@
       "cadence": "mission data release",
       "identity_namespaces": ["gaia_dr3_source_id"],
       "frame_epoch": "Gaia DR3 solution-specific",
-      "retrieval": {"kind": "tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync", "implementation": "scripts/fetch_gaia_nss_core.py"},
+      "retrieval": {"kind": "bounded_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync", "implementation": "scripts/evidence_tap_acquire.py"},
       "manifest_entries": [
-        {"manifest": "gaia_nss_manifest.json", "source_name": "gaia_dr3_non_single_star"},
-        {"manifest": "gaia_nss_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_nss_two_body_orbit_full_v2"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.variability",
+      "release_id": "gaia_dr3_1250ly_variability_v2",
+      "state": "active_expansion_pending",
+      "authority_roles": {"classification": "primary_variability_solution", "stellar_parameters": "rotation_and_activity_solution", "observation_products": "epoch_product_index"},
+      "publisher": "ESA Gaia",
+      "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu7var/",
+      "license": {"name": "Gaia Archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/data-use"},
+      "cadence": "mission data release",
+      "identity_namespaces": ["gaia_dr3_source_id"],
+      "frame_epoch": "Gaia DR3 solution-specific",
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_variability_summary_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_rotation_modulation_v2"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
       "source_id": "gaia.dr3.dr2_neighbourhood",
@@ -183,22 +228,54 @@
     },
     {
       "source_id": "nasa_exoplanet_archive.planetary_systems",
-      "release_id": "rolling_snapshot",
+      "release_id": "snapshot_2026_07_19",
       "state": "active_expansion_pending",
       "authority_roles": {"planet_inventory": "canonical_confirmed_baseline", "planet_parameters": "reference_specific_and_composite"},
       "publisher": "NASA Exoplanet Science Institute",
       "citation_url": "https://exoplanetarchive.ipac.caltech.edu/docs/",
       "license": {"name": "NASA/IPAC archive data-use policy", "url": "https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html"},
       "cadence": "rolling; Spacegate pins snapshots",
-      "identity_namespaces": ["nasa_planet_name", "nasa_hostname"],
+      "identity_namespaces": ["nasa_planet_name", "nasa_hostname", "tic_id", "toi_id", "kepid", "epic_id"],
       "frame_epoch": "source-column specific",
-      "retrieval": {"kind": "tap", "endpoint": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync", "implementation": "scripts/catalogs.sh"},
+      "retrieval": {"kind": "release_pinned_tap", "endpoint": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync", "implementation": "scripts/evidence_tap_acquire.py"},
       "manifest_entries": [
-        {"manifest": "core_manifest.json", "source_name": "ps"},
-        {"manifest": "core_manifest.json", "source_name": "pscomppars"}
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_ps_reference_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_pscomppars_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_stellarhosts_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_toi_full_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_k2_planets_candidates_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_names_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_k2_names_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_dr25_koi_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_dr25_supplemental_koi_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_cumulative_koi_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_dr25_tce_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_transit_detection_reference_v2"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.external_crossmatches",
+      "release_id": "gaia_dr3_1250ly_external_crossmatches_v1",
+      "state": "active_expansion_pending",
+      "authority_roles": {"identity": "official_external_catalog_crossmatch"},
+      "publisher": "ESA Gaia",
+      "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Catalogue_consolidation/chap_cu9gat/",
+      "license": {"name": "Gaia Archive terms", "url": "https://www.cosmos.esa.int/web/gaia-users/archive/data-use"},
+      "cadence": "mission data release",
+      "identity_namespaces": ["gaia_dr3_source_id", "allwise_id", "tmass_id", "hipparcos_id", "tycho2_id", "rave_id"],
+      "frame_epoch": "crossmatch source-specific",
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_allwise_best_neighbour_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tmass_best_neighbour_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_hipparcos2_best_neighbour_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_tycho2_best_neighbour_v1"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_ravedr6_best_neighbour_v1"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
       "source_id": "tess.identity_and_candidate_evidence",
@@ -642,9 +719,9 @@
       }
     },
     {
-      "source_id": "planned.distance.gaia_edr3_geometric",
-      "release_id": "bailer_jones_2021",
-      "state": "planned",
+      "source_id": "distance.gaia_edr3_bailer_jones",
+      "release_id": "vizier_i_352_2021",
+      "state": "active_expansion_pending",
       "authority_roles": {"astrometry": "supplementary_distance_model"},
       "publisher": "Bailer-Jones et al.",
       "citation_url": "https://ui.adsabs.harvard.edu/abs/2021AJ....161..147B/abstract",
@@ -652,31 +729,88 @@
       "cadence": "published release",
       "identity_namespaces": ["gaia_edr3_source_id"],
       "frame_epoch": "Gaia EDR3",
-      "retrieval": {"kind": "bounded_vizier_or_tap", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_manifest.json", "source_name": "bailer_jones_edr3_distance_envelope_v1"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
-      "source_id": "planned.identity.simbad",
-      "release_id": "pinned_snapshot",
-      "state": "planned",
+      "source_id": "naming.iau_wgsn",
+      "release_id": "snapshot_2026_07_19",
+      "state": "active_expansion_pending",
+      "authority_roles": {"naming": "official_proper_star_names"},
+      "publisher": "IAU Working Group on Star Names",
+      "citation_url": "https://www.iau.org/science/scientific_bodies/working_groups/280/",
+      "license": {"name": "IAU website terms", "url": "https://www.iau.org/terms-and-conditions/"},
+      "cadence": "continuously updated; Spacegate pins dated snapshots",
+      "identity_namespaces": ["iau_star_name", "catalog_designation"],
+      "frame_epoch": "source-specific",
+      "retrieval": {"kind": "pinned_http_snapshot", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "iau_wgsn_catalog_html"}],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "html_snapshot", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "state": "active_expansion_pending",
+      "authority_roles": {"classification": "variable_star_classification", "naming": "variable_star_designations"},
+      "publisher": "Sternberg Astronomical Institute/CDS",
+      "citation_url": "https://cdsarc.cds.unistra.fr/viz-bin/cat/B/gcvs",
+      "license": {"name": "CDS catalog terms", "url": "https://cds.unistra.fr/vizier-org/licences_vizier.html"},
+      "cadence": "published catalog updates; Spacegate pins dated snapshots",
+      "identity_namespaces": ["gcvs_designation", "nsv_designation", "catalog_alias"],
+      "frame_epoch": "J2000 source coordinates",
+      "retrieval": {"kind": "pinned_http_release", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_readme"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_catalog"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_cross_identifiers"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_suspected_variables"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_variable_type_dictionary"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "gcvs_references"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "documented_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {
+          "gcvs_catalog": "gcvs_readme",
+          "gcvs_cross_identifiers": "gcvs_readme",
+          "gcvs_suspected_variables": "gcvs_readme",
+          "gcvs_references": "gcvs_readme"
+        },
+        "document_artifacts": ["gcvs_variable_type_dictionary"]
+      }
+    },
+    {
+      "source_id": "identity.simbad",
+      "release_id": "simbad4_1_8_2026_06_snapshot_2026_07_19",
+      "state": "active_expansion_pending",
       "authority_roles": {"identity": "broad_identifier_graph", "naming": "alias_and_bibliography"},
       "publisher": "CDS SIMBAD",
       "citation_url": "https://simbad.u-strasbg.fr/",
-      "license": {"name": "SIMBAD data-use policy", "url": "https://simbad.u-strasbg.fr/guide/credits.htx"},
+      "license": {"name": "Open Database License 1.0", "url": "https://opendatacommons.org/licenses/odbl/1-0/"},
       "cadence": "rolling; Spacegate pins snapshots",
       "identity_namespaces": ["simbad_main_id", "catalog_alias"],
       "frame_epoch": "source-specific",
-      "retrieval": {"kind": "bounded_tap", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {
+        "kind": "staged_bounded_tap",
+        "endpoint": "https://simbad.cds.unistra.fr/simbad/sim-tap/sync",
+        "implementation": "scripts/evidence_tap_acquire.py",
+        "scope": "Gaia DR3 bridge followed by local envelope intersection and targeted evidence acquisition"
+      },
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "simbad_gaia_dr3_identity_bridge_v1"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "tap_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
-      "source_id": "planned.clusters.gaia_dr3",
-      "release_id": "current_reviewed_release",
-      "state": "planned",
+      "source_id": "clusters.hunt_reffert_2024",
+      "release_id": "vizier_j_aa_686_a42",
+      "state": "active_expansion_pending",
       "authority_roles": {"cluster": "primary_membership_and_physical_context", "identity": "gaia_dr3_membership"},
       "publisher": "CDS/VizieR constituent catalog",
       "citation_url": "https://ui.adsabs.harvard.edu/abs/2024A%26A...686A..42H/abstract",
@@ -684,31 +818,45 @@
       "cadence": "published release",
       "identity_namespaces": ["cluster_name", "gaia_dr3_source_id"],
       "frame_epoch": "Gaia DR3",
-      "retrieval": {"kind": "vizier", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "release_pinned_async_tap", "endpoint": "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "hunt_reffert_2024_clusters"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "hunt_reffert_2024_members"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "hunt_reffert_2024_crossmatch"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
-      "source_id": "planned.multiplicity.gaia_wide_binary",
-      "release_id": "el_badry_2021",
-      "state": "planned",
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "state": "active_expansion_pending",
       "authority_roles": {"multiplicity": "probability_bearing_relation_claim", "identity": "gaia_edr3_pair"},
       "publisher": "El-Badry, Rix, and Heintz",
       "citation_url": "https://ui.adsabs.harvard.edu/abs/2021MNRAS.506.2269E/abstract",
-      "license": {"name": "CDS catalog terms", "url": "https://cds.unistra.fr/vizier-org/licences_vizier.html"},
+      "license": {"name": "Creative Commons Attribution 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
       "cadence": "published release",
       "identity_namespaces": ["gaia_edr3_source_id"],
       "frame_epoch": "Gaia EDR3",
-      "retrieval": {"kind": "bounded_vizier", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "pinned_http_release", "url": "https://doi.org/10.5281/zenodo.4435257", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "el_badry_wide_binary_catalog"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "el_badry_shifted_control_catalog"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "el_badry_finder_code"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "el_badry_neighbor_code"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "fits_and_method_documents",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "document_artifacts": ["el_badry_finder_code", "el_badry_neighbor_code"]
+      }
     },
     {
-      "source_id": "planned.spectroscopy.apogee_dr17",
+      "source_id": "spectroscopy.apogee_dr17",
       "release_id": "sdss_dr17",
-      "state": "planned",
+      "state": "active_expansion_pending",
       "authority_roles": {"stellar_parameters": "high_resolution_spectroscopy", "classification": "spectroscopic_evidence", "observation_products": "spectra_index"},
       "publisher": "SDSS APOGEE",
       "citation_url": "https://www.sdss.org/dr17/irspec/spectro_data/",
@@ -716,15 +864,15 @@
       "cadence": "published release",
       "identity_namespaces": ["apogee_id", "gaia_source_id", "2mass_id"],
       "frame_epoch": "source-specific",
-      "retrieval": {"kind": "bounded_catalog_and_product_index", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "apogee_dr17_allstar_synspec_rev1"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "fits_columns", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
-      "source_id": "planned.spectroscopy.galah_dr4",
-      "release_id": "galah_dr4",
-      "state": "planned",
+      "source_id": "spectroscopy.galah_dr4",
+      "release_id": "galah_dr4_240705",
+      "state": "active_expansion_pending",
       "authority_roles": {"stellar_parameters": "high_resolution_spectroscopy", "classification": "spectroscopic_evidence", "observation_products": "spectra_index"},
       "publisher": "GALAH Survey",
       "citation_url": "https://www.galah-survey.org/dr4/the_catalogues/",
@@ -732,15 +880,15 @@
       "cadence": "published release",
       "identity_namespaces": ["sobject_id", "gaia_dr3_source_id"],
       "frame_epoch": "source-specific",
-      "retrieval": {"kind": "bounded_catalog_and_product_index", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "galah_dr4_allstar_240705"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "fits_columns", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
-      "source_id": "planned.spectroscopy.lamost_dr11",
-      "release_id": "lamost_dr11_v2",
-      "state": "planned",
+      "source_id": "spectroscopy.lamost_dr11",
+      "release_id": "dr11_v2_0_2025_09",
+      "state": "active_expansion_pending",
       "authority_roles": {"stellar_parameters": "survey_spectroscopy", "classification": "spectroscopic_evidence", "observation_products": "spectra_index"},
       "publisher": "LAMOST",
       "citation_url": "https://www.lamost.org/dr11/v2.0/",
@@ -748,10 +896,14 @@
       "cadence": "published release",
       "identity_namespaces": ["lamost_obsid", "gaia_source_id"],
       "frame_epoch": "source-specific",
-      "retrieval": {"kind": "bounded_catalog_and_product_index", "implementation": "pending E3"},
-      "manifest_entries": [],
+      "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "lamost_dr11_v2_lrs_stellar"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "lamost_dr11_v2_lrs_mstellar"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "lamost_dr11_v2_mrs_stellar"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "pending_source_schema", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "fits_columns", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     }
   ]
 }

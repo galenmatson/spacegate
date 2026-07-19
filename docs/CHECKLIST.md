@@ -1096,6 +1096,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   candidate relations never promote canonical containment
 - [x] E2: emit ordered graph Parquet, coverage, collision, quarantine, source-
   binding, scope, high-proper-motion, and clean-compile determinism reports
+- [x] E3 foundation: implement schema-enumerating TAP/UWS and resumable pinned-
+  HTTP acquisition with exact responses, checksum/row/MAXREC gates,
+  inter-process manifest locking, atomic promotion, and source-native
+  VOTable/FITS Parquet support
+- [x] E3 naming/variability slice: pin, snapshot, type, and verify official WGSN
+  plus GCVS catalog, cross-identifier, suspected-variable, bibliography, and
+  source-document artifacts
 - [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
 - [ ] E3: acquire/migrate current Gaia cluster and probability-bearing wide-

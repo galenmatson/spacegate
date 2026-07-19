@@ -21,6 +21,7 @@ from evidence_lake_native import (  # noqa: E402
     write_fixed_width_parquet,
     write_green_snr_parquet,
     write_tokenized_parquet,
+    write_votable_files_parquet,
 )
 
 
@@ -238,3 +239,32 @@ def test_fits_writer_preserves_schema_and_normalizes_declared_nulls(tmp_path: Pa
             f"select source_id, value, label, flag from read_parquet('{output}') "
             "order by label"
         ).fetchall() == [(1, 2.5, "alpha", True), (None, None, "beta", False)]
+
+
+def test_votable_writer_preserves_native_types_nulls_and_arrays(tmp_path: Path) -> None:
+    import gzip
+    import io
+    import numpy as np
+    from astropy.io.votable import from_table, writeto
+    from astropy.table import MaskedColumn, Table
+
+    table = Table()
+    table["source_id"] = np.array([1, 2], dtype=np.int64)
+    table["value"] = MaskedColumn([2.5, 3.5], mask=[False, True], unit="K")
+    table["samples"] = np.array([[1.0, 2.0], [3.0, 4.0]])
+    payload = io.BytesIO()
+    writeto(from_table(table), payload, tabledata_format="binary2")
+    source = tmp_path / "rows.vot.gz"
+    source.write_bytes(gzip.compress(payload.getvalue(), mtime=0))
+    output = tmp_path / "rows.parquet"
+    report = write_votable_files_parquet([source], output)
+    assert report["row_count"] == 2
+    assert [field["name"] for field in report["source_schema"]] == [
+        "source_id",
+        "value",
+        "samples",
+    ]
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select source_id, value, samples from read_parquet('{output}') order by source_id"
+        ).fetchall() == [(1, 2.5, [1.0, 2.0]), (2, None, [3.0, 4.0])]

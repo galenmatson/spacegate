@@ -285,6 +285,24 @@ def discover_schema_fields(path: Path, schema_kind: str) -> dict[str, Any]:
         result["field_accounting"] = "raw_preserved_fits_schema_pending_e1"
     elif schema_kind == "pending_source_schema":
         result["field_accounting"] = "planned_not_acquired"
+    elif schema_kind in {"votable_binary_response_set", "tap_response_set"}:
+        reports = [path] if path.is_file() and path.name == "product_manifest.json" else []
+        if path.is_dir():
+            reports = sorted(path.rglob("product_manifest.json"))
+        fields = []
+        for report_path in reports:
+            payload = load_json(report_path)
+            fields.extend(
+                str(item["column_name"])
+                for item in payload.get("field_dispositions") or []
+                if item.get("disposition") == "preserve" and item.get("column_name")
+            )
+        if fields:
+            result["fields"] = sorted(set(fields))
+            result["field_count"] = len(result["fields"])
+            result["field_accounting"] = "machine_enumerated_product_manifest"
+        else:
+            result["field_accounting"] = "missing_votable_product_manifest"
     elif schema_kind in delimited_kinds:
         result["field_accounting"] = "no_delimited_schema_found"
     if errors:

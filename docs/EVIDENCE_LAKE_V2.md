@@ -1,6 +1,7 @@
 # Spacegate Evidence Lake v2
 
-Status: active main quest. E0-E2 completed July 18, 2026; E3 is next.
+Status: active main quest. E0-E2 completed July 18, 2026; E3 acquisition is in
+progress.
 
 E0 checkpoint:
 
@@ -218,6 +219,32 @@ Acquire the bounded source program defined below through the source registry
 and raw/typed contracts. Acquisition is complete only when every targeted
 source record and upstream field is present or has an explicit omission reason.
 Large observation products follow the metadata-first storage policy.
+
+E3 acquisition checkpoint (July 19, 2026, in progress):
+
+- `config/evidence_lake/e3_acquisition_program.json` and
+  `scripts/evidence_tap_acquire.py` define exact schema-accounted TAP products,
+  deterministic partitions, resumable response sets, checksums, row/MAXREC
+  gates, UWS lineage, inter-process manifest locking, and atomic promotion.
+- `config/evidence_lake/e3_http_sources.json` and
+  `scripts/evidence_http_acquire.py` provide content-addressed, Range-resumable,
+  checksum-gated release-file acquisition. WGSN and all six registered GCVS
+  artifacts are pinned, raw-snapshotted, typed, and verified.
+- The Gaia 1,250-ly envelope is measured at 31,987,126 source rows. The program
+  accounts for all 764 upstream columns across `gaia_source`, AP main and
+  supplementary, NSS orbit, variability summary, and rotation-modulation
+  tables; large exact acquisitions continue in crash-resilient tmux jobs.
+- Expanded NSS already preserves 50,762 complete 77-column orbit rows. The
+  Bailer-Jones distance envelope, Hunt-Reffert cluster tables, complete NASA
+  planet/host/TOI/K2/Kepler KOI/TCE/transit products, a staged SIMBAD Gaia DR3
+  bridge, El-Badry wide binaries, and APOGEE/GALAH/LAMOST releases now have
+  explicit registered contracts. Completion and typed coverage remain E3 exit
+  gates, not assumed outcomes.
+- SIMBAD is deliberately staged rather than mirrored: acquire the release-
+  pinned Gaia DR3 identity bridge, intersect locally with the Evidence Lake
+  envelope, then request basic, alias, and bibliography evidence for the
+  matched object set. SIMBAD remains identity/naming evidence, not a canonical
+  inventory catalog.
 
 ### E4. Typed Scientific Evidence
 

@@ -47,6 +47,7 @@ from evidence_lake_native import (
     write_green_snr_parquet,
     write_text_lines_parquet,
     write_tokenized_parquet,
+    write_votable_files_parquet,
 )
 
 
@@ -54,6 +55,21 @@ RAW_CONTRACT = "spacegate.evidence_raw_snapshot.v1"
 TYPED_CONTRACT = "spacegate.evidence_typed_snapshot.v1"
 BASE_PARSER_CONTRACT_VERSION = "evidence_typed_cook_v5"
 SOURCE_PARSER_CONTRACT_VERSIONS = {
+    "gaia.dr3.gaia_source": "evidence_typed_cook_votable_v1",
+    "gaia.dr3.astrophysical_parameters": "evidence_typed_cook_votable_v1",
+    "gaia.dr3.astrophysical_parameters_supp": "evidence_typed_cook_votable_v1",
+    "gaia.dr3.non_single_star": "evidence_typed_cook_votable_v1",
+    "gaia.dr3.variability": "evidence_typed_cook_votable_v1",
+    "gaia.dr3.external_crossmatches": "evidence_typed_cook_votable_v1",
+    "distance.gaia_edr3_bailer_jones": "evidence_typed_cook_votable_v1",
+    "clusters.hunt_reffert_2024": "evidence_typed_cook_votable_v1",
+    "identity.simbad": "evidence_typed_cook_tap_csv_v1",
+    "spectroscopy.apogee_dr17": "evidence_typed_cook_fits_v1",
+    "spectroscopy.galah_dr4": "evidence_typed_cook_fits_v1",
+    "spectroscopy.lamost_dr11": "evidence_typed_cook_fits_v1",
+    "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
+    "naming.iau_wgsn": "evidence_typed_cook_document_v1",
+    "classification.gcvs": "evidence_typed_cook_cds_v1",
     "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",
     "multiplicity.wds": "evidence_typed_cook_wds_v1",
     "multiplicity.sb9": "evidence_typed_cook_cds_v2",
@@ -69,6 +85,9 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "extended.green_snr": "evidence_typed_cook_green_snr_v2",
 }
 TABULAR_SUFFIXES = (".csv", ".csv.gz")
+VOTABLE_SUFFIXES = (".vot", ".vot.gz", ".votable", ".votable.gz")
+FITS_SUFFIXES = (".fits", ".fits.gz", ".fit", ".fit.gz")
+ACQUISITION_METADATA_FILES = {"product_manifest.json"}
 
 
 def utc_now() -> str:
@@ -536,7 +555,11 @@ def artifact_input_files(snapshot_dir: Path, artifact: dict[str, Any]) -> list[P
 
 
 def single_artifact_file(snapshot_dir: Path, artifact: dict[str, Any]) -> Path:
-    files = artifact_input_files(snapshot_dir, artifact)
+    files = [
+        path
+        for path in artifact_input_files(snapshot_dir, artifact)
+        if path.name not in ACQUISITION_METADATA_FILES
+    ]
     if len(files) != 1:
         raise ValueError(
             f"source-native artifact must contain exactly one file: {artifact['source_name']}"
@@ -570,6 +593,7 @@ def resolve_cds_table(
 def documented_artifact_names(source: dict[str, Any]) -> set[str]:
     policy = source["schema_policy"]
     names = set(str(value) for value in (policy.get("readme_bindings") or {}).values())
+    names.update(str(value) for value in policy.get("document_artifacts") or [])
     if policy.get("format_artifact"):
         names.add(str(policy["format_artifact"]))
     return names
@@ -1101,12 +1125,37 @@ def cook_artifact(
 ) -> dict[str, Any]:
     files = artifact_input_files(snapshot_dir, artifact)
     tabular = [path for path in files if path.name.endswith(TABULAR_SUFFIXES)]
+    votables = [path for path in files if path.name.endswith(VOTABLE_SUFFIXES)]
+    fits_files = [path for path in files if path.name.endswith(FITS_SUFFIXES)]
+    html_files = [path for path in files if path.suffix.lower() in {".html", ".htm"}]
     json_files = [path for path in files if path.suffix == ".json"]
     parser = ""
     expected_fields: list[str] = []
     if tabular:
         expected_fields = write_delimited_parquet(tabular, output, con)
         parser = "duckdb_read_csv_explicit_lexical_shape_checked_v4"
+    elif votables:
+        source_schema = write_votable_files_parquet(votables, output)
+        parser = "astropy_votable_binary_arrow_v1"
+        expected_fields = sorted(field["name"] for field in source_schema["source_schema"])
+    elif fits_files:
+        if len(fits_files) != 1:
+            raise ValueError(
+                f"FITS artifact must contain exactly one table payload: {artifact['source_name']}"
+            )
+        source_schema = write_fits_table_parquet(fits_files[0], output)
+        parser = "fits_binary_table_source_native_v1"
+        expected_fields = sorted(
+            field["name"] for field in source_schema["source_schema"]
+        )
+    elif html_files and source["schema_policy"]["kind"] == "html_snapshot":
+        if len(html_files) != 1:
+            raise ValueError(
+                f"HTML artifact must contain exactly one payload: {artifact['source_name']}"
+            )
+        write_document_lines_parquet(html_files[0], output)
+        parser = "source_document_lines_v1"
+        expected_fields = ["source_line_number", "text"]
     elif json_files and source["schema_policy"]["kind"] == "mixed_tabular_snapshot":
         source_schema = write_mast_json_parquet(json_files, output)
         parser = "mast_json_declared_schema_arrow_v2"
@@ -1140,10 +1189,24 @@ def cook_artifact(
         "parser": parser,
         "typing_status": (
             "source_schema_typed"
-            if parser == "mast_json_declared_schema_arrow_v2"
+            if parser
+            in {
+                "mast_json_declared_schema_arrow_v2",
+                "astropy_votable_binary_arrow_v1",
+                "fits_binary_table_source_native_v1",
+            }
             else "lexical_preserved_source_types_pending"
         ),
-        **({"source_schema": source_schema} if parser == "mast_json_declared_schema_arrow_v2" else {}),
+        **(
+            {"source_schema": source_schema}
+            if parser
+            in {
+                "mast_json_declared_schema_arrow_v2",
+                "astropy_votable_binary_arrow_v1",
+                "fits_binary_table_source_native_v1",
+            }
+            else {}
+        ),
         "raw_tree_sha256": artifact["tree_sha256"],
         "parquet_path": f"tables/{output.name}",
         **metadata,

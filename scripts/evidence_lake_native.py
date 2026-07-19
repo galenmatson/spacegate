@@ -787,3 +787,104 @@ def write_fits_table_parquet(
     finally:
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
+
+
+def write_votable_files_parquet(
+    paths: list[Path], output: Path
+) -> dict[str, Any]:
+    """Preserve typed VOTable BINARY/BINARY2 response sets as one Parquet table."""
+    import io
+    import numpy as np
+    from astropy.io.votable import parse_single_table
+
+    writer: pq.ParquetWriter | None = None
+    arrow_schema: pa.Schema | None = None
+    source_schema: list[dict[str, Any]] | None = None
+    total_rows = 0
+    file_rows: list[dict[str, Any]] = []
+    try:
+        for path in sorted(paths):
+            payload = path.read_bytes()
+            if path.name.endswith(".gz"):
+                payload = gzip.decompress(payload)
+            table = parse_single_table(io.BytesIO(payload))
+            fields = list(table.fields)
+            field_names = [str(field.name or field.ID or field._unique_name) for field in fields]
+            if len(field_names) != len(set(field_names)):
+                raise ValueError(f"VOTable contains duplicate field names: {path}")
+            current_source_schema = [
+                {
+                    "name": name,
+                    "id": field.ID,
+                    "datatype": field.datatype,
+                    "arraysize": field.arraysize,
+                    "unit": str(field.unit) if field.unit is not None else None,
+                    "ucd": field.ucd,
+                    "description": field.description,
+                }
+                for name, field in zip(field_names, fields, strict=True)
+            ]
+            if source_schema is None:
+                source_schema = current_source_schema
+            elif current_source_schema != source_schema:
+                raise ValueError(f"VOTable source schema drift: {path}")
+
+            arrays: list[pa.Array] = []
+            for field, name in zip(fields, field_names, strict=True):
+                values = table.array[field._unique_name]
+                mask = np.ma.getmaskarray(values)
+                if values.ndim == 1:
+                    data = np.asarray(values.data)
+                    if data.dtype.kind in {"U", "S", "O"}:
+                        converted = [
+                            None if bool(mask[index]) else str(data[index]).rstrip()
+                            for index in range(len(data))
+                        ]
+                        array = pa.array(converted)
+                    else:
+                        data = data.astype(data.dtype.newbyteorder("="), copy=False)
+                        array = pa.array(data, mask=mask, safe=True)
+                else:
+                    converted = []
+                    for index in range(len(values)):
+                        row_mask = np.asarray(mask[index])
+                        row_data = np.asarray(values.data[index])
+                        if row_mask.shape == () and bool(row_mask):
+                            converted.append(None)
+                        else:
+                            row = row_data.tolist()
+                            if row_mask.shape != () and bool(row_mask.any()):
+                                row = [
+                                    None if bool(item_mask) else item
+                                    for item, item_mask in zip(row, row_mask.tolist(), strict=True)
+                                ]
+                            converted.append(row)
+                    array = pa.array(converted)
+                arrays.append(array)
+
+            if arrow_schema is None:
+                arrow_schema = pa.schema(
+                    [pa.field(name, array.type) for name, array in zip(field_names, arrays, strict=True)]
+                )
+                writer = pq.ParquetWriter(output, arrow_schema, compression="zstd")
+            assert arrow_schema is not None and writer is not None
+            cast_arrays = [
+                array if array.type == field.type else array.cast(field.type, safe=True)
+                for array, field in zip(arrays, arrow_schema, strict=True)
+            ]
+            arrow_table = pa.Table.from_arrays(cast_arrays, schema=arrow_schema)
+            writer.write_table(arrow_table, row_group_size=122880)
+            rows = len(table.array)
+            total_rows += rows
+            file_rows.append({"path": path.name, "row_count": rows})
+    finally:
+        if writer is not None:
+            writer.close()
+    if writer is None or source_schema is None or arrow_schema is None:
+        raise ValueError("VOTable response set contained no tables")
+    return {
+        "row_count": total_rows,
+        "source_schema": source_schema,
+        "arrow_schema": [{"name": field.name, "type": str(field.type)} for field in arrow_schema],
+        "file_row_accounting": file_rows,
+    }

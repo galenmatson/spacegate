@@ -155,3 +155,43 @@ def test_storage_audit_finds_served_and_metadata_references(tmp_path: Path) -> N
     assert any("current.json" in reason for reason in report["build_references"][rollback])
     assert report["unrecognized_build_ids"] == []
     assert stable_hash({"a": 1}) == stable_hash({"a": 1})
+
+
+def test_registry_audit_enumerates_votable_response_fields_from_product_manifest(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    artifact = state / "raw" / "test_votable"
+    manifests = state / "reports" / "manifests"
+    artifact.mkdir(parents=True)
+    manifests.mkdir(parents=True)
+    (artifact / "product_manifest.json").write_text(
+        json.dumps(
+            {
+                "field_dispositions": [
+                    {"column_name": "source_id", "disposition": "preserve"},
+                    {"column_name": "unused", "disposition": "omit"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (manifests / "test_manifest.json").write_text(
+        json.dumps(
+            [
+                {
+                    "source_name": "test_rows",
+                    "dest_path": "raw/test_votable",
+                    "sha256": "tree-hash",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = minimal_registry()
+    registry["sources"][0]["schema_policy"]["kind"] = "votable_binary_response_set"
+    report = collect_registry_audit(registry, state)
+    assert report["status"] == "pass"
+    record = report["schema_snapshot"]["records"][0]
+    assert record["fields"] == ["source_id"]
+    assert record["field_accounting"] == "machine_enumerated_product_manifest"

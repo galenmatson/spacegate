@@ -1,0 +1,148 @@
+{
+  "schema_version": "spacegate.e3_http_sources.v1",
+  "program_version": "2026-07-19.e3-http.2",
+  "manifest_name": "evidence_lake_e3_http_manifest.json",
+  "products": [
+    {
+      "source_name": "el_badry_wide_binary_catalog",
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "url": "https://zenodo.org/api/records/4435257/files/all_columns_catalog.fits.gz/content",
+      "filename": "all_columns_catalog.fits.gz",
+      "expected_bytes": 1419826533,
+      "expected_rows": 1817594,
+      "expected_checksum": "md5:9644d53f056758fb2ab1d3d04a45e25d"
+    },
+    {
+      "source_name": "el_badry_shifted_control_catalog",
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "url": "https://zenodo.org/api/records/4435257/files/all_columns_catalog_shift.fits.gz/content",
+      "filename": "all_columns_catalog_shift.fits.gz",
+      "expected_bytes": 354073286,
+      "expected_rows": 517993,
+      "expected_checksum": "md5:dd34343c5a3947f5db0fbb79b85f4622"
+    },
+    {
+      "source_name": "el_badry_finder_code",
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "url": "https://zenodo.org/api/records/4435257/files/find_binaries_edr3.py/content",
+      "filename": "find_binaries_edr3.py",
+      "expected_bytes": 14017,
+      "expected_checksum": "md5:d22d1e72713af4b143dedb161a65844a"
+    },
+    {
+      "source_name": "el_badry_neighbor_code",
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "url": "https://zenodo.org/api/records/4435257/files/num_neighbors_edr3.py/content",
+      "filename": "num_neighbors_edr3.py",
+      "expected_bytes": 3616,
+      "expected_checksum": "md5:34d44081ac70e8abfb8f8581408a1ae0"
+    },
+    {
+      "source_name": "iau_wgsn_catalog_html",
+      "source_id": "naming.iau_wgsn",
+      "release_id": "snapshot_2026_07_19",
+      "url": "https://exopla.net/star-names/modern-iau-star-names/",
+      "filename": "iau_wgsn_catalog.html",
+      "expected_bytes": 616344,
+      "expected_checksum": "sha256:43e8329ed0a85d2d2cdc2204a9afc20e2e6e19db70634562aa09baedb0dfafaa"
+    },
+    {
+      "source_name": "gcvs_readme",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/ReadMe",
+      "filename": "ReadMe",
+      "expected_bytes": 38315,
+      "expected_checksum": "sha256:4624c5b05e58c0b7ffd82a581dfe6380dd25c15eba80b9c96e4a956969dc0726"
+    },
+    {
+      "source_name": "gcvs_catalog",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/gcvs_cat.dat.gz",
+      "filename": "gcvs_cat.dat.gz",
+      "expected_bytes": 2520604,
+      "expected_checksum": "sha256:b8e16ea0a5b37b644922c328b4b9b40fa46ea057003db075b5f15fcd74400d31"
+    },
+    {
+      "source_name": "gcvs_cross_identifiers",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/crossid.dat",
+      "filename": "crossid.dat",
+      "expected_bytes": 9523035,
+      "expected_checksum": "sha256:bf0d6092f9808b4418c9b56e3b7642024f2b7ecad381a8ff65026b2024c91a31"
+    },
+    {
+      "source_name": "gcvs_suspected_variables",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/nsv_cat.dat.gz",
+      "filename": "nsv_cat.dat.gz",
+      "expected_bytes": 792092,
+      "expected_checksum": "sha256:290dba229569c6c36383de19f39875dc6aa675205d22b2fc9bc33833d650a05d"
+    },
+    {
+      "source_name": "gcvs_variable_type_dictionary",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/vartype.txt",
+      "filename": "vartype.txt",
+      "expected_bytes": 63573,
+      "expected_checksum": "sha256:5888ea34a8980e10534611a69017c09092f8a6980be0139cdec0b15553ee0313"
+    },
+    {
+      "source_name": "gcvs_references",
+      "source_id": "classification.gcvs",
+      "release_id": "cds_b_gcvs_2025_04_23",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/B/gcvs/refs.dat.gz",
+      "filename": "refs.dat.gz",
+      "expected_bytes": 434075,
+      "expected_checksum": "sha256:9bd4888272f5264d4ef3afc2a7ae910b2230832ad7f943b663562412f2f1899a"
+    },
+    {
+      "source_name": "apogee_dr17_allstar_synspec_rev1",
+      "source_id": "spectroscopy.apogee_dr17",
+      "release_id": "sdss_dr17_synspec_rev1",
+      "url": "https://data.sdss.org/sas/dr17/apogee/spectro/aspcap/dr17/synspec_rev1/allStar-dr17-synspec_rev1.fits",
+      "filename": "allStar-dr17-synspec_rev1.fits",
+      "expected_bytes": 3970621440
+    },
+    {
+      "source_name": "galah_dr4_allstar_240705",
+      "source_id": "spectroscopy.galah_dr4",
+      "release_id": "galah_dr4_240705",
+      "url": "https://cloud.datacentral.org.au/teamdata/GALAH/public/GALAH_DR4/catalogs/galah_dr4_allstar_240705.fits",
+      "filename": "galah_dr4_allstar_240705.fits",
+      "expected_bytes": 757998720
+    },
+    {
+      "source_name": "lamost_dr11_v2_lrs_stellar",
+      "source_id": "spectroscopy.lamost_dr11",
+      "release_id": "dr11_v2_0_2025_09",
+      "url": "https://www.lamost.org/dr11/v2.0/catdl?name=dr11_v2.0_LRS_stellar.fits.gz",
+      "filename": "dr11_v2.0_LRS_stellar.fits.gz",
+      "expected_bytes": 1151416719
+    },
+    {
+      "source_name": "lamost_dr11_v2_lrs_mstellar",
+      "source_id": "spectroscopy.lamost_dr11",
+      "release_id": "dr11_v2_0_2025_09",
+      "url": "https://www.lamost.org/dr11/v2.0/catdl?name=dr11_v2.0_LRS_mstellar.fits.gz",
+      "filename": "dr11_v2.0_LRS_mstellar.fits.gz",
+      "expected_bytes": 206776200
+    },
+    {
+      "source_name": "lamost_dr11_v2_mrs_stellar",
+      "source_id": "spectroscopy.lamost_dr11",
+      "release_id": "dr11_v2_0_2025_09",
+      "url": "https://www.lamost.org/dr11/v2.0/medcas/catdl?name=dr11_v2.0_MRS_stellar.fits.gz",
+      "filename": "dr11_v2.0_MRS_stellar.fits.gz",
+      "expected_bytes": 581361999
+    }
+  ]
+}
