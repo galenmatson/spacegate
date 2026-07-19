@@ -1536,6 +1536,13 @@ Current status (July 19, 2026, in progress):
   reproduction matches logical hash
   `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`,
   and the independent audit passes without canonical promotion.
+- Gaia NSS checkpoint `e198804d34abcf04d209d116` materializes all 50,762
+  expanded two-body rows as distinct coherent orbital solutions. All 77 fields
+  are accounted as 75 solution/model/quality fields plus Gaia source and NSS
+  solution identity; 101,524 identifier claims remain release scoped.
+  `Orbital`, `AstroSpectroSB1`, targeted-search, validated-search, and
+  alternative models stay distinct, and no missing companion endpoint is
+  fabricated. Clean reproduction and the independent artifact audit pass.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

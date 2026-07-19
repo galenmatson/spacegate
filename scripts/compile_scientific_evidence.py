@@ -2274,6 +2274,7 @@ def materialize_orbital_solutions(
         for field in (
             orbital_solution.get("epoch_field"),
             orbital_solution.get("frame_field"),
+            orbital_solution.get("model_field"),
             orbital_solution.get("reference_field"),
         )
         if field
@@ -2291,9 +2292,21 @@ def materialize_orbital_solutions(
     parameters = logical_key_expression(parameter_fields, "t")
     quality = logical_key_expression(quality_fields, "t")
     epoch = text_expression(orbital_solution.get("epoch_field"))
-    frame = text_expression(orbital_solution.get("frame_field"))
-    reference = text_expression(orbital_solution.get("reference_field"))
-    model = nullable_sql_string(orbital_solution.get("model"))
+    frame = (
+        text_expression(orbital_solution.get("frame_field"))
+        if orbital_solution.get("frame_field")
+        else nullable_sql_string(orbital_solution.get("frame"))
+    )
+    reference = (
+        text_expression(orbital_solution.get("reference_field"))
+        if orbital_solution.get("reference_field")
+        else nullable_sql_string(orbital_solution.get("reference_raw"))
+    )
+    model = (
+        text_expression(orbital_solution.get("model_field"))
+        if orbital_solution.get("model_field")
+        else nullable_sql_string(orbital_solution.get("model"))
+    )
     relation_link = orbital_solution.get("relation_link") or {}
     relation_claim_id = "null::varchar"
     if relation_link:

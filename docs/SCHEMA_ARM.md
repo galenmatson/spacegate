@@ -106,6 +106,12 @@ Evidence Lake v2 staging rule:
   tables by an exact configured logical-key mapping. Required mappings fail on
   zero or multiple matches. This links SB9 orbit rows to system relation claims
   by `Seq` without name parsing or array-position identity.
+- Gaia NSS rows do not assert inspectable component endpoints, so their
+  `orbital_solution_evidence.relation_claim_id` remains null. The source and
+  solution identifiers, dynamic NSS model, complete fitted parameter/error
+  set, correlation vector, fit diagnostics, frame, and reference stay together
+  in one coherent solution row. Later adjudication may bind a solution to a
+  reviewed relation; E4 does not manufacture companions or containment.
 - SBX uses the same general contracts with source-native `primary`/`secondary`
   component endpoints and separate `child_subsystem`/`parent_subsystem`
   hierarchy endpoints. Only configuration rows with an asserted parent emit a

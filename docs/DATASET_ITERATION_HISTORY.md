@@ -1250,6 +1250,26 @@ Representative commits:
   manifest. Response schemas remain strict; fields are not renamed silently or
   counted as omissions.
 
+### 42) Evidence Lake E4 Expanded Gaia NSS Solutions
+
+- The earlier Gaia NSS path exposed selected values for scene generation but
+  did not preserve the complete fitted solution as an interrogable E4 record.
+  The expanded source-native snapshot already contained 50,762 rows and all 77
+  fields; the remaining gap was scientific contract materialization.
+- Compiler/contract v30 extends the generic orbit materializer with a dynamic
+  source model plus constant frame/reference lineage. This is reusable source
+  plumbing, not a Gaia-row special case. The declarative NSS adapter keys every
+  solution by exact Gaia DR3 `source_id` and `solution_id` and keeps fitted
+  astrometry, Thiele-Innes elements, orbit/RV/eclipsing parameters, errors,
+  correlations, observation counts, flags, and fit diagnostics coherent.
+- Accepted checkpoint `e198804d34abcf04d209d116` materializes 50,762 orbital
+  solutions and 101,524 release-scoped identity claims with all 77 fields
+  accounted and no pending mappings. It preserves 32,808 `Orbital`, 17,440
+  `AstroSpectroSB1`, 296 targeted-search, 178 validated targeted-search, and 40
+  alternative solutions without manufacturing relation endpoints or canonical
+  companions. Independent artifact audit and clean reproduction pass logical
+  hash `cadc76e161e0042dbcb4cc7bed43e9c3fef273ede390e86b9588f8e8e5351e51`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

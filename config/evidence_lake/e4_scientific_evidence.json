@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.29",
-  "compiler_version": "scientific_evidence_compiler_v29",
+  "contract_version": "2026-07-19.e4-foundation.30",
+  "compiler_version": "scientific_evidence_compiler_v30",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -645,6 +645,20 @@
         "reason": "coherent source-native spectroscopic orbit, flags, grade, reference, contributor, and exact row lineage"
       }
     ],
+    "gaia_nss_two_body_orbit": [
+      {
+        "pattern": "^(source_id|solution_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia DR3 source and NSS solution identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "complete coherent Gaia NSS fitted solution, uncertainties, correlations, diagnostics, model, and source lineage"
+      }
+    ],
     "sbx_systems": [
       {
         "pattern": "^(sn|component)$",
@@ -727,6 +741,52 @@
     ]
   },
   "source_adapters": {
+    "gaia.dr3.non_single_star": {
+      "adapter_version": "gaia_dr3_nss_scientific_evidence_v1",
+      "tables": {
+        "gaia_dr3_nss_two_body_orbit_full_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "nss_orbit_solution",
+          "field_profile": "gaia_nss_two_body_orbit",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_nss_solution_id", "claim_scope": "orbit_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "orbital_solution": {
+            "solution_key_fields": ["source_id", "solution_id"],
+            "parameter_fields": [
+              "ra", "ra_error", "dec", "dec_error", "parallax", "parallax_error",
+              "pmra", "pmra_error", "pmdec", "pmdec_error",
+              "a_thiele_innes", "a_thiele_innes_error", "b_thiele_innes", "b_thiele_innes_error",
+              "f_thiele_innes", "f_thiele_innes_error", "g_thiele_innes", "g_thiele_innes_error",
+              "c_thiele_innes", "c_thiele_innes_error", "h_thiele_innes", "h_thiele_innes_error",
+              "period", "period_error", "t_periastron", "t_periastron_error",
+              "eccentricity", "eccentricity_error", "center_of_mass_velocity", "center_of_mass_velocity_error",
+              "semi_amplitude_primary", "semi_amplitude_primary_error",
+              "semi_amplitude_secondary", "semi_amplitude_secondary_error",
+              "mass_ratio", "mass_ratio_error", "fill_factor_primary", "fill_factor_primary_error",
+              "fill_factor_secondary", "fill_factor_secondary_error", "inclination", "inclination_error",
+              "arg_periastron", "arg_periastron_error", "temperature_ratio", "temperature_ratio_error",
+              "temperature_ratio_definition", "r_pole_sum", "r_l1_point_sum", "r_spher_sum",
+              "ecl_time_primary", "ecl_time_secondary", "ecl_dur_primary", "ecl_dur_secondary",
+              "g_luminosity_ratio", "astrometric_jitter"
+            ],
+            "quality_fields": [
+              "astrometric_n_obs_al", "astrometric_n_good_obs_al",
+              "rv_n_obs_primary", "rv_n_good_obs_primary", "rv_n_obs_secondary", "rv_n_good_obs_secondary",
+              "phot_g_n_obs", "phot_g_n_good_obs", "bit_index", "corr_vec", "obj_func",
+              "goodness_of_fit", "efficiency", "significance", "flags", "conf_spectro_period",
+              "input_period_error", "g_rank"
+            ],
+            "model_field": "nss_solution_type",
+            "frame": "ICRS J2016.0",
+            "method": "gaia_dr3_nss_two_body_orbit",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_non--single_stars/ssec_dm_nss_two_body_orbit.html",
+            "normalization_version": "gaia_dr3_source_native_lexical_v1"
+          }
+        }
+      }
+    },
     "nasa_exoplanet_archive.planetary_systems": {
       "adapter_version": "nasa_scientific_evidence_v4",
       "tables": {

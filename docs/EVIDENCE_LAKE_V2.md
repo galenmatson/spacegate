@@ -464,6 +464,14 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`;
   clean reproduction and independent audit pass, and zero claims become
   canonical containment.
+- Expanded Gaia NSS uses the generic coherent-orbit contract without inventing
+  binary endpoints. Each `(source_id, solution_id)` retains its source model,
+  all fitted values and errors, the correlation vector and bit index,
+  observation counts, fit diagnostics, quality flags, ICRS J2016.0 frame, and
+  Gaia data-model reference in one solution. Checkpoint
+  `e198804d34abcf04d209d116` accounts all 50,762 rows and 77 fields with zero
+  pending mappings and reproduces logical hash
+  `cadc76e161e0042dbcb4cc7bed43e9c3fef273ede390e86b9588f8e8e5351e51`.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

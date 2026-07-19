@@ -53,6 +53,12 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert sbx_adapter["tables"]["sbx_orbits"]["orbital_solution"][
         "relation_link"
     ]["required"] is True
+    nss_adapter = contract["source_adapters"]["gaia.dr3.non_single_star"]
+    nss_orbit = nss_adapter["tables"]["gaia_dr3_nss_two_body_orbit_full_v2"][
+        "orbital_solution"
+    ]
+    assert nss_orbit["model_field"] == "nss_solution_type"
+    assert "corr_vec" in nss_orbit["quality_fields"]
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -647,7 +653,7 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
         con.execute(
             f"copy (select '00021-6817' wds_id, 'I 699AB' pair_designation, "
             "'290.0' period_raw, '1884.54' epoch_raw, 'Zir2013d' reference_code, "
-            "'2' grade_raw) "
+            "'Orbital' model_name, '2' grade_raw) "
             f"to '{parquet}' (format parquet)"
         )
         source_row_sha256 = con.execute(
@@ -671,6 +677,7 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
                 {"column_name": "period_raw"},
                 {"column_name": "epoch_raw"},
                 {"column_name": "reference_code"},
+                {"column_name": "model_name"},
                 {"column_name": "grade_raw"},
             ],
             orbital_solution={
@@ -682,6 +689,8 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
                 "parameter_fields": ["period_raw", "epoch_raw"],
                 "quality_fields": ["grade_raw"],
                 "epoch_field": "epoch_raw",
+                "frame": "ICRS J2016.0",
+                "model_field": "model_name",
                 "reference_field": "reference_code",
                 "method": "published_visual_orbit_solution",
                 "normalization_version": "source_native_v1",
@@ -692,12 +701,13 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
                 "period_raw",
                 "epoch_raw",
                 "reference_code",
+                "model_name",
                 "grade_raw",
             },
         )
         row = con.execute(
             "select relation_claim_id,solution_key,parameter_set_raw::varchar,"
-            "epoch_raw,reference_raw,quality_json::varchar "
+            "epoch_raw,frame_raw,model,reference_raw,quality_json::varchar "
             "from orbital_solution_evidence"
         ).fetchone()
     assert consumed == {
@@ -706,6 +716,7 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
         "period_raw",
         "epoch_raw",
         "reference_code",
+        "model_name",
         "grade_raw",
     }
     assert row[0] is None
@@ -715,8 +726,8 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
         "reference_code": "Zir2013d",
     }
     assert json.loads(row[2]) == {"period_raw": "290.0", "epoch_raw": "1884.54"}
-    assert row[3:5] == ("1884.54", "Zir2013d")
-    assert json.loads(row[5]) == {"grade_raw": "2"}
+    assert row[3:7] == ("1884.54", "ICRS J2016.0", "Orbital", "Zir2013d")
+    assert json.loads(row[7]) == {"grade_raw": "2"}
 
 
 def test_orbital_solution_links_exactly_one_relation_by_source_logical_key(

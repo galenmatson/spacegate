@@ -1188,6 +1188,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   orbits; split component-suffixed HD/HIP designations from numeric IDs, link
   every orbit to one binary relation, and pass clean reproduction plus the
   independent artifact audit without canonical containment promotion
+- [x] E4 Gaia NSS checkpoint: preserve all 50,762 two-body solution rows and 77
+  fields as coherent model-specific solutions with uncertainties, correlation
+  vectors, fit diagnostics, frame/reference lineage, release-scoped source and
+  solution identities, clean reproduction, and no fabricated endpoints
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,
