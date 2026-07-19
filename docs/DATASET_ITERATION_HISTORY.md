@@ -957,7 +957,9 @@ Representative commits:
   deterministic partitions, UWS job history, exact responses, row/MAXREC
   checks, and field dispositions. HTTP products preserve exact release bytes,
   resumable Range transfers, expected sizes/checksums, and immutable snapshot
-  manifests. Shared manifest promotion is inter-process locked and atomic.
+  manifests. Long job budgets are separated from bounded socket-inactivity
+  recovery so route changes cannot strand resumable transfers for an hour.
+  Shared manifest promotion is inter-process locked and atomic.
 - Official Gaia schema enumeration found 764 columns across `gaia_source`, AP
   main/supplementary, NSS two-body orbit, variability summary, and rotation
   modulation. The measured 1,250-ly source envelope contains 31,987,126 rows;

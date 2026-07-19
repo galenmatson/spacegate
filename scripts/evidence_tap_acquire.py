@@ -103,6 +103,7 @@ def tap_request(
     adql: str,
     *,
     timeout_s: int,
+    read_stall_timeout_s: int = 180,
     retries: int,
     max_rec: int,
 ) -> bytes:
@@ -126,7 +127,9 @@ def tap_request(
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             )
-            with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            with urllib.request.urlopen(
+                request, timeout=min(timeout_s, read_stall_timeout_s)
+            ) as response:
                 payload = response.read()
             head = payload[:1000].decode("utf-8", errors="replace").lower()
             if "usagefault" in head or head.lstrip().startswith("error"):
@@ -157,6 +160,7 @@ def tap_async_request(
     adql: str,
     *,
     timeout_s: int,
+    read_stall_timeout_s: int = 180,
     retries: int,
     max_rec: int,
     status_path: Path | None = None,
@@ -186,7 +190,9 @@ def tap_async_request(
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             )
-            with urllib.request.urlopen(request, timeout=min(timeout_s, 120)) as response:
+            with urllib.request.urlopen(
+                request, timeout=min(timeout_s, read_stall_timeout_s)
+            ) as response:
                 job_url = response.geturl().rstrip("/")
                 response.read()
             status = {
@@ -203,7 +209,10 @@ def tap_async_request(
             phases: list[dict[str, str]] = []
             previous = None
             while True:
-                phase = read_url(job_url + "/phase", timeout_s=min(timeout_s, 120)).decode(
+                phase = read_url(
+                    job_url + "/phase",
+                    timeout_s=min(timeout_s, read_stall_timeout_s),
+                ).decode(
                     "utf-8", errors="replace"
                 ).strip()
                 if phase != previous:
@@ -219,7 +228,8 @@ def tap_async_request(
                     detail = ""
                     try:
                         detail = read_url(
-                            job_url + "/error", timeout_s=min(timeout_s, 120)
+                            job_url + "/error",
+                            timeout_s=min(timeout_s, read_stall_timeout_s),
                         ).decode("utf-8", errors="replace")[:2000]
                     except Exception:
                         pass
@@ -227,7 +237,10 @@ def tap_async_request(
                 if time.monotonic() >= deadline:
                     raise TimeoutError(f"Gaia TAP async job exceeded {timeout_s}s: {job_url}")
                 time.sleep(5)
-            payload = read_url(job_url + "/results/result", timeout_s=timeout_s)
+            payload = read_url(
+                job_url + "/results/result",
+                timeout_s=min(timeout_s, read_stall_timeout_s),
+            )
             status["completed_at"] = utc_now()
             return payload, status
         except Exception as exc:  # network behavior is exercised operationally
@@ -341,6 +354,7 @@ def query_schema(
     table_name: str,
     *,
     timeout_s: int,
+    read_stall_timeout_s: int = 180,
     retries: int,
 ) -> list[dict[str, str]]:
     vizier = "tapvizier" in endpoint.lower()
@@ -355,7 +369,14 @@ def query_schema(
         "from tap_schema.columns "
         f"where {predicate}{order_clause}"
     )
-    payload = tap_request(endpoint, adql, timeout_s=timeout_s, retries=retries, max_rec=10000)
+    payload = tap_request(
+        endpoint,
+        adql,
+        timeout_s=timeout_s,
+        read_stall_timeout_s=read_stall_timeout_s,
+        retries=retries,
+        max_rec=10000,
+    )
     rows = [dict(row) for row in csv.DictReader(io.StringIO(payload.decode("utf-8-sig")))]
     normalized: list[dict[str, str]] = []
     by_name: dict[str, dict[str, str]] = {}
@@ -476,6 +497,7 @@ def acquire_product(
     state_dir: Path,
     workers: int,
     timeout_s: int,
+    read_stall_timeout_s: int = 180,
     retries: int,
     refresh: bool,
 ) -> dict[str, Any]:
@@ -483,6 +505,7 @@ def acquire_product(
         product["endpoint"],
         product.get("schema_table_name") or product["table"],
         timeout_s=timeout_s,
+        read_stall_timeout_s=read_stall_timeout_s,
         retries=retries,
     )
     product = resolve_product_fields(product, schema)
@@ -572,6 +595,7 @@ def acquire_product(
                 product["endpoint"],
                 query,
                 timeout_s=timeout_s,
+                read_stall_timeout_s=read_stall_timeout_s,
                 retries=retries,
                 max_rec=max_rec,
                 status_path=query_dir / f"bucket_{bucket:05d}.uws.json",
@@ -582,6 +606,7 @@ def acquire_product(
                 product["endpoint"],
                 query,
                 timeout_s=timeout_s,
+                read_stall_timeout_s=read_stall_timeout_s,
                 retries=retries,
                 max_rec=max_rec,
             )
@@ -847,6 +872,7 @@ def main() -> int:
     parser.add_argument("--product", action="append", default=[])
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--read-stall-timeout", type=int, default=180)
     parser.add_argument("--retries", type=int, default=6)
     parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()
@@ -874,6 +900,7 @@ def main() -> int:
                 state_dir=args.state_dir,
                 workers=args.workers,
                 timeout_s=args.timeout,
+                read_stall_timeout_s=args.read_stall_timeout,
                 retries=args.retries,
                 refresh=args.refresh,
             )

@@ -225,10 +225,12 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
 - `config/evidence_lake/e3_acquisition_program.json` and
   `scripts/evidence_tap_acquire.py` define exact schema-accounted TAP products,
   deterministic partitions, resumable response sets, checksums, row/MAXREC
-  gates, UWS lineage, inter-process manifest locking, and atomic promotion.
+  gates, UWS lineage, bounded read-stall recovery, inter-process manifest
+  locking, and atomic promotion.
 - `config/evidence_lake/e3_http_sources.json` and
   `scripts/evidence_http_acquire.py` provide content-addressed, Range-resumable,
-  checksum-gated release-file acquisition. WGSN and all six registered GCVS
+  checksum-gated release-file acquisition with a socket-inactivity timeout
+  independent of the overall job budget. WGSN and all six registered GCVS
   artifacts are pinned, raw-snapshotted, typed, and verified. The WGSN cook
   validates its declared 16-field table contract and preserves 597 names,
   source row identity, and linked resources while explicitly excluding the

@@ -87,6 +87,12 @@ E3 collectors are data-driven:
 .venv/bin/python scripts/evidence_http_acquire.py --source-id SOURCE_ID
 ```
 
+Both collectors separate long job budgets from stalled transfers. TAP response
+reads and resumable HTTP downloads default to a 180-second socket-inactivity
+timeout, so a route change or dead stream retries promptly without discarding
+completed buckets or partial release files. Operators may override it with
+`--read-stall-timeout`.
+
 The Gaia program uses a measured 1,250-ly parallax envelope of 31,987,126
 `gaia_source` rows. SIMBAD is not bulk-mirrored or used as inventory: its
 release-pinned Gaia DR3 bridge is intersected locally before targeted alias,

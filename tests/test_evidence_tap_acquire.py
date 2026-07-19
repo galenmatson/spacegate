@@ -17,6 +17,20 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import evidence_tap_acquire as acquire  # noqa: E402
 
 
+class FakeResponse:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self.payload
+
+
 def schema_payload() -> bytes:
     out = io.StringIO()
     writer = csv.DictWriter(
@@ -42,6 +56,25 @@ def schema_payload() -> bytes:
         }
     )
     return out.getvalue().encode()
+
+
+def test_sync_tap_request_bounds_socket_inactivity_timeout(monkeypatch) -> None:
+    timeouts: list[int] = []
+
+    def fake_urlopen(_request, timeout):
+        timeouts.append(timeout)
+        return FakeResponse(b"source_id\n1\n")
+
+    monkeypatch.setattr(acquire.urllib.request, "urlopen", fake_urlopen)
+    assert acquire.tap_request(
+        "https://example.test/tap",
+        "select source_id from test.rows",
+        timeout_s=30,
+        read_stall_timeout_s=4,
+        retries=1,
+        max_rec=10,
+    ) == b"source_id\n1\n"
+    assert timeouts == [4]
 
 
 def test_resolve_product_fields_preserves_release_order_and_groups() -> None:
@@ -96,7 +129,9 @@ def test_acquire_product_is_exact_compressed_resumable_and_field_accounted(
 ) -> None:
     calls: list[str] = []
 
-    def fake_request(endpoint, adql, *, timeout_s, retries, max_rec):
+    def fake_request(
+        endpoint, adql, *, timeout_s, read_stall_timeout_s, retries, max_rec
+    ):
         calls.append(adql)
         if "tap_schema.columns" in adql:
             return schema_payload()

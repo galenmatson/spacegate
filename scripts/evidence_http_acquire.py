@@ -115,6 +115,7 @@ def download_resumable(
     partial: Path,
     *,
     timeout_s: int,
+    read_stall_timeout_s: int,
     retries: int,
 ) -> dict[str, Any]:
     partial.parent.mkdir(parents=True, exist_ok=True)
@@ -126,7 +127,9 @@ def download_resumable(
             if offset:
                 headers["Range"] = f"bytes={offset}-"
             request = urllib.request.Request(product["url"], headers=headers)
-            with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            with urllib.request.urlopen(
+                request, timeout=min(timeout_s, read_stall_timeout_s)
+            ) as response:
                 status = int(response.status)
                 if offset and status != 206:
                     offset = 0
@@ -175,6 +178,7 @@ def acquire_product(
     *,
     state_dir: Path,
     timeout_s: int,
+    read_stall_timeout_s: int = 180,
     retries: int,
 ) -> dict[str, Any]:
     snapshot_id = product_id(product)
@@ -201,7 +205,11 @@ def acquire_product(
         state_dir / "tmp" / "evidence_lake_v2_http" / f"{snapshot_id}.{product['filename']}.partial"
     )
     downloaded = download_resumable(
-        product, partial, timeout_s=timeout_s, retries=retries
+        product,
+        partial,
+        timeout_s=timeout_s,
+        read_stall_timeout_s=read_stall_timeout_s,
+        retries=retries,
     )
     root.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot_id}.", dir=root.parent))
@@ -229,6 +237,7 @@ def acquire_product(
             "source_name": product["source_name"],
             "url": product["url"],
             "filename": product["filename"],
+            "read_stall_timeout_s": read_stall_timeout_s,
             "retrieved_at": retrieved_at,
             **downloaded,
             "legacy_manifest_entry": legacy,
@@ -248,6 +257,7 @@ def main() -> int:
     parser.add_argument("--source-id", action="append", default=[])
     parser.add_argument("--source-name", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument("--read-stall-timeout", type=int, default=180)
     parser.add_argument("--retries", type=int, default=5)
     args = parser.parse_args()
     program = json.loads(args.program.read_text(encoding="utf-8"))
@@ -268,6 +278,7 @@ def main() -> int:
             product,
             state_dir=args.state_dir,
             timeout_s=args.timeout,
+            read_stall_timeout_s=args.read_stall_timeout,
             retries=args.retries,
         )
         for product in products

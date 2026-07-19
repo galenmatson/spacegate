@@ -63,7 +63,11 @@ def test_http_acquisition_resumes_verifies_and_reuses_immutable_snapshot(
 
     monkeypatch.setattr(acquire.urllib.request, "urlopen", fake_urlopen)
     first = acquire.acquire_product(
-        product, state_dir=tmp_path, timeout_s=10, retries=1
+        product,
+        state_dir=tmp_path,
+        timeout_s=10,
+        read_stall_timeout_s=3,
+        retries=1,
     )
     root = Path(first["dest_path"])
     assert (root / "rows.dat").read_bytes() == payload
@@ -71,6 +75,8 @@ def test_http_acquisition_resumes_verifies_and_reuses_immutable_snapshot(
     assert manifest["resumed_from_bytes"] == 8
     assert manifest["expected_checksum_status"] == "match"
     assert first["sha256"] == hashlib.sha256(payload).hexdigest()
+    assert manifest["read_stall_timeout_s"] == 3
+    assert calls == [("bytes=8-", 3)]
 
     second = acquire.acquire_product(
         product, state_dir=tmp_path, timeout_s=10, retries=1
