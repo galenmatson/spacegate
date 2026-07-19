@@ -293,6 +293,12 @@ cluster/scope-audit, and clean-reproduction reports are protected E4/E5 inputs.
 Extended-catalog checkpoint `54d1b0b6a841344c48327991`, complete raw and typed
 snapshot `7753816661175edcb526c676`, and its compile, artifact-audit,
 extended-scope-audit, and clean-reproduction reports are protected E4/E5 inputs.
+MSC checkpoint `fc7e9dcabb0b27167c8f188c`, raw snapshot
+`028096033a6805e740df3b66`, typed snapshot `d04364cc77130406a257dc89`,
+and its compile, artifact-audit, MSC source/scope-audit, and clean-reproduction
+reports are protected E4/E5 inputs. The MSC scientific audit is an explicitly
+allowlisted failed-artifact audit contract; it does not authorize removal of
+this accepted checkpoint or either source snapshot.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

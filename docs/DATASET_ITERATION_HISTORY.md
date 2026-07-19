@@ -1475,6 +1475,30 @@ Representative commits:
   `456e7a36cfd7e08ea5f7ce19c44817114de5d54d1e077ae365e2668c8191bd2d`
   with no differing sections and removes the scratch artifact.
 
+### 49) Evidence Lake E4 MSC Evidence and Complete-Row Hashing
+
+- Compiler v43 replaces the one-letter Parquet row alias with `source_row`.
+  DuckDB identifiers are case-insensitive, so MSC's `T` periastron column had
+  shadowed `to_json(t)` and made the compiler hash that scalar instead of the
+  complete row. The defect collapsed 4,728 orbit inputs into 4,539 provisional
+  source records. No failed artifact was promoted; a regression test now uses
+  distinct rows with identical `T` values and requires distinct row hashes.
+- The general relation contract now supports composite endpoints and dynamic
+  source polarity, while component parameter sets support dynamic composite
+  scopes. MSC therefore uses WDS plus exact component label, never a global
+  `A`, `B`, or `Aa` identity. The source's `X` status is negative evidence;
+  question-mark and lowercase-`c` statuses remain ambiguous; other pair rows
+  remain positive evidence without becoming canonical containment.
+- General numeric `zero_is_missing` semantics reject `0`, `0.0`, and signed
+  zero where the source declares zero unknown. Exact source lexemes remain in
+  immutable typed Parquet. Alias lists, hierarchy labels, and inconsistent
+  orbit-pair punctuation are not heuristically parsed in E4.
+- Accepted checkpoint `fc7e9dcabb0b27167c8f188c` accounts all 43,418 source
+  rows and 73 fields one-for-one. It emits 15,748 source relation claims and
+  19,366 coherent orbit records with all bindings unresolved. Generic artifact
+  and MSC-specific audits pass; clean reproduction matches logical hash
+  `d5fb69fba951c886b2a01d30640188f0889ecd6f8dfedab357ad90970baf4fa1`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

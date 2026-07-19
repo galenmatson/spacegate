@@ -1568,6 +1568,15 @@ Current status (July 19, 2026, in progress):
   reproduction matches logical hash
   `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`,
   and the independent audit passes without canonical promotion.
+- MSC checkpoint `fc7e9dcabb0b27167c8f188c` accounts all 43,418 rows and all
+  73 field occurrences across archive lineage, ReadMe, component, elementary-
+  binary, orbit, and note tables. WDS-qualified component keys prevent global
+  `A`/`B` label collisions; 15,748 source relations retain positive,
+  ambiguous, or negative observing status; all 4,728 full orbit rows and
+  14,638 period/separation summaries remain coherent evidence rather than
+  canonical containment. Compiler v43 also closes the general DuckDB `t`/`T`
+  alias-shadowing defect and implements catalog-declared numeric-zero missing
+  semantics. Artifact, MSC source/scope, and clean-reproduction gates pass.
 - Gaia NSS checkpoint `e198804d34abcf04d209d116` materializes all 50,762
   expanded two-body rows as distinct coherent orbital solutions. All 77 fields
   are accounted as 75 solution/model/quality fields plus Gaia source and NSS

@@ -273,21 +273,39 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
             if relation_claim:
                 prefix = f"{source_id}.{table_name}.relation_claim"
                 required = {
-                    "left_identifier_field",
                     "left_identifier_namespace",
                     "left_component_scope",
-                    "right_identifier_field",
                     "right_identifier_namespace",
                     "right_component_scope",
                     "relation_kind",
                     "relation_scope",
-                    "evidence_polarity",
                     "method",
                     "reference_raw",
                 }
                 missing = sorted(required - set(relation_claim))
                 if missing:
                     errors.append(f"{prefix} lacks {missing}")
+                for side in ("left", "right"):
+                    field = relation_claim.get(f"{side}_identifier_field")
+                    fields = relation_claim.get(f"{side}_identifier_fields")
+                    if bool(field) == bool(fields):
+                        errors.append(
+                            f"{prefix}.{side}_identifier requires exactly one field or fields"
+                        )
+                    if fields is not None and (
+                        not isinstance(fields, list)
+                        or not fields
+                        or any(not str(value).strip() for value in fields)
+                    ):
+                        errors.append(
+                            f"{prefix}.{side}_identifier_fields must be a non-empty list"
+                        )
+                if bool(relation_claim.get("evidence_polarity")) == bool(
+                    relation_claim.get("evidence_polarity_sql")
+                ):
+                    errors.append(
+                        f"{prefix} requires exactly one static or dynamic evidence polarity"
+                    )
                 probability_field = relation_claim.get("probability_field")
                 probability_semantics = relation_claim.get("probability_semantics")
                 if bool(probability_field) != bool(probability_semantics):
@@ -432,6 +450,24 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     or ""
                 ).strip():
                     errors.append(f"{prefix} requires scope_key or component_scope")
+                dynamic_scope = parameter_set.get(
+                    "component_scope_field"
+                ) or parameter_set.get("component_scope_fields")
+                if parameter_set.get("component_scope") and dynamic_scope:
+                    errors.append(
+                        f"{prefix} cannot define constant and dynamic component scope"
+                    )
+                if parameter_set.get("component_scope_fields") is not None and (
+                    not isinstance(parameter_set["component_scope_fields"], list)
+                    or not parameter_set["component_scope_fields"]
+                    or any(
+                        not str(value).strip()
+                        for value in parameter_set["component_scope_fields"]
+                    )
+                ):
+                    errors.append(
+                        f"{prefix}.component_scope_fields must be a non-empty list"
+                    )
                 for measurement_index, measurement in enumerate(
                     parameter_set.get("measurements") or []
                 ):
@@ -439,6 +475,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     for field in ("value_field", "quantity_key"):
                         if not str(measurement.get(field) or "").strip():
                             errors.append(f"{measurement_prefix}.{field} must be non-empty")
+                    if measurement.get("zero_is_missing") not in (None, False, True):
+                        errors.append(
+                            f"{measurement_prefix}.zero_is_missing must be boolean"
+                        )
             for index, measurement in enumerate(
                 table.get("photometry_measurements") or []
             ):
@@ -450,6 +490,8 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"{prefix} cannot define both bandpass and bandpass_field"
                     )
+                if measurement.get("zero_is_missing") not in (None, False, True):
+                    errors.append(f"{prefix}.zero_is_missing must be boolean")
             for index, measurement in enumerate(
                 table.get("configured_domain_measurements") or []
             ):
@@ -466,6 +508,8 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix}.destination is unsupported")
                 if measurement.get("normalize_numeric") not in (None, False, True):
                     errors.append(f"{prefix}.normalize_numeric must be boolean")
+                if measurement.get("zero_is_missing") not in (None, False, True):
+                    errors.append(f"{prefix}.zero_is_missing must be boolean")
             for index, measurement in enumerate(
                 table.get("configured_coordinate_measurements") or []
             ):
@@ -1320,7 +1364,7 @@ def row_selection_predicate(
             + target_predicate
             + ") and "
             + f"trim(cast(membership_target.{sql_identifier(target_field)} as varchar)) = "
-            + f"trim(cast(t.{sql_identifier(local_field)} as varchar)))"
+            + f"trim(cast(source_row.{sql_identifier(local_field)} as varchar)))"
         )
     return " and ".join(predicates)
 
@@ -1396,9 +1440,9 @@ def materialize_identifier_claims(
         source_rows = f"""
           from (
             select distinct
-              sha256(to_json(t)) source_row_sha256,
+              sha256(to_json(source_row)) source_row_sha256,
               trim(cast({quoted} as varchar)) value_raw
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             where nullif(trim(cast({quoted} as varchar)), '') is not null
               {excluded_predicate}
           ) s
@@ -1495,12 +1539,12 @@ def materialize_composite_identifier_claims(
                 'source_fields', {sql_string(json.dumps(fields))},
                 'construction', 'literal_prefix_delimiter_suffix_v1'
               )
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where ({predicate}) and {nonblank}
             """
         )
@@ -1553,12 +1597,12 @@ def materialize_conditional_identifier_claims(
                 'strip_prefix', {nullable_sql_string(strip_prefix)},
                 'normalization', {sql_string(normalization)}
               )
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where ({str(claim['sql_predicate'])})
               and nullif({raw}, '') is not null
               and nullif({normalized}, '') is not null
@@ -1571,12 +1615,12 @@ def materialize_conditional_identifier_claims(
               r.source_record_id, {sql_string(field)}, {sql_string(namespace)},
               {raw}, {sql_string(normalization)},
               'normalization did not produce a usable identifier'
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where ({str(claim['sql_predicate'])})
               and nullif({raw}, '') is not null
               and nullif({normalized}, '') is null
@@ -1676,6 +1720,39 @@ def text_expression(field: str | None) -> str:
     )
 
 
+def configured_text_expression(
+    config: dict[str, Any],
+    *,
+    key: str,
+    available_fields: set[str],
+) -> tuple[str, set[str]]:
+    """Build a trusted contract-defined scalar or composite text key."""
+    scalar = config.get(f"{key}_field")
+    composite = config.get(f"{key}_fields")
+    if scalar and composite:
+        raise ValueError(f"{key} cannot declare both a field and fields")
+    fields = (
+        [str(value) for value in composite]
+        if composite
+        else [str(scalar)]
+        if scalar
+        else []
+    )
+    if not fields:
+        raise ValueError(f"{key} requires a field or non-empty fields")
+    missing = sorted(set(fields) - available_fields)
+    if missing:
+        raise ValueError(f"{key} fields missing: {missing}")
+    delimiter = str(config.get(f"{key}_delimiter") or "")
+    parts = [sql_string(str(config.get(f"{key}_prefix") or ""))]
+    for index, field in enumerate(fields):
+        if index:
+            parts.append(sql_string(delimiter))
+        parts.append(text_expression(field))
+    parts.append(sql_string(str(config.get(f"{key}_suffix") or "")))
+    return " || ".join(parts), set(fields)
+
+
 def double_expression(field: str | None, *, absolute: bool = False) -> str:
     if not field:
         return "null::double"
@@ -1740,7 +1817,7 @@ def astrometry_frame(base_field: str) -> str | None:
 
 def signal_identifier_expression(table_contract: dict[str, Any]) -> str:
     fields = [str(field) for field in table_contract.get("signal_identifier_fields") or []]
-    return logical_key_expression(fields, "t") if fields else "null::varchar"
+    return logical_key_expression(fields, "source_row") if fields else "null::varchar"
 
 
 def scalar_quality_expression(
@@ -1832,12 +1909,12 @@ def scalar_select_branch(
         "|| r.source_record_id)"
     )
     common_from = f"""
-      from read_parquet({sql_string(str(path))}) t
+      from read_parquet({sql_string(str(path))}) source_row
       join source_records r
         on r.source_id={sql_string(source_id)}
        and r.release_id={sql_string(release_id)}
        and r.source_table={sql_string(table_name)}
-       and r.source_row_sha256=sha256(to_json(t))
+       and r.source_row_sha256=sha256(to_json(source_row))
       where nullif({raw_value}, '') is not null
     """
     normalization = sql_string("nasa_unit_alias_v1")
@@ -2021,12 +2098,12 @@ def materialize_stellar_classifications(
                 'source_field', {sql_string(name)},
                 'source_description', {nullable_sql_string(field.get('description'))}
               )
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where nullif({raw}, '') is not null
             """
         )
@@ -2040,6 +2117,11 @@ def materialize_stellar_classifications(
 def configured_scoped_stellar_fields(table_contract: dict[str, Any]) -> set[str]:
     fields: set[str] = set()
     for parameter_set in table_contract.get("scoped_stellar_parameter_sets") or []:
+        if parameter_set.get("component_scope_field"):
+            fields.add(str(parameter_set["component_scope_field"]))
+        fields.update(
+            str(field) for field in parameter_set.get("component_scope_fields") or []
+        )
         if parameter_set.get("classification_field"):
             fields.add(str(parameter_set["classification_field"]))
         if parameter_set.get("reference_field"):
@@ -2052,12 +2134,19 @@ def configured_scoped_stellar_fields(table_contract: dict[str, Any]) -> set[str]
     return fields
 
 
-def missing_value_predicate(field: str, missing_values: list[Any]) -> str:
+def missing_value_predicate(
+    field: str,
+    missing_values: list[Any],
+    *,
+    zero_is_missing: bool = False,
+) -> str:
     raw = f"trim(cast({sql_identifier(field)} as varchar))"
     clauses = [f"nullif({raw}, '') is not null"]
     if missing_values:
         values = ", ".join(sql_string(str(value).strip().lower()) for value in missing_values)
         clauses.append(f"lower({raw}) not in ({values})")
+    if zero_is_missing:
+        clauses.append(f"coalesce(try_cast({sql_identifier(field)} as double), 1)<>0")
     return " and ".join(clauses)
 
 
@@ -2088,8 +2177,25 @@ def materialize_scoped_stellar_evidence(
     consumed: set[str] = set()
     for config in parameter_sets:
         component_scope = config.get("component_scope")
-        scope = str(config.get("scope_key") or component_scope)
-        component_scope_sql = nullable_sql_string(component_scope)
+        dynamic_scope = config.get("component_scope_field") or config.get(
+            "component_scope_fields"
+        )
+        if component_scope and dynamic_scope:
+            raise ValueError(
+                "scoped stellar evidence cannot declare both constant and dynamic component scope"
+            )
+        if dynamic_scope:
+            component_scope_sql, component_scope_fields = configured_text_expression(
+                config,
+                key="component_scope",
+                available_fields=available_fields,
+            )
+        else:
+            component_scope_sql = nullable_sql_string(component_scope)
+            component_scope_fields = set()
+        scope = str(config.get("scope_key") or component_scope or "")
+        if not scope:
+            raise ValueError("dynamic component scope requires a stable scope_key")
         kind = str(config["parameter_set_kind"])
         method = str(config["method"])
         normalization = str(config["normalization_version"])
@@ -2100,6 +2206,7 @@ def materialize_scoped_stellar_evidence(
             for value in (config.get("classification_field"), reference_field)
             if value
         }
+        configured_fields.update(component_scope_fields)
         configured_fields.update(quality_fields)
         for measurement in config.get("measurements") or []:
             configured_fields.add(str(measurement["value_field"]))
@@ -2113,7 +2220,7 @@ def materialize_scoped_stellar_evidence(
         consumed.update(configured_fields)
         reference = text_expression(reference_field)
         source_quality = (
-            logical_key_expression(quality_fields, "t")
+            logical_key_expression(quality_fields, "source_row")
             if quality_fields
             else "'{}'::json"
         )
@@ -2148,12 +2255,12 @@ def materialize_scoped_stellar_evidence(
                     'missing_values', {sql_string(json.dumps(config.get('classification_missing_values') or []))},
                     'source_quality', {source_quality}
                   )
-                from read_parquet({sql_string(str(path))}) t
+                from read_parquet({sql_string(str(path))}) source_row
                 join source_records r
                   on r.source_id={sql_string(source_id)}
                  and r.release_id={sql_string(release_id)}
                  and r.source_table={sql_string(table_name)}
-                 and r.source_row_sha256=sha256(to_json(t))
+                 and r.source_row_sha256=sha256(to_json(source_row))
                 where {predicate}
                 """
             )
@@ -2162,7 +2269,9 @@ def materialize_scoped_stellar_evidence(
             field = str(measurement["value_field"])
             uncertainty_field = measurement.get("uncertainty_field")
             predicate = missing_value_predicate(
-                field, list(measurement.get("missing_values") or [])
+                field,
+                list(measurement.get("missing_values") or []),
+                zero_is_missing=bool(measurement.get("zero_is_missing")),
             )
             raw = text_expression(field)
             uncertainty = nullable_measurement_double_expression(
@@ -2199,12 +2308,12 @@ def materialize_scoped_stellar_evidence(
                     'source_quality', {source_quality}
                   ),
                   {sql_string(normalization)}
-                from read_parquet({sql_string(str(path))}) t
+                from read_parquet({sql_string(str(path))}) source_row
                 join source_records r
                   on r.source_id={sql_string(source_id)}
                  and r.release_id={sql_string(release_id)}
                  and r.source_table={sql_string(table_name)}
-                 and r.source_row_sha256=sha256(to_json(t))
+                 and r.source_row_sha256=sha256(to_json(source_row))
                 where {predicate}
                 """
             )
@@ -2222,7 +2331,7 @@ def materialize_scoped_stellar_evidence(
                   json_object(
                     'parameter_set_kind', {sql_string(kind)},
                     'evidence_scope', {sql_string(scope)},
-                    'component_scope', {component_scope_sql},
+                    'component_scope', e.component_scope,
                     'quality_fields', {sql_string(json.dumps(quality_fields))}
                   )
                 from stellar_parameter_evidence e
@@ -2230,7 +2339,6 @@ def materialize_scoped_stellar_evidence(
                 where r.source_id={sql_string(source_id)}
                   and r.release_id={sql_string(release_id)}
                   and r.source_table={sql_string(table_name)}
-                  and e.component_scope is not distinct from {component_scope_sql}
                   and e.parameter_set_id={parameter_set_id}
                 group by e.parameter_set_id, e.source_record_id, e.component_scope
                 """
@@ -2303,7 +2411,9 @@ def materialize_configured_photometry(
             )
         quality = "json_object(" + ", ".join(quality_members) + ")"
         predicate = missing_value_predicate(
-            field, list(measurement.get("missing_values") or [])
+            field,
+            list(measurement.get("missing_values") or []),
+            zero_is_missing=bool(measurement.get("zero_is_missing")),
         )
         branches.append(
             f"""
@@ -2318,12 +2428,12 @@ def materialize_configured_photometry(
               {text_expression(reference_field)},
               {quality},
               {sql_string(str(measurement.get('normalization_version') or 'source_native_v1'))}
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where {predicate}
             """
         )
@@ -2412,7 +2522,7 @@ def materialize_configured_coordinate_measurements(
             f"nullif(trim(cast({sql_identifier(field)} as varchar)), '') is not null"
             for field in component_fields
         )
-        raw_value = f"cast({logical_key_expression(component_fields, 't')} as varchar)"
+        raw_value = f"cast({logical_key_expression(component_fields, 'source_row')} as varchar)"
         if kind == "right_ascension_hms":
             hours, minutes, seconds = map(sql_identifier, component_fields)
             valid = (
@@ -2450,7 +2560,7 @@ def materialize_configured_coordinate_measurements(
         else:
             raise ValueError(f"unsupported coordinate kind: {kind}")
         source_quality = (
-            logical_key_expression(quality_fields, "t")
+            logical_key_expression(quality_fields, "source_row")
             if quality_fields
             else "'{}'::json"
         )
@@ -2489,12 +2599,12 @@ def materialize_configured_coordinate_measurements(
                 'normalization_valid', ({valid})
               ),
               {sql_string(str(measurement.get('normalization_version') or 'sexagesimal_degrees_v1'))}
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where {component_predicate}
             """
         )
@@ -2544,7 +2654,11 @@ def materialize_configured_domain_measurements(
         consumed.update(configured_fields)
         raw = text_expression(field)
         missing_values = list(measurement.get("missing_values") or [])
-        predicate = missing_value_predicate(field, missing_values)
+        predicate = missing_value_predicate(
+            field,
+            missing_values,
+            zero_is_missing=bool(measurement.get("zero_is_missing")),
+        )
         uncertainty = nullable_measurement_double_expression(
             str(uncertainty_field) if uncertainty_field else None,
             list(
@@ -2561,12 +2675,12 @@ def materialize_configured_domain_measurements(
             "|| r.source_record_id)"
         )
         common_from = f"""
-          from read_parquet({sql_string(str(path))}) t
+          from read_parquet({sql_string(str(path))}) source_row
           join source_records r
             on r.source_id={sql_string(source_id)}
            and r.release_id={sql_string(release_id)}
            and r.source_table={sql_string(table_name)}
-           and r.source_row_sha256=sha256(to_json(t))
+           and r.source_row_sha256=sha256(to_json(source_row))
         """
         quality_members = [
             "'source_field'",
@@ -2662,12 +2776,12 @@ def materialize_configured_domain_measurements(
                 r.source_record_id,
                 'storage_group_only_no_parameter_coherence' bundle_semantics,
                 list_filter({bundle_values}, measurement -> measurement is not null) measurements
-              from read_parquet({sql_string(str(path))}) t
+              from read_parquet({sql_string(str(path))}) source_row
               join source_records r
                 on r.source_id={sql_string(source_id)}
                and r.release_id={sql_string(release_id)}
                and r.source_table={sql_string(table_name)}
-               and r.source_row_sha256=sha256(to_json(t))
+               and r.source_row_sha256=sha256(to_json(source_row))
             )
             select * from bundled where len(measurements)>0
             """
@@ -2705,12 +2819,12 @@ def materialize_observation_products(
                 'source_field', {sql_string(name)},
                 'source_description', {nullable_sql_string(field.get('description'))}
               )
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where nullif({raw}, '') is not null
             """
         )
@@ -2731,15 +2845,23 @@ def materialize_relation_claims(
     relation_claim: dict[str, Any],
     available_fields: set[str],
 ) -> set[str]:
-    left_field = str(relation_claim["left_identifier_field"])
-    right_field = str(relation_claim["right_identifier_field"])
+    left, left_fields = configured_text_expression(
+        relation_claim,
+        key="left_identifier",
+        available_fields=available_fields,
+    )
+    right, right_fields = configured_text_expression(
+        relation_claim,
+        key="right_identifier",
+        available_fields=available_fields,
+    )
     probability_field = relation_claim.get("probability_field")
     statistic_field = relation_claim.get("confidence_statistic_field")
     epoch_field = relation_claim.get("epoch_field")
     quality_fields = [str(field) for field in relation_claim.get("quality_fields") or []]
     required = {
-        left_field,
-        right_field,
+        *left_fields,
+        *right_fields,
         *(str(field) for field in (probability_field, statistic_field, epoch_field) if field),
         *quality_fields,
     }
@@ -2747,18 +2869,17 @@ def materialize_relation_claims(
     if missing:
         raise ValueError(f"relation fields missing from {table_name}: {missing}")
 
-    def endpoint_expression(side: str, field: str) -> str:
-        raw = text_expression(field)
-        prefix = str(relation_claim.get(f"{side}_identifier_prefix") or "")
-        suffix = str(relation_claim.get(f"{side}_identifier_suffix") or "")
-        return (
-            f"{sql_string(prefix)} || {raw} || {sql_string(suffix)}"
-            if prefix or suffix
-            else raw
+    static_polarity = relation_claim.get("evidence_polarity")
+    dynamic_polarity = relation_claim.get("evidence_polarity_sql")
+    if bool(static_polarity) == bool(dynamic_polarity):
+        raise ValueError(
+            "relation claim requires exactly one of evidence_polarity or evidence_polarity_sql"
         )
-
-    left = endpoint_expression("left", left_field)
-    right = endpoint_expression("right", right_field)
+    evidence_polarity = (
+        str(dynamic_polarity)
+        if dynamic_polarity
+        else sql_string(str(static_polarity))
+    )
     probability = (
         f"try_cast({sql_identifier(str(probability_field))} as double)"
         if probability_field
@@ -2784,7 +2905,7 @@ def materialize_relation_claims(
         "'source_table'",
         sql_string(table_name),
         "'source_evidence_polarity'",
-        sql_string(str(relation_claim["evidence_polarity"])),
+        evidence_polarity,
     ]
     for field in quality_fields:
         quality_members.extend((sql_string(field), sql_identifier(field)))
@@ -2813,17 +2934,17 @@ def materialize_relation_claims(
           {statistic_value},
           {nullable_sql_string(relation_claim.get('confidence_statistic_unit'))},
           {nullable_sql_string(relation_claim.get('confidence_statistic_semantics'))},
-          {sql_string(str(relation_claim['evidence_polarity']))},
+          {evidence_polarity},
           {sql_string(str(relation_claim['method']))},
           {sql_string(str(relation_claim['reference_raw']))},
           {epoch},
           {quality}
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where nullif({left}, '') is not null
           and nullif({right}, '') is not null
           and ({str(relation_claim.get('sql_predicate') or 'true')})
@@ -2883,9 +3004,9 @@ def materialize_orbital_solutions(
         raise ValueError(
             f"orbital solution fields lack a typed role in {table_name}: {unconsumed}"
         )
-    solution_key = f"cast({logical_key_expression(key_fields, 't')} as varchar)"
-    parameters = logical_key_expression(parameter_fields, "t")
-    quality = logical_key_expression(quality_fields, "t")
+    solution_key = f"cast({logical_key_expression(key_fields, 'source_row')} as varchar)"
+    parameters = logical_key_expression(parameter_fields, "source_row")
+    quality = logical_key_expression(quality_fields, "source_row")
     epoch = text_expression(orbital_solution.get("epoch_field"))
     frame = (
         text_expression(orbital_solution.get("frame_field"))
@@ -2917,7 +3038,7 @@ def materialize_orbital_solutions(
         consumed.update(key_fields_map)
         predicates = " and ".join(
             f"trim(cast(rr.logical_key_json->>{sql_string(relation_field)} as varchar))="
-            f"trim(cast(t.{sql_identifier(local_field)} as varchar))"
+            f"trim(cast(source_row.{sql_identifier(local_field)} as varchar))"
             for local_field, relation_field in key_fields_map.items()
         )
         relation_claim_id = f"""
@@ -2948,12 +3069,12 @@ def materialize_orbital_solutions(
           {reference},
           {quality},
           {sql_string(str(orbital_solution['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where {str(orbital_solution.get('sql_predicate') or 'true')}
         """
     )
@@ -3012,15 +3133,15 @@ def materialize_extended_objects(
         raise ValueError(
             f"extended-object fields lack a typed role in {table_name}: {unconsumed}"
         )
-    identity_key = logical_key_expression(key_fields, "t")
-    geometry = logical_key_expression(geometry_fields, "t")
+    identity_key = logical_key_expression(key_fields, "source_row")
+    geometry = logical_key_expression(geometry_fields, "source_row")
     distance = (
-        logical_key_expression(distance_fields, "t")
+        logical_key_expression(distance_fields, "source_row")
         if distance_fields
         else "null::json"
     )
-    parameters = logical_key_expression(parameter_fields, "t")
-    quality = logical_key_expression(quality_fields, "t")
+    parameters = logical_key_expression(parameter_fields, "source_row")
+    quality = logical_key_expression(quality_fields, "source_row")
     reference = (
         text_expression(str(reference_field))
         if reference_field
@@ -3039,12 +3160,12 @@ def materialize_extended_objects(
           {nullable_sql_string(extended_object.get('model'))},
           {reference}, {quality},
           {sql_string(str(extended_object['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where nullif(cast({identity_key} as varchar), '') is not null
         """
     )
@@ -3075,9 +3196,9 @@ def materialize_compact_objects(
     missing = sorted(consumed - available_fields)
     if missing:
         raise ValueError(f"compact-object fields missing from {table_name}: {missing}")
-    parameter_set_key = logical_key_expression(key_fields, "t")
-    parameters = logical_key_expression(parameter_fields, "t")
-    quality = logical_key_expression(quality_fields, "t")
+    parameter_set_key = logical_key_expression(key_fields, "source_row")
+    parameters = logical_key_expression(parameter_fields, "source_row")
+    quality = logical_key_expression(quality_fields, "source_row")
     reference_field = compact_object.get("reference_field")
     reference = (
         text_expression(reference_field)
@@ -3108,12 +3229,12 @@ def materialize_compact_objects(
           {nullable_sql_string(compact_object.get('model'))},
           {reference}, {quality},
           {sql_string(str(compact_object['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where {predicate}
         """
     )
@@ -3222,11 +3343,11 @@ def materialize_citation_catalog(
         raise ValueError(
             f"citation-catalog fields lack a typed role in {table_name}: {unconsumed}"
         )
-    context = logical_key_expression(context_fields, "t") if context_fields else "'{}'::json"
+    context = logical_key_expression(context_fields, "source_row") if context_fields else "'{}'::json"
     excluded_predicate = ""
     if excluded_values:
         excluded_predicate = (
-            "and trim(cast(t."
+            "and trim(cast(source_row."
             + sql_identifier(key_field)
             + " as varchar)) not in ("
             + ", ".join(sql_string(value) for value in excluded_values)
@@ -3235,50 +3356,50 @@ def materialize_citation_catalog(
     if aggregate_lines:
         rows_sql = f"""
         select
-          trim(cast(t.{sql_identifier(key_field)} as varchar)),
+          trim(cast(source_row.{sql_identifier(key_field)} as varchar)),
           string_agg(
-            trim(cast(t.{sql_identifier(text_field)} as varchar)),
+            trim(cast(source_row.{sql_identifier(text_field)} as varchar)),
             {sql_string(line_separator)}
-            order by t.{sql_identifier(str(line_order_field))}
+            order by source_row.{sql_identifier(str(line_order_field))}
           ),
           null::varchar, null::varchar, null::varchar, null::varchar,
           cast(json_object(
             'aggregation', 'repeated_reference_key_lines_v1',
             'line_count', count(*),
             'line_order_field', {sql_string(str(line_order_field))},
-            'first_line', min(t.{sql_identifier(str(line_order_field))}),
-            'last_line', max(t.{sql_identifier(str(line_order_field))})
+            'first_line', min(source_row.{sql_identifier(str(line_order_field))}),
+            'last_line', max(source_row.{sql_identifier(str(line_order_field))})
           ) as varchar)
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
-        where nullif(trim(cast(t.{sql_identifier(key_field)} as varchar)), '') is not null
-          and nullif(trim(cast(t.{sql_identifier(text_field)} as varchar)), '') is not null
+         and r.source_row_sha256=sha256(to_json(source_row))
+        where nullif(trim(cast(source_row.{sql_identifier(key_field)} as varchar)), '') is not null
+          and nullif(trim(cast(source_row.{sql_identifier(text_field)} as varchar)), '') is not null
           {excluded_predicate}
-        group by trim(cast(t.{sql_identifier(key_field)} as varchar))
+        group by trim(cast(source_row.{sql_identifier(key_field)} as varchar))
         order by 1
         """
     else:
         rows_sql = f"""
         select distinct
-          trim(cast(t.{sql_identifier(key_field)} as varchar)),
-          trim(cast(t.{sql_identifier(text_field)} as varchar)),
+          trim(cast(source_row.{sql_identifier(key_field)} as varchar)),
+          trim(cast(source_row.{sql_identifier(text_field)} as varchar)),
           {text_expression(str(url_field) if url_field else None)},
           {text_expression(str(bibcode_field) if bibcode_field else None)},
           {text_expression(str(doi_field) if doi_field else None)},
           {text_expression(str(publication_year_field) if publication_year_field else None)},
           cast({context} as varchar)
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
-        where nullif(trim(cast(t.{sql_identifier(key_field)} as varchar)), '') is not null
-          and nullif(trim(cast(t.{sql_identifier(text_field)} as varchar)), '') is not null
+         and r.source_row_sha256=sha256(to_json(source_row))
+        where nullif(trim(cast(source_row.{sql_identifier(key_field)} as varchar)), '') is not null
+          and nullif(trim(cast(source_row.{sql_identifier(text_field)} as varchar)), '') is not null
           {excluded_predicate}
         order by 1, 2
         """
@@ -3351,13 +3472,13 @@ def materialize_source_citation_links(
         excluded_predicate = ""
         if excluded_values:
             excluded_predicate = (
-                f"and trim(cast(t.{sql_identifier(reference_field)} as varchar)) not in ("
+                f"and trim(cast(source_row.{sql_identifier(reference_field)} as varchar)) not in ("
                 + ", ".join(sql_string(value) for value in excluded_values)
                 + ")"
             )
         evidence_id = (
             f"sha256({sql_string('identifier|' + claim_field + '|')} || "
-            f"r.source_record_id || '|' || trim(cast(t.{sql_identifier(claim_field)} as varchar)))"
+            f"r.source_record_id || '|' || trim(cast(source_row.{sql_identifier(claim_field)} as varchar)))"
         )
         before = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
         con.execute(
@@ -3366,18 +3487,18 @@ def materialize_source_citation_links(
             select distinct
               'identifier_claim_evidence', e.evidence_id, c.citation_id,
               {sql_string(str(link['citation_role']))}
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             join identifier_claim_evidence e on e.evidence_id={evidence_id}
             join citations c
               on c.source_id={sql_string(source_id)}
-             and c.source_reference_key=trim(cast(t.{sql_identifier(reference_field)} as varchar))
-            where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
-              and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+             and c.source_reference_key=trim(cast(source_row.{sql_identifier(reference_field)} as varchar))
+            where nullif(trim(cast(source_row.{sql_identifier(claim_field)} as varchar)), '') is not null
+              and nullif(trim(cast(source_row.{sql_identifier(reference_field)} as varchar)), '') is not null
               {excluded_predicate}
             """
         )
@@ -3386,14 +3507,14 @@ def materialize_source_citation_links(
                 con.execute(
                     f"""
                     select count(distinct r.source_record_id)
-                    from read_parquet({sql_string(str(path))}) t
+                    from read_parquet({sql_string(str(path))}) source_row
                     join source_records r
                       on r.source_id={sql_string(source_id)}
                      and r.release_id={sql_string(release_id)}
                      and r.source_table={sql_string(table_name)}
-                     and r.source_row_sha256=sha256(to_json(t))
-                    where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
-                      and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+                     and r.source_row_sha256=sha256(to_json(source_row))
+                    where nullif(trim(cast(source_row.{sql_identifier(claim_field)} as varchar)), '') is not null
+                      and nullif(trim(cast(source_row.{sql_identifier(reference_field)} as varchar)), '') is not null
                       {excluded_predicate}
                     """
                 ).fetchone()[0]
@@ -3437,12 +3558,12 @@ def materialize_cluster_context(
         else nullable_sql_string(cluster_context.get("reference_raw"))
     )
     parameters = (
-        logical_key_expression(parameter_fields, "t")
+        logical_key_expression(parameter_fields, "source_row")
         if parameter_fields
         else "'{}'::json"
     )
     source_quality = (
-        logical_key_expression(quality_fields, "t")
+        logical_key_expression(quality_fields, "source_row")
         if quality_fields
         else "'{}'::json"
     )
@@ -3464,12 +3585,12 @@ def materialize_cluster_context(
             'row_selection_policy', {nullable_sql_string((cluster_context.get('selection_context') or {}).get('policy_id'))}
           ),
           {sql_string(str(cluster_context['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where nullif(trim(cast({sql_identifier(identity_field)} as varchar)), '') is not null
           and ({predicate})
         """
@@ -3507,12 +3628,12 @@ def materialize_cluster_memberships(
         con.execute(
             f"""
             select count(*)
-            from read_parquet({sql_string(str(path))}) t
+            from read_parquet({sql_string(str(path))}) source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
-             and r.source_row_sha256=sha256(to_json(t))
+             and r.source_row_sha256=sha256(to_json(source_row))
             where try_cast({sql_identifier(probability_field)} as double) is not null
               and try_cast({sql_identifier(probability_field)} as double) not between 0 and 1
             """
@@ -3529,7 +3650,7 @@ def materialize_cluster_memberships(
         else nullable_sql_string(cluster_membership.get("reference_raw"))
     )
     source_quality = (
-        logical_key_expression(quality_fields, "t")
+        logical_key_expression(quality_fields, "source_row")
         if quality_fields
         else "'{}'::json"
     )
@@ -3550,12 +3671,12 @@ def materialize_cluster_memberships(
             'probability_semantics', {nullable_sql_string(cluster_membership.get('probability_semantics'))},
             'source_membership_record', {source_quality}
           )
-        from read_parquet({sql_string(str(path))}) t
+        from read_parquet({sql_string(str(path))}) source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
-         and r.source_row_sha256=sha256(to_json(t))
+         and r.source_row_sha256=sha256(to_json(source_row))
         where nullif(trim(cast({sql_identifier(cluster_field)} as varchar)), '') is not null
           and nullif(trim(cast({sql_identifier(member_field)} as varchar)), '') is not null
           and ({predicate})
@@ -3719,7 +3840,7 @@ def materialize_lifecycle_claims(
             else sql_string(str(claim["implicit_disposition"]))
         )
         context_json = (
-            logical_key_expression(context_fields, "t")
+            logical_key_expression(context_fields, "source_row")
             if context_fields
             else "'{}'::json"
         )
@@ -3737,13 +3858,13 @@ def materialize_lifecycle_claims(
             insert into planet_lifecycle_evidence
             with source_claims as (
               select distinct
-                sha256(to_json(t)) source_row_sha256,
+                sha256(to_json(source_row)) source_row_sha256,
                 trim(cast({sql_identifier(identifier_field)} as varchar)) identifier_raw,
                 {disposition_source} disposition_raw,
                 {effective_expression} effective_raw,
                 {reference_expression} reference_raw,
                 {context_json} context_json
-              from read_parquet({sql_string(str(path))}) t
+              from read_parquet({sql_string(str(path))}) source_row
             ), normalized as (
               select *, {normalized} normalized_disposition
               from source_claims s
@@ -3863,10 +3984,10 @@ def materialize_source(
             if rule["destination"] == "source_records":
                 context_fields.append(str(field["column_name"]))
 
-        source_row_hash = "sha256(to_json(t))"
-        key_json = logical_key_expression(logical_fields, "t")
+        source_row_hash = "sha256(to_json(source_row))"
+        key_json = logical_key_expression(logical_fields, "source_row")
         context_json = (
-            logical_key_expression(context_fields, "t")
+            logical_key_expression(context_fields, "source_row")
             if context_fields
             else "'{}'::json"
         )
@@ -3886,7 +4007,7 @@ def materialize_source(
                 {source_row_hash} source_row_sha256,
                 {key_json} logical_key_json,
                 {context_json} source_context_json
-              from read_parquet({sql_string(str(path))}) t
+              from read_parquet({sql_string(str(path))}) source_row
               where {row_predicate}
             )
             select
@@ -4402,7 +4523,7 @@ def table_logical_report(
 ) -> dict[str, Any]:
     quoted = sql_identifier(table_name)
     cursor = con.execute(
-        f"select sha256(to_json(t)) row_hash from {quoted} t order by row_hash"
+        f"select sha256(to_json(source_row)) row_hash from {quoted} source_row order by row_hash"
     )
     bucket_parts: list[str] = []
     current_bucket: str | None = None

@@ -448,6 +448,24 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   Independent artifact and extended-object scope audits pass with zero relation
   or orbit promotion, and clean reproduction matches logical hash
   `456e7a36cfd7e08ea5f7ce19c44817114de5d54d1e077ae365e2668c8191bd2d`.
+- Compiler/contract v43 adds source-qualified composite relation endpoints,
+  dynamic component scopes, source-status polarity, and numeric
+  `zero_is_missing` semantics. It also replaces the compiler's one-letter
+  Parquet alias: DuckDB's case-insensitive binding let MSC's `T` periastron
+  column shadow `to_json(t)`, which collapsed rows sharing an epoch. The
+  unambiguous `source_row` alias and regression gate now hash the complete row
+  for every source schema, including schemas containing `T`.
+- MSC checkpoint `fc7e9dcabb0b27167c8f188c` accounts all 43,418 rows and 73
+  field occurrences from the release archive, ReadMe, component, elementary-
+  binary, orbit, and note tables one-for-one. It materializes 15,748 WDS-
+  qualified relation claims, including 14,505 positive, 883 ambiguous, and 360
+  negative source-status claims; 19,366 coherent orbit records; 19,473 scoped
+  classifications; and component physics, astrometry, and photometry. Numeric
+  zero and signed-zero source sentinels cannot become measurements. Root
+  markers never become component identities, list-valued aliases and orbit
+  pair strings remain unsplit, and every binding remains unresolved. Generic
+  artifact and MSC source/scope audits pass; clean reproduction matches logical
+  hash `d5fb69fba951c886b2a01d30640188f0889ecd6f8dfedab357ad90970baf4fa1`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

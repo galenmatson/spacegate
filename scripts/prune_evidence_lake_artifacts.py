@@ -23,6 +23,7 @@ SUPPORTED_FAILED_ARTIFACT_AUDITS = {
     "spacegate.gcvs_scientific_evidence_audit.v1",
     "spacegate.hunt_reffert_scientific_evidence_audit.v1",
     "spacegate.extended_catalog_scientific_evidence_audit.v1",
+    "spacegate.msc_scientific_evidence_audit.v1",
 }
 
 

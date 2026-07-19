@@ -384,8 +384,22 @@
       "citation_url": "https://www.ctio.noirlab.edu/~atokovin/stars/",
       "license": {"name": "Source terms", "url": "https://www.ctio.noirlab.edu/~atokovin/stars/"},
       "cadence": "dated release",
-      "identity_namespaces": ["msc_system", "wds_id", "hip_id", "hd_id"],
+      "identity_namespaces": [
+        "msc_system",
+        "msc_component_label",
+        "msc_component",
+        "msc_orbit_pair_label",
+        "msc_orbit_designation",
+        "wds_id",
+        "hip_id",
+        "hd_id"
+      ],
       "frame_epoch": "source-column specific",
+      "null_limit_semantics": {
+        "numeric_zero": "unknown in every MSC table per the release ReadMe",
+        "blank_text": "unknown or not supplied",
+        "relation_status": "Type X is negative; question-mark and lowercase-c status is ambiguous; remaining source pair claims are positive evidence only"
+      },
       "retrieval": {"kind": "tar_archive", "implementation": "scripts/catalogs.sh"},
       "manifest_entries": [{"manifest": "msc_manifest.json", "source_name": "newmsc_20260619"}],
       "storage_class": "internal_durable",

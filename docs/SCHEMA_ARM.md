@@ -1256,6 +1256,14 @@ canonical-hierarchy artifacts to emit the machine-readable gate report.
 ## MSC Policy
 
 MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.
+Evidence Lake E4 preserves MSC before ARM selection as release-scoped component,
+relation, orbital, stellar, astrometric, photometric, note, and citation
+evidence. Component identity is the composite WDS plus source label; a repeated
+local label such as `A` is never a global identity. `Type` status is preserved
+as positive, ambiguous, or negative relation evidence, but no E4 relation
+asserts canonical containment. The release's documented numeric-zero-is-
+unknown rule applies to normalized measurements while exact lexical values
+remain in source-native Parquet and source-record lineage.
 MSC `comp.tsv`, `sys.tsv`, and `orb.tsv` must all be preserved as deterministic
 cooked inputs. `sys.tsv` supplies source-native subsystem membership and parent
 relationships; `orb.tsv` supplies source-native orbit solutions. ARM builders

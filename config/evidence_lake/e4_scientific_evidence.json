@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.42",
-  "compiler_version": "scientific_evidence_compiler_v42",
+  "contract_version": "2026-07-19.e4-foundation.43",
+  "compiler_version": "scientific_evidence_compiler_v43",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -820,6 +820,118 @@
         "disposition": "domain",
         "destination": "cluster_evidence",
         "reason": "complete source-native literature crossmatch catalog, type, separation, tidal-radius, proper-motion, parallax, and sigma context"
+      }
+    ],
+    "msc_archive_members": [
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "archive member identity, byte count, checksum, and parser disposition retained as release lineage"
+      }
+    ],
+    "msc_components": [
+      {
+        "pattern": "^(WDS|Comp|HIP|HD)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped WDS system, local component label, and direct HIP/HD component identity evidence"
+      },
+      {
+        "pattern": "^(RAdeg|DEdeg|plx|refpar|PMRA|PMDE|RV)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-native component position, parallax, proper motion, radial velocity, method code, units, and lineage"
+      },
+      {
+        "pattern": "^Sp$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source-native component spectral classification"
+      },
+      {
+        "pattern": "^(Bmag|Vmag|Gmag|Jmag|Hmag|Kmag)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "source-native component photometry with the catalog's explicit zero-is-unknown semantics"
+      },
+      {
+        "pattern": "^Sep$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "source-native separation from the main component retained on the exact WDS/component scope"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "component count, hierarchy grade, unsplit identifier list, line number, raw row, and exact source context"
+      }
+    ],
+    "msc_systems": [
+      {
+        "pattern": "^(WDS|Primary|Secondary|Parent)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped WDS and local hierarchy endpoint identity evidence"
+      },
+      {
+        "pattern": "^(SP1|SP2|Vmag1|Vmag2|Mass1|Mass2)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "source-native endpoint classification, photometry, and mass retained in separate component-scoped parameter sets"
+      },
+      {
+        "pattern": "^(P|Punit|Sep|Sunit|PA)$",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "coherent source-native elementary-binary period, separation, position angle, and units"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "observing/status code, mass-estimation methods, parent context, comment, line number, raw row, and exact relation lineage"
+      }
+    ],
+    "msc_orbits": [
+      {
+        "pattern": "^(WDS|System)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped WDS and opaque source pair designation evidence without label parsing"
+      },
+      {
+        "pattern": "^(Period|T|e|a|Node|LongP|Incl|K1|K2|V0|Punit)$",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "complete coherent source-native visual, astrometric, or spectroscopic orbit parameter set"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "node flag, source note/reference fragment, line number, raw row, and exact orbit lineage"
+      }
+    ],
+    "msc_notes": [
+      {
+        "pattern": "^WDS$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "WDS system identity attached to the exact MSC note row"
+      },
+      {
+        "pattern": "^Bib$",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "source-published bibcode or reference token attached to the MSC system note"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "note prose, line number, raw row, and exact source lineage retained without heuristic parsing"
       }
     ],
     "simbad_identifiers": [
@@ -2382,6 +2494,199 @@
               "method": "mcgill_source_context",
               "normalization_version": "mcgill_source_native_lexical_v1"
             }
+          ]
+        }
+      }
+    },
+    "multiplicity.msc": {
+      "adapter_version": "msc_scientific_evidence_v1",
+      "table_order": [
+        "msc_readme",
+        "msc_archive_members",
+        "msc_comp",
+        "msc_sys",
+        "msc_orb",
+        "msc_notes"
+      ],
+      "tables": {
+        "msc_readme": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_document",
+          "field_profile": "source_method_document"
+        },
+        "msc_archive_members": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["member_name"],
+          "object_scope": "source_archive_member",
+          "field_profile": "msc_archive_members"
+        },
+        "msc_comp": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["WDS", "Comp", "source_line_number"],
+          "object_scope": "source_multiple_component",
+          "field_profile": "msc_components",
+          "identifier_claims": {
+            "WDS": {"namespace": "wds_id", "claim_scope": "multiple_system"},
+            "Comp": {"namespace": "msc_component_label", "claim_scope": "component_label"},
+            "HIP": {"namespace": "hip_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]},
+            "HD": {"namespace": "hd_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "composite_identifier_claims": [
+            {
+              "fields": ["WDS", "Comp"],
+              "delimiter": ":",
+              "namespace": "msc_component",
+              "claim_scope": "star_or_subsystem",
+              "component_scope": "source_component"
+            }
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "RAdeg", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "J2000", "missing_values": ["0", "0.0", "0.000000"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "DEdeg", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "J2000", "missing_values": ["0", "0.0", "0.000000"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx", "quantity_key": "parallax", "unit_raw": "mas", "normalized_unit": "mas", "reference_field": "refpar", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "PMRA", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "mas/yr", "normalized_unit": "mas yr-1", "missing_values": ["0", "0.0"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "PMDE", "quantity_key": "proper_motion_dec", "unit_raw": "mas/yr", "normalized_unit": "mas yr-1", "missing_values": ["0", "0.0"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "RV", "quantity_key": "radial_velocity", "unit_raw": "km/s", "normalized_unit": "km s-1", "missing_values": ["0", "0.0"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "Bmag", "quantity_key": "apparent_magnitude", "bandpass": "B", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"value_field": "Vmag", "quantity_key": "apparent_magnitude", "bandpass": "V", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"value_field": "Gmag", "quantity_key": "apparent_magnitude", "bandpass": "Gaia G", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"value_field": "Jmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS J", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"value_field": "Hmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS H", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"},
+            {"value_field": "Kmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS K", "unit_raw": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true, "method": "msc_component_compilation", "normalization_version": "msc_source_native_zero_unknown_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "msc_component",
+              "component_scope_fields": ["WDS", "Comp"],
+              "component_scope_delimiter": ":",
+              "parameter_set_kind": "msc_component_context",
+              "classification_field": "Sp",
+              "classification_scheme": "spectral_type",
+              "classification_missing_values": ["0"],
+              "quality_fields": ["Ncomp", "Gr"],
+              "method": "msc_component_compilation",
+              "normalization_version": "msc_source_native_zero_unknown_v1",
+              "measurements": [
+                {"value_field": "Sep", "quantity_key": "separation_from_main_component", "unit_raw": "arcsec", "normalized_unit": "arcsec", "missing_values": ["0", "0.0"], "zero_is_missing": true}
+              ]
+            }
+          ]
+        },
+        "msc_sys": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["WDS", "Primary", "Secondary", "source_line_number"],
+          "object_scope": "source_elementary_binary",
+          "field_profile": "msc_systems",
+          "identifier_claims": {
+            "WDS": {"namespace": "wds_id", "claim_scope": "multiple_system"},
+            "Primary": {"namespace": "msc_component_label", "claim_scope": "component_or_subsystem_label"},
+            "Secondary": {"namespace": "msc_component_label", "claim_scope": "component_or_subsystem_label"},
+            "Parent": {"namespace": "msc_component_label", "claim_scope": "parent_subsystem_label", "excluded_values": ["*", "t"]}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["WDS", "Primary"], "delimiter": ":", "namespace": "msc_component", "claim_scope": "star_or_subsystem", "component_scope": "primary_endpoint"},
+            {"fields": ["WDS", "Secondary"], "delimiter": ":", "namespace": "msc_component", "claim_scope": "star_or_subsystem", "component_scope": "secondary_endpoint"},
+            {"fields": ["WDS", "Parent"], "delimiter": ":", "namespace": "msc_component", "claim_scope": "parent_subsystem", "component_scope": "parent_context", "sql_predicate": "Parent not in ('*','t')"}
+          ],
+          "relation_claim": {
+            "left_identifier_fields": ["WDS", "Primary"],
+            "left_identifier_delimiter": ":",
+            "left_identifier_namespace": "msc_component",
+            "left_component_scope": "primary_endpoint",
+            "right_identifier_fields": ["WDS", "Secondary"],
+            "right_identifier_delimiter": ":",
+            "right_identifier_namespace": "msc_component",
+            "right_component_scope": "secondary_endpoint",
+            "relation_kind": "source_elementary_binary",
+            "relation_scope": "source_hierarchy_pair",
+            "evidence_polarity_sql": "case when strpos(Type, 'X') > 0 then 'negative' when strpos(Type, '?') > 0 or starts_with(Type, 'c') then 'ambiguous' else 'positive' end",
+            "method": "msc_source_hierarchy",
+            "reference_raw": "https://www.ctio.noirlab.edu/~atokovin/stars/",
+            "quality_fields": ["Parent", "Type", "Comment"]
+          },
+          "orbital_solution": {
+            "solution_key_fields": ["WDS", "Primary", "Secondary", "source_line_number"],
+            "parameter_fields": ["P", "Punit", "Sep", "Sunit", "PA"],
+            "quality_fields": ["Parent", "Type", "Comment", "raw_row"],
+            "reference_raw": "https://www.ctio.noirlab.edu/~atokovin/stars/",
+            "sql_predicate": "coalesce(try_cast(P as double), 0) > 0 or coalesce(try_cast(Sep as double), 0) > 0",
+            "method": "msc_elementary_binary_period_or_separation",
+            "normalization_version": "msc_source_native_zero_unknown_v1"
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "msc_primary_endpoint",
+              "component_scope_fields": ["WDS", "Primary"],
+              "component_scope_delimiter": ":",
+              "parameter_set_kind": "msc_elementary_binary_endpoint",
+              "classification_field": "SP1",
+              "classification_scheme": "spectral_type",
+              "classification_missing_values": ["0"],
+              "quality_fields": ["MCode1", "Type", "Parent", "Comment"],
+              "method": "msc_elementary_binary_compilation",
+              "normalization_version": "msc_source_native_zero_unknown_v1",
+              "measurements": [
+                {"value_field": "Vmag1", "quantity_key": "apparent_v_magnitude", "unit_raw": "mag", "normalized_unit": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true},
+                {"value_field": "Mass1", "quantity_key": "mass", "unit_raw": "solMass", "normalized_unit": "solMass", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true}
+              ]
+            },
+            {
+              "scope_key": "msc_secondary_endpoint",
+              "component_scope_fields": ["WDS", "Secondary"],
+              "component_scope_delimiter": ":",
+              "parameter_set_kind": "msc_elementary_binary_endpoint",
+              "classification_field": "SP2",
+              "classification_scheme": "spectral_type",
+              "classification_missing_values": ["0"],
+              "quality_fields": ["MCode2", "Type", "Parent", "Comment"],
+              "method": "msc_elementary_binary_compilation",
+              "normalization_version": "msc_source_native_zero_unknown_v1",
+              "measurements": [
+                {"value_field": "Vmag2", "quantity_key": "apparent_v_magnitude", "unit_raw": "mag", "normalized_unit": "mag", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true},
+                {"value_field": "Mass2", "quantity_key": "mass", "unit_raw": "solMass", "normalized_unit": "solMass", "missing_values": ["0", "0.0", "0.00"], "zero_is_missing": true}
+              ]
+            }
+          ]
+        },
+        "msc_orb": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["WDS", "System", "source_line_number"],
+          "object_scope": "source_orbit_solution",
+          "field_profile": "msc_orbits",
+          "identifier_claims": {
+            "WDS": {"namespace": "wds_id", "claim_scope": "multiple_system"},
+            "System": {"namespace": "msc_orbit_pair_label", "claim_scope": "source_pair_designation"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["WDS", "System"], "delimiter": ":", "namespace": "msc_orbit_designation", "claim_scope": "orbit_solution_pair"}
+          ],
+          "orbital_solution": {
+            "solution_key_fields": ["WDS", "System", "source_line_number"],
+            "parameter_fields": ["Period", "T", "e", "a", "Node", "LongP", "Incl", "K1", "K2", "V0", "Punit"],
+            "quality_fields": ["Nodeflag", "Note", "raw_row"],
+            "reference_raw": "https://www.ctio.noirlab.edu/~atokovin/stars/",
+            "relation_link_policy": "opaque_source_pair_pending_e2",
+            "method": "msc_source_orbit_solution",
+            "normalization_version": "msc_source_native_zero_unknown_v1"
+          }
+        },
+        "msc_notes": {
+          "raw_artifact_name": "newmsc_20260619",
+          "logical_key_fields": ["WDS", "source_line_number"],
+          "object_scope": "source_system_note",
+          "field_profile": "msc_notes",
+          "identifier_claims": {
+            "WDS": {"namespace": "wds_id", "claim_scope": "multiple_system"}
+          },
+          "citation_catalog": {
+            "reference_key_field": "Bib",
+            "citation_text_field": "Bib"
+          },
+          "source_citation_links": [
+            {"identifier_claim_field": "WDS", "reference_key_field": "Bib", "citation_role": "msc_system_note_reference", "required": true}
           ]
         }
       }

@@ -326,6 +326,11 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- MSC `fc7e9dcabb0b27167c8f188c`: all 43,418 rows/73 field occurrences;
+  WDS-qualified component identities, 15,748 polarity-bearing source relation
+  claims, 19,366 coherent orbit records, scoped classifications/physics,
+  explicit zero-is-unknown semantics, and no canonical binding or heuristic
+  parsing of alias lists or orbit pair labels
 - OpenNGC and constituent nebula catalogs `54d1b0b6a841344c48327991`:
   19,012 typed object rows, 856 ReadMe lines, all 238 fields, 21,107 exact
   catalog identities, and no heuristic splitting of list-valued aliases
@@ -669,6 +674,16 @@ Policy:
 - required in default science ingest and multiplicity derivation
 - ingest/promotion fail if MSC retrieval/cook/manifest lineage is missing
 - still quantify contribution in comparison reports for observability
+- E4 preserves the release independently from legacy ARM cooking. Local
+  component labels are never global identifiers: the typed evidence key is
+  WDS plus the exact source label, while raw `Primary`, `Secondary`, `Parent`,
+  and `System` strings remain inspectable. `Type` status determines evidence
+  polarity but does not accept containment, and source numeric zero, including
+  signed zero, is unknown per the release ReadMe.
+- E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
+  component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
+  and clean-reproduction gates. All object bindings remain unresolved for E2
+  identity reconciliation and E5 selection.
 
 Security/transport note:
 

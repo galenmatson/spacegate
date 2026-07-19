@@ -55,6 +55,21 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert sbx_adapter["tables"]["sbx_orbits"]["orbital_solution"][
         "relation_link"
     ]["required"] is True
+    msc = contract["source_adapters"]["multiplicity.msc"]
+    assert set(msc["tables"]) == {
+        "msc_archive_members",
+        "msc_comp",
+        "msc_notes",
+        "msc_orb",
+        "msc_readme",
+        "msc_sys",
+    }
+    assert msc["tables"]["msc_sys"]["relation_claim"][
+        "left_identifier_fields"
+    ] == ["WDS", "Primary"]
+    assert msc["tables"]["msc_orb"]["orbital_solution"][
+        "relation_link_policy"
+    ] == "opaque_source_pair_pending_e2"
     nss_adapter = contract["source_adapters"]["gaia.dr3.non_single_star"]
     nss_orbit = nss_adapter["tables"]["gaia_dr3_nss_two_body_orbit_full_v2"][
         "orbital_solution"
@@ -200,6 +215,46 @@ def test_source_field_metadata_reconciles_source_and_selected_output_names() -> 
     assert fields[1]["unit"] == "mag"
 
 
+def test_source_row_hash_is_not_shadowed_by_single_letter_t_column(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "orbit_with_t.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('WDS-1','A,B','0.0000'),"
+            "('WDS-2','C,D','0.0000')) rows(WDS,System,T)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        hashes = con.execute(
+            f"select sha256(to_json(source_row)) "
+            f"from read_parquet('{parquet}') source_row order by WDS"
+        ).fetchall()
+        assert len({row[0] for row in hashes}) == 2
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'multiplicity.test', 'r1', 'orbits', 'orbit', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [[f"record-{index}", row_hash] for index, (row_hash,) in enumerate(hashes)],
+        )
+        compiler.materialize_identifier_claims(
+            con,
+            source_id="multiplicity.test",
+            release_id="r1",
+            table_name="orbits",
+            path=parquet,
+            fields=["WDS"],
+            claim_by_field={
+                "WDS": {"namespace": "wds_id", "claim_scope": "system"}
+            },
+        )
+        claims = con.execute(
+            "select identifier_raw from identifier_claim_evidence order by 1"
+        ).fetchall()
+    assert claims == [("WDS-1",), ("WDS-2",)]
+
+
 def test_cross_table_row_selection_is_bounded_and_schema_checked(
     tmp_path: Path,
 ) -> None:
@@ -241,7 +296,8 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
     )
     with duckdb.connect() as con:
         assert con.execute(
-            f"select oidref from read_parquet('{rows}') t where {predicate} order by 1"
+            f"select oidref from read_parquet('{rows}') source_row "
+            f"where {predicate} order by 1"
         ).fetchall() == [(3,)]
     typed_tables["members"]["columns"] = [
         {"name": "different"},
@@ -991,6 +1047,138 @@ def test_relation_claim_predicate_retains_source_rows_but_bounds_claims(
         assert con.execute(
             "select left_identity_raw,right_identity_raw from relation_claim_evidence"
         ).fetchall() == [("1", "2")]
+
+
+def test_relation_claim_supports_composite_endpoints_and_dynamic_polarity(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "msc_pairs.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "('00001+0001','A','B','V'),"
+            "('00002+0002','A','B','X')) "
+            "t(WDS,\"Primary\",\"Secondary\",Type)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t order by WDS"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'multiplicity.msc', 'r1', 'msc_sys', 'source_pair', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [[f"record-{index}", row_hash] for index, (row_hash,) in enumerate(rows)],
+        )
+        consumed = compiler.materialize_relation_claims(
+            con,
+            source_id="multiplicity.msc",
+            release_id="r1",
+            table_name="msc_sys",
+            path=parquet,
+            relation_claim={
+                "left_identifier_fields": ["WDS", "Primary"],
+                "left_identifier_delimiter": ":",
+                "left_identifier_namespace": "msc_component",
+                "left_component_scope": "primary_endpoint",
+                "right_identifier_fields": ["WDS", "Secondary"],
+                "right_identifier_delimiter": ":",
+                "right_identifier_namespace": "msc_component",
+                "right_component_scope": "secondary_endpoint",
+                "relation_kind": "source_binary_pair",
+                "relation_scope": "source_hierarchy",
+                "evidence_polarity_sql": (
+                    "case when Type='X' then 'negative' else 'positive' end"
+                ),
+                "method": "msc_source_relation",
+                "reference_raw": "source reference",
+                "quality_fields": ["Type"],
+            },
+            available_fields={"WDS", "Primary", "Secondary", "Type"},
+        )
+        evidence = con.execute(
+            "select left_identity_raw,right_identity_raw,evidence_polarity,"
+            "quality_json->>'source_evidence_polarity' "
+            "from relation_claim_evidence order by left_identity_raw"
+        ).fetchall()
+    assert consumed == {"WDS", "Primary", "Secondary", "Type"}
+    assert evidence == [
+        ("00001+0001:A", "00001+0001:B", "positive", "positive"),
+        ("00002+0002:A", "00002+0002:B", "negative", "negative"),
+    ]
+
+
+def test_scoped_stellar_evidence_supports_dynamic_component_scope(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "msc_components.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '00001+0001' WDS, 'Aa' Comp, 'M3V' Sp, "
+            f"0.42::double Mass) to '{parquet}' (format parquet)"
+        )
+        row_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record', 'multiplicity.msc', 'r1', 'msc_comp', 'component', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [row_hash],
+        )
+        consumed = compiler.materialize_scoped_stellar_evidence(
+            con,
+            source_id="multiplicity.msc",
+            release_id="r1",
+            table_name="msc_comp",
+            path=parquet,
+            parameter_sets=[
+                {
+                    "scope_key": "source_component",
+                    "component_scope_fields": ["WDS", "Comp"],
+                    "component_scope_delimiter": ":",
+                    "parameter_set_kind": "msc_component_physics",
+                    "classification_field": "Sp",
+                    "classification_scheme": "spectral_type",
+                    "method": "msc_source_component",
+                    "normalization_version": "msc_source_native_v1",
+                    "measurements": [
+                        {
+                            "value_field": "Mass",
+                            "quantity_key": "mass",
+                            "unit_raw": "solMass",
+                        }
+                    ],
+                }
+            ],
+            available_fields={"WDS", "Comp", "Sp", "Mass"},
+        )
+        scopes = con.execute(
+            "select component_scope from stellar_parameter_sets"
+        ).fetchall()
+        classifications = con.execute(
+            "select component_scope,classification_raw "
+            "from stellar_classification_evidence"
+        ).fetchall()
+    assert consumed == {"WDS", "Comp", "Sp", "Mass"}
+    assert scopes == [("00001+0001:Aa",)]
+    assert classifications == [("00001+0001:Aa", "M3V")]
+
+
+def test_numeric_zero_missing_semantics_reject_signed_zero_lexemes() -> None:
+    predicate = compiler.missing_value_predicate(
+        "value_raw", [], zero_is_missing=True
+    )
+    with duckdb.connect() as con:
+        retained = con.execute(
+            "select value_raw from (values ('0'),('0.0'),('-0.0'),('1.0')) "
+            f"rows(value_raw) where {predicate} order by value_raw"
+        ).fetchall()
+    assert retained == [("1.0",)]
 
 
 def test_relation_audit_accepts_source_native_primary_secondary_scopes() -> None:

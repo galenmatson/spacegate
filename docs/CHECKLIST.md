@@ -1178,6 +1178,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   fields; emit exact catalog identities without heuristically splitting alias
   lists or collapsing Cederblad components; pass artifact, extended-object
   scope, and clean-reproduction gates without relation/orbit promotion
+- [x] E4 MSC checkpoint: preserve all 43,418 release rows and 73 fields with
+  WDS-qualified component/relation scopes, source-status polarity, coherent
+  elementary-binary and full-orbit parameter sets, explicit numeric-zero
+  sentinel semantics, unsplit alias/pair strings, and unresolved bindings;
+  pass artifact, MSC source/scope, and clean-reproduction gates
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash
