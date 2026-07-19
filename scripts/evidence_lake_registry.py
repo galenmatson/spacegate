@@ -143,6 +143,30 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
         if schema_policy.get("drift") != "fail_until_reviewed":
             errors.append(f"{source_id}.schema_policy.drift must be fail_until_reviewed")
 
+        trailing_delimiters = schema_policy.get("trailing_layout_delimiters")
+        if trailing_delimiters is not None:
+            if schema_policy.get("kind") not in {
+                "documented_fixed_width",
+                "vizier_readme_fixed_width",
+            }:
+                errors.append(
+                    f"{source_id}.schema_policy.trailing_layout_delimiters "
+                    "requires a documented fixed-width schema"
+                )
+            if (
+                not isinstance(trailing_delimiters, list)
+                or not trailing_delimiters
+                or any(
+                    not isinstance(value, str) or len(value) != 1 or value.isspace()
+                    for value in trailing_delimiters
+                )
+                or len(trailing_delimiters) != len(set(trailing_delimiters))
+            ):
+                errors.append(
+                    f"{source_id}.schema_policy.trailing_layout_delimiters must be "
+                    "a non-empty list of unique single non-whitespace characters"
+                )
+
         entries = source.get("manifest_entries") or []
         if state not in {"planned", "disabled"} and not entries:
             errors.append(f"{source_id}.manifest_entries is required for active sources")

@@ -235,6 +235,14 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   validates its declared 16-field table contract and preserves 597 names,
   source row identity, and linked resources while explicitly excluding the
   page footer and unrelated calendar table.
+- GCVS's documented fixed-width rows use structural trailing `|` separators in
+  four slices. Registry-controlled parser v2 removes exactly one such separator
+  and remaining layout padding while preserving internal `|` classifications
+  and the exact `raw_row`. Typed snapshot `ef540a47c43892e17ddc2bae` accounts
+  203,740 normalized cells across `Exists`, `Ident`, `VarName`, and `f_NSV`.
+  A typed A/B report proves no other cell, row, schema, or raw checksum changed;
+  verification and clean reproduction pass content hash
+  `7e6b3cd985b8df6df7b25eb43949ae112e3eea32ad094cc3b90ce6972639ff20`.
 - The hard-parallax branch of the Gaia 1,250-ly envelope contains 31,987,126
   source rows and is published with all 152 `gaia_source` columns. A disjoint
   supplement selects only Gaia DR3 rows outside that branch through the Gaia

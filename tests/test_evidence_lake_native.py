@@ -124,6 +124,44 @@ def test_wds_format_and_fixed_width_writer_account_for_short_rows(tmp_path: Path
         ]
 
 
+def test_fixed_width_writer_strips_only_one_configured_trailing_delimiter(
+    tmp_path: Path,
+) -> None:
+    raw_path = tmp_path / "rows.dat"
+    raw_path.write_text("ABC|SR|Cst|TAIL||\n", encoding="utf-8")
+    fields = [
+        {"name": "name", "start": 1, "end": 4},
+        {"name": "variable_type", "start": 5, "end": 11},
+        {"name": "note", "start": 12, "end": 17},
+    ]
+    output = tmp_path / "rows.parquet"
+    report = write_fixed_width_parquet(
+        raw_path,
+        fields,
+        output,
+        trailing_layout_delimiters=("|",),
+    )
+    assert (
+        report["source_row_accounting"]["trailing_layout_delimiter_stripped_count"]
+        == 3
+    )
+    assert report["source_row_accounting"][
+        "trailing_layout_delimiter_stripped_by_field"
+    ] == {"name": 1, "note": 1, "variable_type": 1}
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select name, variable_type, note, raw_row from read_parquet('{output}')"
+        ).fetchone() == ("ABC", "SR|Cst", "TAIL|", "ABC|SR|Cst|TAIL||")
+
+    with pytest.raises(ValueError, match="unique single non-whitespace"):
+        write_fixed_width_parquet(
+            raw_path,
+            fields,
+            tmp_path / "invalid.parquet",
+            trailing_layout_delimiters=(" ",),
+        )
+
+
 def test_atnf_catalog_preserves_duplicate_parameters_comments_and_irregular_rows(
     tmp_path: Path,
 ) -> None:

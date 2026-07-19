@@ -1109,7 +1109,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E3 naming/variability slice: pin, snapshot, type, and verify official WGSN
   plus GCVS catalog, cross-identifier, suspected-variable, bibliography, and
   source-document artifacts; validate all 16 WGSN fields and separate its 597
-  catalog rows from page furniture
+  catalog rows from page furniture; normalize only registry-declared GCVS
+  trailing layout delimiters, preserve internal delimiters and exact raw rows,
+  and pass typed A/B plus clean-reproduction gates
 - [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
 - [x] E3 Gaia boundary checkpoint: complete, type, verify, and clean-reproduce the disjoint

@@ -244,6 +244,13 @@ replacement has a durable logical-hash comparison; accepted E4/E5 inputs remain
 protected until E7 records that no retained projection references them. Clean
 reproduction uses `scripts/verify_scientific_evidence_reproduction.py`; its
 scratch tree is removed only after comparison and the durable report is written.
+
+GCVS typed snapshot `ef540a47c43892e17ddc2bae` supersedes parser-v1 snapshot
+`85d1e49a6ce11402c4d06a5f` for downstream work. The immutable raw snapshot is
+unchanged, and the typed A/B plus clean-reproduction reports are durable. Keep
+both typed snapshots until the GCVS E4 adapter and combined E4/E5 input set have
+been verified; this checkpoint authorizes no typed-snapshot cleanup.
+
 Large local compiles may set `SPACEGATE_E4_TEMP_DIRECTORY` to an operator-owned
 scratch root such as `/mnt/space/spacegate/tmp/evidence_lake_v2/e4_spill`.
 DuckDB spill there is disposable execution state, never an evidence artifact;

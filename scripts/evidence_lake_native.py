@@ -136,7 +136,18 @@ def fixed_width_rows(
     fields: list[dict[str, Any]],
     *,
     record_pattern: re.Pattern[str] | None = None,
-) -> tuple[Iterable[dict[str, Any]], dict[str, int]]:
+    trailing_layout_delimiters: tuple[str, ...] = (),
+) -> tuple[Iterable[dict[str, Any]], dict[str, Any]]:
+    if (
+        any(
+            len(value) != 1 or value.isspace()
+            for value in trailing_layout_delimiters
+        )
+        or len(trailing_layout_delimiters) != len(set(trailing_layout_delimiters))
+    ):
+        raise ValueError(
+            "trailing layout delimiters must be unique single non-whitespace characters"
+        )
     counters = {
         "source_line_count": 0,
         "blank_line_count": 0,
@@ -144,6 +155,10 @@ def fixed_width_rows(
         "short_row_count": 0,
         "max_row_chars": 0,
     }
+    if trailing_layout_delimiters:
+        counters["trailing_layout_delimiter_stripped_count"] = 0
+        counters["trailing_layout_delimiter_stripped_by_field"] = {}
+    delimiter_set = set(trailing_layout_delimiters)
     expected_width = max(int(field["end"]) for field in fields)
 
     def rows() -> Iterable[dict[str, Any]]:
@@ -163,7 +178,14 @@ def fixed_width_rows(
                 row: dict[str, Any] = {"source_line_number": line_number}
                 for field in fields:
                     value = raw[int(field["start"]) - 1 : int(field["end"])]
-                    row[str(field["name"])] = value.strip() or None
+                    normalized = value.strip()
+                    if normalized and normalized[-1] in delimiter_set:
+                        normalized = normalized[:-1].rstrip()
+                        field_name = str(field["name"])
+                        counters["trailing_layout_delimiter_stripped_count"] += 1
+                        by_field = counters["trailing_layout_delimiter_stripped_by_field"]
+                        by_field[field_name] = int(by_field.get(field_name, 0)) + 1
+                    row[str(field["name"])] = normalized or None
                 row["raw_row"] = raw
                 yield row
 
@@ -201,6 +223,7 @@ def write_fixed_width_parquet(
     output: Path,
     *,
     record_pattern: re.Pattern[str] | None = None,
+    trailing_layout_delimiters: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     if not fields:
         raise ValueError(f"fixed-width schema has no fields: {path}")
@@ -209,7 +232,12 @@ def write_fixed_width_parquet(
         + [pa.field(str(field["name"]), pa.string()) for field in fields]
         + [pa.field("raw_row", pa.string())]
     )
-    rows, counters = fixed_width_rows(path, fields, record_pattern=record_pattern)
+    rows, counters = fixed_width_rows(
+        path,
+        fields,
+        record_pattern=record_pattern,
+        trailing_layout_delimiters=trailing_layout_delimiters,
+    )
     row_count = write_record_batches(rows, schema, output)
     expected_rows = (
         counters["source_line_count"]

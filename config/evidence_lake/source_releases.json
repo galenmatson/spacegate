@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.9",
+  "registry_version": "2026-07-19.10",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -939,6 +939,7 @@
         "kind": "documented_fixed_width",
         "drift": "fail_until_reviewed",
         "default_disposition": "preserve",
+        "trailing_layout_delimiters": ["|"],
         "readme_bindings": {
           "gcvs_catalog": "gcvs_readme",
           "gcvs_cross_identifiers": "gcvs_readme",

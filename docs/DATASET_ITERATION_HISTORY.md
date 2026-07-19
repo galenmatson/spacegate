@@ -973,6 +973,16 @@ Representative commits:
   semantic cook preserves 597 distinct names, all 16 source fields, source row
   identity, and linked resources, with the repeated footer and calendar table
   explicitly excluded. Raw/typed hash and artifact accounting pass.
+- Review of the GCVS lexical cook found structural trailing `|` separators
+  retained as values in `Exists`, `Ident`, `VarName`, and `f_NSV`. The general
+  fixed-width parser now accepts a registry-scoped delimiter policy: it trims
+  the slice, removes exactly one configured trailing separator, then trims
+  remaining layout padding. Internal delimiters and exact raw rows are
+  untouched. Snapshot `ef540a47c43892e17ddc2bae` accounts 203,740 changes;
+  its typed A/B report proves identical rows, schemas, and raw checksums with no
+  changes outside those four fields. Verification and clean reproduction pass
+  content hash
+  `7e6b3cd985b8df6df7b25eb43949ae112e3eea32ad094cc3b90ce6972639ff20`.
 - NASA archive probing exposed that current Kepler KOI/TCE tables use uppercase
   legacy TAP names. E3 now explicitly preserves DR25 KOIs, supplemental and
   cumulative KOIs, DR25 threshold-crossing events, and the transit-detection

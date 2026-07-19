@@ -1396,7 +1396,9 @@ Current status (July 19, 2026, in progress):
   columns, source row identity, and linked resources under a schema-drift gate;
   GCVS preserves 60,894 catalog rows, 226,060 cross-identifiers, 26,018
   suspected variables, 25,696 bibliography rows, and its source
-  documents/dictionaries
+  documents/dictionaries. GCVS parser v2 accounts exactly 203,740 structural
+  trailing-delimiter normalizations while retaining internal delimiters and
+  exact raw rows; typed A/B and clean-reproduction gates pass
 - registered acquisition contracts now cover Bailer-Jones distances,
   Hunt-Reffert clusters, El-Badry confidence-bearing wide binaries, staged
   SIMBAD identity/naming evidence, complete relevant NASA KOI/TCE/TOI/K2 and

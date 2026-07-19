@@ -110,6 +110,21 @@ def test_registry_rejects_incomplete_or_duplicate_html_table_contract() -> None:
     assert any("field disposition is invalid" in error for error in errors)
 
 
+def test_registry_bounds_trailing_fixed_width_layout_delimiters() -> None:
+    registry = minimal_registry()
+    policy = registry["sources"][0]["schema_policy"]
+    policy["trailing_layout_delimiters"] = ["|", "||", "|"]
+    errors = validate_registry(registry)
+    assert any(
+        "requires a documented fixed-width schema" in error for error in errors
+    )
+    assert any("unique single non-whitespace characters" in error for error in errors)
+
+    policy["kind"] = "documented_fixed_width"
+    policy["trailing_layout_delimiters"] = ["|"]
+    assert validate_registry(registry) == []
+
+
 def test_observation_product_policy_is_bounded_metadata_first_and_allowlisted() -> None:
     policy = json.loads(PRODUCT_POLICY_PATH.read_text(encoding="utf-8"))
     assert policy["schema_version"] == "spacegate.observation_product_storage_policy.v1"

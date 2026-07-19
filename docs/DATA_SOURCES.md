@@ -137,6 +137,15 @@ identity and linked resources, and excludes unrelated page tables and footer
 controls with machine-counted reasons. The exact HTML remains the immutable raw
 authority.
 
+GCVS uses a documented fixed-width lexical contract. Its registry explicitly
+declares `|` as a trailing layout delimiter, so parser v2 removes one trailing
+separator after slicing and trims only the remaining layout padding. It does
+not split or remove internal delimiters such as `SR|Cst`, and `raw_row` remains
+byte-faithful. Typed snapshot `ef540a47c43892e17ddc2bae` preserves 340,839
+rows across all six artifacts; its 203,740 scoped cell normalizations, table
+schemas, raw checksums, verification, and clean reproduction are machine
+accounted.
+
 The July 19 NASA Exoplanet Archive snapshot preserves 12 independent TAP
 tables rather than pre-merging parameter sets: 206,989 rows and 2,093 fields
 cover reference-specific planets, composite parameters, hosts, TOIs, K2,

@@ -71,7 +71,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
     "nasa_exoplanet_archive.planetary_systems": "evidence_typed_cook_tap_csv_v1",
     "naming.iau_wgsn": "evidence_typed_cook_html_table_v2",
-    "classification.gcvs": "evidence_typed_cook_cds_v1",
+    "classification.gcvs": "evidence_typed_cook_gcvs_cds_layout_delimiter_v2",
     "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",
     "multiplicity.wds": "evidence_typed_cook_wds_v1",
     "multiplicity.sb9": "evidence_typed_cook_cds_v2",
@@ -657,6 +657,7 @@ def cook_documented_artifact(
         schema_fields,
         output,
         record_pattern=record_pattern,
+        trailing_layout_delimiters=tuple(policy.get("trailing_layout_delimiters") or ()),
     )
     metadata = parquet_metadata(output, con)
     if metadata["row_count"] != write_report["row_count"]:
@@ -664,7 +665,11 @@ def cook_documented_artifact(
     return {
         "source_name": source_name,
         "status": "typed",
-        "parser": "documented_fixed_width_lexical_v1",
+        "parser": (
+            "documented_fixed_width_lexical_layout_delimiter_v2"
+            if policy.get("trailing_layout_delimiters")
+            else "documented_fixed_width_lexical_v1"
+        ),
         "typing_status": "source_schema_lexical",
         "raw_tree_sha256": artifact["tree_sha256"],
         "schema_document_source_name": schema_document["source_name"],

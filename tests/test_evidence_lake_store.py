@@ -142,11 +142,88 @@ def test_parser_pending_preserves_raw_contract(tmp_path: Path) -> None:
     source = source_contract()
     source["schema_policy"]["kind"] = "documented_fixed_width"
     raw_root = state / "raw" / "evidence_lake_v2"
-    raw_manifest = build_raw_snapshot(source, manifest_entries(manifests), state, raw_root)
+    raw_manifest = build_raw_snapshot(
+        source, manifest_entries(manifests), state, raw_root
+    )
     snapshot_dir = raw_root / "test.catalog" / "r1" / raw_manifest["snapshot_id"]
     typed = build_typed_snapshot(source, snapshot_dir, state / "typed" / "evidence_lake_v2")
     assert typed["tables"][0]["status"] == "parser_pending"
     assert typed["tables"][0]["raw_tree_sha256"]
+
+
+def test_documented_fixed_width_passes_configured_layout_delimiter_policy(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    source_dir = state / "raw" / "test"
+    manifests = state / "reports" / "manifests"
+    source_dir.mkdir(parents=True)
+    manifests.mkdir(parents=True)
+    readme = source_dir / "ReadMe"
+    readme.write_text(
+        "Byte-by-byte Description of file: rows.dat\n"
+        "--------------------------------------------------------------------------------\n"
+        " Bytes Format Units Label Explanations\n"
+        "--------------------------------------------------------------------------------\n"
+        "  1-  4 A4    ---   Name  Source name\n"
+        "  5- 11 A7    ---   Type  Variable type\n"
+        " 12- 17 A6    ---   Note  Source note\n"
+        "--------------------------------------------------------------------------------\n",
+        encoding="utf-8",
+    )
+    rows = source_dir / "rows.dat"
+    rows.write_text("ABC|SR|Cst|TAIL||\n", encoding="utf-8")
+
+    import hashlib
+
+    entries = []
+    for source_name, path in (("test_readme", readme), ("test_rows", rows)):
+        entries.append(
+            {
+                "source_name": source_name,
+                "dest_path": str(path.relative_to(state)),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    (manifests / "test_manifest.json").write_text(
+        json.dumps(entries), encoding="utf-8"
+    )
+    source = source_contract()
+    source["manifest_entries"] = [
+        {"manifest": "test_manifest.json", "source_name": "test_readme"},
+        {"manifest": "test_manifest.json", "source_name": "test_rows"},
+    ]
+    source["schema_policy"] = {
+        "kind": "documented_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {"test_rows": "test_readme"},
+        "trailing_layout_delimiters": ["|"],
+    }
+    raw_root = state / "raw" / "evidence_lake_v2"
+    raw_manifest = build_raw_snapshot(
+        source, manifest_entries(manifests), state, raw_root
+    )
+    snapshot_dir = raw_root / "test.catalog" / "r1" / raw_manifest["snapshot_id"]
+    typed_root = state / "typed" / "evidence_lake_v2"
+    typed = build_typed_snapshot(source, snapshot_dir, typed_root)
+    table = next(row for row in typed["tables"] if row["source_name"] == "test_rows")
+    assert table["parser"] == "documented_fixed_width_lexical_layout_delimiter_v2"
+    assert table["source_row_accounting"][
+        "trailing_layout_delimiter_stripped_count"
+    ] == 3
+    typed_dir = (
+        typed_root
+        / "test.catalog"
+        / "r1"
+        / raw_manifest["snapshot_id"]
+        / typed["typed_snapshot_id"]
+    )
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select Name, Type, Note, raw_row from read_parquet("
+            f"'{typed_dir / table['parquet_path']}')"
+        ).fetchone() == ("ABC", "SR|Cst", "TAIL|", "ABC|SR|Cst|TAIL||")
 
 
 def test_mast_json_uses_declared_union_schema_across_null_batches(tmp_path: Path) -> None:
