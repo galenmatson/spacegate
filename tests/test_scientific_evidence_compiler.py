@@ -262,6 +262,15 @@ def test_configured_measurements_support_asymmetric_uncertainty_fields() -> None
         for error in errors
     )
 
+    bailer_jones = contract["source_adapters"][
+        "distance.gaia_edr3_bailer_jones"
+    ]["tables"]["bailer_jones_edr3_distance_envelope_v1"]
+    distance_measurements = bailer_jones["configured_domain_measurements"]
+    assert [row["bound_semantics"] for row in distance_measurements] == [
+        "posterior_16th_84th_percentile_interval_endpoints",
+        "posterior_16th_84th_percentile_interval_endpoints",
+    ]
+
 
 def test_configured_photometry_fields_include_lineage_and_quality() -> None:
     assert compiler.configured_photometry_fields(
@@ -369,6 +378,38 @@ def test_source_field_metadata_reconciles_source_and_selected_output_names() -> 
     assert [row["column_name"] for row in fields] == ["ID", "CMDCl2_5"]
     assert fields[1]["source_column_name"] == "CMDCl2.5"
     assert fields[1]["unit"] == "mag"
+
+
+def test_source_field_metadata_reconciles_case_collision_aliases() -> None:
+    fields = compiler.source_field_metadata(
+        {
+            "columns": [
+                {"name": "b_rgeo", "type": "DOUBLE"},
+                {"name": "B_rgeo__source_case_2", "type": "DOUBLE"},
+            ],
+            "source_schema": {
+                "source_schema": [
+                    {"name": "b_rgeo", "unit": "pc"},
+                    {
+                        "name": "B_rgeo__source_case_2",
+                        "source_name": "B_rgeo",
+                        "unit": "pc",
+                    },
+                ]
+            },
+        },
+        {
+            "field_dispositions": [
+                {"column_name": "b_rgeo", "datatype": "double", "unit": "pc"},
+                {"column_name": "B_rgeo", "datatype": "double", "unit": "pc"},
+            ]
+        },
+    )
+    assert [row["column_name"] for row in fields] == [
+        "b_rgeo",
+        "B_rgeo__source_case_2",
+    ]
+    assert fields[1]["source_column_name"] == "B_rgeo"
 
 
 def test_source_row_hash_is_not_shadowed_by_single_letter_t_column(
@@ -656,6 +697,20 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                         "ucd": None,
                         "description": "source reference",
                     },
+                    {
+                        "column_name": "ignored",
+                        "datatype": "char",
+                        "unit": None,
+                        "ucd": None,
+                        "description": "preserved only in source-native storage",
+                    },
+                    {
+                        "column_name": "lineage_note",
+                        "datatype": "char",
+                        "unit": None,
+                        "ucd": None,
+                        "description": "source lineage context",
+                    },
                 ]
             }
         ),
@@ -665,9 +720,11 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
     with duckdb.connect() as con:
         con.execute(
             f"copy (select * from (values "
-            f"('1','alpha','PC','REF'),('1','alpha','PC','REF'),"
-            f"('1','beta','FP','--')) "
-            f"t(source_id,note,disposition,reference)) to '{parquet}' "
+            f"('1','alpha','PC','REF','raw-a','release-1'),"
+            f"('1','alpha','PC','REF','raw-a','release-1'),"
+            f"('1','beta','FP','--','raw-b','release-2')) "
+            f"t(source_id,note,disposition,reference,ignored,lineage_note)) "
+            f"to '{parquet}' "
             f"(format parquet, compression zstd)"
         )
 
@@ -765,6 +822,18 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                     "destination": "citations",
                     "reason": "source citation",
                 },
+                {
+                    "pattern": "ignored",
+                    "disposition": "exclude",
+                    "destination": "source_records",
+                    "reason": "retained only in source-native typed storage",
+                },
+                {
+                    "pattern": "lineage_note",
+                    "disposition": "lineage",
+                    "destination": "source_records",
+                    "reason": "retained release lineage",
+                },
             ]
         }
     }
@@ -781,7 +850,8 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                 "source_context_json::varchar from source_records order by source_record_id"
             ).fetchall()
             dispositions = con.execute(
-                "select source_field, mapping_status from source_field_dispositions "
+                "select source_field, source_native_field, mapping_status "
+                "from source_field_dispositions "
                 "order by source_field"
             ).fetchall()
             binding_count = con.execute(
@@ -810,11 +880,17 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         assert report["exact_duplicate_rows"] == 1
         assert sorted(row[2] for row in records) == [1, 2]
         assert {json.loads(row[3])["note"] for row in records} == {"alpha", "beta"}
+        assert all(
+            set(json.loads(row[3])) == {"note", "lineage_note"}
+            for row in records
+        )
         assert dispositions == [
-            ("disposition", "materialized"),
-            ("note", "materialized"),
-            ("reference", "materialized"),
-            ("source_id", "materialized"),
+            ("disposition", "disposition", "materialized"),
+            ("ignored", "ignored", "excluded"),
+            ("lineage_note", "lineage_note", "materialized"),
+            ("note", "note", "materialized"),
+            ("reference", "reference", "materialized"),
+            ("source_id", "source_id", "materialized"),
         ]
         assert identifier_claims == [("1",), ("1",)]
         assert lifecycle == [
@@ -1836,8 +1912,8 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
     parquet = tmp_path / "astrometry.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select * from (values (10.0, 0.5, '2025A&A...1A', null)) "
-            f"t(parallax,parallax_error,reference,radial_velocity)) "
+            f"copy (select * from (values (10.0, 9.0, 11.0, null)) "
+            f"t(parallax,parallax_lower,parallax_upper,radial_velocity)) "
             f"to '{parquet}' (format parquet)"
         )
         source_hash = con.execute(
@@ -1855,11 +1931,13 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
             {
                 "destination": "astrometry_distance_evidence",
                 "value_field": "parallax",
-                "uncertainty_field": "parallax_error",
+                "uncertainty_lower_field": "parallax_lower",
+                "uncertainty_upper_field": "parallax_upper",
                 "quantity_key": "parallax",
                 "unit_raw": "mas",
                 "normalized_unit": "mas",
-                "reference_field": "reference",
+                "bound_semantics": "posterior_interval_endpoints",
+                "reference_raw": "2025A&A...1A",
                 "method": "source_astrometry",
                 "normalization_version": "source_native_v1",
             },
@@ -1869,7 +1947,7 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
                 "quantity_key": "radial_velocity",
                 "unit_raw": "km/s",
                 "normalized_unit": "km s-1",
-                "reference_field": "reference",
+                "reference_raw": "2025A&A...1A",
                 "method": "source_velocity",
                 "normalization_version": "source_native_v1",
             },
@@ -1883,8 +1961,8 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
             measurements=measurements,
             available_fields={
                 "parallax",
-                "parallax_error",
-                "reference",
+                "parallax_lower",
+                "parallax_upper",
                 "radial_velocity",
             },
             storage_modes={
@@ -1894,7 +1972,8 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
         citation_summary = compiler.materialize_citations(con)
         nested = con.execute(
             "select measurement.quantity_key,measurement.value_raw,"
-            "measurement.uncertainty_lower,measurement.reference_raw,"
+            "measurement.uncertainty_lower,measurement.uncertainty_upper,"
+            "measurement.bound_semantics,measurement.reference_raw,"
             "measurement.quality_json::varchar "
             "from astrometry_distance_evidence_bundles b, "
             "unnest(b.measurements) as nested(measurement)"
@@ -1905,17 +1984,24 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
         audit = artifact_audit.audit_evidence(con)
     assert consumed == {
         "parallax",
-        "parallax_error",
-        "reference",
+        "parallax_lower",
+        "parallax_upper",
         "radial_velocity",
     }
-    assert [row[:4] for row in nested] == [
-        ("parallax", "10.0", 0.5, "2025A&A...1A")
+    assert [row[:6] for row in nested] == [
+        (
+            "parallax",
+            "10.0",
+            9.0,
+            11.0,
+            "posterior_interval_endpoints",
+            "2025A&A...1A",
+        )
     ]
-    quality = json.loads(nested[0][4])
-    assert quality["uncertainty_field"] == "parallax_error"
-    assert quality["uncertainty_lower_field"] == "parallax_error"
-    assert quality["uncertainty_upper_field"] == "parallax_error"
+    quality = json.loads(nested[0][6])
+    assert quality["uncertainty_field"] is None
+    assert quality["uncertainty_lower_field"] == "parallax_lower"
+    assert quality["uncertainty_upper_field"] == "parallax_upper"
     assert flat_count == 0
     assert citation_summary == {"citations": 1, "evidence_links": 1}
     assert audit["status"] == "pass"

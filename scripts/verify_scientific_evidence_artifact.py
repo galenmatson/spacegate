@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +16,7 @@ from compile_scientific_evidence import (
     DEFAULT_STATE,
     EVIDENCE_REFERENCE_TABLES,
     load_json,
+    sql_string,
     write_json,
 )
 
@@ -331,6 +335,16 @@ def main() -> int:
     parser.add_argument("--database", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--memory-limit", default="16GB")
+    parser.add_argument(
+        "--temp-directory",
+        type=Path,
+        default=(
+            Path(os.environ["SPACEGATE_E4_TEMP_DIRECTORY"])
+            if os.environ.get("SPACEGATE_E4_TEMP_DIRECTORY")
+            else None
+        ),
+    )
     parser.add_argument(
         "--report",
         type=Path,
@@ -349,12 +363,34 @@ def main() -> int:
     else:
         database = args.database
         build_id = database.parent.name
-    with duckdb.connect(str(database), read_only=True) as con:
+    audit_temporary = None
+    if args.temp_directory is not None:
+        args.temp_directory.mkdir(parents=True, exist_ok=True)
+        audit_temporary = Path(
+            tempfile.mkdtemp(prefix=f"artifact-audit-{build_id}.", dir=args.temp_directory)
+        )
+    try:
+        con = duckdb.connect(str(database), read_only=True)
+        if audit_temporary is not None:
+            con.execute(f"set temp_directory={sql_string(str(audit_temporary))}")
+        con.execute(f"set memory_limit={sql_string(str(args.memory_limit))}")
         con.execute(f"set threads={max(1, args.threads)}")
         report = audit_evidence(con)
+    finally:
+        if "con" in locals():
+            con.close()
+        if audit_temporary is not None:
+            shutil.rmtree(audit_temporary, ignore_errors=True)
     report["build_id"] = build_id
     report["database"] = str(database)
     report["threads"] = max(1, args.threads)
+    report["memory_limit"] = str(args.memory_limit)
+    report["temporary_storage_policy"] = (
+        "external_operator_scratch" if args.temp_directory is not None else "duckdb_default"
+    )
+    report["temporary_storage_removed"] = (
+        audit_temporary is None or not audit_temporary.exists()
+    )
     write_json(args.report, report)
     print(f"scientific evidence artifact audit {report['status']}: {build_id}")
     return 0 if report["status"] == "pass" else 1

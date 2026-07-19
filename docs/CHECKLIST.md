@@ -1263,6 +1263,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   fields as coherent model-specific solutions with uncertainties, correlation
   vectors, fit diagnostics, frame/reference lineage, release-scoped source and
   solution identities, clean reproduction, and no fabricated endpoints
+- [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
+  rows as coherent geometric and photogeometric posterior bundles; preserve
+  case-distinct percentile fields, explicit interval-endpoint semantics,
+  quality and bibliography lineage, and release-scoped EDR3 identity; pass
+  bounded generic/source audits and exact clean logical-hash reproduction with
+  zero pending fields or redundant excluded context
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

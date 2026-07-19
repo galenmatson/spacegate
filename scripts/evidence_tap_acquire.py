@@ -283,6 +283,7 @@ def tap_async_request(
             last_error = exc
             status["failed_at"] = utc_now()
             status["error"] = f"{type(exc).__name__}: {exc}"
+            cleanup_confirmed = True
             if job_url is not None and phase not in {
                 "COMPLETED",
                 "ERROR",
@@ -303,6 +304,7 @@ def tap_async_request(
                     }
                     print(f"{utc_now()} async aborted {job_url}", flush=True)
                 except Exception as cleanup_error:
+                    cleanup_confirmed = False
                     status["cleanup"] = {
                         "action": "abort",
                         "status": "fail",
@@ -316,6 +318,18 @@ def tap_async_request(
                     )
             if status_path is not None:
                 write_json(status_path, run_status)
+            if not cleanup_confirmed:
+                status["retry_suppressed"] = (
+                    "nonterminal upstream job cleanup was not confirmed"
+                )
+                if status_path is not None:
+                    write_json(status_path, run_status)
+                print(
+                    f"{utc_now()} async retry suppressed for {job_url}: "
+                    "abort was not confirmed",
+                    flush=True,
+                )
+                break
             if attempt == retries:
                 break
             delay = min(2**attempt, 30)

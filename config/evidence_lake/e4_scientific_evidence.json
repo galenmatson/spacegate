@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.53",
-  "compiler_version": "scientific_evidence_compiler_v53",
+  "contract_version": "2026-07-19.e4-foundation.56",
+  "compiler_version": "scientific_evidence_compiler_v56",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1310,9 +1310,88 @@
         "mapping_status": "declared_pending",
         "reason": "unrecognized targeted Gaia field retained pending schema review"
       }
+    ],
+    "bailer_jones_edr3_distance": [
+      {
+        "pattern": "^Source$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "Gaia EDR3 source identity for the published distance posterior"
+      },
+      {
+        "pattern": "^(rgeo|b_rgeo|B_rgeo__source_case_2|rpgeo|b_rpgeo|B_rpgeo__source_case_2|Flag)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-published geometric/photogeometric posterior evidence and quality context"
+      },
+      {
+        "pattern": "^(RA_ICRS|DE_ICRS)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "association coordinates are copied from Gaia EDR3 and remain in typed Parquet; release-native Gaia owns coordinate evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "unrecognized distance-catalog field retained pending schema review"
+      }
     ]
   },
   "source_adapters": {
+    "distance.gaia_edr3_bailer_jones": {
+      "adapter_version": "bailer_jones_edr3_distance_evidence_v1",
+      "tables": {
+        "bailer_jones_edr3_distance_envelope_v1": {
+          "logical_key_fields": ["Source"],
+          "object_scope": "star",
+          "field_profile": "bailer_jones_edr3_distance",
+          "identifier_claims": {
+            "Source": {
+              "namespace": "gaia_edr3_source_id",
+              "claim_scope": "star",
+              "normalization": "unsigned_integer_decimal_v1"
+            }
+          },
+          "configured_domain_storage": {
+            "astrometry_distance_evidence": "typed_measurement_bundle_v1"
+          },
+          "configured_domain_measurements": [
+            {
+              "destination": "astrometry_distance_evidence",
+              "value_field": "rgeo",
+              "uncertainty_lower_field": "b_rgeo",
+              "uncertainty_upper_field": "B_rgeo__source_case_2",
+              "quantity_key": "geometric_distance_posterior_median",
+              "unit_raw": "pc",
+              "normalized_unit": "pc",
+              "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints",
+              "quality_fields": ["Flag"],
+              "method": "bayesian_parallax_distance_estimate",
+              "model": "direction_dependent_geometric_galaxy_prior",
+              "reference_raw": "2021AJ....161..147B",
+              "normalization_version": "bailer_jones_edr3_geometric_posterior_v1"
+            },
+            {
+              "destination": "astrometry_distance_evidence",
+              "value_field": "rpgeo",
+              "uncertainty_lower_field": "b_rpgeo",
+              "uncertainty_upper_field": "B_rpgeo__source_case_2",
+              "quantity_key": "photogeometric_distance_posterior_median",
+              "unit_raw": "pc",
+              "normalized_unit": "pc",
+              "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints",
+              "quality_fields": ["Flag"],
+              "method": "bayesian_parallax_photometry_distance_estimate",
+              "model": "direction_color_magnitude_extinction_selection_prior",
+              "reference_raw": "2021AJ....161..147B",
+              "normalization_version": "bailer_jones_edr3_photogeometric_posterior_v1"
+            }
+          ]
+        }
+      }
+    },
     "naming.iau_wgsn": {
       "adapter_version": "iau_wgsn_scientific_evidence_v1",
       "tables": {

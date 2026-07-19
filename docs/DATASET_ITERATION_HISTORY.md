@@ -1622,6 +1622,61 @@ Representative commits:
   completed hard-parallax sibling instead of three oversized partitions.
   Acquisition program `2026-07-19.e3-foundation.10` therefore produces a new
   content-addressed snapshot while completed sibling products remain reusable.
+- A later transient route outage showed that attempting an abort is not enough:
+  the abort request itself can fail before reaching the archive. The orphaned
+  job was subsequently confirmed `ABORTED` and the operator recovery was added
+  to its UWS lineage. The collector now suppresses all replacement submission
+  unless nonterminal-job cleanup was positively confirmed, so an unreachable
+  archive fails the bucket closed instead of creating concurrent duplicates.
+
+### 55) Evidence Lake E4 Bailer-Jones Distance Evidence
+
+- Compiler/contract v54 makes source-native and legal typed field names separate
+  first-class lineage. This closes the general case where a storage engine must
+  alias case-only source fields while field accounting and scientific evidence
+  still need the publisher's exact spelling.
+- Configured measurements can now carry a constant published reference and an
+  explicit bound-semantic contract. The Bailer-Jones lower and upper distance
+  columns are retained as 16th/84th posterior interval endpoints, not rewritten
+  into symmetric uncertainty magnitudes.
+- Diagnostic compile `520df722a1564ee857b1ae43` accounts all
+  17,310,560 source rows and all 10 fields. It emits the same number of
+  release-scoped EDR3 identity claims and coherent astrometry/distance bundles,
+  containing 33,225,308 cited geometric and photogeometric measurements. Two
+  copied Gaia coordinate fields are explicit exclusions from E4 evidence but
+  remain byte-derived E1 typed fields; no fact is discarded.
+- The build used operator-owned USB scratch for disposable DuckDB spill and
+  removed that spill automatically after success, keeping `/data` bounded. Its
+  logical content hash is
+  `b74aabea2625f660ab85e0b723d7598a4b6cd9af6010c196d51229f743e84381`,
+  and the independent generic artifact audit passes. The source-specific audit
+  then found that all rows retained redundant source context: the general
+  compiler selected context fields by destination and therefore included
+  `exclude` dispositions whose bookkeeping destination was `source_records`.
+  The first v55 correction selected only explicit `context` dispositions, but
+  review caught that this would also drop intentional `lineage` context such as
+  NASA release/reference fields. That attempt was stopped before promotion.
+  Compiler v56 retains both context and lineage while excluding only fields
+  explicitly declared `exclude`. Excluded values remain in E1 typed Parquet,
+  Accepted v56 `2147d1c60f6401fdc725d96e` passes compilation and both the
+  generic and source-specific audits. All source-specific checks are zero,
+  including redundant context, posterior interval validity, release identity,
+  source/native aliases, citations, scope, and field accounting. Its logical
+  hash is
+  `eceb390e97cba1b69d8a5780181b8947dfed6ed78c51167316ad4936b4506730`;
+  clean reproduction matches with no differing sections and removes its USB
+  scratch tree. v56 is the accepted checkpoint.
+- The first generic v56 audit passed scientifically but exposed a verification-
+  runtime defect by peaking at roughly 69 GiB RSS under DuckDB defaults. Generic
+  and Bailer-Jones audits now default to four threads and a 16-GB memory limit,
+  support operator-owned external scratch, report that execution policy, and
+  remove their spill tree after close. The bounded generic rerun passes with a
+  roughly 19-GB process peak instead of relying on Photon's spare memory.
+- Fail-closed retention dry-run hash
+  `0ed620c92b5b47ba18f4524b90383b00e8ca388de5aec4a0fbef921e55ebee5a`
+  selected only failed v54 and four closed manifestless Bailer-Jones attempts.
+  Exact-hash apply retired those five whole trees and reclaimed 44,452,454,400
+  allocated bytes while preserving v56, all raw/typed inputs, and all reports.
 
 ## Recurrent Defect Classes and Mitigations
 

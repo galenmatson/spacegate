@@ -281,6 +281,13 @@ database. A spill tree left by a crash must still be associated with a dead
 process and explicit failed build before whole-tree cleanup. Never direct this
 setting into raw, typed, served, rollback, or published artifact storage.
 
+Large scientific-evidence audits use the same operator scratch policy. Generic
+and source-specific verifiers default to a 16-GB DuckDB limit and accept
+`--temp-directory`; their reports record the memory limit, thread count, scratch
+policy, and confirmed spill removal. A crash-left audit spill is disposable
+execution state only after its process is dead and its owning audit/build is
+identified; never remove an active verifier's open temporary files.
+
 The field-complete NASA checkpoint `cb82c09179afa740b02e2cdf` is approximately
 4.2 GiB (`4,497,354,752` database bytes) and is protected as the current E4
 reference. Earlier content-addressed experiments and interrupted hidden
@@ -333,6 +340,27 @@ candidate-set hash
 `9db9a29f47011b94e037d8dee4e0e444e7fc9b3f2f78c403a3e9cedc26c1ea95`
 was replayed during apply; 448,364,544 allocated bytes were reclaimed while
 preserving the accepted build and all raw/typed inputs and reports.
+
+Bailer-Jones accepted checkpoint `2147d1c60f6401fdc725d96e`, raw snapshot
+`8920e4e6eda798c9567ca7a8`, typed snapshot `5a60000592215924b3305095`,
+and its compile, bounded generic/source-audit, and clean-reproduction reports
+are protected E4/E5 inputs. Its 36,958,384,128-byte database is not a cleanup
+candidate. The build and reproduction used `SPACEGATE_E4_TEMP_DIRECTORY` on
+`/mnt/space`; disposable spill and reproduction trees were removed
+automatically only after database close and hash agreement. A prior interrupted spill was
+retired through fail-closed candidate hash
+`85bbf28537997740b4a056c27e854a3cf5ee82ecd9e4cfbdcff8a5ada591e39a`,
+reclaiming 18,954,346,496 allocated bytes without deleting a manifest-bearing
+artifact or any raw/typed evidence.
+The Bailer-Jones source-audit schema is explicitly allowlisted for failed whole-
+artifact retirement; this does not bypass the immutable checksum, external
+failed-report, nonzero-check, no-live-handle, minimum-age, candidate-hash, or
+explicit-apply gates.
+After v56 passed every gate, dry-run candidate-set hash
+`0ed620c92b5b47ba18f4524b90383b00e8ca388de5aec4a0fbef921e55ebee5a`
+authorized removal of failed v54 plus four closed manifestless Bailer-Jones
+attempts. Apply reclaimed 44,452,454,400 allocated bytes while preserving v56,
+raw/typed inputs, and diagnostic/acceptance reports.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

@@ -28,6 +28,7 @@ SUPPORTED_FAILED_ARTIFACT_AUDITS = {
     "spacegate.gaia_ucd_scientific_evidence_audit.v1",
     "spacegate.ultracoolsheet_scientific_evidence_audit.v1",
     "spacegate.tess_targeted_scientific_evidence_audit.v1",
+    "spacegate.bailer_jones_scientific_evidence_audit.v1",
 }
 
 

@@ -388,6 +388,56 @@ def test_async_timeout_aborts_job_before_failing(monkeypatch, tmp_path: Path) ->
     assert status["attempts"][0]["cleanup"]["status"] == "pass"
 
 
+def test_async_retry_is_suppressed_when_abort_cannot_be_confirmed(
+    monkeypatch, tmp_path: Path
+) -> None:
+    submissions = 0
+
+    class AsyncResponse(FakeResponse):
+        def geturl(self) -> str:
+            return "https://example.test/tap/async/job-1"
+
+    def fake_urlopen(request, timeout):
+        nonlocal submissions
+        if request.full_url.endswith("/async"):
+            submissions += 1
+            return AsyncResponse(b"")
+        raise AssertionError(request.full_url)
+
+    times = iter([0.0, 2.0])
+    monkeypatch.setattr(acquire.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(acquire, "read_url", lambda *_args, **_kwargs: b"EXECUTING")
+    monkeypatch.setattr(acquire.time, "monotonic", lambda: next(times))
+    monkeypatch.setattr(
+        acquire,
+        "abort_async_job",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("route unavailable")),
+    )
+    status_path = tmp_path / "job.uws.json"
+
+    try:
+        acquire.tap_async_request(
+            "https://example.test/tap/sync",
+            "select source_id from test.rows",
+            timeout_s=1,
+            read_stall_timeout_s=1,
+            retries=2,
+            max_rec=10,
+            status_path=status_path,
+        )
+    except RuntimeError as error:
+        assert "exceeded 1s" in str(error)
+    else:
+        raise AssertionError("async retry proceeded without confirmed cleanup")
+
+    assert submissions == 1
+    status = json.loads(status_path.read_text())
+    assert status["attempts"][0]["cleanup"]["status"] == "fail"
+    assert status["attempts"][0]["retry_suppressed"] == (
+        "nonterminal upstream job cleanup was not confirmed"
+    )
+
+
 def test_resolve_product_fields_preserves_release_order_and_groups() -> None:
     schema = [
         {"column_name": "solution_id"},

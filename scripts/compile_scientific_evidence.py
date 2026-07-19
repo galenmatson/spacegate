@@ -678,6 +678,14 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                         errors.append(f"{prefix}.{bound} must be numeric")
                 if measurement.get("epoch_field") and measurement.get("epoch_raw"):
                     errors.append(f"{prefix} cannot define both epoch_field and epoch_raw")
+                if measurement.get("reference_field") and measurement.get("reference_raw"):
+                    errors.append(
+                        f"{prefix} cannot define both reference_field and reference_raw"
+                    )
+                if measurement.get("bound_semantics") is not None and not str(
+                    measurement.get("bound_semantics") or ""
+                ).strip():
+                    errors.append(f"{prefix}.bound_semantics must be non-empty")
                 minimum = measurement.get("minimum_value")
                 maximum = measurement.get("maximum_value")
                 if minimum is not None and (
@@ -1017,6 +1025,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           release_id varchar not null,
           source_table varchar not null,
           source_field varchar not null,
+          source_native_field varchar not null,
           source_datatype varchar,
           source_unit varchar,
           source_ucd varchar,
@@ -1429,6 +1438,9 @@ def source_field_metadata(
     product: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Return source-native field metadata for delimited, FITS, and document tables."""
+    source_schema = typed_table.get("source_schema")
+    if isinstance(source_schema, dict):
+        source_schema = source_schema.get("source_schema")
     dispositions = product.get("field_dispositions") or []
     if dispositions:
         selected_fields = product.get("selected_fields") or []
@@ -1468,11 +1480,33 @@ def source_field_metadata(
                 field["column_name"] = typed_name
                 fields.append(field)
             return fields
+        if typed_columns and isinstance(source_schema, list):
+            disposition_by_source = {
+                str(row["column_name"]): row for row in dispositions
+            }
+            schema_by_typed_name = {
+                str(row.get("column_name") or row.get("name")): row
+                for row in source_schema
+                if row.get("column_name") or row.get("name")
+            }
+            fields = []
+            for typed_column in typed_columns:
+                typed_name = str(
+                    typed_column.get("column_name") or typed_column.get("name")
+                )
+                schema_field = schema_by_typed_name.get(typed_name, {})
+                source_name = str(schema_field.get("source_name") or typed_name)
+                source = disposition_by_source.get(source_name)
+                if source is None:
+                    break
+                field = dict(source)
+                field["source_column_name"] = source_name
+                field["column_name"] = typed_name
+                fields.append(field)
+            else:
+                return fields
         return list(dispositions)
 
-    source_schema = typed_table.get("source_schema")
-    if isinstance(source_schema, dict):
-        source_schema = source_schema.get("source_schema")
     typed_columns = typed_table.get("columns") or []
     if not isinstance(source_schema, list):
         source_schema = typed_columns
@@ -2982,6 +3016,7 @@ def materialize_configured_domain_measurements(
         )
         epoch_field = measurement.get("epoch_field")
         reference_field = measurement.get("reference_field")
+        reference_raw = measurement.get("reference_raw")
         quality_fields = [str(value) for value in measurement.get("quality_fields") or []]
         configured_fields = {
             field,
@@ -3060,6 +3095,14 @@ def materialize_configured_domain_measurements(
             str(measurement.get("normalization_version") or "source_native_v1")
         )
         epoch = configured_epoch_expression(measurement)
+        reference = (
+            sql_string(str(reference_raw))
+            if reference_raw is not None
+            else text_expression(reference_field)
+        )
+        bound_semantics = sql_string(
+            str(measurement.get("bound_semantics") or "measurement")
+        )
         normalized_value = (
             f"try_cast({sql_identifier(field)} as double)"
             if measurement.get("normalize_numeric", True)
@@ -3078,12 +3121,12 @@ def materialize_configured_domain_measurements(
                       normalized_unit := {normalized_unit},
                       uncertainty_lower := {uncertainty_lower},
                       uncertainty_upper := {uncertainty_upper},
-                      bound_semantics := 'measurement',
+                      bound_semantics := {bound_semantics},
                       frame_raw := {nullable_sql_string(measurement.get('frame_raw'))},
                       epoch_raw := {epoch},
                       method := {nullable_sql_string(measurement.get('method'))},
                       model := {nullable_sql_string(measurement.get('model'))},
-                      reference_raw := {text_expression(reference_field)},
+                      reference_raw := {reference},
                       quality_json := {quality},
                       normalization_version := {normalization}
                     ) else null end
@@ -3095,12 +3138,12 @@ def materialize_configured_domain_measurements(
                 {evidence_id}, r.source_record_id,
                 {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
                 {normalized_value}, {normalized_unit},
-                {uncertainty_lower}, {uncertainty_upper}, 'measurement',
+                {uncertainty_lower}, {uncertainty_upper}, {bound_semantics},
                 {nullable_sql_string(measurement.get('frame_raw'))},
                 {epoch},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
-                {text_expression(reference_field)},
+                {reference},
                 {quality}, {normalization}
               {common_from}
               where {predicate}
@@ -3115,7 +3158,7 @@ def materialize_configured_domain_measurements(
                 {uncertainty_lower}, {uncertainty_upper},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
-                {text_expression(reference_field)},
+                {reference},
                 {quality}, {normalization}
               {common_from}
               where {predicate}
@@ -4379,7 +4422,10 @@ def materialize_source(
         for field in dispositions:
             rule, rule_index = classify_field(str(field["column_name"]), rules)
             classified_fields.append((field, rule, rule_index))
-            if rule["destination"] == "source_records":
+            if (
+                rule["destination"] == "source_records"
+                and rule["disposition"] != "exclude"
+            ):
                 context_fields.append(str(field["column_name"]))
 
         source_row_hash = "sha256(to_json(source_row))"
@@ -4825,6 +4871,7 @@ def materialize_source(
                     release_id,
                     table_name,
                     field_name,
+                    str(field.get("source_column_name") or field_name),
                     field.get("datatype"),
                     field.get("unit"),
                     field.get("ucd"),
@@ -4852,7 +4899,7 @@ def materialize_source(
         )
 
     con.executemany(
-        "insert into source_field_dispositions values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "insert into source_field_dispositions values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         disposition_rows,
     )
     con.execute(

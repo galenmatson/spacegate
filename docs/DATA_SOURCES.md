@@ -94,6 +94,9 @@ completed buckets or partial release files. Operators may override it with
 `--read-stall-timeout`. An asynchronous TAP retry first aborts its nonterminal
 UWS job and preserves every attempt and cleanup result in the bucket lineage;
 this prevents timed-out queries from continuing upstream beside replacements.
+If the abort itself cannot be confirmed, retry is suppressed and the bucket
+fails closed. An operator may resume only after the prior job's terminal state
+is observed and recorded.
 
 The Gaia program preserves a disjoint two-branch ingestion envelope. The
 measured hard-parallax branch contains 31,987,126 `gaia_source` rows at
@@ -112,6 +115,26 @@ resolves identifiers case-insensitively, the VOTable cooker assigns a
 deterministic `__source_case_N` typed alias to the later collision and records
 the exact upstream name beside it in schema lineage. Values remain distinct;
 the query engine can no longer rename one silently.
+
+E4 diagnostic `520df722a1564ee857b1ae43` consumes that release independently
+of Gaia astrometry. It preserves 17,310,560 `gaia_edr3_source_id` claims and
+17,310,560 coherent distance bundles containing 33,225,308 published geometric
+and photogeometric posterior measurements. The lower/upper fields retain
+16th/84th-percentile endpoint semantics rather than being represented as
+symmetric errors, and all measurements link to `2021AJ....161..147B`. The two
+copied Gaia coordinate fields remain in typed source records but are reviewed
+E4 exclusions because Gaia owns coordinate evidence. All 10 fields are
+accounted and the generic artifact audit passes logical hash
+`b74aabea2625f660ab85e0b723d7598a4b6cd9af6010c196d51229f743e84381`.
+The source-specific audit rejects this v54 artifact because `exclude` fields
+were nevertheless copied into `source_context_json`. Compiler v56 corrects the
+general disposition rule while retaining intentional context and lineage. A
+v55 attempt was stopped before promotion when that distinction was found.
+Accepted v56 `2147d1c60f6401fdc725d96e` passes generic and source-specific
+audits with all checks at zero and logical hash
+`eceb390e97cba1b69d8a5780181b8947dfed6ed78c51167316ad4936b4506730`;
+clean reproduction matches with no differing sections and removes its USB
+scratch tree. v56 is accepted; v54 and v55 are not accepted checkpoints.
 
 Hunt-Reffert typed snapshot `cbfa7c6ec8c2e3bfbc226898` independently
 preserves 7,167 cluster rows/78 fields, 1,291,929 membership rows/66 fields,

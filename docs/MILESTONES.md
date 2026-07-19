@@ -1376,6 +1376,9 @@ Current status (July 19, 2026, in progress):
   release bytes, upstream schemas, source field dispositions, timestamps,
   checksums, row counts, UWS jobs, resumable partial transfers, and atomically
   locked shared manifests
+- asynchronous TAP retry is cleanup-confirmation gated: if a nonterminal UWS
+  abort cannot be confirmed during a route outage, the bucket fails closed and
+  no replacement job is submitted
 - the hard-parallax branch of the 1,250-ly Gaia envelope contains 31,987,126
   source rows and is atomically published with all 152 `gaia_source` fields;
   its disjoint uncertainty supplement now accounts all 189,145 posterior-
@@ -1468,6 +1471,22 @@ Current status (July 19, 2026, in progress):
   implemented with deterministic source records, explicit binding outcomes,
   field dispositions, logical per-table hashes, cached-artifact integrity
   checks, and clean scratch reproduction
+- Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
+  materializes all 17,310,560 rows as release-scoped EDR3 identities and
+  coherent geometric/photogeometric posterior bundles. Its 33,225,308
+  measurements retain published 16th/84th-percentile endpoint semantics,
+  quality flags, units, model/method labels, and one exact bibliography link
+  per measurement. All 10 source fields are accounted as eight materialized
+  and two reviewed Gaia-coordinate exclusions; the generic artifact audit
+  passes with zero pending fields. The source-specific audit correctly rejects
+  v54 because excluded coordinates were redundantly copied into every source
+  context. A v55 attempt was stopped when review found it would also remove
+  intentional lineage context. Compiler v56 preserves context and lineage while
+  omitting only excluded fields. Accepted checkpoint `2147d1c60f6401fdc725d96e`
+  passes generic and source-specific audits with all checks at zero and logical
+  hash `eceb390e97cba1b69d8a5780181b8947dfed6ed78c51167316ad4936b4506730`.
+  Clean reproduction matches with no differing sections and removes its USB
+  scratch tree; v56 is the accepted Bailer-Jones E4 checkpoint.
 - the NASA foundation accounts 206,989 rows, 203,932 exact records, 3,057
   repeated identical row occurrences, and all 2,093 fields without using source
   array positions as identity

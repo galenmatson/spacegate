@@ -379,6 +379,33 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `scripts/verify_scientific_evidence_artifact.py` independently audits scope,
   identifier, probability/statistic, citation, uncertainty, parameter-set, and
   source-record integrity.
+- Compiler/contract v54 adds constant source references, explicit posterior-
+  interval endpoint semantics, and dual typed/source-native field names. These
+  are general evidence contracts: legal Parquet aliases no longer obscure an
+  upstream case-only field distinction, and published percentile endpoints are
+  not mislabeled as symmetric measurement errors. Bailer-Jones diagnostic
+  `520df722a1564ee857b1ae43` accounts all 17,310,560 EDR3 distance rows and all
+  10 source fields. It emits 17,310,560 release-scoped EDR3 identities and
+  coherent distance bundles containing 33,225,308 geometric and photogeometric
+  posterior measurements, each linked to `2021AJ....161..147B`. Copied Gaia
+  coordinates remain preserved in E1 but are deliberately excluded from E4
+  because release-native Gaia owns coordinate evidence. The build has zero
+  pending fields and logical hash
+  `b74aabea2625f660ab85e0b723d7598a4b6cd9af6010c196d51229f743e84381`;
+  the independent generic artifact audit passes. The stricter source audit
+  rejected all 17,310,560 rows because fields declared `exclude` were still
+  redundantly copied into `source_context_json`. Compiler/contract v56 fixes
+  that general disposition bug so `context` and `lineage` fields materialize
+  there while `exclude` fields do not; excluded values remain in immutable E1
+  typed storage. A v55 attempt was stopped before promotion when review showed
+  that lineage fields must remain. Accepted v56
+  `2147d1c60f6401fdc725d96e` passes compilation plus generic and source-specific
+  audits with `nonempty_redundant_source_context=0`; it retains the same exact
+  scientific counts and has logical hash
+  `eceb390e97cba1b69d8a5780181b8947dfed6ed78c51167316ad4936b4506730`.
+  Clean reproduction matches that logical hash with no differing sections and
+  removes its USB scratch tree. v56 is the accepted checkpoint; neither v54 nor
+  v55 is accepted.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

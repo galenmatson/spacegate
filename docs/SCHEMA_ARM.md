@@ -47,6 +47,16 @@ Evidence Lake v2 staging rule:
   A field declaration is not materialization: `declared_pending` fields keep an
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
+- `source_field_dispositions.source_field` is the legal typed-column name, while
+  `source_native_field` retains the exact upstream spelling. They differ only
+  when a source format requires an alias, including case-only VOTable collisions
+  such as `b_rgeo` and `B_rgeo`; field accounting and evidence lineage preserve
+  both names.
+- `source_records.source_context_json` materializes only fields declared
+  `context` or `lineage`. Fields declared `exclude` remain losslessly preserved
+  in E1 typed storage and explicit field accounting but are not redundantly
+  copied into E4 source context merely because their bookkeeping destination is
+  `source_records`.
 - Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5` validates the
   bounded citation and identity contracts at scale. Its 32-bucket astrometry-
   citation expansion preserves the same exhaustive evidence relation under a
