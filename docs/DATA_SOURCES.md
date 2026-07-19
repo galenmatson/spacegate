@@ -119,11 +119,17 @@ field a domain, identity, lineage, context, or reviewed-exclusion disposition
 and separately report whether that destination has actually been materialized.
 The compiler uses exact row hashes plus source-native logical keys, preserving
 duplicate occurrences and avoiding point/array position as scientific identity.
-NASA checkpoint `d97673cd1a443d5e3e092c62` materializes 750,151 identifier
+NASA checkpoint `cb82c09179afa740b02e2cdf` materializes 750,151 identifier
 claims and 72,809 planet-lifecycle claims from the 12 pinned products. Candidate
 and negative claims remain evidence only and cannot inflate canonical planet
 inventory. Identifier claims carry semantic scope independent of the mixed
 planet/host/target source row, producing separate auditable binding outcomes.
+The field-complete adapter also emits 9,689,745 typed science rows, 272,355
+coherent parameter sets, 111,084 on-demand Kepler validation-product locators,
+2,961 parsed source references, and 4,656,423 evidence-citation links. All 2,093
+source fields are materially represented or deliberately excluded with a reason;
+raw units and reference fragments remain preserved beside normalized aliases and
+parsed metadata.
 
 The El-Badry Gaia EDR3 wide-binary release is preserved under the same raw and
 typed contracts: 1,817,594 probability-bearing main-catalog rows (217 columns),

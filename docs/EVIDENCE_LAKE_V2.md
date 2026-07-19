@@ -293,7 +293,7 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   binding outcomes. `scripts/verify_scientific_evidence_reproduction.py`
   rebuilds into a temporary scratch root, compares deterministic logical hashes,
   and removes the scratch artifact; the NASA foundation reproduction passes.
-- NASA checkpoint build `d97673cd1a443d5e3e092c62` accounts 206,989 source
+- NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
   duplicate counts. It materializes 750,151 release-scoped identifier claims
@@ -305,14 +305,24 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   claims are positive evidence, candidates remain candidate evidence, and false
   positives, false alarms, and refuted claims are negative evidence; none of
   these rows alter canonical planet inventory.
-- All 2,093 fields have dispositions; 188 reviewed identity, lifecycle, lineage,
-  or context fields are materialized and 1,905 fields remain `declared_pending`
-  until their domain adapters write actual evidence rows.
+- The NASA adapter is field-complete: all 2,093 fields have reviewed
+  dispositions, 2,081 are materially represented, and 12 archive spatial-index
+  helpers are deliberately excluded from scientific evidence while remaining
+  in the immutable typed source. This adapter passes; E4 remains in progress
+  until the other registered source adapters meet the same gate.
+- The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
+  planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
+  planet parameter sets; 111,084 on-demand Kepler validation products; 2,961
+  parsed source references; and 4,656,423 evidence-citation links. Raw units and
+  reference fragments remain intact beside versioned aliases and parsed ADS
+  metadata.
 - Logical keys are source semantics, not artificial uniqueness claims. Exact
   row hashes provide deterministic record identity when a catalog's apparent
   key repeats; row-array position is never used. Compiler timestamps derive
   from pinned retrieval lineage, and cached artifacts verify their DuckDB
-  checksum before reuse.
+  checksum before reuse. Build identity also hashes the compiler source,
+  registry file, contract, Python/DuckDB runtime versions, and every raw/typed
+  input, preventing unversioned code or registry edits from reusing old output.
 
 ### E5. Selection and Derivation Compiler
 

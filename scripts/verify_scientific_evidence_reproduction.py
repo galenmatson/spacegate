@@ -23,6 +23,9 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         "build_id": report["build_id"],
         "contract_version": report["contract_version"],
         "compiler_version": report["compiler_version"],
+        "compiler_sha256": report["compiler_sha256"],
+        "registry_sha256": report["registry_sha256"],
+        "runtime_versions": report["runtime_versions"],
         "input_fingerprint": report["input_fingerprint"],
         "status": report["status"],
         "sources": report["sources"],
@@ -37,6 +40,7 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
             "binding_outcome_counts_by_status_and_scope"
         ],
         "lifecycle_claim_counts": report["lifecycle_claim_counts"],
+        "citation_summary": report["citation_summary"],
         "logical_content_sha256": report["logical_content_sha256"],
         "tables": report["tables"],
         "created_at": report["created_at"],

@@ -160,6 +160,18 @@ protected until E7 records that no retained projection references them. Clean
 reproduction uses `scripts/verify_scientific_evidence_reproduction.py`; its
 scratch tree is removed only after comparison and the durable report is written.
 
+The field-complete NASA checkpoint `cb82c09179afa740b02e2cdf` is approximately
+4.2 GiB (`4,497,354,752` database bytes) and is protected as the current E4
+reference. Earlier content-addressed experiments and interrupted hidden
+temporary directories are cleanup candidates only through a retention dry-run;
+do not remove the current reference, a reproduction input, or a rollback build.
+
+The July 19 dry-run against `/data/spacegate/state` identified eight old build
+trees and twelve old report trees with an estimated 148.86 GiB reclaimable. No
+cleanup was applied: the candidates include recent canonical/public/side builds
+and require served, rollback, publication, and reference confirmation first.
+Evidence Lake raw/typed snapshots and the current E4 reference were not listed.
+
 Side-artifact rebuilds created by `scripts/rebuild_side_artifacts.py` are normal
 immutable `out/<build_id>/` artifacts once the `.tmp` directory is renamed into
 place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the

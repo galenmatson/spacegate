@@ -1426,17 +1426,19 @@ Current status (July 19, 2026, in progress):
 - the NASA foundation accounts 206,989 rows, 203,932 exact records, 3,057
   repeated identical row occurrences, and all 2,093 fields without using source
   array positions as identity
-- 188 reviewed identity/lifecycle/lineage/context fields are materialized;
-  1,905 fields remain
-  visibly `declared_pending`, so the compiler correctly reports `in_progress`
-  rather than treating a declaration or raw preservation as E4 completion; the
-  current logical-hash reproduction passes
-- NASA checkpoint `d97673cd1a443d5e3e092c62` materializes 750,151
+- NASA checkpoint `cb82c09179afa740b02e2cdf` materializes 750,151
   source-scoped identifier claims and 72,809 lifecycle claims. Confirmed,
   candidate, false-positive, false-alarm, and refuted evidence remain explicitly
   separated and do not change canonical planet counts. Per-identifier semantic
   scopes produce 697,952 separate unresolved binding outcomes instead of
   allowing mixed planet/host/target rows to leak scope.
+- the NASA adapter now accounts all 2,093 fields as 2,081 materially represented
+  and 12 reviewed archive-index exclusions, with no declared-pending tail. It
+  emits 9,689,745 typed science rows, 272,355 coherent parameter sets, 111,084
+  validation-product locators, 2,961 citations, and 4,656,423 citation links.
+  This source adapter passes while the overall E4 milestone remains in progress.
+- build identity hashes compiler and registry bytes, contract, runtime versions,
+  and raw/typed inputs; clean logical-hash reproduction remains required
 
 #### M8.3c-E5. Selection and Derivation Compiler
 

@@ -997,19 +997,23 @@ Representative commits:
   records. It preserves 3,057 repeated identical upstream rows through duplicate
   counts and retains non-unique logical keys without manufacturing uniqueness
   from source array positions.
-- All 2,093 NASA fields receive a machine-readable disposition. The next
-  checkpoint (`d97673cd1a443d5e3e092c62`) materializes 750,151 release-scoped
+- All 2,093 NASA fields receive a machine-readable disposition. Checkpoint
+  `cb82c09179afa740b02e2cdf` materializes 750,151 release-scoped
   identifier claims and 72,809 lifecycle claims in addition to source-record
-  context, for 188 materialized fields total; 1,905 remain `declared_pending`.
+  context. The completed NASA adapter materially represents 2,081 fields and
+  deliberately excludes 12 archive spatial-index helpers from scientific
+  evidence while preserving them in the immutable typed source.
   Confirmed, candidate, false-positive, false-alarm, and refuted claims retain
   distinct polarity and cannot change canonical inventory at this stage.
   Per-identifier semantic scopes create 697,952 explicit unresolved binding
   outcomes, preventing mixed planet, host, and observation-target fields in one
-  archive row from sharing an accidental binding scope. The
-  build therefore reports
-  `in_progress`, preventing schema declaration or raw preservation from being
-  mistaken for completed scientific normalization. A clean scratch rebuild
-  reproduces the build ID and every logical table hash exactly.
+  archive row from sharing an accidental binding scope.
+- The adapter emits 9,689,745 typed science rows, 272,355 coherent parameter
+  sets, 111,084 validation products, 2,961 parsed source references, and
+  4,656,423 evidence-citation links. Build identity includes compiler and
+  registry hashes plus runtime versions. The NASA adapter reports `pass`; E4
+  remains open for the other registered sources. A clean scratch rebuild must
+  reproduce the build ID and every logical table hash exactly.
 
 ### 32) Evidence Lake E3 Probability-Bearing Wide Binaries
 

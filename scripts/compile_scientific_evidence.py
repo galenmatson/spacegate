@@ -8,9 +8,12 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import duckdb
 
@@ -45,6 +48,24 @@ DOMAIN_TABLES = {
     "citations",
     "evidence_citations",
     "observation_product_lineage",
+}
+
+EVIDENCE_REFERENCE_TABLES = {
+    "stellar_parameter_evidence",
+    "stellar_classification_evidence",
+    "astrometry_distance_evidence",
+    "photometry_extinction_evidence",
+    "variability_activity_rotation_evidence",
+    "relation_claim_evidence",
+    "orbital_solution_evidence",
+    "cluster_evidence",
+    "cluster_membership_evidence",
+    "planet_parameter_evidence",
+    "planet_lifecycle_evidence",
+    "transit_observation_evidence",
+    "radial_velocity_evidence",
+    "compact_object_evidence",
+    "extended_object_evidence",
 }
 
 
@@ -102,6 +123,7 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
     dispositions = set(contract.get("field_dispositions") or [])
     mapping_statuses = set(contract.get("mapping_statuses") or [])
     identifier_claims = contract.get("identifier_claims") or {}
+    unit_normalizations = contract.get("unit_normalizations") or {}
     profiles = contract.get("field_profiles") or {}
     if not identifier_claims:
         errors.append("identifier_claims must not be empty")
@@ -114,6 +136,11 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
             errors.append(
                 "identifier claim fields, namespaces, and scopes must be non-empty"
             )
+    if not unit_normalizations:
+        errors.append("unit_normalizations must not be empty")
+    for raw_unit, normalized_unit in unit_normalizations.items():
+        if not str(raw_unit).strip() or not str(normalized_unit).strip():
+            errors.append("unit normalization aliases must be non-empty")
     for profile_name, rules in profiles.items():
         if not rules:
             errors.append(f"field profile has no rules: {profile_name}")
@@ -724,6 +751,592 @@ def optional_field_expression(field: str | None) -> str:
     )
 
 
+SCALAR_EVIDENCE_DESTINATIONS = {
+    "stellar_parameter_evidence",
+    "astrometry_distance_evidence",
+    "photometry_extinction_evidence",
+    "variability_activity_rotation_evidence",
+    "planet_parameter_evidence",
+    "transit_observation_evidence",
+    "radial_velocity_evidence",
+}
+
+AUXILIARY_SUFFIXES = (
+    ("_systemref", "system_reference"),
+    ("_reflink", "reference"),
+    ("_symerr", "symmetric_error_flag"),
+    ("_err1", "error_upper"),
+    ("_err2", "error_lower"),
+    ("_err", "error_symmetric"),
+    ("_lim", "limit"),
+    ("_str", "formatted"),
+    ("symerr", "symmetric_error_flag"),
+    ("err1", "error_upper"),
+    ("err2", "error_lower"),
+    ("lim", "limit"),
+    ("str", "formatted"),
+)
+
+
+def split_auxiliary_field(field: str) -> tuple[str, str] | None:
+    for suffix, role in AUXILIARY_SUFFIXES:
+        if field.endswith(suffix) and len(field) > len(suffix):
+            return field[: -len(suffix)], role
+    return None
+
+
+def scalar_field_groups(
+    destination_fields: list[str],
+    available_fields: set[str],
+) -> list[dict[str, Any]]:
+    destination = set(destination_fields)
+    auxiliary_fields: set[str] = set()
+    for field in destination:
+        split = split_auxiliary_field(field)
+        if split and split[0] in destination:
+            auxiliary_fields.add(field)
+    groups = {
+        field: {"base_field": field, "auxiliary": {}}
+        for field in sorted(destination - auxiliary_fields)
+    }
+    for field in sorted(available_fields):
+        split = split_auxiliary_field(field)
+        if not split:
+            continue
+        base, role = split
+        if base in groups:
+            groups[base]["auxiliary"].setdefault(role, field)
+    return list(groups.values())
+
+
+def nullable_sql_string(value: Any) -> str:
+    return (
+        "null::varchar"
+        if value is None or not str(value).strip()
+        else sql_string(str(value))
+    )
+
+
+def text_expression(field: str | None) -> str:
+    return (
+        f"trim(cast({sql_identifier(field)} as varchar))"
+        if field
+        else "null::varchar"
+    )
+
+
+def double_expression(field: str | None, *, absolute: bool = False) -> str:
+    if not field:
+        return "null::double"
+    expression = f"try_cast({sql_identifier(field)} as double)"
+    return f"abs({expression})" if absolute else expression
+
+
+def scalar_bound_expression(limit_field: str | None) -> str:
+    if not limit_field:
+        return "null::varchar"
+    raw = f"try_cast({sql_identifier(limit_field)} as integer)"
+    return f"""
+      case {raw}
+        when -1 then 'lower_limit'
+        when 0 then 'measurement'
+        when 1 then 'upper_limit'
+        else 'source_limit_' || cast({raw} as varchar)
+      end
+    """
+
+
+def scalar_reference_field(
+    destination: str,
+    auxiliary: dict[str, str],
+    table_contract: dict[str, Any],
+) -> str | None:
+    if auxiliary.get("reference"):
+        return auxiliary["reference"]
+    if destination == "stellar_parameter_evidence":
+        return (table_contract.get("stellar_parameter_set") or {}).get(
+            "reference_field"
+        )
+    if destination in {
+        "planet_parameter_evidence",
+        "transit_observation_evidence",
+        "radial_velocity_evidence",
+    }:
+        return (table_contract.get("planet_parameter_set") or {}).get(
+            "reference_field"
+        )
+    return table_contract.get("system_reference_field")
+
+
+def source_quantity_key(base_field: str) -> str:
+    return f"nasa_exoplanet_archive.{base_field}"
+
+
+def photometry_bandpass(base_field: str) -> str | None:
+    match = re.search(r"(?:^|_)([a-z0-9]+)mag$", base_field)
+    return match.group(1).upper() if match else None
+
+
+def astrometry_frame(base_field: str) -> str | None:
+    if base_field in {"glat", "glon"}:
+        return "Galactic"
+    if base_field in {"elat", "elon"}:
+        return "Ecliptic"
+    if base_field in {"ra", "dec"} or base_field.startswith(("sy_pm", "st_pm")):
+        return "ICRS"
+    return None
+
+
+def signal_identifier_expression(table_contract: dict[str, Any]) -> str:
+    fields = [str(field) for field in table_contract.get("signal_identifier_fields") or []]
+    return logical_key_expression(fields) if fields else "null::varchar"
+
+
+def scalar_quality_expression(
+    base_field: str,
+    auxiliary: dict[str, str],
+    metadata: dict[str, Any],
+) -> str:
+    return f"""
+      json_object(
+        'source_field', {sql_string(base_field)},
+        'source_description', {nullable_sql_string(metadata.get('description'))},
+        'source_ucd', {nullable_sql_string(metadata.get('ucd'))},
+        'error_lower_field', {nullable_sql_string(auxiliary.get('error_lower'))},
+        'error_upper_field', {nullable_sql_string(auxiliary.get('error_upper'))},
+        'error_symmetric_field', {nullable_sql_string(auxiliary.get('error_symmetric'))},
+        'limit_field', {nullable_sql_string(auxiliary.get('limit'))},
+        'limit_raw', {text_expression(auxiliary.get('limit'))},
+        'formatted_field', {nullable_sql_string(auxiliary.get('formatted'))},
+        'formatted_value_raw', {text_expression(auxiliary.get('formatted'))},
+        'symmetric_error_flag_field', {nullable_sql_string(auxiliary.get('symmetric_error_flag'))},
+        'symmetric_error_flag_raw', {text_expression(auxiliary.get('symmetric_error_flag'))},
+        'system_reference_field', {nullable_sql_string(auxiliary.get('system_reference'))},
+        'system_reference_raw', {text_expression(auxiliary.get('system_reference'))}
+      )
+    """
+
+
+def parameter_set_id_expression(
+    destination: str,
+    table_contract: dict[str, Any],
+) -> tuple[str, str]:
+    config_key = (
+        "stellar_parameter_set"
+        if destination == "stellar_parameter_evidence"
+        else "planet_parameter_set"
+    )
+    parameter_set = table_contract.get(config_key)
+    if not parameter_set:
+        raise ValueError(f"{destination} lacks {config_key} configuration")
+    kind = str(parameter_set["kind"])
+    namespace = (
+        "stellar-parameter-set"
+        if config_key.startswith("stellar")
+        else "planet-parameter-set"
+    )
+    expression = f"sha256({sql_string(namespace + '|' + kind + '|')} || r.source_record_id)"
+    return expression, kind
+
+
+def scalar_select_branch(
+    *,
+    destination: str,
+    group: dict[str, Any],
+    metadata: dict[str, Any],
+    table_contract: dict[str, Any],
+    path: Path,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    unit_normalizations: dict[str, str],
+) -> str:
+    base = str(group["base_field"])
+    auxiliary = group["auxiliary"]
+    raw_value = text_expression(base)
+    raw_unit = metadata.get("unit")
+    unit = nullable_sql_string(raw_unit)
+    normalized_unit = nullable_sql_string(
+        unit_normalizations.get(str(raw_unit), raw_unit)
+        if raw_unit is not None
+        else None
+    )
+    normalized_value = double_expression(base)
+    lower = double_expression(
+        auxiliary.get("error_lower") or auxiliary.get("error_symmetric"),
+        absolute=True,
+    )
+    upper = double_expression(
+        auxiliary.get("error_upper") or auxiliary.get("error_symmetric"),
+        absolute=True,
+    )
+    bound = scalar_bound_expression(auxiliary.get("limit"))
+    reference = text_expression(
+        scalar_reference_field(destination, auxiliary, table_contract)
+    )
+    quality = scalar_quality_expression(base, auxiliary, metadata)
+    quantity = source_quantity_key(base)
+    evidence_id = (
+        f"sha256({sql_string('scalar|' + destination + '|' + base + '|')} "
+        "|| r.source_record_id)"
+    )
+    common_from = f"""
+      from read_parquet({sql_string(str(path))}) t
+      join source_records r
+        on r.source_id={sql_string(source_id)}
+       and r.release_id={sql_string(release_id)}
+       and r.source_table={sql_string(table_name)}
+       and r.source_row_sha256=sha256(to_json(t))
+      where nullif({raw_value}, '') is not null
+    """
+    normalization = sql_string("nasa_unit_alias_v1")
+    if destination in {"stellar_parameter_evidence", "planet_parameter_evidence"}:
+        parameter_set_id, _kind = parameter_set_id_expression(
+            destination, table_contract
+        )
+        return f"""
+          select distinct
+            {evidence_id}, {parameter_set_id}, r.source_record_id,
+            {sql_string(quantity)}, {raw_value}, {unit}, {normalized_value}, {normalized_unit},
+            {lower}, {upper}, {bound}, null, null, {reference}, {quality}, {normalization}
+          {common_from}
+        """
+    if destination == "astrometry_distance_evidence":
+        frame = nullable_sql_string(astrometry_frame(base))
+        return f"""
+          select distinct
+            {evidence_id}, r.source_record_id, {sql_string(quantity)}, {raw_value},
+            {unit}, {normalized_value}, {normalized_unit}, {lower}, {upper}, {bound},
+            {frame}, null, null, null, {reference}, {quality}, {normalization}
+          {common_from}
+        """
+    if destination == "photometry_extinction_evidence":
+        bandpass = nullable_sql_string(photometry_bandpass(base))
+        quantity_key = "magnitude" if photometry_bandpass(base) else quantity
+        return f"""
+          select distinct
+            {evidence_id}, r.source_record_id, {sql_string(quantity_key)}, {bandpass},
+            {raw_value}, {unit}, {normalized_value}, {normalized_unit}, {lower}, {upper},
+            {bound}, null, null, {reference}, {quality}, {normalization}
+          {common_from}
+        """
+    if destination == "variability_activity_rotation_evidence":
+        kind = (
+            "rotation_period"
+            if "rotp" in base
+            else "projected_rotation_velocity"
+            if "vsin" in base
+            else "variability_or_activity"
+        )
+        return f"""
+          select distinct
+            {evidence_id}, r.source_record_id, {sql_string(kind)},
+            {sql_string(quantity)}, {raw_value}, {unit}, {normalized_value}, {normalized_unit},
+            {lower}, {upper}, null, null, {reference}, {quality}, {normalization}
+          {common_from}
+        """
+    if destination == "transit_observation_evidence":
+        signal = signal_identifier_expression(table_contract)
+        return f"""
+          select distinct
+            {evidence_id}, r.source_record_id, cast({signal} as varchar),
+            {sql_string(quantity)}, {raw_value}, {unit}, {normalized_value}, {normalized_unit},
+            {lower}, {upper}, {bound}, null, null, null, {reference},
+            {quality}, {normalization}
+          {common_from}
+        """
+    if destination == "radial_velocity_evidence":
+        signal = signal_identifier_expression(table_contract)
+        return f"""
+          select distinct
+            {evidence_id}, r.source_record_id, cast({signal} as varchar),
+            {sql_string(quantity)}, {raw_value}, {unit}, {normalized_value}, {normalized_unit},
+            {lower}, {upper}, {bound}, null, null, null, {reference},
+            {quality}, {normalization}
+          {common_from}
+        """
+    raise ValueError(f"unsupported scalar destination: {destination}")
+
+
+def materialize_scalar_evidence(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    destination: str,
+    fields: list[dict[str, Any]],
+    available_fields: set[str],
+    table_contract: dict[str, Any],
+    unit_normalizations: dict[str, str],
+) -> set[str]:
+    metadata_by_field = {str(field["column_name"]): field for field in fields}
+    groups = scalar_field_groups(list(metadata_by_field), available_fields)
+    branches = [
+        scalar_select_branch(
+            destination=destination,
+            group=group,
+            metadata=metadata_by_field[str(group["base_field"])],
+            table_contract=table_contract,
+            path=path,
+            source_id=source_id,
+            release_id=release_id,
+            table_name=table_name,
+            unit_normalizations=unit_normalizations,
+        )
+        for group in groups
+    ]
+    if branches:
+        con.execute(f"insert into {sql_identifier(destination)} " + " union all ".join(branches))
+    consumed = set(metadata_by_field)
+    for group in groups:
+        consumed.update(group["auxiliary"].values())
+    return consumed
+
+
+def materialize_parameter_sets(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    table_contract: dict[str, Any],
+) -> None:
+    for destination, set_table, config_key in (
+        ("planet_parameter_evidence", "planet_parameter_sets", "planet_parameter_set"),
+        ("stellar_parameter_evidence", "stellar_parameter_sets", "stellar_parameter_set"),
+    ):
+        parameter_set = table_contract.get(config_key)
+        if not parameter_set:
+            continue
+        kind = str(parameter_set["kind"])
+        reference = (
+            "any_value(e.reference_raw)"
+            if parameter_set.get("reference_field")
+            else "null::varchar"
+        )
+        if set_table == "planet_parameter_sets":
+            select_columns = (
+                f"e.parameter_set_id, e.source_record_id, {sql_string(kind)}, "
+                f"null, null, {reference}, null, null, "
+                f"json_object('parameter_set_kind', {sql_string(kind)})"
+            )
+        else:
+            select_columns = (
+                f"e.parameter_set_id, e.source_record_id, null, null, {reference}, "
+                f"null, null, json_object('parameter_set_kind', {sql_string(kind)})"
+            )
+        con.execute(
+            f"""
+            insert into {sql_identifier(set_table)}
+            select {select_columns}
+            from {sql_identifier(destination)} e
+            join source_records r using (source_record_id)
+            where r.source_id={sql_string(source_id)}
+              and r.release_id={sql_string(release_id)}
+              and r.source_table={sql_string(table_name)}
+            group by e.parameter_set_id, e.source_record_id
+            """
+        )
+
+
+def materialize_stellar_classifications(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    table_contract: dict[str, Any],
+) -> set[str]:
+    branches = []
+    reference_field = (table_contract.get("stellar_parameter_set") or {}).get(
+        "reference_field"
+    )
+    for field in fields:
+        name = str(field["column_name"])
+        raw = text_expression(name)
+        branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('classification|' + name + '|')} || r.source_record_id),
+              r.source_record_id, 'spectral_type', {raw}, null, null, null, null,
+              {text_expression(reference_field)},
+              json_object(
+                'source_field', {sql_string(name)},
+                'source_description', {nullable_sql_string(field.get('description'))}
+              )
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where nullif({raw}, '') is not null
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into stellar_classification_evidence " + " union all ".join(branches)
+        )
+    return {str(field["column_name"]) for field in fields}
+
+
+def materialize_observation_products(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+) -> set[str]:
+    branches = []
+    for field in fields:
+        name = str(field["column_name"])
+        raw = text_expression(name)
+        product_kind = (
+            "data_validation_report"
+            if name.endswith("_dvr")
+            else "data_validation_summary"
+            if name.endswith("_dvs")
+            else "archive_product"
+        )
+        branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('observation-product|' + name + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(product_kind)}, {sql_string(name)},
+              {raw}, 'on_demand', null, null, null, null,
+              json_object(
+                'source_field', {sql_string(name)},
+                'source_description', {nullable_sql_string(field.get('description'))}
+              )
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where nullif({raw}, '') is not null
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into observation_product_lineage " + " union all ".join(branches)
+        )
+    return {str(field["column_name"]) for field in fields}
+
+
+class ReferenceFragmentParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.attributes: dict[str, str] = {}
+        self.text_parts: list[str] = []
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag.lower() == "a" and not self.attributes:
+            self.attributes = {key.lower(): value or "" for key, value in attrs}
+
+    def handle_data(self, data: str) -> None:
+        if data.strip():
+            self.text_parts.append(data.strip())
+
+
+def parse_reference_fragment(raw: str) -> dict[str, Any]:
+    parser = ReferenceFragmentParser()
+    parser.feed(raw)
+    parser.close()
+    url = parser.attributes.get("href") or None
+    reference_key = parser.attributes.get("refstr") or None
+    display_text = " ".join(parser.text_parts).strip() or raw.strip()
+    bibcode = None
+    if url:
+        match = re.search(r"/abs/([^/?#]+)", url)
+        if match:
+            bibcode = unquote(match.group(1))
+    doi = None
+    doi_match = re.search(r"10\.\d{4,9}/[^\s<>]+", unquote(url or raw), re.IGNORECASE)
+    if doi_match:
+        doi = doi_match.group(0).rstrip(".,;)")
+    publication_year = None
+    year_match = re.search(
+        r"(?<!\d)((?:18|19|20)\d{2})(?!\d)", bibcode or display_text
+    )
+    if year_match:
+        publication_year = int(year_match.group(1))
+    return {
+        "reference_key": reference_key,
+        "display_text": display_text,
+        "url": url,
+        "bibcode": bibcode,
+        "doi": doi,
+        "publication_year": publication_year,
+    }
+
+
+def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
+    reference_union = " union all ".join(
+        f"""
+        select r.source_id, e.reference_raw
+        from {sql_identifier(table)} e
+        join source_records r using (source_record_id)
+        where nullif(trim(e.reference_raw), '') is not null
+        """
+        for table in sorted(EVIDENCE_REFERENCE_TABLES)
+    )
+    references = con.execute(
+        f"select distinct source_id, reference_raw from ({reference_union}) "
+        "order by source_id, reference_raw"
+    ).fetchall()
+    citation_rows = []
+    for source_id, raw in references:
+        parsed = parse_reference_fragment(str(raw))
+        citation_id = hashlib.sha256(
+            f"citation|{source_id}|{raw}".encode("utf-8")
+        ).hexdigest()
+        citation_rows.append(
+            [
+                citation_id,
+                source_id,
+                parsed["reference_key"] or str(raw),
+                str(raw),
+                parsed["url"],
+                parsed["bibcode"],
+                parsed["doi"],
+                parsed["publication_year"],
+                json.dumps(parsed, sort_keys=True),
+            ]
+        )
+    if citation_rows:
+        con.executemany(
+            "insert into citations values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            citation_rows,
+        )
+    for table in sorted(EVIDENCE_REFERENCE_TABLES):
+        con.execute(
+            f"""
+            insert into evidence_citations
+            select
+              {sql_string(table)}, e.evidence_id, c.citation_id, 'source_reference'
+            from {sql_identifier(table)} e
+            join source_records r using (source_record_id)
+            join citations c
+              on c.source_id=r.source_id
+             and c.citation_text_raw=e.reference_raw
+            where nullif(trim(e.reference_raw), '') is not null
+            """
+        )
+    link_count = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
+    return {"citations": len(citation_rows), "evidence_links": link_count}
+
+
 def materialize_lifecycle_claims(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -743,7 +1356,11 @@ def materialize_lifecycle_claims(
         context_fields = [str(field) for field in claim.get("context_fields") or []]
         required = {
             identifier_field,
-            *(str(value) for value in (disposition_field, effective_field, reference_field) if value),
+            *(
+                str(value)
+                for value in (disposition_field, effective_field, reference_field)
+                if value
+            ),
             *context_fields,
         }
         missing = sorted(required - available_fields)
@@ -760,6 +1377,12 @@ def materialize_lifecycle_claims(
         )
         normalized = normalized_disposition_expression("s.disposition_raw")
         polarity = lifecycle_polarity_expression("normalized_disposition")
+        effective_expression = optional_field_expression(
+            str(effective_field) if effective_field else None
+        )
+        reference_expression = optional_field_expression(
+            str(reference_field) if reference_field else None
+        )
         role = str(claim["claim_role"])
         con.execute(
             f"""
@@ -769,8 +1392,8 @@ def materialize_lifecycle_claims(
                 sha256(to_json(t)) source_row_sha256,
                 trim(cast({sql_identifier(identifier_field)} as varchar)) identifier_raw,
                 {disposition_source} disposition_raw,
-                {optional_field_expression(str(effective_field) if effective_field else None)} effective_raw,
-                {optional_field_expression(str(reference_field) if reference_field else None)} reference_raw,
+                {effective_expression} effective_raw,
+                {reference_expression} reference_raw,
                 {context_json} context_json
               from read_parquet({sql_string(str(path))}) t
             ), normalized as (
@@ -952,6 +1575,63 @@ def materialize_source(
                 available_fields=set(columns),
             )
         )
+        fields_by_destination: dict[str, list[dict[str, Any]]] = {}
+        for field, rule, _rule_index in classified_fields:
+            if rule["disposition"] != "exclude":
+                fields_by_destination.setdefault(rule["destination"], []).append(field)
+        for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
+            destination_fields = fields_by_destination.get(destination) or []
+            if destination_fields:
+                materialized_fields.update(
+                    materialize_scalar_evidence(
+                        con,
+                        source_id=source_id,
+                        release_id=release_id,
+                        table_name=table_name,
+                        path=path,
+                        destination=destination,
+                        fields=destination_fields,
+                        available_fields=set(columns),
+                        table_contract=table_contract,
+                        unit_normalizations=contract["unit_normalizations"],
+                    )
+                )
+        classification_fields = fields_by_destination.get(
+            "stellar_classification_evidence"
+        ) or []
+        if classification_fields:
+            materialized_fields.update(
+                materialize_stellar_classifications(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=classification_fields,
+                    table_contract=table_contract,
+                )
+            )
+        observation_product_fields = fields_by_destination.get(
+            "observation_product_lineage"
+        ) or []
+        if observation_product_fields:
+            materialized_fields.update(
+                materialize_observation_products(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=observation_product_fields,
+                )
+            )
+        materialize_parameter_sets(
+            con,
+            source_id=source_id,
+            release_id=release_id,
+            table_name=table_name,
+            table_contract=table_contract,
+        )
         for field, rule, rule_index in classified_fields:
             field_name = str(field["column_name"])
             mapping_status = (
@@ -1079,6 +1759,12 @@ def compile_evidence(
     if errors:
         raise ValueError("; ".join(errors))
     registry = load_json(registry_path)
+    compiler_sha256 = file_hash(Path(__file__).resolve())
+    registry_sha256 = file_hash(registry_path)
+    runtime_versions = {
+        "python": sys.version.split()[0],
+        "duckdb": duckdb.__version__,
+    }
     registry_sources = {
         str(source["source_id"]): source for source in registry["sources"]
     }
@@ -1094,8 +1780,11 @@ def compile_evidence(
         inputs.append(source_input(state_dir, registry_sources[source_id]))
     input_fingerprint = stable_hash(
         {
+            "compiler_sha256": compiler_sha256,
             "contract_sha256": file_hash(contract_path),
             "registry_version": registry["registry_version"],
+            "registry_sha256": registry_sha256,
+            "runtime_versions": runtime_versions,
             "inputs": [
                 {
                     "source_id": row["source_id"],
@@ -1146,6 +1835,7 @@ def compile_evidence(
                     contract,
                 )
             )
+        citation_summary = materialize_citations(con)
         mapping_counts = {
             str(status): int(count)
             for status, count in con.execute(
@@ -1223,6 +1913,9 @@ def compile_evidence(
         "build_id": build_id,
         "contract_version": contract["contract_version"],
         "compiler_version": contract["compiler_version"],
+        "compiler_sha256": compiler_sha256,
+        "registry_sha256": registry_sha256,
+        "runtime_versions": runtime_versions,
         "input_fingerprint": input_fingerprint,
         "status": "pass" if not mapping_counts.get("declared_pending", 0) else "in_progress",
         "sources": source_reports,
@@ -1231,6 +1924,7 @@ def compile_evidence(
         "identifier_claim_counts_by_scope": identifier_claim_scope_counts,
         "binding_outcome_counts_by_status_and_scope": binding_outcome_counts,
         "lifecycle_claim_counts": lifecycle_claim_counts,
+        "citation_summary": citation_summary,
         "logical_content_sha256": logical_content_sha256,
         "tables": tables,
         "created_at": created_at,
@@ -1242,6 +1936,9 @@ def compile_evidence(
         "contract_path": str(contract_path.relative_to(ROOT)),
         "contract_sha256": file_hash(contract_path),
         "registry_version": registry["registry_version"],
+        "registry_sha256": registry_sha256,
+        "compiler_sha256": compiler_sha256,
+        "runtime_versions": runtime_versions,
         "database": "scientific_evidence.duckdb",
         "database_bytes": database_path.stat().st_size,
         "database_sha256": file_hash(database_path),

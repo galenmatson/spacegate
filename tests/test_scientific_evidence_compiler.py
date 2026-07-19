@@ -221,6 +221,9 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
         "build_id": "build",
         "contract_version": "contract",
         "compiler_version": "compiler",
+        "compiler_sha256": "compiler-sha",
+        "registry_sha256": "registry-sha",
+        "runtime_versions": {"python": "3.14", "duckdb": "1.4"},
         "input_fingerprint": "inputs",
         "status": "in_progress",
         "sources": [],
@@ -234,6 +237,7 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
             "by_disposition": {"CANDIDATE": 1},
             "by_polarity": {"candidate": 1},
         },
+        "citation_summary": {"citations": 1, "evidence_links": 1},
         "logical_content_sha256": "logical",
         "tables": [{"table": "source_records", "row_count": 1, "logical_sha256": "a"}],
         "created_at": "2026-07-19T00:00:00Z",
@@ -255,3 +259,150 @@ def test_refuted_planet_claim_is_negative_evidence() -> None:
             f"select {expression} from (select 'REFUTED' disposition)"
         ).fetchone()[0]
     assert polarity == "negative"
+
+
+def test_scalar_grouping_preserves_measurement_companions() -> None:
+    groups = compiler.scalar_field_groups(
+        [
+            "pl_rade",
+            "pl_radeerr1",
+            "pl_radeerr2",
+            "pl_radelim",
+            "pl_radestr",
+        ],
+        {"pl_rade", "pl_radeerr1", "pl_radeerr2", "pl_radelim", "pl_radestr"},
+    )
+    assert groups == [
+        {
+            "base_field": "pl_rade",
+            "auxiliary": {
+                "error_upper": "pl_radeerr1",
+                "error_lower": "pl_radeerr2",
+                "limit": "pl_radelim",
+                "formatted": "pl_radestr",
+            },
+        }
+    ]
+
+
+def test_planet_scalar_materialization_preserves_units_errors_bounds_and_reference(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "planet.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            f"('Planet b','Reference A',1.75,0.20,-0.10,1,'< 1.75')) "
+            f"t(pl_name,pl_refname,pl_rade,pl_radeerr1,pl_radeerr2,pl_radelim,pl_radestr)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_row_sha256 = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.catalog','r1','planet_rows','planet',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_row_sha256],
+        )
+        fields = [
+            {
+                "column_name": name,
+                "unit": "Rearth" if name.startswith("pl_rade") else None,
+                "ucd": None,
+                "description": "planet radius",
+            }
+            for name in (
+                "pl_rade",
+                "pl_radeerr1",
+                "pl_radeerr2",
+                "pl_radelim",
+                "pl_radestr",
+            )
+        ]
+        table_contract = {
+            "planet_parameter_set": {
+                "kind": "reference_specific",
+                "reference_field": "pl_refname",
+            },
+            "signal_identifier_fields": ["pl_name"],
+        }
+        consumed = compiler.materialize_scalar_evidence(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="planet_rows",
+            path=parquet,
+            destination="planet_parameter_evidence",
+            fields=fields,
+            available_fields={
+                "pl_name",
+                "pl_refname",
+                "pl_rade",
+                "pl_radeerr1",
+                "pl_radeerr2",
+                "pl_radelim",
+                "pl_radestr",
+            },
+            table_contract=table_contract,
+            unit_normalizations={"Rearth": "R_earth"},
+        )
+        compiler.materialize_parameter_sets(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="planet_rows",
+            table_contract=table_contract,
+        )
+        citation_summary = compiler.materialize_citations(con)
+        evidence = con.execute(
+            "select quantity_key,value_raw,unit_raw,normalized_value,normalized_unit,"
+            "uncertainty_lower,uncertainty_upper,bound_semantics,reference_raw,"
+            "quality_json->>'formatted_value_raw' from planet_parameter_evidence"
+        ).fetchone()
+        set_row = con.execute(
+            "select parameter_set_kind,reference_raw from planet_parameter_sets"
+        ).fetchone()
+        citation = con.execute(
+            "select source_reference_key,citation_text_raw from citations"
+        ).fetchone()
+    assert consumed == {
+        "pl_rade",
+        "pl_radeerr1",
+        "pl_radeerr2",
+        "pl_radelim",
+        "pl_radestr",
+    }
+    assert evidence == (
+        "nasa_exoplanet_archive.pl_rade",
+        "1.75",
+        "Rearth",
+        1.75,
+        "R_earth",
+        0.1,
+        0.2,
+        "upper_limit",
+        "Reference A",
+        "< 1.75",
+    )
+    assert set_row == ("reference_specific", "Reference A")
+    assert citation_summary == {"citations": 1, "evidence_links": 1}
+    assert citation == ("Reference A", "Reference A")
+
+
+def test_nasa_reference_fragment_parser_preserves_lineage_and_parses_ads() -> None:
+    raw = (
+        "<a refstr=HOLCZER_ET_AL__2016 "
+        "href=https://ui.adsabs.harvard.edu/abs/2016ApJS..225....9H/abstract "
+        "target=ref>Holczer et al. 2016</a>"
+    )
+    assert compiler.parse_reference_fragment(raw) == {
+        "reference_key": "HOLCZER_ET_AL__2016",
+        "display_text": "Holczer et al. 2016",
+        "url": "https://ui.adsabs.harvard.edu/abs/2016ApJS..225....9H/abstract",
+        "bibcode": "2016ApJS..225....9H",
+        "doi": None,
+        "publication_year": 2016,
+    }

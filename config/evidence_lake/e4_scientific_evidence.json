@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v1",
-  "contract_version": "2026-07-19.e4-foundation.7",
-  "compiler_version": "scientific_evidence_compiler_v7",
+  "contract_version": "2026-07-19.e4-foundation.12",
+  "compiler_version": "scientific_evidence_compiler_v12",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -47,6 +47,57 @@
     "toi": {"namespace": "toi_id", "claim_scope": "planet_candidate"},
     "toipfx": {"namespace": "toi_host_prefix", "claim_scope": "observation_target"}
   },
+  "unit_normalizations": {
+    "%": "percent",
+    "AU": "au",
+    "BJD": "BJD",
+    "BKJD": "BKJD",
+    "Earth Flux": "S_earth",
+    "Earth Mass": "M_earth",
+    "Earth Radius": "R_earth",
+    "Earth flux": "S_earth",
+    "Fearth": "S_earth",
+    "Gyr": "Gyr",
+    "Jupiter Mass": "M_jup",
+    "Jupiter Radius": "R_jup",
+    "K": "K",
+    "Mearth": "M_earth",
+    "Mjupiter": "M_jup",
+    "Msun": "M_sun",
+    "R_Earth": "R_earth",
+    "R_Sun": "R_sun",
+    "Rearth": "R_earth",
+    "Rjupiter": "R_jup",
+    "Rsun": "R_sun",
+    "Searth": "S_earth",
+    "Solar Radius": "R_sun",
+    "Solar mass": "M_sun",
+    "au": "au",
+    "cm/s**2": "cm s-2",
+    "day": "d",
+    "days": "d",
+    "deg": "deg",
+    "degrees": "deg",
+    "dex": "dex",
+    "earth": "earth",
+    "g/cm**3": "g cm-3",
+    "hour": "h",
+    "hours": "h",
+    "hrs": "h",
+    "km/s": "km s-1",
+    "log(Lsun)": "dex(L_sun)",
+    "log(Solar)": "dex(L_sun)",
+    "log(cm/s**2)": "dex(cm s-2)",
+    "log10(cm/s**2)": "dex(cm s-2)",
+    "m/s": "m s-1",
+    "mag": "mag",
+    "mags": "mag",
+    "mas": "mas",
+    "mas/yr": "mas yr-1",
+    "pc": "pc",
+    "ppm": "ppm",
+    "solar": "solar"
+  },
   "domain_tables": [
     "identifier_claim_evidence",
     "stellar_parameter_sets",
@@ -86,10 +137,16 @@
         "reason": "reference, solution, release, or preferred-row lineage"
       },
       {
-        "pattern": "^(disposition|disp_refname|disc_.*)$",
+        "pattern": "^(disposition|disp_refname)$",
         "disposition": "domain",
         "destination": "planet_lifecycle_evidence",
-        "reason": "planet discovery or disposition evidence"
+        "reason": "planet disposition evidence"
+      },
+      {
+        "pattern": "^disc_.*$",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "discovery facility, publication, method, and date context"
       },
       {
         "pattern": "^pl_rvamp.*$",
@@ -110,6 +167,24 @@
         "reason": "planet parameter-set evidence"
       },
       {
+        "pattern": "^st_spectype$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "host-star source spectral classification"
+      },
+      {
+        "pattern": "^st_(rotp|vsin).*$",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_evidence",
+        "reason": "host-star rotation period or projected rotation evidence"
+      },
+      {
+        "pattern": "^st_radv.*$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "host-star systemic radial-velocity evidence"
+      },
+      {
         "pattern": "^st_.*$",
         "disposition": "domain",
         "destination": "stellar_parameter_evidence",
@@ -122,10 +197,22 @@
         "reason": "system or host photometry"
       },
       {
-        "pattern": "^(ra|dec|glat|glon|elat|elon|sy_(dist|plx|pm|pmra|pmdec|rv).*)$",
+        "pattern": "^(ra|dec|rastr|decstr|glat|glon|elat|elon|sy_(dist|plx|pm|pmra|pmdec|rv).*)$",
         "disposition": "domain",
         "destination": "astrometry_distance_evidence",
         "reason": "position, motion, velocity, parallax, or distance evidence"
+      },
+      {
+        "pattern": "^(.*_flag|discoverymethod|soltype|k2_campaigns.*)$",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "discovery-method, detection-channel, and campaign context"
+      },
+      {
+        "pattern": "^(x|y|z|htm20)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "archive spatial-index helper retained upstream but not scientific evidence"
       },
       {
         "pattern": "^sy_.*$",
@@ -167,10 +254,28 @@
         "reason": "TOI planet-candidate parameter evidence"
       },
       {
+        "pattern": "^st_tmag.*$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "TOI host TESS-band photometry"
+      },
+      {
+        "pattern": "^(ra|dec)(err1|err2|str|symerr)?$|^st_(dist|pmra|pmdec).*$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "TOI host position, motion, or distance evidence"
+      },
+      {
         "pattern": "^st_.*$",
         "disposition": "domain",
         "destination": "stellar_parameter_evidence",
         "reason": "TOI host-star parameter evidence"
+      },
+      {
+        "pattern": "^(release_date|sectors)$",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "TOI release and observing-sector context"
       },
       {
         "pattern": ".*",
@@ -194,7 +299,7 @@
         "reason": "KOI disposition and delivery lineage"
       },
       {
-        "pattern": "^koi_s(teff|logg|met|rad).*$",
+        "pattern": "^koi_s(teff|logg|met|rad|mass|age|rho).*$",
         "disposition": "domain",
         "destination": "stellar_parameter_evidence",
         "reason": "KOI host-star parameter evidence"
@@ -206,16 +311,22 @@
         "reason": "KOI target photometry"
       },
       {
-        "pattern": "^koi_(sra|sdec|g[lr]on).*$",
+        "pattern": "^(ra|dec)(|_err|_str)$|^koi_(sra|sdec|g[lr]on).*$",
         "disposition": "domain",
         "destination": "astrometry_distance_evidence",
         "reason": "KOI target position"
       },
       {
-        "pattern": "^koi_(period|time0bk|impact|duration|depth|ror|dor|incl|teq|insol|model_snr|num_transits|tce).*$",
+        "pattern": "^koi_(period|time0bk|time0|impact|duration|ingress|depth|ror|dor|incl|teq|insol|model_snr|num_transits|tce).*$",
         "disposition": "domain",
         "destination": "transit_observation_evidence",
         "reason": "KOI transit or linked TCE evidence"
+      },
+      {
+        "pattern": "^koi_datalink_.*$",
+        "disposition": "lineage",
+        "destination": "observation_product_lineage",
+        "reason": "Kepler data-validation report and summary product locators"
       },
       {
         "pattern": "^koi_.*$",
@@ -239,10 +350,28 @@
         "reason": "Kepler target, signal number, and delivery identity"
       },
       {
+        "pattern": "^(ra|dec)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "Kepler threshold-crossing-event sky position"
+      },
+      {
+        "pattern": "^tce_datalink_.*$",
+        "disposition": "lineage",
+        "destination": "observation_product_lineage",
+        "reason": "Kepler TCE data-validation report and summary product locators"
+      },
+      {
         "pattern": "^tce_.*$",
         "disposition": "domain",
         "destination": "transit_observation_evidence",
         "reason": "threshold-crossing event evidence"
+      },
+      {
+        "pattern": "^(av_|boot_|tcet_|wst_).*$",
+        "disposition": "domain",
+        "destination": "transit_observation_evidence",
+        "reason": "Kepler pipeline classification, bootstrap, and alternate-fit diagnostics"
       },
       {
         "pattern": "^rowupdate$",
@@ -269,17 +398,24 @@
   },
   "source_adapters": {
     "nasa_exoplanet_archive.planetary_systems": {
-      "adapter_version": "nasa_scientific_evidence_v2",
+      "adapter_version": "nasa_scientific_evidence_v4",
       "tables": {
         "nasa_ps_reference_v2": {
           "logical_key_fields": ["pl_name", "pl_refname"],
           "object_scope": "planet",
-          "field_profile": "nasa_planet_archive"
+          "field_profile": "nasa_planet_archive",
+          "planet_parameter_set": {"kind": "reference_specific", "reference_field": "pl_refname"},
+          "stellar_parameter_set": {"kind": "reference_specific_host", "reference_field": "st_refname"},
+          "system_reference_field": "sy_refname",
+          "signal_identifier_fields": ["pl_name"]
         },
         "nasa_pscomppars_v2": {
           "logical_key_fields": ["pl_name"],
           "object_scope": "planet",
           "field_profile": "nasa_planet_archive",
+          "planet_parameter_set": {"kind": "archive_composite"},
+          "stellar_parameter_set": {"kind": "archive_composite_host"},
+          "signal_identifier_fields": ["pl_name"],
           "lifecycle_claims": [
             {
               "claim_role": "confirmed_archive_composite",
@@ -300,12 +436,17 @@
         "nasa_stellarhosts_v2": {
           "logical_key_fields": ["hostname", "st_refname"],
           "object_scope": "host",
-          "field_profile": "nasa_planet_archive"
+          "field_profile": "nasa_planet_archive",
+          "stellar_parameter_set": {"kind": "reference_specific_host", "reference_field": "st_refname"},
+          "system_reference_field": "sy_refname"
         },
         "nasa_toi_full_v2": {
           "logical_key_fields": ["toi"],
           "object_scope": "observation_target",
           "field_profile": "nasa_toi",
+          "planet_parameter_set": {"kind": "toi_candidate"},
+          "stellar_parameter_set": {"kind": "toi_host"},
+          "signal_identifier_fields": ["toi"],
           "lifecycle_claims": [
             {
               "claim_role": "toi_tfopwg_disposition",
@@ -320,6 +461,10 @@
           "logical_key_fields": ["pl_name", "pl_refname"],
           "object_scope": "planet_or_candidate",
           "field_profile": "nasa_planet_archive",
+          "planet_parameter_set": {"kind": "reference_specific_candidate", "reference_field": "pl_refname"},
+          "stellar_parameter_set": {"kind": "reference_specific_host", "reference_field": "st_refname"},
+          "system_reference_field": "sy_refname",
+          "signal_identifier_fields": ["pl_name"],
           "lifecycle_claims": [
             {
               "claim_role": "k2_archive_disposition",
@@ -352,6 +497,9 @@
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
           "field_profile": "nasa_koi",
+          "planet_parameter_set": {"kind": "kepler_pipeline_candidate"},
+          "stellar_parameter_set": {"kind": "kepler_pipeline_host"},
+          "signal_identifier_fields": ["kepoi_name"],
           "lifecycle_claims": [
             {
               "claim_role": "koi_archive_disposition",
@@ -373,6 +521,9 @@
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
           "field_profile": "nasa_koi",
+          "planet_parameter_set": {"kind": "kepler_pipeline_candidate"},
+          "stellar_parameter_set": {"kind": "kepler_pipeline_host"},
+          "signal_identifier_fields": ["kepoi_name"],
           "lifecycle_claims": [
             {
               "claim_role": "koi_archive_disposition",
@@ -394,6 +545,9 @@
           "logical_key_fields": ["kepoi_name"],
           "object_scope": "observation_target",
           "field_profile": "nasa_koi",
+          "planet_parameter_set": {"kind": "kepler_pipeline_candidate"},
+          "stellar_parameter_set": {"kind": "kepler_pipeline_host"},
+          "signal_identifier_fields": ["kepoi_name"],
           "lifecycle_claims": [
             {
               "claim_role": "koi_archive_disposition",
@@ -414,12 +568,17 @@
         "nasa_kepler_dr25_tce_v2": {
           "logical_key_fields": ["kepid", "tce_plnt_num"],
           "object_scope": "observation_target",
-          "field_profile": "nasa_tce"
+          "field_profile": "nasa_tce",
+          "signal_identifier_fields": ["kepid", "tce_plnt_num", "tce_delivname"]
         },
         "nasa_transit_detection_reference_v2": {
           "logical_key_fields": ["pl_name", "pl_refname"],
           "object_scope": "planet",
-          "field_profile": "nasa_planet_archive"
+          "field_profile": "nasa_planet_archive",
+          "planet_parameter_set": {"kind": "transit_reference_specific", "reference_field": "pl_refname"},
+          "stellar_parameter_set": {"kind": "transit_reference_host", "reference_field": "st_refname"},
+          "system_reference_field": "sy_refname",
+          "signal_identifier_fields": ["pl_name"]
         }
       }
     }

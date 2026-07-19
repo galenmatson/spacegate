@@ -47,6 +47,12 @@ Evidence Lake v2 staging rule:
   A field declaration is not materialization: `declared_pending` fields keep an
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
+- NASA checkpoint `cb82c09179afa740b02e2cdf` is the first field-complete source
+  adapter. It preserves source units/reference fragments, adds versioned unit
+  aliases and parsed citation metadata, groups measurement companions into
+  coherent parameter sets, and indexes observation products for on-demand
+  retrieval. Its `pass` status applies to that adapter, not to unimplemented E4
+  sources or ARM/public promotion.
 
 ## Artifact Contract
 

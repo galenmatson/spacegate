@@ -1129,6 +1129,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash
   reproduction without altering canonical inventory
+- [x] E4 NASA domain checkpoint: group values with uncertainties, limits, units,
+  and references into coherent parameter sets; materialize stellar, astrometric,
+  photometric, rotation, classification, planet, transit, RV, product-lineage,
+  and citation evidence; account all 2,093 fields with no pending tail
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,
