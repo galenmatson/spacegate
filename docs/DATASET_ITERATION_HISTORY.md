@@ -1125,6 +1125,26 @@ Representative commits:
   `02bfb585c0941285cf4fa10326b45f478df62685586cd76ae150883251f26278`
   and removes its scratch artifact.
 
+### 37) Evidence Lake E4 ATNF Pulsar Parameters and Bibliography
+
+- E4 added general ordered-table, predicate-scoped identifier, authoritative
+  citation-catalog, and reference-validation contracts rather than parsing ATNF
+  through a catalog-specific production branch. References are materialized
+  before the parameter and glitch tables that use their source keys.
+- Checkpoint `64c55c19a5a10a88877d4cd2` accounts all 190,671 typed package
+  rows and all 37 table-column occurrences: 91,214 repeated parameter records,
+  644 glitches, 1,210 complete references, 97,472 comments, 108 README lines,
+  and 23 archive-member records. It emits 91,858 compact-object parameter
+  contexts and 97,424 release-scoped ATNF/PSRJ/PSRB identity claims.
+- The source's fourth parameter token is lexically overloaded. Only exact
+  matches to the 1,210 authoritative reference keys populate evidence
+  `reference_raw`, producing 84,388 citation links. Another 959 populated
+  tokens remain visible in raw parameter JSON but receive no invented citation.
+- The 286,011,392-byte artifact has logical hash
+  `5bcf94b69a5a0e1a1905f2a891fd95d7f852c6c9af55531cdf6d9448f6747834`.
+  The independent artifact audit and clean scratch reproduction pass. No ATNF
+  row has been promoted to canonical inventory or selected as a public fact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.22",
-  "compiler_version": "scientific_evidence_compiler_v22",
+  "contract_version": "2026-07-19.e4-foundation.23",
+  "compiler_version": "scientific_evidence_compiler_v23",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -539,6 +539,42 @@
         "disposition": "exclude",
         "destination": "source_records",
         "reason": "copied Gaia EDR3/DR2 or SDSS scalar remains losslessly preserved in source-native typed Parquet; release-native Gaia, distance, and survey adapters own its scientific quantity semantics"
+      }
+    ],
+    "atnf_compact_parameters": [
+      {
+        "pattern": "^pulsar_name$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "ATNF pulsar block identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "compact_object_evidence",
+        "reason": "source-native repeated pulsar parameter, uncertainty, reference, occurrence, payload, and row lineage"
+      }
+    ],
+    "atnf_glitches": [
+      {
+        "pattern": "^(name_b1950_or_j2000|name_j2000)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-native glitch target identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "compact_object_evidence",
+        "reason": "source-native pulsar glitch epoch, frequency changes, recovery, decay, reference, and row lineage"
+      }
+    ],
+    "atnf_citations": [
+      {
+        "pattern": ".*",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "ATNF reference-code bibliography and exact source block"
       }
     ]
   },
@@ -1157,6 +1193,119 @@
             "method": "gaia_edr3_white_dwarf_candidate_catalog",
             "reference_raw": "Gaia EDR3 White Dwarf Catalogue gaia_edr3_wd_main",
             "normalization_version": "gaia_edr3_wd_candidate_context_v1"
+          }
+        }
+      }
+    },
+    "compact.atnf": {
+      "adapter_version": "atnf_scientific_evidence_v1",
+      "table_order": [
+        "atnf_references",
+        "atnf_archive_members",
+        "atnf_readme",
+        "atnf_catalogue_comments",
+        "atnf_parameters",
+        "atnf_glitches"
+      ],
+      "tables": {
+        "atnf_archive_members": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": ["member_name"],
+          "object_scope": "archive_member",
+          "field_profile": "source_method_document"
+        },
+        "atnf_readme": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_document",
+          "field_profile": "source_method_document"
+        },
+        "atnf_catalogue_comments": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": ["catalogue_block", "source_line_number"],
+          "object_scope": "source_comment",
+          "field_profile": "source_method_document"
+        },
+        "atnf_parameters": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": [
+            "catalogue_block",
+            "parameter_name",
+            "parameter_occurrence",
+            "source_line_number"
+          ],
+          "object_scope": "pulsar_parameter_occurrence",
+          "field_profile": "atnf_compact_parameters",
+          "identifier_claims": {
+            "pulsar_name": {"namespace": "atnf_pulsar_name", "claim_scope": "compact_object"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "value_raw", "namespace": "psrj", "claim_scope": "compact_object", "sql_predicate": "parameter_name='PSRJ'"},
+            {"value_field": "value_raw", "namespace": "psrb", "claim_scope": "compact_object", "sql_predicate": "parameter_name='PSRB'"}
+          ],
+          "compact_object": {
+            "compact_kind": "pulsar_parameter",
+            "parameter_set_key_fields": [
+              "pulsar_name",
+              "parameter_name",
+              "parameter_occurrence",
+              "source_line_number"
+            ],
+            "parameter_fields": [
+              "parameter_name",
+              "value_raw",
+              "uncertainty_raw",
+              "reference_raw",
+              "raw_payload"
+            ],
+            "quality_fields": [
+              "catalogue_block",
+              "parameter_occurrence",
+              "source_line_number",
+              "raw_row"
+            ],
+            "reference_field": "reference_raw",
+            "reference_catalog_validated": true,
+            "method": "atnf_source_parameter_occurrence",
+            "normalization_version": "atnf_source_native_lexical_v1"
+          }
+        },
+        "atnf_glitches": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": ["name_j2000", "glitch_epoch_mjd_raw", "source_line_number"],
+          "object_scope": "pulsar_glitch",
+          "field_profile": "atnf_glitches",
+          "identifier_claims": {
+            "name_b1950_or_j2000": {"namespace": "atnf_pulsar_name", "claim_scope": "compact_object"},
+            "name_j2000": {"namespace": "psrj", "claim_scope": "compact_object"}
+          },
+          "compact_object": {
+            "compact_kind": "pulsar_glitch",
+            "parameter_set_key_fields": ["name_j2000", "glitch_epoch_mjd_raw", "source_line_number"],
+            "parameter_fields": [
+              "glitch_epoch_mjd_raw",
+              "fractional_frequency_increase_raw",
+              "fractional_frequency_derivative_increase_raw",
+              "recovery_fraction_q_raw",
+              "decay_timescale_days_raw",
+              "reference_raw"
+            ],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "reference_field": "reference_raw",
+            "reference_catalog_validated": true,
+            "method": "atnf_pulsar_glitch_record",
+            "normalization_version": "atnf_source_native_lexical_v1"
+          }
+        },
+        "atnf_references": {
+          "raw_artifact_name": "psrcat_pkg",
+          "logical_key_fields": ["reference_code"],
+          "object_scope": "source_reference",
+          "field_profile": "atnf_citations",
+          "citation_catalog": {
+            "reference_key_field": "reference_code",
+            "citation_text_field": "citation_text",
+            "context_fields": ["source_start_line", "source_end_line", "raw_block"]
           }
         }
       }

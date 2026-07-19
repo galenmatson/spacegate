@@ -373,6 +373,21 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   probability/context is a separate compact-object parameter set. Copied
   Gaia/SDSS scalars remain exact in typed Parquet and source-record lineage but
   are deliberately owned by release-native Gaia, distance, and survey adapters.
+- Contract v3 also supports deterministic adapter table order, predicate-scoped
+  identity claims, and authoritative source citation catalogs. ATNF checkpoint
+  `64c55c19a5a10a88877d4cd2` uses those general contracts to materialize its
+  bibliography before dependent parameter/glitch rows and to expose PSRJ/PSRB
+  only on the matching parameter occurrence. The source package contributes
+  190,671 source records, including 91,214 repeated parameter occurrences, 644
+  glitches, 1,210 full references, 97,472 comments, and source-document/archive
+  context. It emits 91,858 compact parameter sets and 97,424 identities.
+- ATNF's fourth lexical parameter token is not always a bibliography key. Only
+  exact matches to the 1,210 source reference codes populate `reference_raw`
+  and create the 84,388 evidence-citation links. The remaining 959 populated
+  tokens are preserved in `parameter_set_raw` without manufacturing citations.
+  The 286,011,392-byte artifact has logical hash
+  `5bcf94b69a5a0e1a1905f2a891fd95d7f852c6c9af55531cdf6d9448f6747834`;
+  clean reproduction and the independent artifact audit pass.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

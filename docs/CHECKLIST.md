@@ -1154,6 +1154,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   distance-interval overlap; preserve 337,272 candidate contexts and separate
   H/He/mixed atmosphere fits with all 161 fields accounted and no implicit
   model winner; pass clean reproduction and artifact audit
+- [x] E4 ATNF checkpoint: preserve repeated pulsar parameters, glitches,
+  comments, README/archive context, and the complete source bibliography;
+  materialize predicate-scoped PSRJ/PSRB aliases and link only exact reference
+  keys while retaining unmatched lexical tokens; pass clean reproduction and
+  artifact audit
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

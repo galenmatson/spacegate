@@ -1474,6 +1474,14 @@ Current status (July 19, 2026, in progress):
   1,348,802 identity claims, and 337,272 compact-candidate contexts. All 161
   fields are materialized or deliberately assigned to release-native Gaia,
   distance, or SDSS adapters; no atmosphere model is silently selected.
+- ATNF checkpoint `64c55c19a5a10a88877d4cd2` preserves 190,671 rows from
+  the source package as 91,214 repeated parameter occurrences, 644 glitches,
+  1,210 full bibliography records, 97,472 catalog comments, 108 README lines,
+  and 23 archive-member records. It emits 97,424 release-scoped identity claims
+  and 91,858 compact-object parameter contexts. Exact source reference keys
+  create 84,388 evidence-citation links; 959 non-bibliographic lexical tokens
+  remain in raw parameter JSON and cannot become placeholder citations. Clean
+  logical reproduction and the independent artifact audit pass.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

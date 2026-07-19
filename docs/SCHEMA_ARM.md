@@ -84,6 +84,12 @@ Evidence Lake v2 staging rule:
   this division for candidate probability/quality versus H, He, and mixed
   atmosphere fits. E5 must select a model through a versioned applicability and
   fit-quality policy rather than flattening alternatives field by field.
+- Source citation catalogs are materialized before evidence tables that refer
+  to them. A compact-object row may populate `reference_raw` only when its
+  source-native token exactly matches an authoritative `source_reference_key`;
+  unmatched tokens remain in `parameter_set_raw` and do not receive synthetic
+  citations. Predicate-scoped identifier claims similarly expose PSRJ/PSRB
+  aliases only from the ATNF parameter occurrences that assert those names.
 
 ## Artifact Contract
 

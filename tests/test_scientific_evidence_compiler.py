@@ -37,6 +37,20 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     }
 
 
+def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
+    contract = compiler.load_json(CONTRACT_PATH)
+    adapter = contract["source_adapters"]["compact.atnf"]
+    original = list(adapter["table_order"])
+
+    adapter["table_order"] = [*original, original[0]]
+    errors = compiler.validate_contract(contract)
+    assert "compact.atnf.table_order contains duplicates" in errors
+
+    adapter["table_order"] = original[:-1]
+    errors = compiler.validate_contract(contract)
+    assert "compact.atnf.table_order must cover every table exactly" in errors
+
+
 def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
     with duckdb.connect() as con:
         compiler.create_schema(con)
@@ -833,6 +847,163 @@ def test_planet_scalar_materialization_preserves_units_errors_bounds_and_referen
     assert set_row == ("reference_specific", "Reference A")
     assert citation_summary == {"citations": 1, "evidence_links": 1}
     assert citation == ("Reference A", "Reference A")
+
+
+def test_conditional_identifier_claims_apply_only_to_matching_rows(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "parameters.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "('PSRJ','J1234+5678'),('P0','1.25')) "
+            "t(parameter_name,value_raw)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'compact.test', 'r1', 'parameters', 'compact_object', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(rows)],
+        )
+        consumed = compiler.materialize_conditional_identifier_claims(
+            con,
+            source_id="compact.test",
+            release_id="r1",
+            table_name="parameters",
+            path=parquet,
+            claims=[
+                {
+                    "value_field": "value_raw",
+                    "namespace": "psrj",
+                    "claim_scope": "compact_object",
+                    "sql_predicate": "parameter_name='PSRJ'",
+                }
+            ],
+            available_fields={"parameter_name", "value_raw"},
+        )
+        claims = con.execute(
+            "select namespace,identifier_raw,claim_scope,quality_json->>'predicate' "
+            "from identifier_claim_evidence"
+        ).fetchall()
+    assert consumed == {"value_raw"}
+    assert claims == [("psrj", "J1234+5678", "compact_object", "parameter_name='PSRJ'")]
+
+
+def test_authoritative_citation_catalog_validates_compact_references(
+    tmp_path: Path,
+) -> None:
+    citation_parquet = tmp_path / "references.parquet"
+    parameter_parquet = tmp_path / "parameters.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "('REF1','Author et al. 2025','source block')) "
+            "t(reference_code,citation_text,raw_block)) "
+            f"to '{citation_parquet}' (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from (values "
+            "('PSR A','P0','1.25','REF1'),"
+            "('PSR B','P0','2.50','not-a-reference')) "
+            "t(pulsar_name,parameter_name,value_raw,reference_raw)) "
+            f"to '{parameter_parquet}' (format parquet)"
+        )
+        citation_sha = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{citation_parquet}') t"
+        ).fetchone()[0]
+        parameter_rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parameter_parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('citation-record', 'compact.test', 'r1', 'references', "
+            "'source_reference', '{}', '{}', ?, 1, 'raw', 'typed', "
+            "'raw-tree', 'typed-table', timestamp '2026-07-19 00:00:00')",
+            [citation_sha],
+        )
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'compact.test', 'r1', 'parameters', 'compact_object', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [
+                (f"parameter-record-{index}", row[0])
+                for index, row in enumerate(parameter_rows)
+            ],
+        )
+        citation_fields = [
+            {"column_name": name}
+            for name in ("reference_code", "citation_text", "raw_block")
+        ]
+        compiler.materialize_citation_catalog(
+            con,
+            source_id="compact.test",
+            release_id="r1",
+            table_name="references",
+            path=citation_parquet,
+            citation_catalog={
+                "reference_key_field": "reference_code",
+                "citation_text_field": "citation_text",
+                "context_fields": ["raw_block"],
+            },
+            fields=citation_fields,
+            available_fields={"reference_code", "citation_text", "raw_block"},
+        )
+        compiler.materialize_compact_objects(
+            con,
+            source_id="compact.test",
+            release_id="r1",
+            table_name="parameters",
+            path=parameter_parquet,
+            fields=[
+                {"column_name": name}
+                for name in (
+                    "pulsar_name",
+                    "parameter_name",
+                    "value_raw",
+                    "reference_raw",
+                )
+            ],
+            compact_object={
+                "compact_kind": "pulsar_parameter",
+                "parameter_set_key_fields": ["pulsar_name", "parameter_name"],
+                "parameter_fields": ["parameter_name", "value_raw", "reference_raw"],
+                "quality_fields": ["pulsar_name"],
+                "reference_field": "reference_raw",
+                "reference_catalog_validated": True,
+                "method": "source_parameter",
+                "normalization_version": "source_native_v1",
+            },
+            available_fields={
+                "pulsar_name",
+                "parameter_name",
+                "value_raw",
+                "reference_raw",
+            },
+        )
+        summary = compiler.materialize_citations(con)
+        evidence = con.execute(
+            "select quality_json->>'pulsar_name', reference_raw, "
+            "parameter_set_raw->>'reference_raw' "
+            "from compact_object_evidence order by 1"
+        ).fetchall()
+        citation = con.execute(
+            "select source_reference_key,citation_text_raw,"
+            "parsed_json->'source_context'->>'raw_block' from citations"
+        ).fetchone()
+    assert evidence == [
+        ("PSR A", "REF1", "REF1"),
+        ("PSR B", None, "not-a-reference"),
+    ]
+    assert citation == ("REF1", "Author et al. 2025", "source block")
+    assert summary == {"citations": 1, "evidence_links": 1}
 
 
 def test_nasa_reference_fragment_parser_preserves_lineage_and_parses_ads() -> None:

@@ -165,6 +165,12 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
     for source_id, adapter in (contract.get("source_adapters") or {}).items():
         if not adapter.get("adapter_version") or not adapter.get("tables"):
             errors.append(f"incomplete source adapter: {source_id}")
+        if adapter.get("table_order") is not None:
+            table_order = [str(value) for value in adapter.get("table_order") or []]
+            if len(table_order) != len(set(table_order)):
+                errors.append(f"{source_id}.table_order contains duplicates")
+            if set(table_order) != set(adapter.get("tables") or {}):
+                errors.append(f"{source_id}.table_order must cover every table exactly")
         for table_name, table in (adapter.get("tables") or {}).items():
             if not table.get("logical_key_fields"):
                 errors.append(f"{source_id}.{table_name} lacks logical key fields")
@@ -322,6 +328,19 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 for field in ("fields", "namespace", "claim_scope"):
                     value = claim.get(field)
                     if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            for index, claim in enumerate(
+                table.get("conditional_identifier_claims") or []
+            ):
+                prefix = f"{source_id}.{table_name}.conditional_identifier_claims[{index}]"
+                for field in ("value_field", "namespace", "claim_scope", "sql_predicate"):
+                    if not str(claim.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            citation_catalog = table.get("citation_catalog")
+            if citation_catalog:
+                prefix = f"{source_id}.{table_name}.citation_catalog"
+                for field in ("reference_key_field", "citation_text_field"):
+                    if not str(citation_catalog.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
             extended_object = table.get("extended_object")
             if extended_object:
@@ -1078,6 +1097,55 @@ def materialize_composite_identifier_claims(
              and r.source_table={sql_string(table_name)}
              and r.source_row_sha256=sha256(to_json(t))
             where {nonblank}
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into identifier_claim_evidence " + " union all ".join(branches)
+        )
+    return consumed
+
+
+def materialize_conditional_identifier_claims(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    claims: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    branches = []
+    for index, claim in enumerate(claims):
+        field = str(claim["value_field"])
+        if field not in available_fields:
+            raise ValueError(
+                f"conditional identifier field missing from {table_name}: {field}"
+            )
+        consumed.add(field)
+        raw = text_expression(field)
+        namespace = str(claim["namespace"])
+        branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('conditional-identifier|' + namespace + '|' + str(index) + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(namespace)}, {raw}, {raw},
+              {sql_string(str(claim['claim_scope']))},
+              {nullable_sql_string(claim.get('component_scope'))}, null,
+              json_object(
+                'source_field', {sql_string(field)},
+                'predicate', {sql_string(str(claim['sql_predicate']))}
+              )
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where ({str(claim['sql_predicate'])})
+              and nullif({raw}, '') is not null
             """
         )
     if branches:
@@ -2225,11 +2293,21 @@ def materialize_compact_objects(
     parameter_set_key = logical_key_expression(key_fields, "t")
     parameters = logical_key_expression(parameter_fields, "t")
     quality = logical_key_expression(quality_fields, "t")
+    reference_field = compact_object.get("reference_field")
     reference = (
-        text_expression(compact_object.get("reference_field"))
-        if compact_object.get("reference_field")
+        text_expression(reference_field)
+        if reference_field
         else nullable_sql_string(compact_object.get("reference_raw"))
     )
+    if reference_field and compact_object.get("reference_catalog_validated"):
+        candidate = text_expression(str(reference_field))
+        reference = f"""
+          case when exists (
+            select 1 from citations c
+            where c.source_id={sql_string(source_id)}
+              and c.source_reference_key={candidate}
+          ) then {candidate} end
+        """
     namespace = f"compact-object|{table_name}|"
     con.execute(
         f"""
@@ -2305,6 +2383,77 @@ def parse_reference_fragment(raw: str) -> dict[str, Any]:
     }
 
 
+def materialize_citation_catalog(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    citation_catalog: dict[str, Any],
+    fields: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    destination_fields = {str(field["column_name"]) for field in fields}
+    key_field = str(citation_catalog["reference_key_field"])
+    text_field = str(citation_catalog["citation_text_field"])
+    context_fields = [str(field) for field in citation_catalog.get("context_fields") or []]
+    url_field = citation_catalog.get("citation_url_field")
+    consumed = {key_field, text_field, *context_fields}
+    if url_field:
+        consumed.add(str(url_field))
+    missing = sorted(consumed - available_fields)
+    if missing:
+        raise ValueError(f"citation-catalog fields missing from {table_name}: {missing}")
+    unconsumed = sorted(destination_fields - consumed)
+    if unconsumed:
+        raise ValueError(
+            f"citation-catalog fields lack a typed role in {table_name}: {unconsumed}"
+        )
+    context = logical_key_expression(context_fields, "t") if context_fields else "'{}'::json"
+    rows = con.execute(
+        f"""
+        select distinct
+          trim(cast(t.{sql_identifier(key_field)} as varchar)),
+          trim(cast(t.{sql_identifier(text_field)} as varchar)),
+          {text_expression(str(url_field) if url_field else None)},
+          cast({context} as varchar)
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif(trim(cast(t.{sql_identifier(key_field)} as varchar)), '') is not null
+          and nullif(trim(cast(t.{sql_identifier(text_field)} as varchar)), '') is not null
+        order by 1, 2
+        """
+    ).fetchall()
+    inserts = []
+    for reference_key, citation_text, citation_url, context_json in rows:
+        parsed = parse_reference_fragment(str(citation_text))
+        parsed["source_context"] = json.loads(str(context_json))
+        citation_id = hashlib.sha256(
+            f"citation-catalog|{source_id}|{reference_key}|{citation_text}".encode()
+        ).hexdigest()
+        inserts.append(
+            [
+                citation_id,
+                source_id,
+                str(reference_key),
+                str(citation_text),
+                str(citation_url) if citation_url else parsed["url"],
+                parsed["bibcode"],
+                parsed["doi"],
+                parsed["publication_year"],
+                json.dumps(parsed, sort_keys=True),
+            ]
+        )
+    if inserts:
+        con.executemany("insert into citations values (?, ?, ?, ?, ?, ?, ?, ?, ?)", inserts)
+    return consumed
+
+
 def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     reference_union = " union all ".join(
         f"""
@@ -2321,6 +2470,15 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     ).fetchall()
     citation_rows = []
     for source_id, raw in references:
+        existing = int(
+            con.execute(
+                "select count(*) from citations where source_id=? "
+                "and (source_reference_key=? or citation_text_raw=?)",
+                [source_id, raw, raw],
+            ).fetchone()[0]
+        )
+        if existing:
+            continue
         parsed = parse_reference_fragment(str(raw))
         citation_id = hashlib.sha256(
             f"citation|{source_id}|{raw}".encode("utf-8")
@@ -2353,12 +2511,16 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
             join source_records r using (source_record_id)
             join citations c
               on c.source_id=r.source_id
-             and c.citation_text_raw=e.reference_raw
+             and (c.source_reference_key=e.reference_raw
+               or c.citation_text_raw=e.reference_raw)
             where nullif(trim(e.reference_raw), '') is not null
             """
         )
     link_count = int(con.execute("select count(*) from evidence_citations").fetchone()[0])
-    return {"citations": len(citation_rows), "evidence_links": link_count}
+    return {
+        "citations": int(con.execute("select count(*) from citations").fetchone()[0]),
+        "evidence_links": link_count,
+    }
 
 
 def materialize_lifecycle_claims(
@@ -2499,7 +2661,11 @@ def materialize_source(
     )
     report_tables: list[dict[str, Any]] = []
     disposition_rows: list[list[Any]] = []
-    for table_name in sorted(configured_tables):
+    table_order = [
+        str(value)
+        for value in (adapter.get("table_order") or sorted(configured_tables))
+    ]
+    for table_name in table_order:
         table_contract = adapter["tables"][table_name]
         typed_table = typed_tables[table_name]
         raw_artifact_name = str(
@@ -2619,6 +2785,17 @@ def materialize_source(
                 table_name=table_name,
                 path=path,
                 claims=list(table_contract.get("composite_identifier_claims") or []),
+                available_fields=set(columns),
+            )
+        )
+        materialized_fields.update(
+            materialize_conditional_identifier_claims(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                claims=list(table_contract.get("conditional_identifier_claims") or []),
                 available_fields=set(columns),
             )
         )
@@ -2821,6 +2998,25 @@ def materialize_source(
                     path=path,
                     fields=compact_object_fields,
                     compact_object=compact_object,
+                    available_fields=set(columns),
+                )
+            )
+        citation_fields = fields_by_destination.get("citations") or []
+        citation_catalog = table_contract.get("citation_catalog")
+        if citation_fields or citation_catalog:
+            if not citation_fields or not citation_catalog:
+                raise ValueError(
+                    f"citation-catalog profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_citation_catalog(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    citation_catalog=citation_catalog,
+                    fields=citation_fields,
                     available_fields=set(columns),
                 )
             )

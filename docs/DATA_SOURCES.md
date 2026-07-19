@@ -261,6 +261,10 @@ Evidence Lake E4 source checkpoints:
 - Gaia EDR3 White Dwarf `486e4975af015d4e5f5a3c9b`: 337,272 posterior-
   interval-overlap candidates from 1,280,266 raw rows, 161 fields accounted,
   and independent H/He/mixed atmosphere parameter sets with no implicit winner
+- ATNF Pulsar Catalogue `64c55c19a5a10a88877d4cd2`: 190,671 package rows,
+  91,858 parameter/glitch contexts, 97,424 identifier claims, 1,210 full source
+  references, and 84,388 exact citation links; unmatched lexical reference
+  tokens remain source-native evidence rather than placeholder bibliography
 
 ### Exoplanet Lifecycle Notes
 
