@@ -7,6 +7,9 @@ import json
 import sys
 from pathlib import Path
 
+from astropy.io.votable import from_table, writeto
+from astropy.table import Table
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -64,6 +67,27 @@ def test_resolve_product_fields_preserves_release_order_and_groups() -> None:
         "r.source_id",
         "r.teff_model",
         "r.teff_model_lower",
+    ]
+
+
+def test_resolve_product_fields_quotes_case_collisions() -> None:
+    resolved = acquire.resolve_product_fields(
+        {
+            "product_name": "test",
+            "table": "test.rows",
+            "preserve_all_fields": True,
+        },
+        [
+            {"column_name": "source_id"},
+            {"column_name": "b_rgeo"},
+            {"column_name": "B_rgeo"},
+        ],
+    )
+    assert resolved["select"] == ["source_id", '"b_rgeo"', '"B_rgeo"']
+    assert [acquire.selected_output_name(value) for value in resolved["select"]] == [
+        "source_id",
+        "b_rgeo",
+        "B_rgeo",
     ]
 
 
@@ -201,3 +225,14 @@ def test_manifest_merge_preserves_unrelated_products(tmp_path: Path) -> None:
         {"source_name": "second", "sha256": "two"},
     ]
     assert json.loads(path.read_text()) == merged
+
+
+def test_uncompressed_binary_votable_metadata(tmp_path: Path) -> None:
+    path = tmp_path / "rows.vot"
+    votable = from_table(Table({"source_id": [1, 2], "value": [3.5, 4.5]}))
+    writeto(votable, str(path), tabledata_format="binary")
+    assert acquire.response_suffix("votable/b") == ".vot"
+    assert acquire.response_metadata(path.read_bytes(), "votable/b") == (
+        ["source_id", "value"],
+        2,
+    )

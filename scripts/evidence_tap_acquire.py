@@ -22,7 +22,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -256,10 +256,11 @@ def csv_metadata(payload: bytes) -> tuple[list[str], int]:
 def response_metadata(payload: bytes, output_format: str) -> tuple[list[str], int]:
     if output_format == "csv":
         return csv_metadata(payload)
-    if output_format == "votable_gzip":
+    if output_format in {"votable_gzip", "votable", "votable/b", "votable/b2"}:
         from astropy.io.votable import parse_single_table
 
-        table = parse_single_table(io.BytesIO(gzip.decompress(payload)))
+        exact = gzip.decompress(payload) if output_format == "votable_gzip" else payload
+        table = parse_single_table(io.BytesIO(exact))
         return [str(field.name or field.ID or field._unique_name) for field in table.fields], len(
             table.array
         )
@@ -271,6 +272,8 @@ def response_suffix(output_format: str) -> str:
         return ".csv.gz"
     if output_format == "votable_gzip":
         return ".vot.gz"
+    if output_format in {"votable", "votable/b", "votable/b2"}:
+        return ".vot"
     raise ValueError(f"unsupported TAP output format: {output_format}")
 
 
@@ -279,6 +282,58 @@ def read_response(path: Path, output_format: str) -> bytes:
     if output_format == "csv":
         return gzip.decompress(payload) if path.name.endswith(".gz") else payload
     return payload
+
+
+def response_metadata_path(path: Path) -> Path:
+    return path.with_name(path.name + ".metadata.json")
+
+
+def inspect_response_file(path_value: str, output_format: str) -> dict[str, Any]:
+    """Inspect one response in an isolated process and retain exact hashes."""
+    path = Path(path_value)
+    exact = read_response(path, output_format)
+    fields, rows = response_metadata(exact, output_format)
+    return {
+        "output_format": output_format,
+        "fields": fields,
+        "rows": rows,
+        "response_sha256": hashlib.sha256(exact).hexdigest(),
+        "stored_sha256": file_hash(path),
+        "stored_bytes": path.stat().st_size,
+    }
+
+
+def inspect_response_files(
+    paths: list[Path], output_format: str, workers: int
+) -> dict[Path, dict[str, Any]]:
+    if not paths:
+        return {}
+    with ProcessPoolExecutor(max_workers=max(1, min(workers, len(paths)))) as executor:
+        values = list(
+            executor.map(
+                inspect_response_file,
+                [str(path) for path in paths],
+                [output_format] * len(paths),
+            )
+        )
+    return dict(zip(paths, values, strict=True))
+
+
+def valid_response_metadata(
+    metadata: dict[str, Any],
+    path: Path,
+    *,
+    output_format: str,
+    expected_fields: list[str],
+    max_rec: int,
+) -> bool:
+    return (
+        metadata.get("output_format") == output_format
+        and metadata.get("fields") == expected_fields
+        and 0 <= int(metadata.get("rows", -1)) < max_rec
+        and metadata.get("stored_sha256") == file_hash(path)
+        and int(metadata.get("stored_bytes", -1)) == path.stat().st_size
+    )
 
 
 def query_schema(
@@ -353,8 +408,22 @@ def resolve_product_fields(
         raise ValueError(f"no fields selected for {product['product_name']}")
     resolved = dict(product)
     alias = str(product.get("table_alias") or "").strip()
-    resolved["select"] = [f"{alias}.{name}" if alias else name for name in selected]
+    casefold_counts: dict[str, int] = {}
+    for name in names:
+        casefold_counts[name.casefold()] = casefold_counts.get(name.casefold(), 0) + 1
+
+    def source_expression(name: str) -> str:
+        identifier = f'"{name}"' if casefold_counts[name.casefold()] > 1 else name
+        return f"{alias}.{identifier}" if alias else identifier
+
+    resolved["select"] = [source_expression(name) for name in selected]
     return resolved
+
+
+def selected_output_name(expression: str) -> str:
+    lowered = expression.lower()
+    value = expression.rsplit(" as ", 1)[-1] if " as " in lowered else expression
+    return value.split(".")[-1].strip().strip('"')
 
 
 def product_identity(program: dict[str, Any], product: dict[str, Any]) -> str:
@@ -442,13 +511,11 @@ def acquire_product(
     max_rec = int(product["max_rec"])
     output_format = str(product.get("output_format") or "csv")
     suffix = response_suffix(output_format)
-    expected_fields = [
-        value.rsplit(" as ", 1)[-1].strip() if " as " in value.lower() else value.split(".")[-1].strip()
-        for value in product["select"]
-    ]
+    expected_fields = [selected_output_name(value) for value in product["select"]]
 
     pending: list[int] = []
     reused = 0
+    existing_without_metadata: list[Path] = []
     for bucket in range(buckets):
         query = render_query(product, bucket)
         query_path = query_dir / f"bucket_{bucket:05d}.adql"
@@ -457,17 +524,47 @@ def acquire_product(
             query_path.write_text(query + "\n", encoding="utf-8")
         valid = False
         if response_path.exists() and not refresh:
-            fields, rows = response_metadata(
-                read_response(response_path, output_format), output_format
-            )
-            valid = fields == expected_fields and rows < max_rec
+            metadata_path = response_metadata_path(response_path)
+            if metadata_path.exists():
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                valid = valid_response_metadata(
+                    metadata,
+                    response_path,
+                    output_format=output_format,
+                    expected_fields=expected_fields,
+                    max_rec=max_rec,
+                )
+            else:
+                existing_without_metadata.append(response_path)
+                continue
         if valid:
             reused += 1
         else:
             response_path.unlink(missing_ok=True)
+            response_metadata_path(response_path).unlink(missing_ok=True)
             pending.append(bucket)
 
-    def fetch(bucket: int) -> tuple[int, int, int, str]:
+    existing_inspections = inspect_response_files(
+        existing_without_metadata, output_format, workers
+    )
+    for response_path, metadata in existing_inspections.items():
+        bucket = int(response_path.name.split("_", 1)[1].split(".", 1)[0])
+        if valid_response_metadata(
+            metadata,
+            response_path,
+            output_format=output_format,
+            expected_fields=expected_fields,
+            max_rec=max_rec,
+        ):
+            write_json(response_metadata_path(response_path), metadata)
+            reused += 1
+        else:
+            response_path.unlink(missing_ok=True)
+            response_metadata_path(response_path).unlink(missing_ok=True)
+            pending.append(bucket)
+    pending.sort()
+
+    def fetch(bucket: int) -> tuple[int, int, str]:
         query = render_query(product, bucket)
         uws: dict[str, Any] | None = None
         if product.get("tap_mode") == "async":
@@ -488,17 +585,6 @@ def acquire_product(
                 retries=retries,
                 max_rec=max_rec,
             )
-        fields, rows = response_metadata(payload, output_format)
-        if fields != expected_fields:
-            raise ValueError(
-                f"{product['product_name']} bucket {bucket} schema drift: "
-                f"{fields} != {expected_fields}"
-            )
-        if rows >= max_rec:
-            raise ValueError(
-                f"{product['product_name']} bucket {bucket} reached MAXREC {max_rec}; "
-                "increase buckets before retrying"
-            )
         destination = response_dir / f"bucket_{bucket:05d}{suffix}"
         stored_payload = (
             gzip.compress(payload, compresslevel=6, mtime=0)
@@ -509,40 +595,73 @@ def acquire_product(
             handle.write(stored_payload)
             temporary = Path(handle.name)
         os.replace(temporary, destination)
+        response_metadata_path(destination).unlink(missing_ok=True)
         if uws is not None:
             write_json(query_dir / f"bucket_{bucket:05d}.uws.json", uws)
-        return bucket, rows, len(stored_payload), hashlib.sha256(payload).hexdigest()
+        return bucket, len(stored_payload), hashlib.sha256(payload).hexdigest()
 
     fetched: dict[int, dict[str, Any]] = {}
     if pending:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
             futures = {executor.submit(fetch, bucket): bucket for bucket in pending}
             for future in as_completed(futures):
-                bucket, rows, size, digest = future.result()
-                fetched[bucket] = {"rows": rows, "bytes": size, "sha256": digest}
+                bucket, size, digest = future.result()
+                fetched[bucket] = {"bytes": size, "sha256": digest}
                 print(
                     f"{utc_now()} {product['product_name']} "
-                    f"bucket={bucket + 1}/{buckets} rows={rows:,}",
+                    f"bucket={bucket + 1}/{buckets} downloaded={size:,}",
                     flush=True,
                 )
+
+        fetched_paths = [
+            response_dir / f"bucket_{bucket:05d}{suffix}" for bucket in pending
+        ]
+        for response_path, metadata in inspect_response_files(
+            fetched_paths, output_format, workers
+        ).items():
+            if not valid_response_metadata(
+                metadata,
+                response_path,
+                output_format=output_format,
+                expected_fields=expected_fields,
+                max_rec=max_rec,
+            ):
+                response_path.unlink(missing_ok=True)
+                raise ValueError(f"invalid fetched response {response_path}")
+            write_json(response_metadata_path(response_path), metadata)
+            bucket = int(response_path.name.split("_", 1)[1].split(".", 1)[0])
+            fetched[bucket]["rows"] = int(metadata["rows"])
+            print(
+                f"{utc_now()} {product['product_name']} "
+                f"bucket={bucket + 1}/{buckets} rows={int(metadata['rows']):,}",
+                flush=True,
+            )
 
     response_rows = 0
     response_bytes = 0
     response_hashes: list[dict[str, Any]] = []
     for bucket in range(buckets):
         path = response_dir / f"bucket_{bucket:05d}{suffix}"
-        payload = read_response(path, output_format)
-        fields, rows = response_metadata(payload, output_format)
-        if fields != expected_fields or rows >= max_rec:
+        metadata = json.loads(
+            response_metadata_path(path).read_text(encoding="utf-8")
+        )
+        if not valid_response_metadata(
+            metadata,
+            path,
+            output_format=output_format,
+            expected_fields=expected_fields,
+            max_rec=max_rec,
+        ):
             raise ValueError(f"invalid completed response {path}")
+        rows = int(metadata["rows"])
         response_rows += rows
         response_bytes += path.stat().st_size
         response_hashes.append(
             {
                 "bucket": bucket,
                 "rows": rows,
-                "response_sha256": hashlib.sha256(payload).hexdigest(),
-                "stored_sha256": file_hash(path),
+                "response_sha256": metadata["response_sha256"],
+                "stored_sha256": metadata["stored_sha256"],
             }
         )
 
