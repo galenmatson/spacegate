@@ -124,6 +124,29 @@ def test_resolve_product_fields_quotes_case_collisions() -> None:
     ]
 
 
+def test_resolve_product_fields_quotes_nonregular_vizier_identifiers() -> None:
+    resolved = acquire.resolve_product_fields(
+        {
+            "product_name": "clusters",
+            "table": '"J/A+A/686/A42/clusters"',
+            "table_alias": "c",
+            "preserve_all_fields": True,
+        },
+        [
+            {"column_name": "ID"},
+            {"column_name": "CMDCl2.5"},
+            {"column_name": "_RA.icrs"},
+        ],
+    )
+    assert resolved["select"] == [
+        "c.ID",
+        'c."CMDCl2.5" as CMDCl2_5',
+        'c."_RA.icrs" as _RA_icrs',
+    ]
+    assert resolved["selected_source_fields"] == ["ID", "CMDCl2.5", "_RA.icrs"]
+    assert acquire.selected_output_name('c."CMDCl2.5" as CMDCl2_5') == "CMDCl2_5"
+
+
 def test_acquire_product_is_exact_compressed_resumable_and_field_accounted(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -1392,6 +1392,14 @@ Current status (July 19, 2026, in progress):
   source-native typed and reproducible: 1,817,594 main rows/217 columns,
   517,993 shifted-control rows/201 columns, and both published method scripts;
   E4 bounded relation materialization now passes separately
+- the pinned SIMBAD target bridge/basic/alias/bibliography slice, GALAH DR4,
+  and all three LAMOST DR11 stellar products are source-native typed, verified,
+  and clean-reproducible; together they preserve 47,474,126 typed rows before
+  APOGEE is counted
+- APOGEE DR17 now uses a general registry-gated multi-HDU FITS contract rather
+  than silently selecting one extension: 733,901 allStar rows/234 fields, the
+  one-row six-field model-grid definition, and 2,215 field-version rows/three
+  fields all pass typed verification and clean reproduction
 - the large source transfers and typed cooks are still running; E3 remains open
   until every registered product is complete, field-accounted, typed, and
   covered by the machine-readable acquisition report

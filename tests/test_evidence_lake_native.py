@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 import duckdb
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 
@@ -309,6 +311,38 @@ def test_fits_writer_preserves_schema_and_normalizes_declared_nulls(tmp_path: Pa
             f"select source_id, value, label, flag from read_parquet('{output}') "
             "order by label"
         ).fetchall() == [(1, 2.5, "alpha", True), (None, None, "beta", False)]
+
+
+def test_fits_writer_selects_hdu_and_preserves_fixed_size_arrays(tmp_path: Path) -> None:
+    import numpy as np
+    from astropy.io import fits
+
+    source = tmp_path / "multi.fits"
+    rows = fits.BinTableHDU.from_columns(
+        [
+            fits.Column(name="source_id", format="K", array=np.array([1, 2])),
+            fits.Column(
+                name="samples",
+                format="3E",
+                array=np.array([[1.0, 2.0, np.nan], [3.0, 4.0, 5.0]]),
+            ),
+        ]
+    )
+    metadata = fits.BinTableHDU.from_columns(
+        [fits.Column(name="release", format="8A", array=np.array(["dr-test"]))]
+    )
+    fits.HDUList([fits.PrimaryHDU(), rows, metadata]).writeto(source)
+
+    output = tmp_path / "rows.parquet"
+    result = write_fits_table_parquet(source, output, hdu_index=1, batch_size=1)
+    assert result["source_hdu"]["index"] == 1
+    assert result["source_hdu"]["row_count"] == 2
+    schema = pq.read_schema(output)
+    assert schema.field("samples").type == pa.list_(pa.float32(), 3)
+    assert pq.read_table(output)["samples"].to_pylist() == [
+        [1.0, 2.0, None],
+        [3.0, 4.0, 5.0],
+    ]
 
 
 def test_votable_writer_preserves_native_types_nulls_and_arrays(tmp_path: Path) -> None:

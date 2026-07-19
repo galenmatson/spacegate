@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.5",
+  "registry_version": "2026-07-19.6",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -1017,7 +1017,16 @@
       "retrieval": {"kind": "pinned_http_release_and_product_index", "implementation": "scripts/evidence_http_acquire.py"},
       "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "apogee_dr17_allstar_synspec_rev1"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "fits_columns", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "fits_columns",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "table_hdus": [
+          {"hdu_index": 1, "table_name": "apogee_dr17_allstar", "expected_row_count": 733901, "expected_field_count": 234},
+          {"hdu_index": 3, "table_name": "apogee_dr17_model_grid_metadata", "expected_row_count": 1, "expected_field_count": 6},
+          {"hdu_index": 4, "table_name": "apogee_dr17_field_versions", "expected_row_count": 2215, "expected_field_count": 3}
+        ]
+      }
     },
     {
       "source_id": "spectroscopy.galah_dr4",

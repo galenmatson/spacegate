@@ -1227,6 +1227,29 @@ Representative commits:
   reproduction matches logical hash
   `0ac0ff9babcd641446d2a4fdab0abcd7c19cc8ce7278c136e129507cb5663fc0`.
 
+### 41) Evidence Lake E3 Survey FITS and TAP Schema Fidelity
+
+- The first APOGEE DR17 typed cook correctly refused the source file because it
+  contains three table HDUs, while the original generic FITS reader required
+  exactly one. Selecting the 733,901-row allStar extension alone would have
+  dropped the source's model-grid and field-version metadata and violated E1
+  field preservation.
+- The reusable FITS adapter now accepts an explicit HDU index, preserves scalar
+  and fixed-size multidimensional columns as native Arrow types, and records
+  each HDU's index, row count, field count, schema, checksum, and typed hash.
+  Release-specific expected HDUs and shapes live in the source registry and
+  fail on drift; no scientific winner selection occurs in this layer.
+- APOGEE typed snapshot `8088671878911ad400646829` preserves 736,117 rows and
+  243 table-column occurrences across allStar, model-grid metadata, and field-
+  version metadata. Its three Parquet tables total 1,410,004,419 bytes and pass
+  raw/typed verification plus a clean independent reproduction.
+- A separate VizieR acquisition defect appeared when legal source identifiers
+  contained punctuation, including `CMDCl2.5` and `_RA.icrs`. The TAP compiler
+  now quotes nonregular source names, assigns deterministic regular ADQL output
+  aliases, and retains the exact source/output mapping in the immutable product
+  manifest. Response schemas remain strict; fields are not renamed silently or
+  counted as omissions.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

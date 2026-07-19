@@ -113,6 +113,12 @@ Kepler/K2 name bridges, DR25 and cumulative KOIs, DR25 TCEs, and transit-
 detection metadata. Product manifests account every upstream field as selected;
 winner selection and scientific normalization occur only in E4/E5.
 
+APOGEE DR17, GALAH DR4, and LAMOST DR11 are preserved as pinned release FITS
+artifacts and source-native typed Parquet. The FITS contract supports fixed-size
+numeric/string arrays and registry-declared multiple table HDUs. APOGEE's
+allStar, model-grid, and field-version extensions therefore remain distinct and
+schema-gated; no extension or vector-valued parameter set is silently dropped.
+
 E4 source adapters are declared in
 `config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream
 field a domain, identity, lineage, context, or reviewed-exclusion disposition

@@ -259,6 +259,16 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   scripts. Immutable snapshot `aea36fe5a6753de90be33301` passes schema/row
   verification and clean typed-hash reproduction. E4 now performs the local
   envelope intersection and relation materialization described below.
+- The staged SIMBAD identity/naming/bibliography slice, expanded Gaia NSS,
+  GALAH DR4, and all three LAMOST DR11 stellar releases pass immutable
+  raw-to-typed verification and clean reproduction. APOGEE DR17 also passes
+  after adding a reusable, schema-gated multi-HDU FITS adapter: its 733,901-row
+  234-field allStar table, model-grid metadata, and field-version metadata are
+  separate typed tables, and fixed-size FITS arrays remain typed arrays.
+- TAP field selection quotes nonregular upstream identifiers and emits explicit
+  regular output aliases while retaining the exact upstream-to-output mapping.
+  This preserves VizieR names such as `CMDCl2.5` without weakening response-
+  schema validation or misclassifying aliased fields as omissions.
 
 ### E4. Typed Scientific Evidence
 

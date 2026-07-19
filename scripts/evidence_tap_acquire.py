@@ -16,6 +16,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -34,6 +35,7 @@ DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/stat
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 CONTRACT = "spacegate.tap_acquisition_snapshot.v1"
 ENGINE_VERSION = "evidence_tap_acquire_v1"
+ADQL_REGULAR_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def utc_now() -> str:
@@ -433,18 +435,50 @@ def resolve_product_fields(
     for name in names:
         casefold_counts[name.casefold()] = casefold_counts.get(name.casefold(), 0) + 1
 
+    used_output_names = {
+        name.casefold()
+        for name in selected
+        if ADQL_REGULAR_IDENTIFIER.fullmatch(name) is not None
+    }
+    output_aliases: dict[str, str] = {}
+    for index, name in enumerate(selected):
+        if ADQL_REGULAR_IDENTIFIER.fullmatch(name) is not None:
+            continue
+        candidate = re.sub(r"[^A-Za-z0-9_]", "_", name)
+        if not candidate or not re.match(r"^[A-Za-z_]", candidate):
+            candidate = f"field_{candidate}"
+        base = candidate
+        suffix = 2
+        while candidate.casefold() in used_output_names:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        used_output_names.add(candidate.casefold())
+        output_aliases[name] = candidate
+
     def source_expression(name: str) -> str:
-        identifier = f'"{name}"' if casefold_counts[name.casefold()] > 1 else name
-        return f"{alias}.{identifier}" if alias else identifier
+        must_quote = (
+            casefold_counts[name.casefold()] > 1
+            or ADQL_REGULAR_IDENTIFIER.fullmatch(name) is None
+        )
+        escaped = name.replace('"', '""')
+        identifier = f'"{escaped}"' if must_quote else name
+        expression = f"{alias}.{identifier}" if alias else identifier
+        output_alias = output_aliases.get(name)
+        return f"{expression} as {output_alias}" if output_alias else expression
 
     resolved["select"] = [source_expression(name) for name in selected]
+    resolved["selected_source_fields"] = selected
     return resolved
 
 
 def selected_output_name(expression: str) -> str:
-    lowered = expression.lower()
-    value = expression.rsplit(" as ", 1)[-1] if " as " in lowered else expression
-    return value.split(".")[-1].strip().strip('"')
+    alias = re.search(r"\s+as\s+(\"(?:\"\"|[^\"])+\"|[A-Za-z_][A-Za-z0-9_]*)\s*$", expression, re.I)
+    if alias:
+        return alias.group(1).strip('"').replace('""', '"')
+    quoted = re.search(r'\.("(?:""|[^"])+")\s*$|^("(?:""|[^"])+")\s*$', expression)
+    if quoted:
+        return (quoted.group(1) or quoted.group(2)).strip('"').replace('""', '"')
+    return expression.split(".")[-1].strip()
 
 
 def product_identity(program: dict[str, Any], product: dict[str, Any]) -> str:
@@ -717,7 +751,7 @@ def acquire_product(
                 "field_disposition_report": str(completed_manifest_path),
             }
 
-    selected_names = set(expected_fields)
+    selected_names = set(product.get("selected_source_fields") or expected_fields)
     explicit_omissions = product.get("omissions") or {}
     field_dispositions = []
     for field in schema:
@@ -755,6 +789,18 @@ def acquire_product(
         "upstream_field_count": len(schema),
         "omitted_field_count": len(schema) - len(selected_names),
         "field_dispositions": field_dispositions,
+        "selected_fields": [
+            {
+                "source_name": source_name,
+                "output_name": selected_output_name(expression),
+                "expression": expression,
+            }
+            for source_name, expression in zip(
+                product.get("selected_source_fields") or expected_fields,
+                product["select"],
+                strict=True,
+            )
+        ],
         "checked_at": utc_now(),
     }
     files = [row for row in tree_report(root) if row["path"] != "product_manifest.json"]

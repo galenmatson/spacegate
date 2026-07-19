@@ -1121,6 +1121,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E3 NASA checkpoint: preserve and verify 12 source-native tables, 206,989
   rows, and all 2,093 planet/host/TOI/K2/Kepler KOI/TCE/transit fields with zero
   omissions
+- [x] E3 spectroscopy acquisition checkpoint: pin, source-native type, verify,
+  and clean-reproduce APOGEE DR17, GALAH DR4, and the three LAMOST DR11 stellar
+  products; preserve every configured APOGEE table HDU and fixed-size array
+  rather than selecting only the primary catalog extension
 - [ ] E4: materialize typed stellar, astrometric/distance, photometric,
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-

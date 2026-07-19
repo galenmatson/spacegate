@@ -878,12 +878,16 @@ def write_atnf_references_parquet(text: str, output: Path) -> dict[str, Any]:
     return {"row_count": row_count, "source_line_count": len(lines)}
 
 
-def fits_arrow_type(source_format: str) -> pa.DataType:
-    match = re.fullmatch(r"(?:\d+)?([AIJKEDL])", source_format.strip().upper())
+def fits_arrow_type(
+    source_format: str,
+    dimension: str | None = None,
+) -> pa.DataType:
+    match = re.fullmatch(r"(?:(\d+))?([AIJKEDL])", source_format.strip().upper())
     if not match:
-        raise ValueError(f"unsupported scalar FITS column format: {source_format}")
-    code = match.group(1)
-    return {
+        raise ValueError(f"unsupported FITS column format: {source_format}")
+    repeat = int(match.group(1) or 1)
+    code = match.group(2)
+    arrow_type: pa.DataType = {
         "A": pa.string(),
         "I": pa.int16(),
         "J": pa.int32(),
@@ -892,6 +896,59 @@ def fits_arrow_type(source_format: str) -> pa.DataType:
         "D": pa.float64(),
         "L": pa.bool_(),
     }[code]
+    dimensions = (
+        [int(value) for value in re.findall(r"\d+", dimension)]
+        if dimension
+        else []
+    )
+    if code == "A":
+        # FITS character width is the first TDIM axis; Astropy exposes each
+        # remaining axis as an array of decoded strings.
+        dimensions = dimensions[1:]
+    elif not dimensions and repeat > 1:
+        dimensions = [repeat]
+    for size in dimensions:
+        arrow_type = pa.list_(arrow_type, size)
+    return arrow_type
+
+
+def fits_array(
+    values: Any,
+    field: pa.Field,
+    *,
+    null: int | None,
+) -> pa.Array:
+    import numpy as np
+
+    data = np.asarray(values)
+    list_dimensions = list(data.shape[1:])
+    primitive_type = field.type
+    while pa.types.is_fixed_size_list(primitive_type):
+        primitive_type = primitive_type.value_type
+
+    flat = data.reshape(-1)
+    if pa.types.is_string(primitive_type):
+        converted = [
+            value.decode("utf-8", errors="replace").rstrip()
+            if isinstance(value, bytes)
+            else str(value).rstrip()
+            for value in flat
+        ]
+        array: pa.Array = pa.array(converted, type=primitive_type)
+    else:
+        flat = flat.astype(flat.dtype.newbyteorder("="), copy=True)
+        mask = None
+        if pa.types.is_floating(primitive_type):
+            mask = np.isnan(flat)
+        elif null is not None and pa.types.is_integer(primitive_type):
+            mask = flat == null
+        array = pa.array(flat, mask=mask, type=primitive_type, safe=True)
+
+    for size in reversed(list_dimensions):
+        array = pa.FixedSizeListArray.from_arrays(array, size)
+    if array.type != field.type:
+        array = array.cast(field.type, safe=True)
+    return array
 
 
 def write_fits_table_parquet(
@@ -899,6 +956,7 @@ def write_fits_table_parquet(
     output: Path,
     *,
     batch_size: int = 32_768,
+    hdu_index: int | None = None,
 ) -> dict[str, Any]:
     import numpy as np
     from astropy.io import fits
@@ -921,13 +979,20 @@ def write_fits_table_parquet(
     try:
         with fits.open(expanded_path, memmap=True, lazy_load_hdus=False) as hdus:
             table_hdus = [hdu for hdu in hdus if getattr(hdu, "data", None) is not None and hasattr(hdu, "columns")]
-            if len(table_hdus) != 1:
+            if hdu_index is None and len(table_hdus) != 1:
                 raise ValueError(f"expected one FITS table HDU, found {len(table_hdus)}")
-            hdu = table_hdus[0]
+            if hdu_index is None:
+                hdu = table_hdus[0]
+            else:
+                if hdu_index < 0 or hdu_index >= len(hdus):
+                    raise ValueError(f"FITS HDU index out of range: {hdu_index}")
+                hdu = hdus[hdu_index]
+                if hdu not in table_hdus:
+                    raise ValueError(f"FITS HDU {hdu_index} is not a table")
             source_schema = []
             arrow_fields = []
             for column in hdu.columns:
-                arrow_type = fits_arrow_type(column.format)
+                arrow_type = fits_arrow_type(column.format, column.dim)
                 arrow_fields.append(pa.field(column.name, arrow_type))
                 source_schema.append(
                     {
@@ -951,22 +1016,9 @@ def write_fits_table_parquet(
                     arrays: list[pa.Array] = []
                     for column, field in zip(hdu.columns, schema, strict=True):
                         values = np.asarray(hdu.data[column.name][offset:end])
-                        if pa.types.is_string(field.type):
-                            decoded = [
-                                value.decode("utf-8", errors="replace").rstrip()
-                                if isinstance(value, bytes)
-                                else str(value).rstrip()
-                                for value in values
-                            ]
-                            arrays.append(pa.array(decoded, type=field.type))
-                            continue
-                        values = values.astype(values.dtype.newbyteorder("="), copy=True)
-                        mask = None
-                        if pa.types.is_floating(field.type):
-                            mask = np.isnan(values)
-                        elif column.null is not None and pa.types.is_integer(field.type):
-                            mask = values == column.null
-                        arrays.append(pa.array(values, mask=mask, type=field.type, safe=True))
+                        arrays.append(
+                            fits_array(values, field, null=column.null)
+                        )
                     writer.write_table(pa.Table.from_arrays(arrays, schema=schema))
             finally:
                 writer.close()

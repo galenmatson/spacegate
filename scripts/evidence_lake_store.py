@@ -65,7 +65,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "distance.gaia_edr3_bailer_jones": "evidence_typed_cook_votable_v1",
     "clusters.hunt_reffert_2024": "evidence_typed_cook_votable_v1",
     "identity.simbad": "evidence_typed_cook_tap_csv_v1",
-    "spectroscopy.apogee_dr17": "evidence_typed_cook_fits_v1",
+    "spectroscopy.apogee_dr17": "evidence_typed_cook_fits_multi_hdu_v2",
     "spectroscopy.galah_dr4": "evidence_typed_cook_fits_v1",
     "spectroscopy.lamost_dr11": "evidence_typed_cook_fits_v1",
     "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
@@ -992,6 +992,49 @@ def cook_atnf_archive(
     return reports
 
 
+def cook_multi_hdu_fits(
+    source: dict[str, Any],
+    artifact: dict[str, Any],
+    path: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]]:
+    contracts = source["schema_policy"].get("table_hdus") or []
+    if not contracts:
+        raise ValueError("multi-HDU FITS source lacks table_hdus contracts")
+    reports: list[dict[str, Any]] = []
+    for contract in contracts:
+        hdu_index = int(contract["hdu_index"])
+        table_name = str(contract["table_name"])
+        output = table_dir / f"{slug(table_name)}.parquet"
+        result = write_fits_table_parquet(path, output, hdu_index=hdu_index)
+        source_hdu = result["source_hdu"]
+        expected_rows = int(contract["expected_row_count"])
+        expected_fields = int(contract["expected_field_count"])
+        if source_hdu["row_count"] != expected_rows:
+            raise ValueError(
+                f"FITS HDU {hdu_index} row-count drift: "
+                f"{source_hdu['row_count']} != {expected_rows}"
+            )
+        if source_hdu["field_count"] != expected_fields:
+            raise ValueError(
+                f"FITS HDU {hdu_index} field-count drift: "
+                f"{source_hdu['field_count']} != {expected_fields}"
+            )
+        reports.append(
+            source_native_report(
+                source_name=table_name,
+                parser="fits_binary_table_hdu_source_native_v2",
+                typing_status="source_schema_typed_nulls_normalized",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=output,
+                con=con,
+                details=result,
+            )
+        )
+    return reports
+
+
 def cook_special_source(
     source: dict[str, Any],
     raw_manifest: dict[str, Any],
@@ -1007,6 +1050,7 @@ def cook_special_source(
         "compact.atnf",
         "compact.gaia_edr3_white_dwarf",
         "extended.green_snr",
+        "spectroscopy.apogee_dr17",
     }:
         return None
     if len(raw_manifest["artifacts"]) != 1:
@@ -1018,6 +1062,8 @@ def cook_special_source(
         return cook_msc_archive(artifact, path, table_dir, con)
     if source_id == "compact.atnf":
         return cook_atnf_archive(artifact, path, table_dir, con)
+    if source_id == "spectroscopy.apogee_dr17":
+        return cook_multi_hdu_fits(source, artifact, path, table_dir, con)
     if source_id == "multiplicity.orb6":
         output = table_dir / "orb6_orbits.parquet"
         result = write_tokenized_parquet(
