@@ -304,6 +304,45 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 table.get("raw_artifact_name")
             ).strip():
                 errors.append(f"{source_id}.{table_name} has an empty raw artifact name")
+            row_selection = table.get("row_selection") or {}
+            for group_index, group in enumerate(
+                row_selection.get("external_membership_groups") or []
+            ):
+                prefix = (
+                    f"{source_id}.{table_name}.row_selection."
+                    f"external_membership_groups[{group_index}]"
+                )
+                if not str(group.get("membership_id") or "").strip():
+                    errors.append(f"{prefix} lacks membership_id")
+                if not str(group.get("local_field") or "").strip():
+                    errors.append(f"{prefix} lacks local_field")
+                if group.get("normalization", "trim_v1") not in {
+                    "trim_v1",
+                    "unsigned_integer_decimal_v1",
+                }:
+                    errors.append(f"{prefix} has unsupported normalization")
+                if group.get("match", "any") != "any":
+                    errors.append(f"{prefix} only supports match=any")
+                targets = group.get("targets")
+                if not isinstance(targets, list) or not targets:
+                    errors.append(f"{prefix} requires non-empty targets")
+                    continue
+                required_target = {
+                    "source_id",
+                    "release_id",
+                    "raw_snapshot_id",
+                    "typed_snapshot_id",
+                    "typed_content_sha256",
+                    "target_table",
+                    "target_field",
+                    "target_table_sha256",
+                }
+                for target_index, target in enumerate(targets):
+                    missing = sorted(required_target - set(target))
+                    if missing:
+                        errors.append(
+                            f"{prefix}.targets[{target_index}] lacks {missing}"
+                        )
             unit_overrides = table.get("unit_overrides")
             if unit_overrides is not None and (
                 not isinstance(unit_overrides, dict)
@@ -970,6 +1009,123 @@ def source_input(
     }
 
 
+def resolve_external_membership_target(
+    state_dir: Path,
+    registry_sources: dict[str, dict[str, Any]],
+    target: dict[str, Any],
+) -> dict[str, Any]:
+    """Resolve a checksum-bound typed table used only to bound source rows."""
+    required = {
+        "source_id",
+        "release_id",
+        "raw_snapshot_id",
+        "typed_snapshot_id",
+        "typed_content_sha256",
+        "target_table",
+        "target_field",
+        "target_table_sha256",
+    }
+    missing = sorted(required - set(target))
+    if missing:
+        raise ValueError(f"external membership target lacks {missing}")
+    source_id = str(target["source_id"])
+    release_id = str(target["release_id"])
+    registry_source = registry_sources.get(source_id)
+    if registry_source is None:
+        raise ValueError(f"external membership source is absent from registry: {source_id}")
+    if str(registry_source["release_id"]) != release_id:
+        raise ValueError(
+            f"external membership release mismatch for {source_id}: {release_id}"
+        )
+    raw_snapshot_id = str(target["raw_snapshot_id"])
+    typed_snapshot_id = str(target["typed_snapshot_id"])
+    typed_root = (
+        state_dir
+        / "typed"
+        / "evidence_lake_v2"
+        / slug(source_id)
+        / slug(release_id)
+        / raw_snapshot_id
+        / typed_snapshot_id
+    )
+    manifest_path = typed_root / "typed_manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(manifest_path)
+    manifest = load_json(manifest_path)
+    if str(manifest.get("typed_snapshot_id")) != typed_snapshot_id:
+        raise ValueError(f"external membership typed snapshot mismatch: {source_id}")
+    expected_content = str(target["typed_content_sha256"])
+    if str(manifest.get("content_sha256")) != expected_content:
+        raise ValueError(f"external membership typed content mismatch: {source_id}")
+    table_name = str(target["target_table"])
+    tables = typed_table_by_name(manifest)
+    typed_table = tables.get(table_name)
+    if typed_table is None:
+        raise ValueError(f"external membership target table missing: {table_name}")
+    expected_table_hash = str(target["target_table_sha256"])
+    if str(typed_table.get("sha256")) != expected_table_hash:
+        raise ValueError(f"external membership table checksum mismatch: {table_name}")
+    target_field = str(target["target_field"])
+    target_fields = {
+        str(column.get("name") or column.get("column_name"))
+        for column in typed_table.get("columns") or []
+    }
+    if target_field not in target_fields:
+        raise ValueError(
+            f"external membership target field missing from {table_name}: {target_field}"
+        )
+    parquet_path = (typed_root / str(typed_table["parquet_path"])).resolve()
+    if typed_root.resolve() not in parquet_path.parents:
+        raise ValueError(f"external membership path escapes typed snapshot: {table_name}")
+    if not parquet_path.exists():
+        raise FileNotFoundError(parquet_path)
+    if file_hash(parquet_path) != expected_table_hash:
+        raise ValueError(f"external membership parquet checksum changed: {table_name}")
+    return {
+        "source_id": source_id,
+        "release_id": release_id,
+        "raw_snapshot_id": raw_snapshot_id,
+        "typed_snapshot_id": typed_snapshot_id,
+        "typed_content_sha256": expected_content,
+        "target_table": table_name,
+        "target_field": target_field,
+        "target_table_sha256": expected_table_hash,
+        "target_sql_predicate": str(target.get("target_sql_predicate") or "true"),
+        "parquet_path": str(parquet_path),
+    }
+
+
+def resolve_external_memberships(
+    state_dir: Path,
+    registry_sources: dict[str, dict[str, Any]],
+    adapter: dict[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    resolved: dict[str, list[dict[str, Any]]] = {}
+    for table_name in adapter.get("tables") or {}:
+        table = resolve_table_contract(adapter, table_name)
+        groups = []
+        for group in (table.get("row_selection") or {}).get(
+            "external_membership_groups"
+        ) or []:
+            groups.append(
+                {
+                    "membership_id": str(group["membership_id"]),
+                    "local_field": str(group["local_field"]),
+                    "normalization": str(group.get("normalization") or "trim_v1"),
+                    "match": str(group.get("match") or "any"),
+                    "targets": [
+                        resolve_external_membership_target(
+                            state_dir, registry_sources, target
+                        )
+                        for target in group["targets"]
+                    ],
+                }
+            )
+        if groups:
+            resolved[str(table_name)] = groups
+    return resolved
+
+
 def deterministic_build_timestamp(inputs: list[dict[str, Any]]) -> str:
     timestamps = [
         str(artifact.get("retrieved_at") or "")
@@ -1563,6 +1719,7 @@ def row_selection_predicate(
     typed_tables: dict[str, dict[str, Any]] | None = None,
     typed_root: Path | None = None,
     available_fields: set[str] | None = None,
+    external_membership_groups: list[dict[str, Any]] | None = None,
 ) -> str:
     selection = table_contract.get("row_selection") or {}
     predicates = [f"({str(selection.get('sql_predicate') or 'true')})"]
@@ -1597,6 +1754,42 @@ def row_selection_predicate(
             + f"trim(cast(membership_target.{sql_identifier(target_field)} as varchar)) = "
             + f"trim(cast(source_row.{sql_identifier(local_field)} as varchar)))"
         )
+    for group in external_membership_groups or []:
+        local_field = str(group["local_field"])
+        if available_fields is not None and local_field not in available_fields:
+            raise ValueError(f"row-selection local field missing: {local_field}")
+        normalization = str(group.get("normalization") or "trim_v1")
+
+        def normalized(expression: str) -> str:
+            trimmed = f"trim(cast({expression} as varchar))"
+            if normalization == "trim_v1":
+                return trimmed
+            if normalization == "unsigned_integer_decimal_v1":
+                return f"cast(try_cast({trimmed} as ubigint) as varchar)"
+            raise ValueError(
+                f"unsupported external membership normalization: {normalization}"
+            )
+
+        target_predicates = []
+        for target in group["targets"]:
+            target_filter = str(target.get("target_sql_predicate") or "true")
+            target_field = str(target["target_field"])
+            target_predicates.append(
+                "exists (select 1 from read_parquet("
+                + sql_string(str(target["parquet_path"]))
+                + ") membership_target where ("
+                + target_filter
+                + ") and "
+                + normalized(
+                    f"membership_target.{sql_identifier(target_field)}"
+                )
+                + " = "
+                + normalized(f"source_row.{sql_identifier(local_field)}")
+                + ")"
+            )
+        if not target_predicates:
+            raise ValueError("external membership group has no resolved targets")
+        predicates.append("(" + " or ".join(target_predicates) + ")")
     return " and ".join(predicates)
 
 
@@ -4345,6 +4538,7 @@ def materialize_source(
     input_row: dict[str, Any],
     adapter: dict[str, Any],
     contract: dict[str, Any],
+    external_memberships: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     source_id = input_row["source_id"]
     release_id = input_row["release_id"]
@@ -4440,6 +4634,7 @@ def materialize_source(
             typed_tables=typed_tables,
             typed_root=input_row["typed_path"],
             available_fields=set(columns),
+            external_membership_groups=(external_memberships or {}).get(table_name),
         )
         record_namespace = f"{source_id}|{release_id}|{table_name}|"
         retrieved_at = artifact.get("retrieved_at")
@@ -4892,6 +5087,22 @@ def materialize_source(
                 "row_selection_policy": (
                     table_contract.get("row_selection") or {}
                 ).get("policy_id"),
+                "external_memberships": (external_memberships or {}).get(
+                    table_name, []
+                ) and [
+                    {
+                        **{key: value for key, value in group.items() if key != "targets"},
+                        "targets": [
+                            {
+                                key: value
+                                for key, value in target.items()
+                                if key != "parquet_path"
+                            }
+                            for target in group["targets"]
+                        ],
+                    }
+                    for group in (external_memberships or {}).get(table_name, [])
+                ],
                 "source_records": int(records),
                 "exact_duplicate_rows": int(duplicate_rows),
                 "source_fields": len(columns),
@@ -5073,6 +5284,35 @@ def compile_evidence(
         if source_id not in registry_sources:
             raise ValueError(f"E4 adapter source is absent from registry: {source_id}")
         inputs.append(source_input(state_dir, registry_sources[source_id]))
+    resolved_external_memberships = {
+        source_id: resolve_external_memberships(
+            state_dir,
+            registry_sources,
+            contract["source_adapters"][source_id],
+        )
+        for source_id in sorted(requested)
+    }
+    external_membership_lineage = {
+        source_id: {
+            table_name: [
+                {
+                    **{key: value for key, value in group.items() if key != "targets"},
+                    "targets": [
+                        {
+                            key: value
+                            for key, value in target.items()
+                            if key != "parquet_path"
+                        }
+                        for target in group["targets"]
+                    ],
+                }
+                for group in groups
+            ]
+            for table_name, groups in tables.items()
+        }
+        for source_id, tables in resolved_external_memberships.items()
+        if tables
+    }
     input_fingerprint = stable_hash(
         {
             "compiler_sha256": compiler_sha256,
@@ -5089,6 +5329,7 @@ def compile_evidence(
                 }
                 for row in inputs
             ],
+            "external_memberships": external_membership_lineage,
         }
     )
     build_id = input_fingerprint[:24]
@@ -5133,6 +5374,7 @@ def compile_evidence(
                     input_row,
                     contract["source_adapters"][input_row["source_id"]],
                     contract,
+                    resolved_external_memberships[input_row["source_id"]],
                 )
             )
         citation_summary = materialize_citations(con)
@@ -5282,6 +5524,7 @@ def compile_evidence(
         "registry_sha256": registry_sha256,
         "runtime_versions": runtime_versions,
         "input_fingerprint": input_fingerprint,
+        "external_memberships": external_membership_lineage,
         "status": "pass" if not mapping_counts.get("declared_pending", 0) else "in_progress",
         "sources": source_reports,
         "mapping_status_counts": mapping_counts,

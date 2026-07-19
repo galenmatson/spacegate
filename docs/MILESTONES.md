@@ -1471,6 +1471,11 @@ Current status (July 19, 2026, in progress):
   implemented with deterministic source records, explicit binding outcomes,
   field dispositions, logical per-table hashes, cached-artifact integrity
   checks, and clean scratch reproduction
+- external evidence-envelope selection is now registry-resolved and checksum
+  bound to exact raw/typed snapshots, typed manifests, tables, and fields. Its
+  lineage changes immutable build identity and reproduction comparison; OR
+  groups and unsigned-decimal Gaia-ID normalization support bounded survey
+  joins without release-ID conflation or source-specific distance heuristics
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308

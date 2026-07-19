@@ -513,6 +513,118 @@ def test_cross_table_row_selection_is_bounded_and_schema_checked(
         raise AssertionError("missing cross-table target field was accepted")
 
 
+def test_external_membership_groups_match_any_target_and_normalize_unsigned_ids(
+    tmp_path: Path,
+) -> None:
+    rows = tmp_path / "rows.parquet"
+    first = tmp_path / "first.parquet"
+    second = tmp_path / "second.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('0002'), ('3'), ('bad'), (null)) "
+            f"t(source_id)) to '{rows}' (format parquet)"
+        )
+        con.execute(f"copy (select 2::ubigint source_id) to '{first}' (format parquet)")
+        con.execute(f"copy (select '0003' source_id) to '{second}' (format parquet)")
+    predicate = compiler.row_selection_predicate(
+        {"row_selection": {}},
+        available_fields={"source_id"},
+        external_membership_groups=[
+            {
+                "membership_id": "nearby_gaia_v1",
+                "local_field": "source_id",
+                "normalization": "unsigned_integer_decimal_v1",
+                "match": "any",
+                "targets": [
+                    {
+                        "parquet_path": str(first),
+                        "target_field": "source_id",
+                        "target_sql_predicate": "true",
+                    },
+                    {
+                        "parquet_path": str(second),
+                        "target_field": "source_id",
+                        "target_sql_predicate": "true",
+                    },
+                ],
+            }
+        ],
+    )
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select source_id from read_parquet('{rows}') source_row "
+            f"where {predicate} order by 1"
+        ).fetchall() == [("0002",), ("3",)]
+
+
+def test_external_membership_target_is_registry_and_checksum_bound(
+    tmp_path: Path,
+) -> None:
+    source_id = "gaia.dr3.test"
+    release_id = "r1"
+    raw_snapshot_id = "raw1"
+    typed_snapshot_id = "typed1"
+    typed_root = (
+        tmp_path
+        / "typed"
+        / "evidence_lake_v2"
+        / source_id
+        / release_id
+        / raw_snapshot_id
+        / typed_snapshot_id
+    )
+    typed_root.mkdir(parents=True)
+    parquet = typed_root / "members.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 42::ubigint source_id) to '{parquet}' (format parquet)"
+        )
+    table_hash = compiler.file_hash(parquet)
+    manifest = {
+        "typed_snapshot_id": typed_snapshot_id,
+        "content_sha256": "typed-content",
+        "tables": [
+            {
+                "source_name": "members",
+                "parquet_path": parquet.name,
+                "sha256": table_hash,
+                "columns": [{"name": "source_id"}],
+            }
+        ],
+    }
+    compiler.write_json(typed_root / "typed_manifest.json", manifest)
+    target = {
+        "source_id": source_id,
+        "release_id": release_id,
+        "raw_snapshot_id": raw_snapshot_id,
+        "typed_snapshot_id": typed_snapshot_id,
+        "typed_content_sha256": "typed-content",
+        "target_table": "members",
+        "target_field": "source_id",
+        "target_table_sha256": table_hash,
+    }
+    registry = {source_id: {"source_id": source_id, "release_id": release_id}}
+    resolved = compiler.resolve_external_membership_target(tmp_path, registry, target)
+    assert resolved["parquet_path"] == str(parquet.resolve())
+    assert resolved["target_table_sha256"] == table_hash
+
+    changed = dict(target, typed_content_sha256="wrong")
+    try:
+        compiler.resolve_external_membership_target(tmp_path, registry, changed)
+    except ValueError as error:
+        assert "typed content mismatch" in str(error)
+    else:
+        raise AssertionError("external typed content drift was accepted")
+
+    changed = dict(target, target_field="missing")
+    try:
+        compiler.resolve_external_membership_target(tmp_path, registry, changed)
+    except ValueError as error:
+        assert "target field missing" in str(error)
+    else:
+        raise AssertionError("external target field drift was accepted")
+
+
 def test_cluster_context_and_probability_membership_preserve_source_records(
     tmp_path: Path,
 ) -> None:
@@ -964,6 +1076,11 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
     reproduced["logical_content_sha256"] = "changed"
     assert reproduction.compare_reports(report, reproduced) == [
         "logical_content_sha256"
+    ]
+    reproduced = dict(report)
+    reproduced["external_memberships"] = {"spectroscopy.test": {}}
+    assert reproduction.compare_reports(report, reproduced) == [
+        "external_memberships"
     ]
 
 

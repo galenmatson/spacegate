@@ -28,6 +28,7 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         "registry_sha256": report["registry_sha256"],
         "runtime_versions": report["runtime_versions"],
         "input_fingerprint": report["input_fingerprint"],
+        "external_memberships": report.get("external_memberships", {}),
         "status": report["status"],
         "sources": report["sources"],
         "mapping_status_counts": report["mapping_status_counts"],

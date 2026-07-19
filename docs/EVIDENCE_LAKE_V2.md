@@ -379,6 +379,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `scripts/verify_scientific_evidence_artifact.py` independently audits scope,
   identifier, probability/statistic, citation, uncertainty, parameter-set, and
   source-record integrity.
+- External row-envelope membership is a compiler input, not an ambient local
+  join. A selection target must name its registered source/release, exact raw
+  and typed snapshots, typed content hash, table and field, and Parquet table
+  hash. The compiler verifies the file beneath that exact typed snapshot,
+  supports an explicit OR across release-compatible envelope tables, records
+  the lineage in reports, and includes it in immutable build identity. Gaia IDs
+  use unsigned-decimal normalization so storage type and leading zeroes cannot
+  change membership. This general contract bounds APOGEE, GALAH, and LAMOST
+  evidence without catalog-specific distance heuristics or bulk E4 admission.
 - Compiler/contract v54 adds constant source references, explicit posterior-
   interval endpoint semantics, and dual typed/source-native field names. These
   are general evidence contracts: legal Parquet aliases no longer obscure an

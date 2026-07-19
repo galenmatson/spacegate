@@ -1678,6 +1678,27 @@ Representative commits:
   Exact-hash apply retired those five whole trees and reclaimed 44,452,454,400
   allocated bytes while preserving v56, all raw/typed inputs, and all reports.
 
+### 56) Checksum-Bound External Evidence Membership
+
+- Spectroscopic surveys are source-native evidence catalogs, not spatial
+  catalogs. Loading every survey row into E4 would make a local scientific
+  envelope depend on unrelated distant observations, while applying a fresh
+  distance heuristic to each survey would duplicate selection policy.
+- The E4 compiler now resolves external membership only through registered,
+  exact raw/typed snapshots and verifies the typed-content, table, field, and
+  Parquet checksums before reading. Resolved membership lineage participates in
+  build identity and reproduction comparison. No contract can provide an
+  arbitrary filesystem path.
+- Membership groups use an explicit OR across compatible boundary tables and
+  an unsigned-decimal normalization for Gaia identifiers. This lets Gaia DR3
+  hard-parallax and uncertainty-supplement tables form one DR3 envelope, while
+  APOGEE's explicitly EDR3 identity remains bounded by the pinned Bailer-Jones
+  EDR3 table. Catalog release identifiers are not treated as interchangeable.
+- Focused tests prove OR behavior, numeric normalization across storage types,
+  registry and release enforcement, field validation, and content-checksum
+  failure. The mechanism is general; the following survey adapters consume it
+  without named-object or survey-specific production branches.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
