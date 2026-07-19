@@ -1499,6 +1499,29 @@ Representative commits:
   and MSC-specific audits pass; clean reproduction matches logical hash
   `d5fb69fba951c886b2a01d30640188f0889ecd6f8dfedab357ad90970baf4fa1`.
 
+### 50) Evidence Lake E4 WDS Evidence and Candidate Gaia Bridge
+
+- Compiler/contract v44 adds reusable minimum/maximum validity bounds for
+  configured numeric measurements. WDS `-1` date/angle/separation sentinels,
+  zero measure counts, `.` magnitudes, and position angles outside 0-359 remain
+  exact in source-native Parquet but cannot become normalized evidence.
+- The WDS adapter preserves all 157,299 summary rows, 177 format-document lines,
+  and 24 field occurrences. It emits WDS, discoverer, Durchmusterung, and
+  WDS-qualified pair claims plus relative astrometry, observation history,
+  generic component photometry, source-convention proper motion, and 73,779
+  opaque spectral strings. It does not split or assign the source field that may
+  describe component A or two components.
+- The CDS bridge preserves all 140,416 best-match rows and 19 fields. Every row
+  becomes candidate positional-crossmatch evidence with its 0-2 arcsecond
+  separation statistic; zero rows become strict probabilities or accepted
+  identities. Copied Gaia parameters remain source-row match context and do not
+  compete with release-native Gaia evidence.
+- Accepted checkpoint `ad98d4e369c5a0addc6477a0` has no pending fields,
+  accepted bindings, canonical containment, or WDS-derived orbit promotion.
+  Generic artifact and WDS source/scope audits pass. Clean reproduction matches
+  logical hash
+  `7b277d9f190599a1b0cf797dabffa864b5991d956973c3ac29ff4ff3af20cba6`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

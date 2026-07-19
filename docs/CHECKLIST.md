@@ -1183,6 +1183,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   elementary-binary and full-orbit parameter sets, explicit numeric-zero
   sentinel semantics, unsplit alias/pair strings, and unresolved bindings;
   pass artifact, MSC source/scope, and clean-reproduction gates
+- [x] E4 WDS checkpoint: preserve all 157,476 WDS summary/method rows and
+  140,416 CDS WDS-Gaia rows with all 43 fields accounted; retain only
+  WDS-qualified pair keys, source-scoped observation/classification evidence,
+  bounded numeric measurements, and candidate angular crossmatches with zero
+  strict probabilities; pass artifact, WDS source/scope, and clean-reproduction
+  gates without identity, containment, or orbit promotion
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

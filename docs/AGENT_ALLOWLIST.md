@@ -43,6 +43,27 @@ These can directly support core-adjacent facts (still routed via arm → adjudic
   allowed_uses: [catalog data, source documentation, tables, measurements]
   notes: Direct immutable-style catalog and ReadMe retrieval, including B/sb9; preserve catalog citations and checksums
 
+- domain: cdsxmatch.u-strasbg.fr
+  org: CDS XMatch
+  type: catalog_crossmatch_service
+  trust_score: 1.00
+  allowed_uses: [candidate crossmatch, crossmatch metadata, catalog identifiers]
+  notes: Crossmatch output is evidence with method/statistic lineage, not authoritative identity by itself
+
+- domain: crf.usno.navy.mil
+  org: US Naval Observatory
+  type: official_catalog_publisher
+  trust_score: 1.00
+  allowed_uses: [WDS catalog documentation, WDS measurements, ORB6 orbits, source citations]
+  notes: Official WDS/ORB6 publisher; preserve release or rolling-snapshot lineage
+
+- domain: astro.gsu.edu
+  org: Georgia State University / USNO WDS mirror
+  type: institutional_catalog_mirror
+  trust_score: 0.99
+  allowed_uses: [WDS catalog data, WDS format documentation, WDS measurements]
+  notes: Use the reviewed WDS paths only and preserve checksums plus USNO provenance
+
 - domain: archives.esac.esa.int
   org: ESA
   type: mission_archive (Gaia)

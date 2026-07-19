@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.11",
+  "registry_version": "2026-07-19.12",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -339,13 +339,19 @@
       "source_id": "multiplicity.wds",
       "release_id": "rolling_snapshot",
       "state": "active",
-      "authority_roles": {"identity": "component_designation", "multiplicity": "observation_and_relation_claim"},
+      "authority_roles": {"identity": "system_and_pair_designation", "multiplicity": "relative_astrometry_observation_summary"},
       "publisher": "US Naval Observatory",
       "citation_url": "https://crf.usno.navy.mil/wds",
       "license": {"name": "USNO data terms", "url": "https://crf.usno.navy.mil/wds"},
       "cadence": "rolling; Spacegate pins snapshots",
-      "identity_namespaces": ["wds_id", "wds_component"],
+      "identity_namespaces": ["wds_id", "wds_discoverer_designation", "wds_observation_pair", "wds_observation_pair_component_scope", "durchmusterung_designation"],
       "frame_epoch": "source-observation specific",
+      "null_limit_semantics": {
+        "blank_component": "two-object pair or source does not supply an additional multiple-system component designation",
+        "spectral_type": "opaque source string may describe component A or two components and must not be split without a source-governed parser",
+        "proper_motion": "source integers are arcseconds per 1000 years except note-code P rows, which use 100 years",
+        "relation_flags": "T/V/Z support physical association; S/U/Y oppose it; I/X are uncertain or dubious, but no physical endpoint relation is emitted until pair labels are source-governed"
+      },
       "retrieval": {"kind": "fixed_width", "implementation": "scripts/catalogs.sh"},
       "manifest_entries": [
         {"manifest": "wds_manifest.json", "source_name": "wdsweb_summ2"},
@@ -363,14 +369,18 @@
       "source_id": "multiplicity.wds_gaia_xmatch",
       "release_id": "spacegate_snapshot_2026_06",
       "state": "active",
-      "authority_roles": {"identity": "probabilistic_crossmatch_support", "multiplicity": "endpoint_binding_support"},
+      "authority_roles": {"identity": "candidate_positional_crossmatch_support", "multiplicity": "endpoint_binding_support_only"},
       "publisher": "CDS XMatch over WDS and Gaia DR3",
       "citation_url": "https://cdsxmatch.u-strasbg.fr/",
       "license": {"name": "Constituent catalog terms", "url": "https://cdsxmatch.u-strasbg.fr/"},
       "cadence": "operator refresh",
-      "identity_namespaces": ["wds_id", "gaia_dr3_source_id"],
+      "identity_namespaces": ["wds_id", "wds_observation_pair_component_scope", "gaia_dr3_name", "gaia_dr3_source_id"],
       "frame_epoch": "J2000 source positions and Gaia DR3",
-      "retrieval": {"kind": "xmatch", "implementation": "scripts/fetch_wds_gaia_xmatch.py"},
+      "null_limit_semantics": {
+        "match_statistic": "angDist is center-position angular separation in arcseconds, not a probability",
+        "selection": "CDS best angular match within 2 arcseconds; candidate evidence only and never accepted identity by itself"
+      },
+      "retrieval": {"kind": "xmatch", "implementation": "scripts/fetch_wds_gaia_xmatch.py", "contract": "vizier:B/wds/wds to vizier:I/355/gaiadr3, selection=best, distMaxArcsec=2.0, all sky"},
       "manifest_entries": [{"manifest": "wds_gaia_xmatch_manifest.json", "source_name": "wds_gaia_xmatch_best"}],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}

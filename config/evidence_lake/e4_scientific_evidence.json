@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.43",
-  "compiler_version": "scientific_evidence_compiler_v43",
+  "contract_version": "2026-07-19.e4-foundation.44",
+  "compiler_version": "scientific_evidence_compiler_v44",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -820,6 +820,58 @@
         "disposition": "domain",
         "destination": "cluster_evidence",
         "reason": "complete source-native literature crossmatch catalog, type, separation, tidal-radius, proper-motion, parallax, and sigma context"
+      }
+    ],
+    "wds_summary": [
+      {
+        "pattern": "^(2000_coordinates|discoverer_number|durchmusterung_number)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped WDS system, discoverer, opaque pair-designation, and Durchmusterung identity evidence"
+      },
+      {
+        "pattern": "^(date_first|date_last|number_of_observations_up_to_9999|position_angle_first_xxx|position_angle_last_xxx|separation_first|separation_last|primary_proper_motion_ra|primary_proper_motion_dec|secondary_proper_motion_ra|secondary_proper_motion_dec|2000_arcsecond_coordinates)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-native relative-astrometry history, observation epochs/count, endpoint proper motions, and subsystem-primary J2000 position"
+      },
+      {
+        "pattern": "^(magnitude_of_first_component|magnitude_of_second_component)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "source-native first/second component magnitudes with WDS note flags retaining bandpass context"
+      },
+      {
+        "pattern": "^spectral_type_primary_secondary$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "opaque source spectral text that may describe A or two components and is not split or assigned prematurely"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "WDS note/status flags, exact fixed-width row, source line, and remaining observation context"
+      }
+    ],
+    "wds_gaia_crossmatch": [
+      {
+        "pattern": "^(WDS|DR3Name|Source)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped WDS entry, opaque WDS pair designation, and Gaia DR3 candidate identity evidence"
+      },
+      {
+        "pattern": "^angDist$",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "CDS best-match angular separation retained as a non-probabilistic candidate crossmatch statistic"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "WDS observation and copied Gaia DR3 match context retained without becoming independent source physics"
       }
     ],
     "msc_archive_members": [
@@ -2495,6 +2547,89 @@
               "normalization_version": "mcgill_source_native_lexical_v1"
             }
           ]
+        }
+      }
+    },
+    "multiplicity.wds": {
+      "adapter_version": "wds_scientific_evidence_v1",
+      "table_order": ["wdsweb_format", "wdsweb_summ2"],
+      "tables": {
+        "wdsweb_format": {
+          "raw_artifact_name": "wdsweb_format",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document",
+          "field_profile": "source_method_document"
+        },
+        "wdsweb_summ2": {
+          "raw_artifact_name": "wdsweb_summ2",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "visual_pair_observation_summary",
+          "field_profile": "wds_summary",
+          "identifier_claims": {
+            "2000_coordinates": {"namespace": "wds_id", "claim_scope": "visual_multiple_system"},
+            "discoverer_number": {"namespace": "wds_discoverer_designation", "claim_scope": "source_visual_pair"},
+            "durchmusterung_number": {"namespace": "durchmusterung_designation", "claim_scope": "system_or_component"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["2000_coordinates", "discoverer_number"], "delimiter": ":", "namespace": "wds_observation_pair", "claim_scope": "source_visual_pair"},
+            {"fields": ["2000_coordinates", "discoverer_number", "components"], "delimiter": ":", "namespace": "wds_observation_pair_component_scope", "claim_scope": "source_visual_pair_designation", "sql_predicate": "components is not null"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "2000_arcsecond_coordinates", "quantity_key": "subsystem_primary_j2000_coordinate_string", "unit_raw": "compact sexagesimal", "normalized_unit": "compact sexagesimal", "frame_raw": "J2000", "normalize_numeric": false, "quality_fields": ["components"], "method": "wds_summary_position", "normalization_version": "wds_source_native_lexical_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "date_first", "quantity_key": "first_satisfactory_observation_year", "unit_raw": "Julian year", "normalized_unit": "Julian year", "minimum_value": 1, "quality_fields": ["components"], "method": "wds_observation_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "date_last", "quantity_key": "last_satisfactory_observation_year", "unit_raw": "Julian year", "normalized_unit": "Julian year", "minimum_value": 1, "quality_fields": ["components"], "method": "wds_observation_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "number_of_observations_up_to_9999", "quantity_key": "relative_astrometry_measure_count", "unit_raw": "count", "normalized_unit": "count", "minimum_value": 1, "quality_fields": ["components"], "method": "wds_observation_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "position_angle_first_xxx", "quantity_key": "relative_position_angle_first", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 359, "epoch_field": "date_first", "quality_fields": ["components", "notes"], "method": "wds_relative_astrometry_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "position_angle_last_xxx", "quantity_key": "relative_position_angle_last", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 359, "epoch_field": "date_last", "quality_fields": ["components", "notes"], "method": "wds_relative_astrometry_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "separation_first", "quantity_key": "relative_separation_first", "unit_raw": "arcsec", "normalized_unit": "arcsec", "minimum_value": 0, "epoch_field": "date_first", "quality_fields": ["components", "notes"], "method": "wds_relative_astrometry_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "separation_last", "quantity_key": "relative_separation_last", "unit_raw": "arcsec", "normalized_unit": "arcsec", "minimum_value": 0, "epoch_field": "date_last", "quality_fields": ["components", "notes"], "method": "wds_relative_astrometry_summary", "normalization_version": "wds_source_native_numeric_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "primary_proper_motion_ra", "quantity_key": "primary_proper_motion_ra_wds_source_convention", "unit_raw": "arcsec per 1000 yr; P-code rows per 100 yr", "normalized_unit": "arcsec per source time baseline", "quality_fields": ["notes"], "method": "wds_summary_proper_motion", "normalization_version": "wds_source_convention_unconverted_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "primary_proper_motion_dec", "quantity_key": "primary_proper_motion_dec_wds_source_convention", "unit_raw": "arcsec per 1000 yr; P-code rows per 100 yr", "normalized_unit": "arcsec per source time baseline", "quality_fields": ["notes"], "method": "wds_summary_proper_motion", "normalization_version": "wds_source_convention_unconverted_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "secondary_proper_motion_ra", "quantity_key": "secondary_proper_motion_ra_wds_source_convention", "unit_raw": "arcsec per 1000 yr; P-code rows per 100 yr", "normalized_unit": "arcsec per source time baseline", "quality_fields": ["notes"], "method": "wds_summary_proper_motion", "normalization_version": "wds_source_convention_unconverted_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "secondary_proper_motion_dec", "quantity_key": "secondary_proper_motion_dec_wds_source_convention", "unit_raw": "arcsec per 1000 yr; P-code rows per 100 yr", "normalized_unit": "arcsec per source time baseline", "quality_fields": ["notes"], "method": "wds_summary_proper_motion", "normalization_version": "wds_source_convention_unconverted_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "magnitude_of_first_component", "quantity_key": "apparent_magnitude_first_component", "unit_raw": "mag", "missing_values": ["."], "quality_fields": ["components", "notes"], "method": "wds_summary_photometry", "normalization_version": "wds_source_bandpass_context_v1"},
+            {"value_field": "magnitude_of_second_component", "quantity_key": "apparent_magnitude_second_component", "unit_raw": "mag", "missing_values": ["."], "quality_fields": ["components", "notes"], "method": "wds_summary_photometry", "normalization_version": "wds_source_bandpass_context_v1"}
+          ]
+        }
+      }
+    },
+    "multiplicity.wds_gaia_xmatch": {
+      "adapter_version": "wds_gaia_xmatch_scientific_evidence_v1",
+      "tables": {
+        "wds_gaia_xmatch_best": {
+          "raw_artifact_name": "wds_gaia_xmatch_best",
+          "logical_key_fields": ["WDS", "Comp", "Source", "angDist"],
+          "object_scope": "positional_crossmatch_candidate",
+          "field_profile": "wds_gaia_crossmatch",
+          "identifier_claims": {
+            "WDS": {"namespace": "wds_id", "claim_scope": "visual_multiple_system", "component_scope": "wds_entry"},
+            "DR3Name": {"namespace": "gaia_dr3_name", "claim_scope": "star", "component_scope": "gaia_candidate"},
+            "Source": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_candidate", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["WDS", "Comp"], "delimiter": ":", "namespace": "wds_observation_pair_component_scope", "claim_scope": "source_visual_pair_designation", "component_scope": "wds_pair_designation", "sql_predicate": "Comp is not null"}
+          ],
+          "relation_claim": {
+            "left_identifier_field": "WDS",
+            "left_identifier_namespace": "wds_id",
+            "left_component_scope": "wds_entry",
+            "right_identifier_field": "Source",
+            "right_identifier_namespace": "gaia_dr3_source_id",
+            "right_component_scope": "gaia_candidate",
+            "relation_kind": "candidate_positional_crossmatch",
+            "relation_scope": "wds_entry_to_gaia_dr3_source",
+            "evidence_polarity": "candidate",
+            "method": "cds_xmatch_best_angular_distance_within_2_arcsec",
+            "reference_raw": "https://cdsxmatch.u-strasbg.fr/",
+            "confidence_statistic_field": "angDist",
+            "confidence_statistic_key": "angular_separation",
+            "confidence_statistic_unit": "arcsec",
+            "confidence_statistic_semantics": "CDS best-match center-position angular separation within 2 arcsec; smaller values support a candidate match but are not probabilities or accepted identities",
+            "quality_fields": ["Comp", "Obs2", "pa2", "sep2", "mag1", "mag2", "RAJ2000", "DEJ2000", "DR3Name", "RAdeg", "DEdeg", "Plx", "pmRA", "pmDE", "RUWE", "Gmag"],
+            "sql_predicate": "try_cast(angDist as double) between 0 and 2.0"
+          }
         }
       }
     },

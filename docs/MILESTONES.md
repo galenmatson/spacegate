@@ -1577,6 +1577,17 @@ Current status (July 19, 2026, in progress):
   canonical containment. Compiler v43 also closes the general DuckDB `t`/`T`
   alias-shadowing defect and implements catalog-declared numeric-zero missing
   semantics. Artifact, MSC source/scope, and clean-reproduction gates pass.
+- WDS checkpoint `ad98d4e369c5a0addc6477a0` accounts all 157,476 WDS
+  summary/format rows and 140,416 CDS WDS-Gaia candidate matches with all 43
+  field occurrences materialized. WDS-qualified pair keys prevent global
+  component-label collisions; observation history, relative astrometry,
+  source-convention proper motions, generic magnitudes, and opaque spectral text
+  remain unresolved evidence. Configured numeric bounds keep WDS `-1`, `.`,
+  zero-count, and impossible-angle sentinels out of normalized measurements
+  without deleting their source rows. The bridge emits 140,416 candidate
+  positional relations with angular-distance statistics, zero probabilities,
+  and no accepted identity, containment, or orbit. Artifact, WDS source/scope,
+  and clean-reproduction gates pass.
 - Gaia NSS checkpoint `e198804d34abcf04d209d116` materializes all 50,762
   expanded two-body rows as distinct coherent orbital solutions. All 77 fields
   are accounted as 75 solution/model/quality fields plus Gaia source and NSS

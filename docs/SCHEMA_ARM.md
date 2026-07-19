@@ -1253,6 +1253,27 @@ Build fails when:
 Run `scripts/verify_source_evidence_closeout.py` against candidate ARM and
 canonical-hierarchy artifacts to emit the machine-readable gate report.
 
+## WDS Evidence Lake Policy
+
+Evidence Lake E4 preserves the WDS fixed-width summary and its pinned format
+document as release-scoped source records before ARM selection. WDS identity,
+discoverer designation, and any pair designation remain separate. A local pair
+label is usable only inside a WDS-qualified composite key; a bare `A`, `AB`, or
+`Aa,Ab` value is never a component identity.
+
+The WDS spectral field is deliberately opaque because its source definition
+allows the value to describe component A or two components. Relative position
+angles, separations, first/last observation years, measure counts, component
+magnitudes, source-convention proper motions, and exact J2000 coordinate text
+remain source-scoped evidence. Invalid/source-sentinel values stay in immutable
+typed rows but cannot enter normalized measurement columns.
+
+The CDS WDS-Gaia bridge is a best positional match within 2 arcseconds. ARM may
+consume it only as a candidate relation with angular-distance evidence; it is
+not a probability, accepted physical identity, containment edge, or orbital
+solution. Copied Gaia columns in the bridge are match context, while the
+release-native Gaia adapters own their scientific parameter semantics.
+
 ## MSC Policy
 
 MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.

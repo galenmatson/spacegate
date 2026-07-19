@@ -70,6 +70,17 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert msc["tables"]["msc_orb"]["orbital_solution"][
         "relation_link_policy"
     ] == "opaque_source_pair_pending_e2"
+    wds = contract["source_adapters"]["multiplicity.wds"]
+    assert set(wds["tables"]) == {"wdsweb_format", "wdsweb_summ2"}
+    assert "components" not in wds["tables"]["wdsweb_summ2"][
+        "identifier_claims"
+    ]
+    wds_xmatch = contract["source_adapters"]["multiplicity.wds_gaia_xmatch"][
+        "tables"
+    ]["wds_gaia_xmatch_best"]["relation_claim"]
+    assert wds_xmatch["evidence_polarity"] == "candidate"
+    assert "probability_field" not in wds_xmatch
+    assert wds_xmatch["confidence_statistic_field"] == "angDist"
     nss_adapter = contract["source_adapters"]["gaia.dr3.non_single_star"]
     nss_orbit = nss_adapter["tables"]["gaia_dr3_nss_two_body_orbit_full_v2"][
         "orbital_solution"
@@ -1179,6 +1190,19 @@ def test_numeric_zero_missing_semantics_reject_signed_zero_lexemes() -> None:
             f"rows(value_raw) where {predicate} order by value_raw"
         ).fetchall()
     assert retained == [("1.0",)]
+
+
+def test_configured_measurement_validity_bounds_reject_sentinels_and_bad_angles() -> None:
+    predicate = compiler.configured_measurement_predicate(
+        "value_raw",
+        {"missing_values": ["-1"], "minimum_value": 0, "maximum_value": 359},
+    )
+    with duckdb.connect() as con:
+        retained = con.execute(
+            "select value_raw from (values ('-1'),('0'),('180'),('359'),('360'),('.') ) "
+            f"rows(value_raw) where {predicate} order by try_cast(value_raw as integer)"
+        ).fetchall()
+    assert retained == [("0",), ("180",), ("359",)]
 
 
 def test_relation_audit_accepts_source_native_primary_secondary_scopes() -> None:

@@ -492,6 +492,24 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     )
                 if measurement.get("zero_is_missing") not in (None, False, True):
                     errors.append(f"{prefix}.zero_is_missing must be boolean")
+                minimum = measurement.get("minimum_value")
+                maximum = measurement.get("maximum_value")
+                if minimum is not None and (
+                    isinstance(minimum, bool) or not isinstance(minimum, (int, float))
+                ):
+                    errors.append(f"{prefix}.minimum_value must be numeric")
+                if maximum is not None and (
+                    isinstance(maximum, bool) or not isinstance(maximum, (int, float))
+                ):
+                    errors.append(f"{prefix}.maximum_value must be numeric")
+                if (
+                    isinstance(minimum, (int, float))
+                    and not isinstance(minimum, bool)
+                    and isinstance(maximum, (int, float))
+                    and not isinstance(maximum, bool)
+                    and minimum > maximum
+                ):
+                    errors.append(f"{prefix}.minimum_value exceeds maximum_value")
             for index, measurement in enumerate(
                 table.get("configured_domain_measurements") or []
             ):
@@ -510,6 +528,24 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix}.normalize_numeric must be boolean")
                 if measurement.get("zero_is_missing") not in (None, False, True):
                     errors.append(f"{prefix}.zero_is_missing must be boolean")
+                minimum = measurement.get("minimum_value")
+                maximum = measurement.get("maximum_value")
+                if minimum is not None and (
+                    isinstance(minimum, bool) or not isinstance(minimum, (int, float))
+                ):
+                    errors.append(f"{prefix}.minimum_value must be numeric")
+                if maximum is not None and (
+                    isinstance(maximum, bool) or not isinstance(maximum, (int, float))
+                ):
+                    errors.append(f"{prefix}.maximum_value must be numeric")
+                if (
+                    isinstance(minimum, (int, float))
+                    and not isinstance(minimum, bool)
+                    and isinstance(maximum, (int, float))
+                    and not isinstance(maximum, bool)
+                    and minimum > maximum
+                ):
+                    errors.append(f"{prefix}.minimum_value exceeds maximum_value")
             for index, measurement in enumerate(
                 table.get("configured_coordinate_measurements") or []
             ):
@@ -2150,6 +2186,25 @@ def missing_value_predicate(
     return " and ".join(clauses)
 
 
+def configured_measurement_predicate(
+    field: str,
+    measurement: dict[str, Any],
+) -> str:
+    clauses = [
+        missing_value_predicate(
+            field,
+            list(measurement.get("missing_values") or []),
+            zero_is_missing=bool(measurement.get("zero_is_missing")),
+        )
+    ]
+    value = f"try_cast({sql_identifier(field)} as double)"
+    if measurement.get("minimum_value") is not None:
+        clauses.append(f"{value}>={float(measurement['minimum_value'])}")
+    if measurement.get("maximum_value") is not None:
+        clauses.append(f"{value}<={float(measurement['maximum_value'])}")
+    return " and ".join(clauses)
+
+
 def nullable_measurement_double_expression(
     field: str | None,
     missing_values: list[Any],
@@ -2410,11 +2465,7 @@ def materialize_configured_photometry(
                 (sql_string(quality_field), sql_identifier(quality_field))
             )
         quality = "json_object(" + ", ".join(quality_members) + ")"
-        predicate = missing_value_predicate(
-            field,
-            list(measurement.get("missing_values") or []),
-            zero_is_missing=bool(measurement.get("zero_is_missing")),
-        )
+        predicate = configured_measurement_predicate(field, measurement)
         branches.append(
             f"""
             select distinct
@@ -2654,11 +2705,7 @@ def materialize_configured_domain_measurements(
         consumed.update(configured_fields)
         raw = text_expression(field)
         missing_values = list(measurement.get("missing_values") or [])
-        predicate = missing_value_predicate(
-            field,
-            missing_values,
-            zero_is_missing=bool(measurement.get("zero_is_missing")),
-        )
+        predicate = configured_measurement_predicate(field, measurement)
         uncertainty = nullable_measurement_double_expression(
             str(uncertainty_field) if uncertainty_field else None,
             list(

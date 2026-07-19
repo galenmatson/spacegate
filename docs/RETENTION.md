@@ -299,6 +299,14 @@ and its compile, artifact-audit, MSC source/scope-audit, and clean-reproduction
 reports are protected E4/E5 inputs. The MSC scientific audit is an explicitly
 allowlisted failed-artifact audit contract; it does not authorize removal of
 this accepted checkpoint or either source snapshot.
+WDS checkpoint `ad98d4e369c5a0addc6477a0`, WDS raw snapshot
+`9c84c16b098fc5339dbf0f98`, WDS typed snapshot
+`d0c9fefb3acb5b2cab3d75f8`, CDS bridge raw snapshot
+`d089e992715ba33e2c3c04cc`, bridge typed snapshot
+`f9f48b3f691a6a38138ce5d7`, and its compile, artifact-audit, WDS source/scope-
+audit, and clean-reproduction reports are protected E4/E5 inputs. The WDS
+scientific audit is an explicitly allowlisted failed-artifact audit contract;
+it does not authorize removal of this accepted checkpoint or source snapshots.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

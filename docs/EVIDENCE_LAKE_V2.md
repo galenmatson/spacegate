@@ -466,6 +466,25 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   pair strings remain unsplit, and every binding remains unresolved. Generic
   artifact and MSC source/scope audits pass; clean reproduction matches logical
   hash `d5fb69fba951c886b2a01d30640188f0889ecd6f8dfedab357ad90970baf4fa1`.
+- Compiler/contract v44 adds reusable numeric validity bounds to configured
+  measurements. Exact source sentinels and out-of-domain values remain in
+  source-native Parquet and source-record lineage but cannot become normalized
+  measurements.
+- WDS checkpoint `ad98d4e369c5a0addc6477a0` accounts 157,476 WDS data/method
+  rows and 140,416 CDS WDS-Gaia rows, with all 43 field occurrences
+  materialized. Bare pair labels such as `AB` never become identities; only
+  WDS-qualified pair keys are emitted. WDS spectral text remains opaque because
+  the source field may describe component A or two components. Relative
+  astrometry, observation history, photometry, source-convention proper motion,
+  and exact J2000 coordinate strings remain source-scoped and unresolved.
+- The CDS bridge is explicitly a best angular match within 2 arcseconds, not a
+  probability or accepted identity. All 140,416 rows remain candidate
+  positional-crossmatch relations with angular separation statistics, zero
+  strict probabilities, complete citations, and copied Gaia columns retained
+  only as match context. WDS observation rows create no relation, orbit, or
+  canonical containment. Artifact and WDS source/scope audits pass; clean
+  reproduction matches logical hash
+  `7b277d9f190599a1b0cf797dabffa864b5991d956973c3ac29ff4ff3af20cba6`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

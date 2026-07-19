@@ -326,6 +326,11 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- WDS and CDS WDS-Gaia `ad98d4e369c5a0addc6477a0`: all 157,476 WDS
+  summary/method rows, 140,416 positional-match rows, and 43 field occurrences;
+  WDS-qualified pair identities, bounded relative-astrometry measurements,
+  opaque spectral text, and 140,416 candidate matches with angular-distance
+  statistics, zero strict probabilities, and no canonical promotion
 - MSC `fc7e9dcabb0b27167c8f188c`: all 43,418 rows/73 field occurrences;
   WDS-qualified component identities, 15,748 polarity-bearing source relation
   claims, 19,366 coherent orbit records, scoped classifications/physics,
@@ -584,11 +589,21 @@ Classification: `auxiliary`
 Role:
 
 - broad multiplicity evidence and grouping support
+- source-native first/last relative astrometry, observation counts, magnitudes,
+  proper-motion context, spectral text, discoverer designations, and note flags
 
 Policy:
 
 - WDS-based grouping from bridge paths is confidence-gated
 - default production path keeps conservative thresholds
+- the Evidence Lake adapter never treats bare `A`, `AB`, `Aa,Ab`, or similar
+  labels as globally usable identities; pair keys are qualified by WDS identity
+- source spectral text remains opaque because the published field may describe
+  component A or two components; E2/E5 must resolve scope before selection
+- documented/source-observed sentinels and invalid angle domains remain in raw
+  and typed rows but cannot become normalized measurements
+- the CDS best-match bridge is candidate positional evidence within 2 arcseconds,
+  not a probability, authoritative crossmatch, physical relation, or orbit
 
 Source endpoint:
 
