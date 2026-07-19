@@ -15,6 +15,7 @@ from evidence_lake_store import (  # noqa: E402
     build_typed_snapshot,
     manifest_entries,
     verify_snapshot,
+    write_delimited_parquet,
     write_mast_json_parquet,
 )
 
@@ -253,6 +254,34 @@ def test_mast_json_uses_declared_union_schema_across_null_batches(tmp_path: Path
         assert con.execute(
             f"select ID, KIC, Tmag from read_parquet('{output}') order by ID"
         ).fetchall() == [("123", None, 10.0), ("456", 789, 11.5)]
+
+
+def test_delimited_member_lineage_preserves_distinct_upstream_tables(
+    tmp_path: Path,
+) -> None:
+    hip = tmp_path / "hip_00001.csv"
+    tmass = tmp_path / "twomass_00001.csv"
+    hip.write_text("source_id,external_id\n1,42\n", encoding="utf-8")
+    tmass.write_text("source_id,external_id\n2,00420000+0000000\n", encoding="utf-8")
+    output = tmp_path / "external.parquet"
+
+    with duckdb.connect() as con:
+        fields = write_delimited_parquet(
+            [hip, tmass],
+            output,
+            con,
+            member_lineage_field="source_member_path",
+        )
+        rows = con.execute(
+            f"select source_id, external_id, source_member_path "
+            f"from read_parquet('{output}') order by source_id"
+        ).fetchall()
+
+    assert fields == ["external_id", "source_id", "source_member_path"]
+    assert rows == [
+        ("1", "42", "hip_00001.csv"),
+        ("2", "00420000+0000000", "twomass_00001.csv"),
+    ]
 
 
 def test_delimited_continuation_uses_one_header_and_accounts_for_all_rows(

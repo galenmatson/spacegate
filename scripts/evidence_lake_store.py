@@ -72,7 +72,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "nasa_exoplanet_archive.planetary_systems": "evidence_typed_cook_tap_csv_v1",
     "naming.iau_wgsn": "evidence_typed_cook_html_table_v2",
     "classification.gcvs": "evidence_typed_cook_gcvs_cds_layout_delimiter_v2",
-    "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",
+    "tess.identity_and_candidate_evidence": "evidence_typed_cook_member_lineage_v7",
     "multiplicity.wds": "evidence_typed_cook_wds_v1",
     "multiplicity.sb9": "evidence_typed_cook_cds_v2",
     "clusters.cantat_gaudin_2020": "evidence_typed_cook_cds_v2",
@@ -319,6 +319,10 @@ def sql_string(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def sql_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
 def parquet_metadata(path: Path, con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
     description = con.execute(f"describe select * from read_parquet({sql_string(str(path))})").fetchall()
     row_count = int(con.execute(f"select count(*) from read_parquet({sql_string(str(path))})").fetchone()[0])
@@ -340,7 +344,13 @@ def delimiter_for(path: Path) -> str:
         return ","
 
 
-def write_delimited_parquet(paths: list[Path], output: Path, con: duckdb.DuckDBPyConnection) -> list[str]:
+def write_delimited_parquet(
+    paths: list[Path],
+    output: Path,
+    con: duckdb.DuckDBPyConnection,
+    *,
+    member_lineage_field: str | None = None,
+) -> list[str]:
     delimiters = {delimiter_for(path) for path in paths}
     if len(delimiters) != 1:
         raise ValueError(f"mixed delimiters in one source artifact: {sorted(delimiters)}")
@@ -351,12 +361,29 @@ def write_delimited_parquet(paths: list[Path], output: Path, con: duckdb.DuckDBP
     fields = source_fields[0]
     if len(fields) != len(set(fields)):
         raise ValueError("duplicate or empty source field names are not supported")
+    if member_lineage_field and member_lineage_field in fields:
+        raise ValueError(
+            f"member lineage field collides with a source field: {member_lineage_field}"
+        )
     values = ",".join(sql_string(str(path)) for path in paths)
     source_expr = f"[{values}]" if len(paths) > 1 else sql_string(str(paths[0]))
+    projection = "*"
+    filename_option = ""
+    if member_lineage_field:
+        member_cases = " ".join(
+            f"when filename={sql_string(str(path))} then {sql_string(path.name)}"
+            for path in paths
+        )
+        projection = (
+            "* exclude (filename), "
+            f"case {member_cases} else error('unaccounted source member') end "
+            f"as {sql_identifier(member_lineage_field)}"
+        )
+        filename_option = ", filename=true"
     con.execute(
         f"""
         copy (
-          select *
+          select {projection}
           from read_csv(
             {source_expr},
             delim={sql_string(delimiter)},
@@ -370,12 +397,13 @@ def write_delimited_parquet(paths: list[Path], output: Path, con: duckdb.DuckDBP
             ignore_errors=false,
             union_by_name=true,
             normalize_names=false
+            {filename_option}
           )
         ) to {sql_string(str(output))}
         (format parquet, compression zstd, row_group_size 122880)
         """
     )
-    return sorted(fields)
+    return sorted([*fields, *([member_lineage_field] if member_lineage_field else [])])
 
 
 def write_delimited_continuation_parquet(
@@ -1184,8 +1212,19 @@ def cook_artifact(
     json_files = [path for path in files if path.suffix == ".json"]
     parser = ""
     expected_fields: list[str] = []
+    member_lineage_field = str(
+        (source["schema_policy"].get("member_lineage_fields") or {}).get(
+            str(artifact["source_name"])
+        )
+        or ""
+    ).strip() or None
     if tabular:
-        expected_fields = write_delimited_parquet(tabular, output, con)
+        expected_fields = write_delimited_parquet(
+            tabular,
+            output,
+            con,
+            member_lineage_field=member_lineage_field,
+        )
         parser = "duckdb_read_csv_explicit_lexical_shape_checked_v4"
     elif votables:
         source_schema = write_votable_files_parquet(votables, output)
@@ -1296,6 +1335,11 @@ def cook_artifact(
             else {}
         ),
         "raw_tree_sha256": artifact["tree_sha256"],
+        **(
+            {"member_lineage_field": member_lineage_field}
+            if member_lineage_field
+            else {}
+        ),
         "parquet_path": f"tables/{output.name}",
         **metadata,
     }

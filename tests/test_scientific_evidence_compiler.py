@@ -162,6 +162,19 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "m_Ced is null",
         "m_Ced is not null",
     ]
+    tess_mast = contract["source_adapters"][
+        "tess.identity_and_candidate_evidence"
+    ]["tables"]["mast_tic_targeted"]
+    tess_claims = tess_mast["identifier_claims"]
+    for relation in tess_mast["relation_claims"]:
+        for side in ("left", "right"):
+            field = relation[f"{side}_identifier_field"]
+            assert tess_claims[field]["namespace"] == relation[
+                f"{side}_identifier_namespace"
+            ]
+            assert tess_claims[field]["component_scope"] == relation[
+                f"{side}_component_scope"
+            ]
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -191,6 +204,23 @@ def test_multiple_cluster_memberships_require_distinct_evidence_keys() -> None:
     ) in errors
 
 
+def test_multiple_relation_claims_require_distinct_evidence_keys() -> None:
+    contract = compiler.load_json(CONTRACT_PATH)
+    table = contract["source_adapters"]["multiplicity.wds_gaia_xmatch"]["tables"][
+        "wds_gaia_xmatch_best"
+    ]
+    relation = table.pop("relation_claim")
+    table["relation_claims"] = [
+        {**relation, "evidence_key": "candidate"},
+        {**relation, "evidence_key": "candidate"},
+    ]
+    errors = compiler.validate_contract(contract)
+    assert (
+        "multiplicity.wds_gaia_xmatch.wds_gaia_xmatch_best.relation_claims "
+        "contains duplicate evidence_key values"
+    ) in errors
+
+
 def test_configured_measurements_reject_nonfinite_numeric_values() -> None:
     numeric = {"value_field": "value", "quantity_key": "quantity"}
     lexical = {
@@ -205,6 +235,32 @@ def test_configured_measurements_reject_nonfinite_numeric_values() -> None:
     )
     assert "isfinite" in uncertainty
     assert 'try_cast("uncertainty" as double)>=0.0' in uncertainty
+
+
+def test_configured_measurements_support_asymmetric_uncertainty_fields() -> None:
+    measurement = {
+        "value_field": "value",
+        "quantity_key": "quantity",
+        "uncertainty_lower_field": "error_lower",
+        "uncertainty_upper_field": "error_upper",
+    }
+    assert compiler.configured_domain_measurement_fields([measurement]) == {
+        "value",
+        "error_lower",
+        "error_upper",
+    }
+
+    contract = compiler.load_json(CONTRACT_PATH)
+    table = contract["source_adapters"]["tess.villanova_eb"]["tables"][
+        "tess_eb_catalog"
+    ]
+    table["configured_domain_measurements"][0]["uncertainty_field"] = "symmetric"
+    table["configured_domain_measurements"][0]["uncertainty_lower_field"] = "lower"
+    errors = compiler.validate_contract(contract)
+    assert any(
+        "cannot combine symmetric and asymmetric uncertainty fields" in error
+        for error in errors
+    )
 
 
 def test_configured_photometry_fields_include_lineage_and_quality() -> None:
@@ -228,6 +284,19 @@ def test_configured_epoch_expression_accepts_field_or_constant() -> None:
     assert compiler.configured_epoch_expression({"epoch_raw": "J2000.0"}) == (
         "'J2000.0'"
     )
+
+
+def test_scalar_evidence_accepts_explicit_units_for_schema_poor_sources() -> None:
+    contract = compiler.load_json(CONTRACT_PATH)
+    table = contract["source_adapters"]["tess.villanova_eb"]["tables"][
+        "tess_eb_catalog"
+    ]
+    table["unit_overrides"] = {"period_days": "d"}
+    assert compiler.validate_contract(contract) == []
+
+    table["unit_overrides"] = {"period_days": ""}
+    errors = compiler.validate_contract(contract)
+    assert any("unit_overrides must be a non-empty" in error for error in errors)
 
 
 def test_table_contract_reference_inherits_mapping_with_local_overrides() -> None:
@@ -1115,6 +1184,62 @@ def test_relation_claim_preserves_non_probability_statistic_and_control_polarity
     assert all(json.loads(row[5])["sep_AU"] in {100.0, 200.0} for row in evidence)
 
 
+def test_relation_claim_source_fields_do_not_collide_with_lineage_columns(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "external_crossmatch.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 123::bigint source_id, 456::bigint external_id, "
+            f"0.25::double angular_distance) to '{parquet}' (format parquet)"
+        )
+        row_hash = con.execute(
+            f"select sha256(to_json(source_row)) from read_parquet('{parquet}') "
+            "source_row"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record', 'test.external', 'r1', 'best_neighbour', 'crossmatch', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [row_hash],
+        )
+        consumed = compiler.materialize_relation_claims(
+            con,
+            source_id="test.external",
+            release_id="r1",
+            table_name="best_neighbour",
+            path=parquet,
+            relation_claim={
+                "left_identifier_field": "source_id",
+                "left_identifier_namespace": "gaia_dr3_source_id",
+                "left_component_scope": "gaia_source",
+                "right_identifier_field": "external_id",
+                "right_identifier_namespace": "external_id",
+                "right_component_scope": "external_source",
+                "relation_kind": "best_neighbour",
+                "relation_scope": "catalog_crossmatch",
+                "evidence_polarity": "candidate",
+                "method": "official_crossmatch",
+                "reference_raw": "test reference",
+                "confidence_statistic_field": "angular_distance",
+                "confidence_statistic_key": "angular_distance",
+                "confidence_statistic_unit": "arcsec",
+                "confidence_statistic_semantics": "source angular separation",
+                "quality_fields": ["source_id", "angular_distance"],
+            },
+            available_fields={"source_id", "external_id", "angular_distance"},
+        )
+        evidence = con.execute(
+            "select left_identity_raw, right_identity_raw, "
+            "confidence_statistic_value, quality_json->>'source_id' "
+            "from relation_claim_evidence"
+        ).fetchone()
+    assert consumed == {"source_id", "external_id", "angular_distance"}
+    assert evidence == ("123", "456", 0.25, "123")
+
+
 def test_relation_claim_predicate_retains_source_rows_but_bounds_claims(
     tmp_path: Path,
 ) -> None:
@@ -1619,7 +1744,8 @@ def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
     with duckdb.connect() as con:
         con.execute(
             f"copy (select '8.4' mag, 'V' band, '2024A&A...1A' reference, "
-            f"'primary' component) to '{parquet}' (format parquet)"
+            f"'primary' component, '0.1' mag_lower, '0.2' mag_upper) "
+            f"to '{parquet}' (format parquet)"
         )
         source_row_sha256 = con.execute(
             f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
@@ -1642,21 +1768,42 @@ def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
                 {
                     "value_field": "mag",
                     "quantity_key": "apparent_magnitude",
+                    "uncertainty_lower_field": "mag_lower",
+                    "uncertainty_upper_field": "mag_upper",
                     "bandpass_field": "band",
                     "reference_field": "reference",
                     "quality_fields": ["component"],
                     "unit_raw": "mag",
                 }
             ],
-            available_fields={"mag", "band", "reference", "component"},
+            available_fields={
+                "mag",
+                "mag_lower",
+                "mag_upper",
+                "band",
+                "reference",
+                "component",
+            },
         )
         row = con.execute(
-            "select bandpass,reference_raw,quality_json::varchar "
+            "select bandpass,reference_raw,uncertainty_lower,uncertainty_upper,"
+            "quality_json::varchar "
             "from photometry_extinction_evidence"
         ).fetchone()
-    assert consumed == {"mag", "band", "reference", "component"}
+    assert consumed == {
+        "mag",
+        "mag_lower",
+        "mag_upper",
+        "band",
+        "reference",
+        "component",
+    }
     assert row[:2] == ("V", "2024A&A...1A")
-    assert json.loads(row[2])["component"] == "primary"
+    assert row[2:4] == (0.1, 0.2)
+    quality = json.loads(row[4])
+    assert quality["component"] == "primary"
+    assert quality["uncertainty_lower_field"] == "mag_lower"
+    assert quality["uncertainty_upper_field"] == "mag_upper"
 
 
 def test_scalar_grouping_preserves_measurement_companions() -> None:
@@ -1747,7 +1894,8 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
         citation_summary = compiler.materialize_citations(con)
         nested = con.execute(
             "select measurement.quantity_key,measurement.value_raw,"
-            "measurement.uncertainty_lower,measurement.reference_raw "
+            "measurement.uncertainty_lower,measurement.reference_raw,"
+            "measurement.quality_json::varchar "
             "from astrometry_distance_evidence_bundles b, "
             "unnest(b.measurements) as nested(measurement)"
         ).fetchall()
@@ -1761,7 +1909,13 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
         "reference",
         "radial_velocity",
     }
-    assert nested == [("parallax", "10.0", 0.5, "2025A&A...1A")]
+    assert [row[:4] for row in nested] == [
+        ("parallax", "10.0", 0.5, "2025A&A...1A")
+    ]
+    quality = json.loads(nested[0][4])
+    assert quality["uncertainty_field"] == "parallax_error"
+    assert quality["uncertainty_lower_field"] == "parallax_error"
+    assert quality["uncertainty_upper_field"] == "parallax_error"
     assert flat_count == 0
     assert citation_summary == {"citations": 1, "evidence_links": 1}
     assert audit["status"] == "pass"
@@ -2232,6 +2386,55 @@ def test_identifier_normalization_strips_only_trailing_hash_footnotes(
         ("Name#Internal", "Name#Internal"),
         ("PSR J1846-0258 ##", "PSR J1846-0258"),
     ]
+
+
+def test_identifier_normalization_preserves_display_form_and_strips_literal_prefix(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "toi_names.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('TOI-101.01'),('101.02')) "
+            f"t(toidisplay)) to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(source_row)) from read_parquet('{parquet}') "
+            "source_row"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'tess.test', 'r1', 'toi', 'planet_candidate', '{}', '{}', ?, "
+            "1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(rows)],
+        )
+        compiler.materialize_identifier_claims(
+            con,
+            source_id="tess.test",
+            release_id="r1",
+            table_name="toi",
+            path=parquet,
+            fields=["toidisplay"],
+            claim_by_field={
+                "toidisplay": {
+                    "namespace": "toi_id",
+                    "claim_scope": "planet_candidate",
+                    "normalization": "strip_literal_prefix_v1",
+                    "normalization_prefix": "TOI-",
+                }
+            },
+        )
+        claims = con.execute(
+            "select identifier_raw, identifier_normalized, "
+            "quality_json->>'normalization_prefix' "
+            "from identifier_claim_evidence"
+        ).fetchall()
+        rejections = con.execute(
+            "select identifier_raw from identifier_normalization_rejections"
+        ).fetchall()
+    assert claims == [("TOI-101.01", "101.01", "TOI-")]
+    assert rejections == [("101.02",)]
 
 
 def test_multiple_compact_parameter_sets_have_distinct_ids_and_predicates(

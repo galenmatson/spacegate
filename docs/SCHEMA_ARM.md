@@ -144,6 +144,11 @@ Evidence Lake v2 staging rule:
   sources use generic `left`/`right` labels. SB9 therefore retains source-native
   `primary`/`secondary`, while the El-Badry wide-pair adapter retains
   `left`/`right`.
+- Configured measurement evidence records `uncertainty_field`,
+  `uncertainty_lower_field`, and `uncertainty_upper_field` in `quality_json`.
+  The names accompany the normalized uncertainty magnitudes and exact source
+  record, so asymmetric bounds remain auditable without reconstructing a
+  compiler contract from column naming conventions.
 - `orbital_solution_evidence.relation_claim_id` may be resolved across source
   tables by an exact configured logical-key mapping. Required mappings fail on
   zero or multiple matches. This links SB9 orbit rows to system relation claims
@@ -1306,6 +1311,22 @@ token semantics. Multiplicity and exoplanet flags without safe target endpoints
 stay source context and cannot create relation, containment, planet lifecycle,
 or canonical inventory rows. E5 must bind each source row and apply
 quantity-specific authority before selecting any public value.
+
+## Targeted TESS Evidence Policy
+
+The Evidence Lake TESS adapter is bounded to the versioned target universe; it
+does not mirror TIC. TIC v8 Gaia identifiers remain Gaia DR2 claims and reach
+Gaia DR3 only through official release-neighborhood evidence. Combined
+Hipparcos/Tycho-2/2MASS best-neighbor rows retain their source member path before
+receiving an external namespace.
+
+Numeric and display TOI forms remain separate raw claims normalized to the same
+release-scoped TOI identity. Confirmed and known dispositions are positive
+evidence, candidate and ambiguous-candidate dispositions remain candidate
+evidence, and false positives/false alarms remain negative evidence. E4 keeps
+all object bindings unresolved and contains no canonical system, star, planet,
+or alias inventory table; E5/E6 must reconcile identities and lifecycle policy
+before any selected or public projection changes.
 
 ## MSC Policy
 

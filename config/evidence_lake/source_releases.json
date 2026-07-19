@@ -317,7 +317,14 @@
         {"manifest": "tess_evidence_manifest.json", "source_name": "gaia_dr3_targets"}
       ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "mixed_tabular_snapshot", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "mixed_tabular_snapshot",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "member_lineage_fields": {
+          "gaia_external_crossmatches": "source_member_path"
+        }
+      }
     },
     {
       "source_id": "tess.villanova_eb",

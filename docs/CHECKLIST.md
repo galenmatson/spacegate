@@ -1226,6 +1226,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 TESS EB checkpoint: preserve all 17,605 rows/20 fields; normalize
   zero-padded TIC identity, distinguish 4,584 catalog members from 13,021
   nonmembers, and type sector/flag/morphology/Tmag/astrometry/orbit evidence
+- [x] E1/E4 targeted TIC/TOI checkpoint: preserve all 122,772 rows/239 fields
+  across the bounded target set, MAST TIC, official Gaia release/external
+  crossmatches, targeted Gaia DR3, and NASA TOI; retain member-qualified
+  external namespaces, dual raw TOI forms, asymmetric uncertainty lineage,
+  duplicate/split relations, and positive/candidate/negative lifecycle evidence;
+  pass source-specific, generic artifact, and clean-reproduction gates without
+  canonical inventory promotion
 - [x] E4 white-dwarf checkpoint: bound 1,280,266 candidates by posterior
   distance-interval overlap; preserve 337,272 candidate contexts and separate
   H/He/mixed atmosphere fits with all 161 fields accounted and no implicit

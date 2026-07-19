@@ -189,6 +189,15 @@ gates. Accepted, served, published, rollback, and merely superseded artifacts,
 source snapshots, typed snapshots, identity graphs, and individual files inside
 an artifact remain outside this command's scope.
 
+The targeted TESS scientific-evidence audit contract is explicitly allowlisted
+for failed whole-artifact retirement. After accepted build
+`11aa9bd00cc710f971b01837` passed generic/source-specific audits and clean
+logical-hash reproduction, reviewed candidate-set hash
+`9164bca7a24f0e9fe57d6c5930b3c9daef1f235b974e946ecc18e4320788517d`
+retired two manifestless compiler attempts and three independently failed v50-
+v52 artifacts. The apply report reclaimed 2,600,095,744 allocated bytes while
+preserving the v53 artifact, raw/typed snapshots, and all diagnostic reports.
+
 On July 19, the reviewed dry run
 `e4_simbad_failed_artifact_retention_dry_run.json` identified exactly two closed,
 manifest-less SIMBAD compiler diagnostics affected by the confirmed

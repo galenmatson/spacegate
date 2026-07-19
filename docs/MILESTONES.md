@@ -1519,6 +1519,14 @@ Current status (July 19, 2026, in progress):
   4,584 positive catalog members receive orbit solutions, while 13,021
   nonmembers remain explicit catalog-status evidence. Sector, flag, morphology,
   Tmag, astrometry, and unresolved target-context physics are typed separately.
+- Targeted TIC/TOI checkpoint `11aa9bd00cc710f971b01837` preserves all
+  122,772 rows and 239 fields from the bounded target set, MAST TIC, official
+  Gaia release/external crossmatches, targeted Gaia DR3, and NASA TOI. Exact
+  target coverage, archive-member provenance, DR2/DR3 separation, duplicate
+  relations, asymmetric uncertainty lineage, lifecycle polarity, unresolved
+  binding, artifact integrity, and clean logical-hash reproduction all pass.
+  No candidate, false positive, or unresolved target changes canonical
+  inventory.
 - White-dwarf checkpoint `486e4975af015d4e5f5a3c9b` uses the published
   geometric-distance posterior lower bound to retain 337,272 of 1,280,266
   candidates whose interval overlaps the 1,250-ly buffer. It emits 2,390,432

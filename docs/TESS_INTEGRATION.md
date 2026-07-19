@@ -89,6 +89,25 @@ Canonical projection checkpoint `20260715T2349Z_06ac777_b` (July 15, 2026):
   evidence for future inspectable adjudication, not authority for an automatic
   inventory row
 
+Evidence Lake E1/E4 checkpoint `11aa9bd00cc710f971b01837` (July 19, 2026):
+
+- parser contract v7 preserves exact archive-member lineage for all 137
+  combined Gaia external-crossmatch rows; 19 Hipparcos and 118 2MASS rows
+  receive namespaces from their member files rather than identifier shape
+- the typed snapshot preserves 122,772 source-native rows across all six
+  targeted tables and cleanly reproduces content hash
+  `1f2b60e6f23d31f0ac8992dfd3cc4faeeede83eae154ce3b8bc0f8007c976b06`
+- E4 accounts all 239 field occurrences and preserves official TIC/TOI/Gaia
+  identities, relations, classifications, host physics, photometry, astrometry,
+  transit/planet parameters, citations, and disposition polarity
+- `TOI-101.01` and `101.01` remain separate raw claims normalized to one
+  `toi_id`; TIC v8 Gaia IDs remain DR2 claims and official DR2-to-DR3 relations
+  retain all 29,302 neighborhood rows
+- 1,332 confirmed/known, 5,383 candidate, and 1,346 negative lifecycle claims
+  remain evidence with all bindings unresolved and no canonical inventory table
+- generic artifact, targeted-source, and clean-reproduction gates pass logical
+  hash `5e17ca0f67e7d41a9459898ef26efc42dbd4c90f3b58e7ec4f00dd84c2a8c35a`
+
 ## Source Policy
 
 Authoritative inputs:

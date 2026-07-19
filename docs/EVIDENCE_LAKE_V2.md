@@ -5,7 +5,7 @@ progress.
 
 E0 checkpoint:
 
-- `config/evidence_lake/source_releases.json` registers 34 active,
+- `config/evidence_lake/source_releases.json` registers 44 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
 - `config/evidence_lake/schema_baseline.json` pins 63 current manifest entries,
@@ -54,6 +54,14 @@ E1 completion checkpoint:
   first indexes, bounded checksum-addressed on-demand caching, source-host
   allowlisting, and explicit prohibitions on bulk Gaia/TIC/product mirroring.
   E3 acquires the actual product indexes; E4 gives them typed evidence tables.
+- Targeted TESS parser contract v7 preserves archive-member lineage when one
+  typed table combines multiple official crossmatch files. Typed snapshot
+  `c41373862bf6d04c13acdb78` accounts 122,772 rows across TOI, target-set,
+  MAST TIC, Gaia release-neighborhood, external-crossmatch, and targeted Gaia
+  DR3 tables. All 137 external rows retain their exact `hip_` or `twomass_`
+  member path; source namespaces are never guessed from identifier shape.
+  Verification and clean raw-to-typed reproduction pass content hash
+  `1f2b60e6f23d31f0ac8992dfd3cc4faeeede83eae154ce3b8bc0f8007c976b06`.
 
 E2 completion checkpoint:
 
@@ -518,6 +526,29 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   here and create no relation or planet rows. All bindings remain unresolved.
   Artifact and source/scope audits pass; clean reproduction matches logical hash
   `2a7cfb5f4c34df4c17cf2e6e2fa35639d1d0181b984983f7d4779407e62e1bab`.
+- Compiler/contract v53 adds reusable multi-relation tables, source-member
+  lineage, table-level unit overrides, asymmetric uncertainty fields, literal-
+  prefix identifier normalization, and source-row qualification for relation
+  columns that collide with lineage names such as `source_id`. Configured
+  photometry and domain evidence now record the exact lower/upper source field
+  names alongside their values.
+- Targeted TESS checkpoint `11aa9bd00cc710f971b01837` accounts all 122,772
+  source rows and 239 field occurrences with no pending field or duplicate row.
+  It preserves 27,930 targeted TIC rows, 8,064 TOIs, 29,302 official Gaia
+  DR2-to-DR3 neighborhood rows, 137 member-qualified official external
+  crossmatches, and 29,409 targeted Gaia DR3 rows. The two official raw TOI
+  forms, `101.01` and `TOI-101.01`, normalize to one release-scoped identity
+  while both remain inspectable.
+- The checkpoint keeps 1,332 confirmed/known, 5,383 candidate, and 1,346
+  negative TOI lifecycle claims separate. It emits 27,775 positive TIC-to-Gaia
+  DR2 associations, 29,302 candidate release-neighborhood relations, 137
+  candidate external best-neighbor relations, and 78 duplicate/split TIC
+  relations. All bindings remain unresolved and no CORE inventory table exists
+  in the artifact. Generic and TESS-specific audits pass, including exact TIC
+  target coverage, DR2/DR3 separation, high-proper-motion and TESS EB controls,
+  relation endpoint scopes, and 131,309 asymmetric TIC measurements. Clean
+  reproduction matches logical hash
+  `5e17ca0f67e7d41a9459898ef26efc42dbd4c90f3b58e7ec4f00dd84c2a8c35a`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

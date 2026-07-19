@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.49",
-  "compiler_version": "scientific_evidence_compiler_v49",
+  "contract_version": "2026-07-19.e4-foundation.53",
+  "compiler_version": "scientific_evidence_compiler_v53",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -231,7 +231,7 @@
     ],
     "nasa_toi": [
       {
-        "pattern": "^(tid|toi|toipfx|ctoi_alias)$",
+        "pattern": "^(tid|toi|toidisplay|toipfx|ctoi_alias)$",
         "disposition": "identity",
         "destination": "identifier_claim_evidence",
         "reason": "TIC/TOI observation-target identity"
@@ -1196,6 +1196,119 @@
         "disposition": "domain",
         "destination": "orbital_solution_evidence",
         "reason": "complete coherent SBX spectroscopic orbit, uncertainties, reference, grade, velocity diagnostics, notes, and source lineage"
+      }
+    ],
+    "tess_target_set": [
+      {
+        "pattern": "^tic_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "targeted TIC observation-target identity"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "versioned target-universe inclusion families"
+      }
+    ],
+    "tess_mast_tic": [
+      {
+        "pattern": "^(ID|HIP|TYC|UCAC|TWOMASS|SDSS|ALLWISE|GAIA|APASS|KIC|objID|duplicate_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "TIC and source-catalog identity claims"
+      },
+      {
+        "pattern": "^(lumclass|raddflag|wdflag)$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "TIC luminosity and photometric-region classification evidence"
+      },
+      {
+        "pattern": "^(ra|dec|e_RA|e_Dec|RA_orig|Dec_orig|e_RA_orig|e_Dec_orig|pmRA|e_pmRA|pmDEC|e_pmDEC|plx|e_plx|gallong|gallat|eclong|eclat|d|e_d|eneg_dist|epos_dist|prox)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "TIC position, motion, parallax, distance, and proximity evidence"
+      },
+      {
+        "pattern": "^([BVugrizJHK]mag|e_[BVugrizJHK]mag|w[1-4]mag|e_w[1-4]mag|GAIAmag|e_GAIAmag|Tmag|e_Tmag|gaiabp|e_gaiabp|gaiarp|e_gaiarp|ebv|e_ebv|eneg_EBV|epos_EBV|contratio)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "TIC multi-band photometry, extinction, and contamination evidence"
+      },
+      {
+        "pattern": "^(Teff|e_Teff|eneg_Teff|epos_Teff|logg|e_logg|eneg_logg|epos_logg|MH|e_MH|rad|e_rad|eneg_Rad|epos_Rad|mass|e_mass|eneg_Mass|epos_Mass|rho|e_rho|eneg_rho|epos_rho|lum|e_lum|eneg_lum|epos_lum)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "coherent TIC compiled stellar-parameter evidence"
+      },
+      {
+        "pattern": "^disposition$",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "TIC duplicate, split, or artifact relation status"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "TIC source, flag, quality, and targeting context"
+      }
+    ],
+    "tess_gaia_dr2_neighbourhood": [
+      {
+        "pattern": "^(dr2_source_id|dr3_source_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia DR2 and DR3 identity endpoints"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "official Gaia release-neighbourhood relation evidence"
+      }
+    ],
+    "tess_gaia_external_crossmatch": [
+      {
+        "pattern": "^source_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "Gaia DR3 and member-qualified external-catalog endpoints"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "official Gaia external best-neighbour evidence and source-member lineage"
+      }
+    ],
+    "tess_gaia_dr3_targets": [
+      {
+        "pattern": "^source_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "Gaia DR3 target identity"
+      },
+      {
+        "pattern": "^(ra|dec|parallax|parallax_error|pmra|pmdec|ruwe)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "targeted Gaia DR3 astrometry and astrometric-quality evidence"
+      },
+      {
+        "pattern": "^(phot_g_mean_mag|bp_rp)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "targeted Gaia DR3 G-band photometry and BP-RP color"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "unrecognized targeted Gaia field retained pending schema review"
       }
     ]
   },
@@ -3461,6 +3574,304 @@
             "method": "sbx_spectroscopic_orbit",
             "normalization_version": "sbx_source_native_lexical_v1"
           }
+        }
+      }
+    },
+    "tess.identity_and_candidate_evidence": {
+      "adapter_version": "tess_targeted_scientific_evidence_v1",
+      "table_order": [
+        "tess_target_set",
+        "mast_tic_targeted",
+        "gaia_dr2_neighbourhood_targeted",
+        "gaia_external_crossmatches",
+        "gaia_dr3_targets",
+        "nasa_toi"
+      ],
+      "tables": {
+        "tess_target_set": {
+          "logical_key_fields": ["tic_id"],
+          "object_scope": "targeted_tess_observation_target",
+          "field_profile": "tess_target_set",
+          "identifier_claims": {
+            "tic_id": {"namespace": "tic_id", "claim_scope": "observation_target", "normalization": "unsigned_integer_decimal_v1"}
+          }
+        },
+        "mast_tic_targeted": {
+          "logical_key_fields": ["ID"],
+          "object_scope": "targeted_tic_catalog_object",
+          "field_profile": "tess_mast_tic",
+          "identifier_claims": {
+            "ID": {"namespace": "tic_id", "claim_scope": "observation_target", "component_scope": "tic_observation_target", "normalization": "unsigned_integer_decimal_v1"},
+            "HIP": {"namespace": "hip_id", "claim_scope": "observation_target", "normalization": "unsigned_integer_decimal_v1"},
+            "TYC": {"namespace": "tyc_id", "claim_scope": "observation_target"},
+            "UCAC": {"namespace": "ucac4_id", "claim_scope": "observation_target"},
+            "TWOMASS": {"namespace": "twomass_designation", "claim_scope": "observation_target"},
+            "SDSS": {"namespace": "sdss_dr9_id", "claim_scope": "observation_target"},
+            "ALLWISE": {"namespace": "allwise_designation", "claim_scope": "observation_target"},
+            "GAIA": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "component_scope": "gaia_dr2_catalog_source", "normalization": "unsigned_integer_decimal_v1"},
+            "APASS": {"namespace": "apass_id", "claim_scope": "observation_target"},
+            "KIC": {"namespace": "kepler_target_id", "claim_scope": "observation_target", "normalization": "unsigned_integer_decimal_v1"},
+            "objID": {"namespace": "mast_tic_object_id", "claim_scope": "source_catalog_record", "normalization": "unsigned_integer_decimal_v1"},
+            "duplicate_id": {"namespace": "tic_id", "claim_scope": "observation_target", "component_scope": "referenced_real_or_predecessor_entry", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "relation_claims": [
+            {
+              "evidence_key": "tic_to_gaia_dr2_catalog_association",
+              "left_identifier_field": "ID",
+              "left_identifier_namespace": "tic_id",
+              "left_component_scope": "tic_observation_target",
+              "right_identifier_field": "GAIA",
+              "right_identifier_namespace": "gaia_dr2_source_id",
+              "right_component_scope": "gaia_dr2_catalog_source",
+              "relation_kind": "catalog_identity_association",
+              "relation_scope": "tic_v8_to_gaia_dr2",
+              "evidence_polarity": "positive",
+              "method": "tic_v8_source_catalog_crossmatch",
+              "reference_raw": "https://outerspace.stsci.edu/spaces/TESS/pages/40927681/TIC+v8+and+CTL+v8.xx+Data+Release+Notes",
+              "quality_fields": ["version", "typeSrc", "POSflag", "gaiaqflag"],
+              "sql_predicate": "GAIA is not null"
+            },
+            {
+              "evidence_key": "tic_duplicate_target_claim",
+              "left_identifier_field": "ID",
+              "left_identifier_namespace": "tic_id",
+              "left_component_scope": "tic_observation_target",
+              "right_identifier_field": "duplicate_id",
+              "right_identifier_namespace": "tic_id",
+              "right_component_scope": "referenced_real_or_predecessor_entry",
+              "relation_kind": "tic_catalog_duplicate_or_split_association",
+              "relation_scope": "tic_v8_catalog_identity",
+              "evidence_polarity_sql": "case when upper(trim(disposition))='DUPLICATE' then 'positive' else 'candidate' end",
+              "method": "tic_v8_disposition_and_duplicate_id",
+              "reference_raw": "https://outerspace.stsci.edu/spaces/TESS/pages/40927681/TIC+v8+and+CTL+v8.xx+Data+Release+Notes",
+              "quality_fields": ["version", "disposition"],
+              "sql_predicate": "duplicate_id is not null"
+            }
+          ],
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "unresolved_tic_target",
+              "parameter_set_kind": "tic_v8_compiled_stellar_properties",
+              "component_scope": "unresolved_observation_target",
+              "quality_fields": ["version", "SPFlag", "starchareFlag", "TeffFlag", "distflag", "raddflag", "wdflag", "e_Teff", "e_logg", "e_rad", "e_mass", "e_rho", "e_lum"],
+              "measurements": [
+                {"value_field": "Teff", "uncertainty_lower_field": "eneg_Teff", "uncertainty_upper_field": "epos_Teff", "quantity_key": "effective_temperature", "unit_raw": "K", "normalized_unit": "K"},
+                {"value_field": "logg", "uncertainty_lower_field": "eneg_logg", "uncertainty_upper_field": "epos_logg", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "normalized_unit": "dex(cm s-2)"},
+                {"value_field": "MH", "uncertainty_field": "e_MH", "quantity_key": "metallicity_m_h", "unit_raw": "dex", "normalized_unit": "dex"},
+                {"value_field": "rad", "uncertainty_lower_field": "eneg_Rad", "uncertainty_upper_field": "epos_Rad", "quantity_key": "stellar_radius", "unit_raw": "R_sun", "normalized_unit": "R_sun"},
+                {"value_field": "mass", "uncertainty_lower_field": "eneg_Mass", "uncertainty_upper_field": "epos_Mass", "quantity_key": "stellar_mass", "unit_raw": "M_sun", "normalized_unit": "M_sun"},
+                {"value_field": "rho", "uncertainty_lower_field": "eneg_rho", "uncertainty_upper_field": "epos_rho", "quantity_key": "stellar_density", "unit_raw": "rho_sun", "normalized_unit": "rho_sun"},
+                {"value_field": "lum", "uncertainty_lower_field": "eneg_lum", "uncertainty_upper_field": "epos_lum", "quantity_key": "stellar_luminosity", "unit_raw": "L_sun", "normalized_unit": "L_sun"}
+              ],
+              "method": "tic_v8_compiled_stellar_properties",
+              "model": "source_catalog_heterogeneous_compilation",
+              "normalization_version": "tic_v8_source_native_v1"
+            },
+            {
+              "scope_key": "tic_luminosity_class",
+              "parameter_set_kind": "tic_v8_luminosity_classification",
+              "component_scope": "unresolved_observation_target",
+              "classification_field": "lumclass",
+              "classification_scheme": "tic_luminosity_class",
+              "quality_fields": ["SPFlag", "raddflag"],
+              "measurements": [],
+              "method": "tic_v8_compiled_stellar_properties",
+              "normalization_version": "tic_v8_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "tic_radius_class_flag",
+              "parameter_set_kind": "tic_v8_radius_classification",
+              "component_scope": "unresolved_observation_target",
+              "classification_field": "raddflag",
+              "classification_scheme": "tic_radius_dwarf_giant_flag",
+              "classification_missing_values": ["-1"],
+              "quality_fields": ["rad", "lumclass"],
+              "measurements": [],
+              "method": "tic_v8_radius_classification",
+              "normalization_version": "tic_v8_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "tic_white_dwarf_region_flag",
+              "parameter_set_kind": "tic_v8_white_dwarf_region_classification",
+              "component_scope": "unresolved_observation_target",
+              "classification_field": "wdflag",
+              "classification_scheme": "gaia_photometric_white_dwarf_region_flag",
+              "classification_missing_values": ["-1"],
+              "quality_fields": ["gaiaqflag", "gaiabp", "gaiarp", "GAIAmag"],
+              "measurements": [],
+              "method": "tic_v8_gaia_photometric_region",
+              "normalization_version": "tic_v8_source_native_lexical_v1"
+            }
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "uncertainty_field": "e_RA", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["POSflag", "typeSrc"], "method": "tic_v8_position_propagated_to_j2000", "model": "catalog_position_propagation", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "uncertainty_field": "e_Dec", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["POSflag", "typeSrc"], "method": "tic_v8_position_propagated_to_j2000", "model": "catalog_position_propagation", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "RA_orig", "uncertainty_field": "e_RA_orig", "quantity_key": "source_catalog_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "source-catalog frame", "quality_fields": ["POSflag", "typeSrc"], "method": "tic_v8_original_catalog_position", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "Dec_orig", "uncertainty_field": "e_Dec_orig", "quantity_key": "source_catalog_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "source-catalog frame", "quality_fields": ["POSflag", "typeSrc"], "method": "tic_v8_original_catalog_position", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmRA", "uncertainty_field": "e_pmRA", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "quality_fields": ["PMflag"], "method": "tic_v8_compiled_proper_motion", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmDEC", "uncertainty_field": "e_pmDEC", "quantity_key": "proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "quality_fields": ["PMflag"], "method": "tic_v8_compiled_proper_motion", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx", "uncertainty_field": "e_plx", "quantity_key": "parallax", "unit_raw": "mas", "normalized_unit": "mas", "frame_raw": "ICRS", "quality_fields": ["PARflag"], "method": "tic_v8_compiled_parallax", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "gallong", "quantity_key": "galactic_longitude", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "Galactic", "method": "tic_v8_coordinate_transform", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "gallat", "quantity_key": "galactic_latitude", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "Galactic", "method": "tic_v8_coordinate_transform", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "eclong", "quantity_key": "ecliptic_longitude", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "Ecliptic", "method": "tic_v8_coordinate_transform", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "eclat", "quantity_key": "ecliptic_latitude", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "Ecliptic", "method": "tic_v8_coordinate_transform", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "d", "uncertainty_lower_field": "eneg_dist", "uncertainty_upper_field": "epos_dist", "quantity_key": "distance", "unit_raw": "pc", "normalized_unit": "pc", "quality_fields": ["e_d", "distflag"], "method": "tic_v8_compiled_distance", "model": "source_flagged_distance_estimate", "normalization_version": "tic_v8_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "prox", "quantity_key": "nearest_2mass_neighbour_separation", "unit_raw": "arcsec", "normalized_unit": "arcsec", "quality_fields": ["TWOMflag"], "method": "tic_v8_2mass_neighbour_search", "normalization_version": "tic_v8_source_native_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "Bmag", "uncertainty_field": "e_Bmag", "quantity_key": "apparent_magnitude", "bandpass": "Johnson B", "unit_raw": "mag", "quality_fields": ["BmagFlag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "Vmag", "uncertainty_field": "e_Vmag", "quantity_key": "apparent_magnitude", "bandpass": "Johnson V", "unit_raw": "mag", "quality_fields": ["VmagFlag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "umag", "uncertainty_field": "e_umag", "quantity_key": "apparent_magnitude", "bandpass": "SDSS u", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "gmag", "uncertainty_field": "e_gmag", "quantity_key": "apparent_magnitude", "bandpass": "SDSS g", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "rmag", "uncertainty_field": "e_rmag", "quantity_key": "apparent_magnitude", "bandpass": "SDSS r", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "imag", "uncertainty_field": "e_imag", "quantity_key": "apparent_magnitude", "bandpass": "SDSS i", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "zmag", "uncertainty_field": "e_zmag", "quantity_key": "apparent_magnitude", "bandpass": "SDSS z", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "Jmag", "uncertainty_field": "e_Jmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS J", "unit_raw": "mag", "quality_fields": ["TWOMflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "Hmag", "uncertainty_field": "e_Hmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS H", "unit_raw": "mag", "quality_fields": ["TWOMflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "Kmag", "uncertainty_field": "e_Kmag", "quantity_key": "apparent_magnitude", "bandpass": "2MASS Ks", "unit_raw": "mag", "quality_fields": ["TWOMflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "w1mag", "uncertainty_field": "e_w1mag", "quantity_key": "apparent_magnitude", "bandpass": "WISE W1", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "w2mag", "uncertainty_field": "e_w2mag", "quantity_key": "apparent_magnitude", "bandpass": "WISE W2", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "w3mag", "uncertainty_field": "e_w3mag", "quantity_key": "apparent_magnitude", "bandpass": "WISE W3", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "w4mag", "uncertainty_field": "e_w4mag", "quantity_key": "apparent_magnitude", "bandpass": "WISE W4", "unit_raw": "mag", "method": "tic_v8_compiled_photometry"},
+            {"value_field": "GAIAmag", "uncertainty_field": "e_GAIAmag", "quantity_key": "apparent_magnitude", "bandpass": "Gaia G", "unit_raw": "mag", "quality_fields": ["gaiaqflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "Tmag", "uncertainty_field": "e_Tmag", "quantity_key": "apparent_magnitude", "bandpass": "TESS", "unit_raw": "mag", "quality_fields": ["TESSflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "gaiabp", "uncertainty_field": "e_gaiabp", "quantity_key": "apparent_magnitude", "bandpass": "Gaia BP", "unit_raw": "mag", "quality_fields": ["gaiaqflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "gaiarp", "uncertainty_field": "e_gaiarp", "quantity_key": "apparent_magnitude", "bandpass": "Gaia RP", "unit_raw": "mag", "quality_fields": ["gaiaqflag"], "method": "tic_v8_compiled_photometry"},
+            {"value_field": "ebv", "uncertainty_lower_field": "eneg_EBV", "uncertainty_upper_field": "epos_EBV", "quantity_key": "color_excess_ebv", "unit_raw": "mag", "quality_fields": ["e_ebv", "EBVflag"], "method": "tic_v8_extinction_compilation"},
+            {"value_field": "contratio", "quantity_key": "contamination_flux_ratio", "unit_raw": "dimensionless", "quality_fields": ["numcont"], "method": "tic_v8_contamination_model"}
+          ]
+        },
+        "gaia_dr2_neighbourhood_targeted": {
+          "logical_key_fields": ["dr2_source_id", "dr3_source_id"],
+          "object_scope": "gaia_release_neighbourhood_relation",
+          "field_profile": "tess_gaia_dr2_neighbourhood",
+          "identifier_claims": {
+            "dr2_source_id": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "component_scope": "dr2_source", "normalization": "unsigned_integer_decimal_v1"},
+            "dr3_source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "dr3_neighbour", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "dr2_source_id",
+            "left_identifier_namespace": "gaia_dr2_source_id",
+            "left_component_scope": "dr2_source",
+            "right_identifier_field": "dr3_source_id",
+            "right_identifier_namespace": "gaia_dr3_source_id",
+            "right_component_scope": "dr3_neighbour",
+            "relation_kind": "official_gaia_release_neighbourhood",
+            "relation_scope": "gaia_dr2_to_dr3",
+            "evidence_polarity": "candidate",
+            "method": "gaiadr3.dr2_neighbourhood",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/ssec_dm_dr2_neighbourhood.html",
+            "confidence_statistic_field": "angular_distance",
+            "confidence_statistic_key": "angular_separation",
+            "confidence_statistic_unit": "arcsec",
+            "confidence_statistic_semantics": "Gaia-published DR2-to-DR3 neighbourhood angular separation; the relation is not itself an accepted one-to-one identity",
+            "quality_fields": ["magnitude_difference", "proper_motion_propagation"]
+          }
+        },
+        "gaia_external_crossmatches": {
+          "logical_key_fields": ["source_id", "original_ext_source_id", "source_member_path"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "tess_gaia_external_crossmatch",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "original_ext_source_id", "namespace": "hip_id", "claim_scope": "observation_target", "component_scope": "external_source", "sql_predicate": "source_member_path like 'hip_%'", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "original_ext_source_id", "namespace": "tyc_id", "claim_scope": "observation_target", "component_scope": "external_source", "sql_predicate": "source_member_path like 'tyc_%'"},
+            {"value_field": "original_ext_source_id", "namespace": "twomass_designation", "claim_scope": "observation_target", "component_scope": "external_source", "sql_predicate": "source_member_path like 'twomass_%'"}
+          ],
+          "relation_claims": [
+            {
+              "evidence_key": "hipparcos2_best_neighbour",
+              "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+              "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "hip_id", "right_component_scope": "external_source",
+              "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_hipparcos2", "evidence_polarity": "candidate",
+              "method": "gaiadr3.hipparcos2_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+              "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia external best-neighbour angular separation; smaller is stronger but is not a probability",
+              "quality_fields": ["number_of_neighbours", "xm_flag", "source_member_path"], "sql_predicate": "source_member_path like 'hip_%'"
+            },
+            {
+              "evidence_key": "tycho2_best_neighbour",
+              "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+              "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "tyc_id", "right_component_scope": "external_source",
+              "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_tycho2", "evidence_polarity": "candidate",
+              "method": "gaiadr3.tycho2tdsc_merge_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+              "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia external best-neighbour angular separation; smaller is stronger but is not a probability",
+              "quality_fields": ["number_of_neighbours", "xm_flag", "source_member_path"], "sql_predicate": "source_member_path like 'tyc_%'"
+            },
+            {
+              "evidence_key": "twomass_best_neighbour",
+              "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+              "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "twomass_designation", "right_component_scope": "external_source",
+              "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_2mass", "evidence_polarity": "candidate",
+              "method": "gaiadr3.tmass_psc_xsc_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+              "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia external best-neighbour angular separation; smaller is stronger but is not a probability",
+              "quality_fields": ["number_of_neighbours", "xm_flag", "source_member_path"], "sql_predicate": "source_member_path like 'twomass_%'"
+            }
+          ]
+        },
+        "gaia_dr3_targets": {
+          "logical_key_fields": ["source_id"],
+          "object_scope": "targeted_gaia_dr3_source",
+          "field_profile": "tess_gaia_dr3_targets",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_raw": "J2016.0", "method": "gaia_dr3_astrometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_raw": "J2016.0", "method": "gaia_dr3_astrometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "parallax", "uncertainty_field": "parallax_error", "quantity_key": "parallax", "unit_raw": "mas", "normalized_unit": "mas", "frame_raw": "ICRS", "epoch_raw": "J2016.0", "quality_fields": ["ruwe"], "method": "gaia_dr3_astrometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "epoch_raw": "J2016.0", "quality_fields": ["ruwe"], "method": "gaia_dr3_astrometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec", "quantity_key": "proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "frame_raw": "ICRS", "epoch_raw": "J2016.0", "quality_fields": ["ruwe"], "method": "gaia_dr3_astrometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ruwe", "quantity_key": "renormalized_unit_weight_error", "unit_raw": "dimensionless", "normalized_unit": "dimensionless", "method": "gaia_dr3_astrometric_quality", "normalization_version": "gaia_dr3_source_native_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "phot_g_mean_mag", "quantity_key": "apparent_magnitude", "bandpass": "Gaia G", "unit_raw": "mag", "method": "gaia_dr3_mean_photometry", "normalization_version": "gaia_dr3_source_native_v1"},
+            {"value_field": "bp_rp", "quantity_key": "color_index", "bandpass": "Gaia BP-RP", "unit_raw": "mag", "method": "gaia_dr3_mean_photometry", "normalization_version": "gaia_dr3_source_native_v1"}
+          ]
+        },
+        "nasa_toi": {
+          "logical_key_fields": ["toi"],
+          "object_scope": "tess_object_of_interest_observation_target",
+          "field_profile": "nasa_toi",
+          "planet_parameter_set": {"kind": "toi_candidate_snapshot"},
+          "stellar_parameter_set": {"kind": "toi_host_snapshot"},
+          "signal_identifier_fields": ["toi"],
+          "identifier_claims": {
+            "toidisplay": {
+              "namespace": "toi_id",
+              "claim_scope": "planet_candidate",
+              "normalization": "strip_literal_prefix_v1",
+              "normalization_prefix": "TOI-"
+            }
+          },
+          "unit_overrides": {
+            "st_tmag": "mag",
+            "ra": "deg",
+            "dec": "deg",
+            "st_pmra": "mas yr-1",
+            "st_pmdec": "mas yr-1",
+            "pl_tranmid": "BJD",
+            "pl_orbper": "d",
+            "pl_trandurh": "h",
+            "pl_trandep": "ppm",
+            "pl_rade": "R_earth",
+            "pl_insol": "S_earth",
+            "pl_eqt": "K",
+            "st_dist": "pc",
+            "st_teff": "K",
+            "st_logg": "dex(cm s-2)",
+            "st_rad": "R_sun"
+          },
+          "lifecycle_claims": [
+            {
+              "claim_role": "toi_tfopwg_disposition_pinned_tess_snapshot",
+              "identifier_field": "toi",
+              "disposition_field": "tfopwg_disp",
+              "effective_field": "rowupdate",
+              "context_fields": ["toi_created", "release_date"]
+            }
+          ]
         }
       }
     }

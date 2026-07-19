@@ -194,6 +194,29 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
             if not layout.get("table_name"):
                 errors.append(f"{source_id}.schema_policy.artifact_layout.table_name is required")
         entry_names = {str(entry.get("source_name") or "") for entry in entries}
+        member_lineage_fields = schema_policy.get("member_lineage_fields")
+        if member_lineage_fields is not None:
+            if not isinstance(member_lineage_fields, dict) or not member_lineage_fields:
+                errors.append(
+                    f"{source_id}.schema_policy.member_lineage_fields must be a non-empty object"
+                )
+            else:
+                unknown_artifacts = sorted(set(member_lineage_fields) - entry_names)
+                if unknown_artifacts:
+                    errors.append(
+                        f"{source_id}.schema_policy.member_lineage_fields references "
+                        f"unregistered artifacts: {unknown_artifacts}"
+                    )
+                lineage_names = [
+                    str(value).strip() for value in member_lineage_fields.values()
+                ]
+                if any(not value for value in lineage_names) or len(lineage_names) != len(
+                    set(lineage_names)
+                ):
+                    errors.append(
+                        f"{source_id}.schema_policy.member_lineage_fields values must "
+                        "be unique non-empty field names"
+                    )
         html_table = schema_policy.get("html_table") or {}
         if html_table:
             html_source_name = str(html_table.get("source_name") or "")

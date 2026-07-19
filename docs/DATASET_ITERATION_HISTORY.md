@@ -1576,6 +1576,39 @@ Representative commits:
   accepted v49 artifact, immutable raw/typed snapshots, and audit/reproduction
   reports remain protected.
 
+### 53) Evidence Lake Targeted TESS Identity and Candidate Evidence
+
+- E1 parser contract v7 adds general archive-member lineage for a typed table
+  assembled from multiple source files. The targeted TESS external-crossmatch
+  table now preserves its exact Hipparcos or 2MASS member path before E4 assigns
+  a namespace; no identifier-format heuristic is used. Typed snapshot
+  `c41373862bf6d04c13acdb78` accounts 122,772 rows and cleanly reproduces hash
+  `1f2b60e6f23d31f0ac8992dfd3cc4faeeede83eae154ce3b8bc0f8007c976b06`.
+- Compiler/contract v53 adds reusable multi-relation contracts, table unit
+  overrides, asymmetric configured uncertainties, literal-prefix identifier
+  normalization, and explicit source-row qualification. The last prevents a
+  catalog column named `source_id` from colliding with compiler lineage. Exact
+  lower/upper source-field names now accompany configured evidence values.
+- Accepted checkpoint `11aa9bd00cc710f971b01837` accounts all 239 fields and
+  preserves 27,930 target/MAST TIC records, 8,064 NASA TOIs, 29,302 official
+  Gaia release-neighborhood rows, 137 external best neighbors, and 29,409 Gaia
+  DR3 targets. It retains dual raw TOI forms, all TIC duplicate/split claims,
+  three stellar classification families, and 131,309 asymmetric TIC
+  measurements with complete field lineage.
+- Lifecycle materialization keeps 1,332 confirmed/known claims positive, 5,383
+  candidates as candidate evidence, and 1,346 false-positive/false-alarm claims
+  negative. Every binding remains unresolved and the evidence artifact contains
+  no canonical inventory tables. Generic and targeted audits pass; clean
+  reproduction matches logical hash
+  `5e17ca0f67e7d41a9459898ef26efc42dbd4c90f3b58e7ec4f00dd84c2a8c35a`.
+- Three immutable diagnostic iterations demonstrated the gates: v50 left one
+  display identifier pending, v51 exposed relation endpoint-scope mismatch, and
+  v52 exposed missing uncertainty-field names. Two earlier manifestless attempts
+  also remained. After v53 verification, fail-closed retention hash
+  `9164bca7a24f0e9fe57d6c5930b3c9daef1f235b974e946ecc18e4320788517d`
+  retired exactly those five trees and reclaimed 2,600,095,744 allocated bytes.
+  Raw/typed inputs, failed-audit reports, and the accepted artifact remain.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

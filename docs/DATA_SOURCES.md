@@ -353,6 +353,11 @@ Evidence Lake E4 source checkpoints:
   normalized TIC identity, positive/negative catalog membership, sector,
   morphology, flag, Tmag, astrometry, target-context physics, and 4,584
   positive-member orbit solutions
+- Targeted NASA/MAST/Gaia TIC/TOI `11aa9bd00cc710f971b01837`: 122,772 rows/239
+  fields, 27,930 exact targeted TIC records, 8,064 TOIs, 29,302 official
+  DR2-to-DR3 neighborhood rows, 137 member-qualified external best neighbors,
+  and 29,409 targeted Gaia DR3 rows. All bindings remain unresolved; lifecycle
+  evidence cannot alter canonical planet inventory.
 - Gaia EDR3 White Dwarf `486e4975af015d4e5f5a3c9b`: 337,272 posterior-
   interval-overlap candidates from 1,280,266 raw rows, 161 fields accounted,
   and independent H/He/mixed atmosphere parameter sets with no implicit winner
@@ -800,6 +805,11 @@ Artifacts:
 - `reports/manifests/tess_evidence_manifest.json`
 - `reports/tess_source_delta_report.json`
 - per-build identity coverage, resolution, and missing-object reports
+- Evidence Lake raw/typed snapshots under
+  `$SPACEGATE_STATE_DIR/{raw,typed}/evidence_lake_v2/tess.identity_and_candidate_evidence/`
+- immutable E4 build `11aa9bd00cc710f971b01837` plus compiler, generic
+  artifact, targeted-source audit, and clean-reproduction reports under
+  `$SPACEGATE_STATE_DIR/{derived,reports}/evidence_lake_v2/`
 
 Policy:
 
@@ -808,6 +818,9 @@ Policy:
   NASA confirmed-host and TESS EB dependency paths/checksums and per-family
   target counts, including zero-count families
 - never assume Gaia DR2 and DR3 source IDs are interchangeable
+- combined external-crossmatch tables must retain the exact archive member
+  path; Hipparcos, Tycho-2, and 2MASS namespaces are assigned from that lineage,
+  never inferred from the identifier lexeme
 - TIC artifact/split/duplicate rows remain excluded or quarantined
 - TOI candidates and negative dispositions remain ARM evidence
 - independently supported missing real objects remain deferred until a reusable
