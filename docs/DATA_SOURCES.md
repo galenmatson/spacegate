@@ -93,12 +93,20 @@ timeout, so a route change or dead stream retries promptly without discarding
 completed buckets or partial release files. Operators may override it with
 `--read-stall-timeout`.
 
-The Gaia program uses a measured 1,250-ly parallax envelope of 31,987,126
-`gaia_source` rows. SIMBAD is not bulk-mirrored or used as inventory: its
-release-pinned Gaia DR3 bridge is intersected locally before targeted alias,
-basic-data, and bibliography acquisition. Full TIC, Gaia observation products,
-and survey spectra remain excluded from bulk mirroring; registered metadata
-and product locators drive bounded on-demand retrieval.
+The Gaia program preserves a disjoint two-branch ingestion envelope. The
+measured hard-parallax branch contains 31,987,126 `gaia_source` rows at
+`parallax >= 2.609272` mas. The uncertainty branch emits only Gaia DR3 fields
+for rows outside that cut, selected through the Gaia Archive's hosted
+`external.gaiaedr3_distance` relation when the geometric posterior median is
+within the 383.245-pc build buffer or the lower 16th-percentile bound overlaps
+the 306.601-pc public sphere. The Bailer-Jones release is acquired separately;
+its estimates are evidence and never replace Gaia source astrometry.
+
+SIMBAD is not bulk-mirrored or used as inventory: its release-pinned Gaia DR3
+bridge is intersected locally before targeted alias, basic-data, and
+bibliography acquisition. Full TIC, Gaia observation products, and survey
+spectra remain excluded from bulk mirroring; registered metadata and product
+locators drive bounded on-demand retrieval.
 
 Pinned HTML sources must declare their semantic table contract when one exists.
 The WGSN snapshot declares and validates all 16 catalog headers, preserves row

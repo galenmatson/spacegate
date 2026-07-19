@@ -1369,9 +1369,12 @@ Current status (July 19, 2026, in progress):
   release bytes, upstream schemas, source field dispositions, timestamps,
   checksums, row counts, UWS jobs, resumable partial transfers, and atomically
   locked shared manifests
-- the measured 1,250-ly Gaia envelope contains 31,987,126 source rows; all 764
-  fields across the six foundational Gaia table families are assigned to
-  source-native products, and expanded NSS has completed with 50,762 full
+- the hard-parallax branch of the 1,250-ly Gaia envelope contains 31,987,126
+  source rows and is atomically published with all 152 `gaia_source` fields;
+  a disjoint uncertainty supplement is acquiring Gaia-only rows selected by an
+  official Archive join to Bailer-Jones EDR3 geometric-distance posteriors
+- all 764 fields across the six foundational Gaia table families are assigned
+  to source-native products, and expanded NSS has completed with 50,762 full
   77-column orbit rows
 - official WGSN and GCVS release artifacts are pinned and pass raw/typed
   verification; WGSN preserves 597 distinct named rows, all 16 declared

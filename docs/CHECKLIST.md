@@ -1106,6 +1106,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   catalog rows from page furniture
 - [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
+- [ ] E3 Gaia boundary checkpoint: complete, type, and verify the disjoint
+  Bailer-Jones-selected Gaia uncertainty supplement; report hard, posterior,
+  overlap, and union counts without treating EDR3/DR3 identity as an
+  undocumented equality
 - [ ] E3: acquire/migrate current Gaia cluster and confidence-bearing wide-
   binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
   multiplicity/compact/ultracool/extended sources under the new contracts

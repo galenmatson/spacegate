@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_acquisition_program.v1",
-  "program_version": "2026-07-19.e3-foundation.4",
+  "program_version": "2026-07-19.e3-foundation.5",
   "manifest_name": "evidence_lake_e3_manifest.json",
   "products": [
     {
@@ -13,6 +13,24 @@
       "from": "gaiadr3.gaia_source gs",
       "preserve_all_fields": true,
       "where": "gs.parallax >= 2.60927200",
+      "partition_expression": "gs.source_id",
+      "ordered": false,
+      "tap_mode": "async",
+      "output_format": "votable_gzip",
+      "buckets": 127,
+      "max_rec": 400000,
+      "unselected_field_reason": "not_applicable_all_gaia_source_fields_are_preserved"
+    },
+    {
+      "product_name": "gaia_dr3_source_uncertain_distance_supplement_v1",
+      "source_id": "gaia.dr3.gaia_source",
+      "release_id": "gaia_dr3_1250ly_envelope_v2",
+      "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
+      "table": "gaiadr3.gaia_source",
+      "table_alias": "gs",
+      "from": "gaiadr3.gaia_source gs join external.gaiaedr3_distance bj on gs.source_id = bj.source_id",
+      "preserve_all_fields": true,
+      "where": "(gs.parallax < 2.60927200 or gs.parallax is null) and (bj.r_med_geo <= 383.245 or bj.r_lo_geo <= 306.601)",
       "partition_expression": "gs.source_id",
       "ordered": false,
       "tap_mode": "async",

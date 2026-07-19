@@ -235,10 +235,17 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   validates its declared 16-field table contract and preserves 597 names,
   source row identity, and linked resources while explicitly excluding the
   page footer and unrelated calendar table.
-- The Gaia 1,250-ly envelope is measured at 31,987,126 source rows. The program
-  accounts for all 764 upstream columns across `gaia_source`, AP main and
-  supplementary, NSS orbit, variability summary, and rotation-modulation
-  tables; large exact acquisitions continue in crash-resilient tmux jobs.
+- The hard-parallax branch of the Gaia 1,250-ly envelope contains 31,987,126
+  source rows and is published with all 152 `gaia_source` columns. A disjoint
+  supplement selects only Gaia DR3 rows outside that branch through the Gaia
+  Archive's hosted `external.gaiaedr3_distance` relation when the geometric
+  posterior median is within 383.245 pc or its lower 16th-percentile bound is
+  within the 306.601-pc public sphere. Bailer-Jones values remain a separate
+  evidence source; the selection join does not merge them into Gaia rows.
+- The program accounts for all 764 upstream columns across `gaia_source`, AP
+  main and supplementary, NSS orbit, variability summary, and rotation-
+  modulation tables; large exact acquisitions continue in crash-resilient
+  tmux jobs.
 - Expanded NSS already preserves 50,762 complete 77-column orbit rows. The
   complete NASA acquisition is also typed and verified: 12 planet, host, TOI,
   K2, Kepler-name, KOI, TCE, and transit-detection tables preserve 206,989 rows

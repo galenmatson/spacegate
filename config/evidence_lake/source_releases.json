@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.6",
+  "registry_version": "2026-07-19.7",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -63,7 +63,10 @@
       "identity_namespaces": ["gaia_dr3_source_id"],
       "frame_epoch": "ICRS J2016.0",
       "retrieval": {"kind": "bounded_async_tap", "endpoint": "https://gea.esac.esa.int/tap-server/tap/async", "implementation": "scripts/evidence_tap_acquire.py"},
-      "manifest_entries": [{"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_source_envelope_v2"}],
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_source_envelope_v2"},
+        {"manifest": "evidence_lake_e3_manifest.json", "source_name": "gaia_dr3_source_uncertain_distance_supplement_v1"}
+      ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "votable_binary_response_set", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
