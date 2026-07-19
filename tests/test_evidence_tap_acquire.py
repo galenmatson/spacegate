@@ -65,6 +65,24 @@ def test_gaia_derived_products_cover_both_envelope_branches() -> None:
             assert hard.get(key) == supplement.get(key), (hard_name, supplement_name, key)
 
 
+def test_simbad_ordering_uses_unqualified_output_fields() -> None:
+    program = json.loads(
+        (ROOT / "config" / "evidence_lake" / "e3_acquisition_program.json").read_text()
+    )
+    products = {
+        product["product_name"]: product
+        for product in program["products"]
+        if product["product_name"].startswith("simbad_gaia_envelope_")
+    }
+    assert {
+        name: product["order_by"] for name, product in products.items()
+    } == {
+        "simbad_gaia_envelope_basic_supplement_v1": "oid",
+        "simbad_gaia_envelope_identifier_supplement_v1": "oidref, id",
+        "simbad_gaia_envelope_bibliography_supplement_v1": "oidref, oidbibref",
+    }
+
+
 def test_target_values_are_checksum_bounded_and_part_of_query_identity(
     tmp_path: Path,
 ) -> None:

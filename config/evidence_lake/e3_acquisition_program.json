@@ -950,7 +950,7 @@
         "partition_values_by_bucket": true
       },
       "partition_expression": "b.oid",
-      "order_by": "b.oid",
+      "order_by": "oid",
       "ordered": true,
       "buckets": 31,
       "max_rec": 2000,
@@ -979,7 +979,7 @@
         "partition_values_by_bucket": true
       },
       "partition_expression": "i.oidref",
-      "order_by": "i.oidref, i.id",
+      "order_by": "oidref, id",
       "ordered": true,
       "buckets": 31,
       "max_rec": 20000,
@@ -1008,7 +1008,7 @@
         "partition_values_by_bucket": true
       },
       "partition_expression": "h.oidref",
-      "order_by": "h.oidref, h.oidbibref",
+      "order_by": "oidref, oidbibref",
       "ordered": true,
       "buckets": 31,
       "max_rec": 200000,
