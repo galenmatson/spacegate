@@ -435,6 +435,35 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     "variability_activity_rotation_evidence",
                 }:
                     errors.append(f"{prefix}.destination is unsupported")
+                if measurement.get("normalize_numeric") not in (None, False, True):
+                    errors.append(f"{prefix}.normalize_numeric must be boolean")
+            for index, measurement in enumerate(
+                table.get("configured_coordinate_measurements") or []
+            ):
+                prefix = (
+                    f"{source_id}.{table_name}.configured_coordinate_measurements[{index}]"
+                )
+                for field in ("quantity_key", "coordinate_kind", "component_fields"):
+                    value = measurement.get(field)
+                    if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                kind = measurement.get("coordinate_kind")
+                components = measurement.get("component_fields") or []
+                expected_components = {
+                    "right_ascension_hms": 3,
+                    "declination_dms": 4,
+                }
+                if kind not in expected_components:
+                    errors.append(f"{prefix}.coordinate_kind is unsupported")
+                elif len(components) != expected_components[kind]:
+                    errors.append(
+                        f"{prefix}.component_fields must contain "
+                        f"{expected_components[kind]} fields"
+                    )
+                if measurement.get("epoch_field") and measurement.get("epoch_raw"):
+                    errors.append(
+                        f"{prefix} cannot define both epoch_field and epoch_raw"
+                    )
             configured_storage = table.get("configured_domain_storage") or {}
             configured_destinations = {
                 str(row.get("destination"))
@@ -461,6 +490,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = claim.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+                if claim.get("sql_predicate") is not None and not str(
+                    claim.get("sql_predicate") or ""
+                ).strip():
+                    errors.append(f"{prefix}.sql_predicate must be non-empty")
             for index, claim in enumerate(
                 table.get("conditional_identifier_claims") or []
             ):
@@ -489,6 +522,33 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     for value in citation_catalog.get("excluded_values") or []
                 ):
                     errors.append(f"{prefix}.excluded_values contains an empty value")
+                aggregate_lines = citation_catalog.get("aggregate_repeated_key_lines")
+                if aggregate_lines not in (None, False, True):
+                    errors.append(
+                        f"{prefix}.aggregate_repeated_key_lines must be boolean"
+                    )
+                if aggregate_lines and not str(
+                    citation_catalog.get("line_order_field") or ""
+                ).strip():
+                    errors.append(
+                        f"{prefix}.line_order_field is required for line aggregation"
+                    )
+                if aggregate_lines and any(
+                    citation_catalog.get(value)
+                    for value in (
+                        "citation_url_field",
+                        "bibcode_field",
+                        "doi_field",
+                        "publication_year_field",
+                        "context_fields",
+                    )
+                ):
+                    errors.append(
+                        f"{prefix} line aggregation does not support ancillary fields"
+                    )
+                separator = citation_catalog.get("line_separator")
+                if separator is not None and not str(separator):
+                    errors.append(f"{prefix}.line_separator must be non-empty")
             for index, link in enumerate(table.get("source_citation_links") or []):
                 prefix = f"{source_id}.{table_name}.source_citation_links[{index}]"
                 for field in (
@@ -1354,6 +1414,7 @@ def materialize_composite_identifier_claims(
             for field in fields
         )
         namespace = str(claim["namespace"])
+        predicate = str(claim.get("sql_predicate") or "true")
         branches.append(
             f"""
             select distinct
@@ -1371,7 +1432,7 @@ def materialize_composite_identifier_claims(
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
              and r.source_row_sha256=sha256(to_json(t))
-            where {nonblank}
+            where ({predicate}) and {nonblank}
             """
         )
     if branches:
@@ -2223,6 +2284,158 @@ def configured_domain_measurement_fields(
     return fields
 
 
+def configured_coordinate_measurement_fields(
+    measurements: list[dict[str, Any]],
+) -> set[str]:
+    fields: set[str] = set()
+    for measurement in measurements:
+        fields.update(str(value) for value in measurement["component_fields"])
+        fields.update(str(value) for value in measurement.get("quality_fields") or [])
+        fields.update(
+            str(value)
+            for value in (
+                measurement.get("epoch_field"),
+                measurement.get("reference_field"),
+            )
+            if value
+        )
+    return fields
+
+
+def materialize_configured_coordinate_measurements(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    measurements: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    branches: list[str] = []
+    for index, measurement in enumerate(measurements):
+        kind = str(measurement["coordinate_kind"])
+        component_fields = [
+            str(value) for value in measurement["component_fields"]
+        ]
+        quality_fields = [
+            str(value) for value in measurement.get("quality_fields") or []
+        ]
+        epoch_field = measurement.get("epoch_field")
+        reference_field = measurement.get("reference_field")
+        configured_fields = {
+            *component_fields,
+            *quality_fields,
+            *(
+                str(value)
+                for value in (epoch_field, reference_field)
+                if value
+            ),
+        }
+        missing = sorted(configured_fields - available_fields)
+        if missing:
+            raise ValueError(
+                f"configured coordinate fields missing from {table_name}: {missing}"
+            )
+        consumed.update(configured_fields)
+        component_predicate = " and ".join(
+            f"nullif(trim(cast({sql_identifier(field)} as varchar)), '') is not null"
+            for field in component_fields
+        )
+        raw_value = f"cast({logical_key_expression(component_fields, 't')} as varchar)"
+        if kind == "right_ascension_hms":
+            hours, minutes, seconds = map(sql_identifier, component_fields)
+            valid = (
+                f"try_cast({hours} as double) >= 0 and "
+                f"try_cast({hours} as double) < 24 and "
+                f"try_cast({minutes} as double) between 0 and 59 and "
+                f"try_cast({seconds} as double) >= 0 and "
+                f"try_cast({seconds} as double) < 60"
+            )
+            normalized = (
+                f"try_cast({hours} as double) * 15.0 + "
+                f"try_cast({minutes} as double) / 4.0 + "
+                f"try_cast({seconds} as double) / 240.0"
+            )
+        elif kind == "declination_dms":
+            sign, degrees, minutes, seconds = map(sql_identifier, component_fields)
+            valid = (
+                f"trim(cast({sign} as varchar)) in ('+', '-') and "
+                f"abs(try_cast({degrees} as double)) between 0 and 90 and "
+                f"try_cast({minutes} as double) between 0 and 59 and "
+                f"try_cast({seconds} as double) >= 0 and "
+                f"try_cast({seconds} as double) < 60"
+            )
+            unsigned = (
+                f"abs(try_cast({degrees} as double)) + "
+                f"try_cast({minutes} as double) / 60.0 + "
+                f"try_cast({seconds} as double) / 3600.0"
+            )
+            normalized = (
+                f"case when trim(cast({degrees} as varchar)) like '-%' then -1.0 "
+                f"when trim(cast({degrees} as varchar)) like '+%' then 1.0 "
+                f"when trim(cast({sign} as varchar))='-' "
+                f"then -1.0 else 1.0 end * ({unsigned})"
+            )
+        else:
+            raise ValueError(f"unsupported coordinate kind: {kind}")
+        source_quality = (
+            logical_key_expression(quality_fields, "t")
+            if quality_fields
+            else "'{}'::json"
+        )
+        epoch = (
+            text_expression(str(epoch_field))
+            if epoch_field
+            else nullable_sql_string(measurement.get("epoch_raw"))
+        )
+        evidence_id = (
+            f"sha256({sql_string('configured-coordinate|' + kind + '|' + str(index) + '|')} "
+            "|| r.source_record_id)"
+        )
+        branches.append(
+            f"""
+            select distinct
+              {evidence_id}, r.source_record_id,
+              {sql_string(str(measurement['quantity_key']))}, {raw_value},
+              {nullable_sql_string(measurement.get('unit_raw'))},
+              case when {valid} then {normalized} end,
+              {nullable_sql_string(measurement.get('normalized_unit') or 'deg')},
+              null::double, null::double,
+              case when {valid} then 'measurement' else 'invalid_source_coordinate' end,
+              {nullable_sql_string(measurement.get('frame_raw'))}, {epoch},
+              {nullable_sql_string(measurement.get('method'))},
+              {nullable_sql_string(measurement.get('model'))},
+              {text_expression(str(reference_field) if reference_field else None)},
+              json_object(
+                'coordinate_kind', {sql_string(kind)},
+                'component_fields', {sql_string(json.dumps(component_fields))},
+                'source_quality', {source_quality},
+                'embedded_degree_sign', case
+                  when {sql_string(kind)}='declination_dms'
+                  then regexp_full_match(trim(cast({sql_identifier(component_fields[1] if kind == 'declination_dms' else component_fields[0])} as varchar)), '[+-].*')
+                  else false
+                end,
+                'normalization_valid', ({valid})
+              ),
+              {sql_string(str(measurement.get('normalization_version') or 'sexagesimal_degrees_v1'))}
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where {component_predicate}
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into astrometry_distance_evidence " + " union all ".join(branches)
+        )
+    return consumed
+
+
 def materialize_configured_domain_measurements(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -2300,6 +2513,11 @@ def materialize_configured_domain_measurements(
         normalization = sql_string(
             str(measurement.get("normalization_version") or "source_native_v1")
         )
+        normalized_value = (
+            f"try_cast({sql_identifier(field)} as double)"
+            if measurement.get("normalize_numeric", True)
+            else "null::double"
+        )
         if destination == "astrometry_distance_evidence":
             if storage_modes.get(destination) == "typed_measurement_bundle_v1":
                 bundle_structs_by_destination.setdefault(destination, []).append(
@@ -2329,7 +2547,7 @@ def materialize_configured_domain_measurements(
               select distinct
                 {evidence_id}, r.source_record_id,
                 {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
-                try_cast({sql_identifier(field)} as double), {normalized_unit},
+                {normalized_value}, {normalized_unit},
                 {uncertainty}, {uncertainty}, 'measurement',
                 {nullable_sql_string(measurement.get('frame_raw'))},
                 {text_expression(epoch_field)},
@@ -2346,7 +2564,7 @@ def materialize_configured_domain_measurements(
                 {evidence_id}, r.source_record_id,
                 {sql_string(str(measurement.get('evidence_kind') or 'variability'))},
                 {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
-                try_cast({sql_identifier(field)} as double), {normalized_unit},
+                {normalized_value}, {normalized_unit},
                 {uncertainty}, {uncertainty},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
@@ -2907,6 +3125,9 @@ def materialize_citation_catalog(
     bibcode_field = citation_catalog.get("bibcode_field")
     doi_field = citation_catalog.get("doi_field")
     publication_year_field = citation_catalog.get("publication_year_field")
+    aggregate_lines = bool(citation_catalog.get("aggregate_repeated_key_lines"))
+    line_order_field = citation_catalog.get("line_order_field")
+    line_separator = str(citation_catalog.get("line_separator") or " ")
     excluded_values = [
         str(value) for value in citation_catalog.get("excluded_values") or []
     ]
@@ -2921,6 +3142,8 @@ def materialize_citation_catalog(
         )
         if field
     )
+    if line_order_field:
+        consumed.add(str(line_order_field))
     missing = sorted(consumed - available_fields)
     if missing:
         raise ValueError(f"citation-catalog fields missing from {table_name}: {missing}")
@@ -2939,8 +3162,37 @@ def materialize_citation_catalog(
             + ", ".join(sql_string(value) for value in excluded_values)
             + ")"
         )
-    rows = con.execute(
-        f"""
+    if aggregate_lines:
+        rows_sql = f"""
+        select
+          trim(cast(t.{sql_identifier(key_field)} as varchar)),
+          string_agg(
+            trim(cast(t.{sql_identifier(text_field)} as varchar)),
+            {sql_string(line_separator)}
+            order by t.{sql_identifier(str(line_order_field))}
+          ),
+          null::varchar, null::varchar, null::varchar, null::varchar,
+          cast(json_object(
+            'aggregation', 'repeated_reference_key_lines_v1',
+            'line_count', count(*),
+            'line_order_field', {sql_string(str(line_order_field))},
+            'first_line', min(t.{sql_identifier(str(line_order_field))}),
+            'last_line', max(t.{sql_identifier(str(line_order_field))})
+          ) as varchar)
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        where nullif(trim(cast(t.{sql_identifier(key_field)} as varchar)), '') is not null
+          and nullif(trim(cast(t.{sql_identifier(text_field)} as varchar)), '') is not null
+          {excluded_predicate}
+        group by trim(cast(t.{sql_identifier(key_field)} as varchar))
+        order by 1
+        """
+    else:
+        rows_sql = f"""
         select distinct
           trim(cast(t.{sql_identifier(key_field)} as varchar)),
           trim(cast(t.{sql_identifier(text_field)} as varchar)),
@@ -2960,7 +3212,7 @@ def materialize_citation_catalog(
           {excluded_predicate}
         order by 1, 2
         """
-    ).fetchall()
+    rows = con.execute(rows_sql).fetchall()
     inserts = []
     for (
         reference_key,
@@ -3505,12 +3757,16 @@ def materialize_source(
         configured_domain_fields = configured_domain_measurement_fields(
             list(table_contract.get("configured_domain_measurements") or [])
         )
+        configured_coordinate_fields = configured_coordinate_measurement_fields(
+            list(table_contract.get("configured_coordinate_measurements") or [])
+        )
         for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
             destination_fields = [
                 field
                 for field in (fields_by_destination.get(destination) or [])
                 if str(field["column_name"]) not in scoped_stellar_fields
                 and str(field["column_name"]) not in configured_domain_fields
+                and str(field["column_name"]) not in configured_coordinate_fields
                 and not (
                     destination == "photometry_extinction_evidence"
                     and str(field["column_name"])
@@ -3594,6 +3850,19 @@ def materialize_source(
                         table_contract.get("configured_domain_storage") or {}
                     ),
                 )
+        )
+        materialized_fields.update(
+            materialize_configured_coordinate_measurements(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                measurements=list(
+                    table_contract.get("configured_coordinate_measurements") or []
+                ),
+                available_fields=set(columns),
+            )
         )
         observation_product_fields = fields_by_destination.get(
             "observation_product_lineage"

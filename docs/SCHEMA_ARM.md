@@ -62,6 +62,12 @@ Evidence Lake v2 staging rule:
   as naming context, while source placeholders are not promoted as identifiers
   or citations. E5 may select public names only through an explicit naming
   authority policy over these claims.
+- GCVS checkpoint `a6f6669d2bd48eac5d6204d2` keeps variable-star identity,
+  astrometry, variability, stellar classification, and bibliography evidence
+  source scoped. Component-suffixed records do not claim base numeric identity;
+  variable classes and spectral classes occupy separate typed domains; repeated
+  source-key bibliography lines aggregate deterministically. All bindings stay
+  unresolved until the E2/E5 identity and selection policies adjudicate them.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

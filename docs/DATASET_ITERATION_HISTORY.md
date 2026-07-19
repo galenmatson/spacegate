@@ -1396,6 +1396,32 @@ Representative commits:
   independent artifact and scope audits and clean-reproduces logical hash
   `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
 
+### 46) Evidence Lake E4 GCVS Variable-Star Evidence
+
+- Compiler/contract v40 adds general typed sexagesimal-coordinate measurements,
+  deterministic repeated-key bibliography aggregation, predicate-scoped
+  composite identifiers, and lexical configured evidence that cannot be
+  mistaken for a numeric measurement. All 340,839 rows in the six registered
+  GCVS typed tables become exact source records.
+- Checkpoint `a6f6669d2bd48eac5d6204d2` emits 705,684 release-scoped
+  identifier claims, 289,892 astrometric measurements, 29,042 source spectral
+  classifications, 444,566 variability observations, 21,526 citations, and
+  756,305 evidence links. It aggregates 25,696 physical bibliography lines into
+  21,435 source-keyed references without losing line order or provenance.
+- Component identity is fail-closed: a suffixed GCVS or NSV record cannot also
+  claim the base numeric key. `NSV 10360` and `NSV 10360A`, for example, remain
+  separate release-scoped evidence records through a reusable predicate policy,
+  not a named-object transform. All identity bindings remain unresolved.
+- The source contains 1,020 B1950 NSV declinations with a positive sign column
+  and an embedded negative degree token. Normalization honors the embedded sign
+  while retaining both raw fields and recording `embedded_degree_sign=true`;
+  no raw contradiction is erased. Variable classes remain variability evidence
+  and `SpType`/`SpType2` remain stellar classification evidence.
+- Independent artifact and GCVS source/scope audits pass. Clean reproduction
+  matches logical hash
+  `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`
+  with no differing sections and removes the scratch artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

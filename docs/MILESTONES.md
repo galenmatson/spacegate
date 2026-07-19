@@ -1589,6 +1589,15 @@ Current status (July 19, 2026, in progress):
   remain distinct ambiguous-scope evidence; no merge or containment is inferred.
   Artifact/scope audits and clean reproduction pass logical hash
   `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
+- GCVS checkpoint `a6f6669d2bd48eac5d6204d2` materializes all 340,839
+  rows from the six registered release tables as 705,684 source-scoped identity
+  claims, 289,892 astrometric measurements, 29,042 source spectral
+  classifications, 444,566 variability observations, 21,526 citations, and
+  756,305 evidence links. Component suffixes remain distinct, variable type is
+  not conflated with stellar spectral type, and no claim is promoted to a
+  canonical binding. Artifact/source-scope audits and clean reproduction pass
+  logical hash
+  `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

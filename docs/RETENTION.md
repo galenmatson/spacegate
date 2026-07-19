@@ -248,8 +248,13 @@ scratch tree is removed only after comparison and the durable report is written.
 GCVS typed snapshot `ef540a47c43892e17ddc2bae` supersedes parser-v1 snapshot
 `85d1e49a6ce11402c4d06a5f` for downstream work. The immutable raw snapshot is
 unchanged, and the typed A/B plus clean-reproduction reports are durable. Keep
-both typed snapshots until the GCVS E4 adapter and combined E4/E5 input set have
-been verified; this checkpoint authorizes no typed-snapshot cleanup.
+both typed snapshots until the combined E4/E5 input set has been verified; the
+GCVS E4 adapter now passes, but this checkpoint authorizes no typed-snapshot
+cleanup. Accepted scientific-evidence checkpoint `a6f6669d2bd48eac5d6204d2`
+and its compile, artifact-audit, source/scope-audit, and clean-reproduction
+reports are protected E4/E5 inputs. Provisional GCVS compiler artifacts may be
+retired only as whole immutable units through the retention dry-run after this
+accepted replacement and its reports are durable.
 
 Large local compiles may set `SPACEGATE_E4_TEMP_DIRECTORY` to an operator-owned
 scratch root such as `/mnt/space/spacegate/tmp/evidence_lake_v2/e4_spill`.
@@ -271,6 +276,9 @@ Official WGSN checkpoint `0ff30b04008b93aafb3de66f`, raw snapshot
 `ec563be8ca8038acd3cfe78e`, typed snapshot `437e2f27863efe5adc0423ab`,
 and its compile, artifact-audit, scope-audit, and clean-reproduction reports are
 also protected E4/E5 inputs.
+Official GCVS checkpoint `a6f6669d2bd48eac5d6204d2`, raw and typed snapshot
+`ef540a47c43892e17ddc2bae`, and its compile, artifact-audit, source/scope-audit,
+and clean-reproduction reports are likewise protected E4/E5 inputs.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

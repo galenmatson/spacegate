@@ -408,6 +408,22 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   never merge objects or imply containment. Independent artifact and scope
   audits pass, and clean reproduction matches logical hash
   `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
+- Compiler/contract v40 adds reusable source-native sexagesimal coordinate
+  measurements, deterministic aggregation of repeated-key bibliography lines,
+  predicate-scoped composite identifiers, and explicitly lexical configured
+  evidence. GCVS checkpoint `a6f6669d2bd48eac5d6204d2` accounts all 340,839
+  rows from the six typed release tables as 340,839 source records, 705,684
+  identifier claims, 289,892 astrometric measurements, 29,042 source spectral
+  classifications, 444,566 variability observations, 21,526 citations, and
+  756,305 evidence links. GCVS/NSV component suffixes never assert the base
+  numeric identity, and all object bindings remain unresolved for E2/E5.
+  Source variability classes and stellar spectral classifications remain
+  separate evidence families. The 1,020 NSV declinations whose source sign
+  column conflicts with an embedded negative degree token preserve both raw
+  fields and normalize using the embedded sign with an explicit quality flag.
+  Independent artifact and source/scope audits pass, and clean reproduction
+  matches logical hash
+  `a4d78bb721d6017031a2e9a53e2b86701395d0c67ff0dd6016af639bad416967`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

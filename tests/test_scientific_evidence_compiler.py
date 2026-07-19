@@ -70,6 +70,24 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert wgsn["source_citation_links"][0]["identifier_claim_field"] == (
         "proper_name"
     )
+    gcvs = contract["source_adapters"]["classification.gcvs"]
+    assert set(gcvs["tables"]) == {
+        "gcvs_catalog",
+        "gcvs_cross_identifiers",
+        "gcvs_readme",
+        "gcvs_references",
+        "gcvs_suspected_variables",
+        "gcvs_variable_type_dictionary",
+    }
+    assert gcvs["tables"]["gcvs_references"]["citation_catalog"][
+        "aggregate_repeated_key_lines"
+    ] is True
+    assert gcvs["tables"]["gcvs_catalog"]["conditional_identifier_claims"][0][
+        "sql_predicate"
+    ] == "m_VarNum is null"
+    assert gcvs["tables"]["gcvs_suspected_variables"][
+        "conditional_identifier_claims"
+    ][0]["sql_predicate"] == "m_NSV is null"
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -1275,6 +1293,214 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
     assert flat_count == 0
     assert citation_summary == {"citations": 1, "evidence_links": 1}
     assert audit["status"] == "pass"
+
+
+def test_configured_coordinates_normalize_sexagesimal_values_with_source_context(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "coordinates.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            f"(1, 0, 0.0, '+', -30, 30, 0.0, ':', 'Hip')) "
+            f"t(rah,ram,ras,sign,ded,dem,des,accuracy,reference)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        compiler.create_schema(con)
+        con.execute(
+            f"insert into source_records select "
+            f"'record','test.catalog','r1','coordinates','star',"
+            f"'{{}}','{{}}',sha256(to_json(t)),1,'raw','typed','raw-tree',"
+            f"'typed-table',timestamp '2026-07-19 00:00:00' "
+            f"from read_parquet('{parquet}') t"
+        )
+        consumed = compiler.materialize_configured_coordinate_measurements(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="coordinates",
+            path=parquet,
+            measurements=[
+                {
+                    "quantity_key": "right_ascension",
+                    "coordinate_kind": "right_ascension_hms",
+                    "component_fields": ["rah", "ram", "ras"],
+                    "unit_raw": "sexagesimal_hms",
+                    "normalized_unit": "deg",
+                    "frame_raw": "ICRS",
+                    "epoch_raw": "J2000.0",
+                    "quality_fields": ["accuracy"],
+                    "reference_field": "reference",
+                    "method": "catalog_position",
+                    "normalization_version": "sexagesimal_degrees_v1",
+                },
+                {
+                    "quantity_key": "declination",
+                    "coordinate_kind": "declination_dms",
+                    "component_fields": ["sign", "ded", "dem", "des"],
+                    "unit_raw": "sexagesimal_dms",
+                    "normalized_unit": "deg",
+                    "frame_raw": "ICRS",
+                    "epoch_raw": "J2000.0",
+                    "quality_fields": ["accuracy"],
+                    "reference_field": "reference",
+                    "method": "catalog_position",
+                    "normalization_version": "sexagesimal_degrees_v1",
+                },
+            ],
+            available_fields={
+                "rah", "ram", "ras", "sign", "ded", "dem", "des",
+                "accuracy", "reference",
+            },
+        )
+        evidence = con.execute(
+            "select quantity_key,normalized_value,normalized_unit,frame_raw,"
+            "epoch_raw,reference_raw,quality_json->>'$.normalization_valid',"
+            "quality_json->>'$.embedded_degree_sign' "
+            "from astrometry_distance_evidence order by quantity_key"
+        ).fetchall()
+    assert consumed == {
+        "rah", "ram", "ras", "sign", "ded", "dem", "des", "accuracy",
+        "reference",
+    }
+    assert evidence == [
+        ("declination", -30.5, "deg", "ICRS", "J2000.0", "Hip", "true", "true"),
+        ("right_ascension", 15.0, "deg", "ICRS", "J2000.0", "Hip", "true", "false"),
+    ]
+
+
+def test_citation_catalog_aggregates_repeated_key_lines_deterministically(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "references.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values (2,'R1','second'),(1,'R1','first')) "
+            f"t(source_line_number,reference,text)) to '{parquet}' (format parquet)"
+        )
+        compiler.create_schema(con)
+        con.execute(
+            f"insert into source_records select "
+            f"sha256('record|' || sha256(to_json(t))),"
+            f"'test.catalog','r1','references','source_reference',"
+            f"to_json(struct_pack(reference := reference)),to_json(struct_pack(text := text)),"
+            f"sha256(to_json(t)),1,'raw','typed','raw-tree','typed-table',"
+            f"timestamp '2026-07-19 00:00:00' from read_parquet('{parquet}') t"
+        )
+        consumed = compiler.materialize_citation_catalog(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="references",
+            path=parquet,
+            citation_catalog={
+                "reference_key_field": "reference",
+                "citation_text_field": "text",
+                "aggregate_repeated_key_lines": True,
+                "line_order_field": "source_line_number",
+                "line_separator": " ",
+            },
+            fields=[
+                {"column_name": "reference"},
+                {"column_name": "text"},
+            ],
+            available_fields={"source_line_number", "reference", "text"},
+        )
+        citation = con.execute(
+            "select source_reference_key,citation_text_raw,"
+            "parsed_json->'$.source_context'->>'$.line_count' from citations"
+        ).fetchone()
+    assert consumed == {"source_line_number", "reference", "text"}
+    assert citation == ("R1", "first second", "2")
+
+
+def test_composite_identifier_predicate_keeps_suffixed_identity_distinct(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "identifiers.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values ('10360',null),('10360','A')) "
+            f"t(number,suffix)) to '{parquet}' (format parquet)"
+        )
+        compiler.create_schema(con)
+        con.execute(
+            f"insert into source_records select sha256('record|' || sha256(to_json(t))),"
+            f"'test.catalog','r1','identifiers','object','{{}}','{{}}',"
+            f"sha256(to_json(t)),1,'raw','typed','raw-tree','typed-table',"
+            f"timestamp '2026-07-19 00:00:00' from read_parquet('{parquet}') t"
+        )
+        consumed = compiler.materialize_composite_identifier_claims(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="identifiers",
+            path=parquet,
+            claims=[
+                {
+                    "fields": ["number"],
+                    "prefix": "NSV ",
+                    "namespace": "nsv_designation",
+                    "claim_scope": "object",
+                    "sql_predicate": "suffix is null",
+                },
+                {
+                    "fields": ["number", "suffix"],
+                    "prefix": "NSV ",
+                    "namespace": "nsv_designation",
+                    "claim_scope": "component",
+                },
+            ],
+            available_fields={"number", "suffix"},
+        )
+        claims = con.execute(
+            "select identifier_normalized,claim_scope from identifier_claim_evidence "
+            "order by identifier_normalized"
+        ).fetchall()
+    assert consumed == {"number", "suffix"}
+    assert claims == [("NSV 10360", "object"), ("NSV 10360A", "component")]
+
+
+def test_configured_lexical_measurement_does_not_normalize_numeric_looking_code(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "lexical.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '00001' reference_code) to '{parquet}' (format parquet)"
+        )
+        compiler.create_schema(con)
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        con.execute(
+            "insert into source_records values "
+            "('record','test.catalog','r1','lexical','object','{}','{}',?,1,"
+            "'raw','typed','raw-tree','typed-table',timestamp '2026-07-19 00:00:00')",
+            [source_hash],
+        )
+        compiler.materialize_configured_domain_measurements(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="lexical",
+            path=parquet,
+            measurements=[
+                {
+                    "destination": "variability_activity_rotation_evidence",
+                    "value_field": "reference_code",
+                    "quantity_key": "chart_reference",
+                    "evidence_kind": "observation_document_reference",
+                    "normalize_numeric": False,
+                }
+            ],
+            available_fields={"reference_code"},
+        )
+        value = con.execute(
+            "select value_raw,normalized_value "
+            "from variability_activity_rotation_evidence"
+        ).fetchone()
+    assert value == ("00001", None)
 
 
 def test_planet_scalar_materialization_preserves_units_errors_bounds_and_reference(

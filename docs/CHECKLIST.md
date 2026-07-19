@@ -1161,6 +1161,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spelling, and exact HR/HD/HIP/GJ claims; retain shared target/scope ambiguity,
   exclude raw placeholders from promotion, and pass artifact, scope, and clean-
   reproduction gates
+- [x] E4 GCVS variability checkpoint: materialize all 340,839 typed rows from
+  the six registered release tables as source-scoped identities, astrometry,
+  source spectral classifications, variability observations, bibliography,
+  and evidence links; preserve component suffixes, conflicting raw sign fields,
+  and unresolved bindings; pass artifact, source/scope, and clean-reproduction
+  gates
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

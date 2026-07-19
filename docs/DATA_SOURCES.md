@@ -156,6 +156,16 @@ rows across all six artifacts; its 203,740 scoped cell normalizations, table
 schemas, raw checksums, verification, and clean reproduction are machine
 accounted.
 
+E4 GCVS checkpoint `a6f6669d2bd48eac5d6204d2` materializes every typed row
+without choosing public winners: 705,684 release-scoped identifier claims,
+289,892 source astrometry measurements, 29,042 source spectral classifications,
+444,566 variability observations, 21,526 citations, and 756,305 citation links.
+Repeated bibliography lines aggregate under their source key; component-
+suffixed GCVS and NSV records do not claim the unsuffixed numeric identity.
+Source sign/component fields remain raw evidence when normalized coordinates
+require an explicit conflict flag. All object bindings remain unresolved for
+the identity and selection compilers.
+
 The July 19 NASA Exoplanet Archive snapshot preserves 12 independent TAP
 tables rather than pre-merging parameter sets: 206,989 rows and 2,093 fields
 cover reference-specific planets, composite parameters, hosts, TOIs, K2,
@@ -307,6 +317,10 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- GCVS `a6f6669d2bd48eac5d6204d2`: all 340,839 rows from six release
+  tables, 705,684 scoped identity claims, typed astrometry, distinct variable
+  and stellar classifications, deterministic bibliography aggregation, and no
+  canonical binding
 - Green SNR `d08c5aa9af7dc8bcdbf0d6c3`: 310 rows/15 fields with
   deterministic Galactic identifiers, geometry, uncertain flux/index strings,
   aliases, and detail lineage

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.39",
-  "compiler_version": "scientific_evidence_compiler_v39",
+  "contract_version": "2026-07-19.e4-foundation.40",
+  "compiler_version": "scientific_evidence_compiler_v40",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -680,6 +680,98 @@
         "reason": "constellation, cultural origin, language, adoption, image, source coordinates, magnitude, and HTML row lineage retained as naming context"
       }
     ],
+    "gcvs_catalog": [
+      {
+        "pattern": "^(GCVS|VarName)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped GCVS numeric key and source-native variable-star designations"
+      },
+      {
+        "pattern": "^(RAh|RAm|RAs|DE-|DEd|DEm|DEs|u_DEs|pmRA|pmDE|Ep-coor|u_Ident|Ident)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-native position, proper motion, coordinate epoch, accuracy, and astrometry-source evidence"
+      },
+      {
+        "pattern": "^SpType$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source spectral classification kept separate from variability class"
+      },
+      {
+        "pattern": "^(VarType|VarTypeII|l_magMax|magMax|u_magMax|l_Min1|Min1|u_Min1|n_Min1|unnamed_74_74|l_Min2|Min2|u_Min2|n_Min2|unnamed_87_87|flt|Epoch|u_Epoch|Year|u_Year|l_Period|Period|u_Period|n_Period|M-m/D|u_M-m/D|n_M-m/D|Ref1|Ref2|Exists)$",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_evidence",
+        "reason": "variable class, light-curve extrema, epoch, period, outburst, shape, existence status, flags, and bibliography evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "component marker, remarks, fixed-width layout, and exact row lineage retained with the source record"
+      }
+    ],
+    "gcvs_cross_identifiers": [
+      {
+        "pattern": "^(Name|VarName)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-published alias-to-variable-designation identity evidence without canonical merge"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "equality marker, layout padding, and exact cross-identification row lineage"
+      }
+    ],
+    "gcvs_suspected_variables": [
+      {
+        "pattern": "^(Desig|VarName)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped NSV key, source-paper designation, and later GCVS designation evidence"
+      },
+      {
+        "pattern": "^(RA1950h|RA1950m|RA1950s|DE1950-|DE1950d|DE1950m|DE1950s|u_DE1950s|RAh|RAm|RAs|DE-|DEd|DEm|DEs|u_DEs)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-native B1950 and J2000 position evidence with accuracy flags"
+      },
+      {
+        "pattern": "^(SpType|SpType2)$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "NSV source and Henry Draper spectral classifications retained as separate evidence"
+      },
+      {
+        "pattern": "^(u_NSV|IDflag|VarType|l_magMax|magMax|u_magMax|l_magMin|magMin|n_magMin|u_magMin|unnamed_72_72|flt|Ref1|Ref2|f_NSV)$",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_evidence",
+        "reason": "suspected-variable status, classification, identity confidence, extrema, flags, and bibliography evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "component suffix, remarks marker, layout, and exact source row lineage"
+      }
+    ],
+    "gcvs_references": [
+      {
+        "pattern": "^(Ref|Text)$",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "keyed GCVS bibliography lines deterministically aggregated into complete source references"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "physical line order and exact fixed-width reference row lineage"
+      }
+    ],
     "simbad_identifiers": [
       {
         "pattern": ".*",
@@ -853,6 +945,122 @@
           "source_citation_links": [
             {"identifier_claim_field": "proper_name", "reference_key_field": "reference", "citation_role": "iau_official_name_reference", "excluded_reference_values": ["--"], "required": true}
           ]
+        }
+      }
+    },
+    "classification.gcvs": {
+      "adapter_version": "gcvs_scientific_evidence_v1",
+      "table_order": [
+        "gcvs_references",
+        "gcvs_catalog",
+        "gcvs_cross_identifiers",
+        "gcvs_suspected_variables",
+        "gcvs_variable_type_dictionary",
+        "gcvs_readme"
+      ],
+      "tables": {
+        "gcvs_references": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_reference_line",
+          "field_profile": "gcvs_references",
+          "citation_catalog": {
+            "reference_key_field": "Ref",
+            "citation_text_field": "Text",
+            "aggregate_repeated_key_lines": true,
+            "line_order_field": "source_line_number",
+            "line_separator": " "
+          }
+        },
+        "gcvs_catalog": {
+          "logical_key_fields": ["VarNum", "m_VarNum", "GCVS"],
+          "object_scope": "variable_star_or_component",
+          "field_profile": "gcvs_catalog",
+          "identifier_claims": {
+            "GCVS": {"namespace": "gcvs_designation", "claim_scope": "variable_star_or_component"},
+            "VarName": {"namespace": "gcvs_designation", "claim_scope": "variable_star_or_component"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "VarNum", "namespace": "gcvs_numeric_key", "claim_scope": "variable_star_or_component", "sql_predicate": "m_VarNum is null"}
+          ],
+          "composite_identifier_claims": [
+            {"fields": ["VarNum", "m_VarNum"], "namespace": "gcvs_numeric_component_key", "claim_scope": "variable_star_component"}
+          ],
+          "configured_coordinate_measurements": [
+            {"quantity_key": "right_ascension", "coordinate_kind": "right_ascension_hms", "component_fields": ["RAh", "RAm", "RAs"], "unit_raw": "sexagesimal_hms", "normalized_unit": "deg", "frame_raw": "source-native equinox J2000.0", "epoch_field": "Ep-coor", "reference_field": "Ident", "quality_fields": ["u_DEs", "u_Ident", "Ident"], "method": "gcvs_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"},
+            {"quantity_key": "declination", "coordinate_kind": "declination_dms", "component_fields": ["DE-", "DEd", "DEm", "DEs"], "unit_raw": "sexagesimal_dms", "normalized_unit": "deg", "frame_raw": "source-native equinox J2000.0", "epoch_field": "Ep-coor", "reference_field": "Ident", "quality_fields": ["u_DEs", "u_Ident", "Ident"], "method": "gcvs_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "pmRA", "quantity_key": "proper_motion_ra_source_convention", "unit_raw": "arcsec yr-1", "normalized_unit": "arcsec yr-1", "epoch_field": "Ep-coor", "reference_field": "Ident", "quality_fields": ["u_Ident"], "method": "gcvs_compiled_astrometry", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmDE", "quantity_key": "proper_motion_dec", "unit_raw": "arcsec yr-1", "normalized_unit": "arcsec yr-1", "epoch_field": "Ep-coor", "reference_field": "Ident", "quality_fields": ["u_Ident"], "method": "gcvs_compiled_astrometry", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "VarType", "quantity_key": "variability_class_legacy", "evidence_kind": "variability_classification", "normalize_numeric": false, "reference_field": "Ref1", "quality_fields": ["n_GCVS"], "method": "gcvs_classification", "normalization_version": "gcvs_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "VarTypeII", "quantity_key": "variability_class_experimental_2006", "evidence_kind": "variability_classification", "normalize_numeric": false, "reference_field": "Ref1", "quality_fields": ["n_GCVS"], "method": "gcvs_experimental_classification", "normalization_version": "gcvs_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "magMax", "quantity_key": "magnitude_at_maximum_brightness", "evidence_kind": "light_curve_extremum", "unit_raw": "mag", "reference_field": "Ref1", "quality_fields": ["l_magMax", "u_magMax", "flt"], "method": "gcvs_compiled_light_curve", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Min1", "quantity_key": "minimum_1_magnitude_or_amplitude", "evidence_kind": "light_curve_extremum", "unit_raw": "mag", "reference_field": "Ref1", "quality_fields": ["l_Min1", "u_Min1", "n_Min1", "unnamed_74_74", "flt"], "method": "gcvs_compiled_light_curve", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Min2", "quantity_key": "minimum_2_magnitude_or_amplitude", "evidence_kind": "light_curve_extremum", "unit_raw": "mag", "reference_field": "Ref1", "quality_fields": ["l_Min2", "u_Min2", "n_Min2", "unnamed_87_87", "flt"], "method": "gcvs_compiled_light_curve", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Epoch", "quantity_key": "light_curve_reference_epoch_source_convention", "evidence_kind": "light_curve_epoch", "unit_raw": "GCVS truncated Julian date", "normalized_unit": null, "reference_field": "Ref1", "quality_fields": ["u_Epoch", "VarType", "VarTypeII"], "method": "gcvs_compiled_ephemeris", "normalization_version": "gcvs_source_native_truncated_jd_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Year", "quantity_key": "nova_or_supernova_outburst_year", "evidence_kind": "outburst_epoch", "reference_field": "Ref1", "quality_fields": ["u_Year"], "method": "gcvs_compiled_outburst", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Period", "quantity_key": "variability_period", "evidence_kind": "variability_period", "unit_raw": "d", "normalized_unit": "d", "reference_field": "Ref1", "quality_fields": ["l_Period", "u_Period", "n_Period"], "method": "gcvs_compiled_ephemeris", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "M-m/D", "quantity_key": "rising_time_or_eclipse_duration_fraction", "evidence_kind": "light_curve_shape", "unit_raw": "%", "normalized_unit": "percent", "reference_field": "Ref1", "quality_fields": ["u_M-m/D", "n_M-m/D", "VarType", "VarTypeII"], "method": "gcvs_compiled_light_curve", "normalization_version": "gcvs_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Exists", "quantity_key": "variable_identity_status", "evidence_kind": "catalog_object_status", "normalize_numeric": false, "reference_field": "Ref1", "method": "gcvs_catalog_adjudication", "normalization_version": "gcvs_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Ref2", "quantity_key": "chart_or_photograph_reference", "evidence_kind": "observation_document_reference", "normalize_numeric": false, "reference_field": "Ref2", "method": "gcvs_catalog_bibliography", "normalization_version": "gcvs_source_native_lexical_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "source_variable_identity", "parameter_set_kind": "gcvs_source_spectral_classification", "classification_field": "SpType", "classification_scheme": "spectral_type", "reference_field": "Ref1", "quality_fields": ["VarType", "VarTypeII"], "measurements": [], "method": "gcvs_compiled_spectral_classification", "normalization_version": "gcvs_source_native_lexical_v1"}
+          ]
+        },
+        "gcvs_cross_identifiers": {
+          "logical_key_fields": ["Name", "VarName"],
+          "object_scope": "variable_star_alias_association",
+          "field_profile": "gcvs_cross_identifiers",
+          "identifier_claims": {
+            "Name": {"namespace": "catalog_alias", "claim_scope": "object_or_component"},
+            "VarName": {"namespace": "gcvs_cross_target_designation", "claim_scope": "variable_star_or_component"}
+          }
+        },
+        "gcvs_suspected_variables": {
+          "logical_key_fields": ["NSV", "m_NSV"],
+          "object_scope": "suspected_variable_star_or_component",
+          "field_profile": "gcvs_suspected_variables",
+          "identifier_claims": {
+            "Desig": {"namespace": "source_publication_designation", "claim_scope": "object_or_component", "excluded_values": ["*", "-"]},
+            "VarName": {"namespace": "gcvs_designation", "claim_scope": "variable_star_or_component"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "NSV", "namespace": "nsv_numeric_key", "claim_scope": "suspected_variable_star_or_component", "sql_predicate": "m_NSV is null"}
+          ],
+          "composite_identifier_claims": [
+            {"fields": ["NSV"], "prefix": "NSV ", "namespace": "nsv_designation", "claim_scope": "suspected_variable_star_or_component", "sql_predicate": "m_NSV is null"},
+            {"fields": ["NSV", "m_NSV"], "prefix": "NSV ", "namespace": "nsv_designation", "claim_scope": "suspected_variable_star_component"}
+          ],
+          "configured_coordinate_measurements": [
+            {"quantity_key": "right_ascension", "coordinate_kind": "right_ascension_hms", "component_fields": ["RA1950h", "RA1950m", "RA1950s"], "unit_raw": "sexagesimal_hms", "normalized_unit": "deg", "frame_raw": "source-native equinox B1950.0", "reference_field": "Ref1", "quality_fields": ["u_DE1950s", "IDflag"], "method": "nsv_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"},
+            {"quantity_key": "declination", "coordinate_kind": "declination_dms", "component_fields": ["DE1950-", "DE1950d", "DE1950m", "DE1950s"], "unit_raw": "sexagesimal_dms", "normalized_unit": "deg", "frame_raw": "source-native equinox B1950.0", "reference_field": "Ref1", "quality_fields": ["u_DE1950s", "IDflag"], "method": "nsv_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"},
+            {"quantity_key": "right_ascension", "coordinate_kind": "right_ascension_hms", "component_fields": ["RAh", "RAm", "RAs"], "unit_raw": "sexagesimal_hms", "normalized_unit": "deg", "frame_raw": "source-native equinox J2000.0", "reference_field": "Ref1", "quality_fields": ["u_DEs", "IDflag"], "method": "nsv_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"},
+            {"quantity_key": "declination", "coordinate_kind": "declination_dms", "component_fields": ["DE-", "DEd", "DEm", "DEs"], "unit_raw": "sexagesimal_dms", "normalized_unit": "deg", "frame_raw": "source-native equinox J2000.0", "reference_field": "Ref1", "quality_fields": ["u_DEs", "IDflag"], "method": "nsv_compiled_astrometry", "normalization_version": "sexagesimal_degrees_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "variability_activity_rotation_evidence", "value_field": "u_NSV", "quantity_key": "variability_dubitancy_flag", "evidence_kind": "suspected_variable_status", "normalize_numeric": false, "reference_field": "Ref1", "quality_fields": ["n_NSV"], "method": "nsv_catalog_adjudication", "normalization_version": "nsv_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "IDflag", "quantity_key": "identification_confidence_flag", "evidence_kind": "identity_quality", "normalize_numeric": false, "reference_field": "Ref1", "method": "nsv_catalog_identification", "normalization_version": "nsv_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "VarType", "quantity_key": "variability_class", "evidence_kind": "variability_classification", "normalize_numeric": false, "reference_field": "Ref1", "quality_fields": ["u_NSV", "n_NSV"], "method": "nsv_classification", "normalization_version": "nsv_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "magMax", "quantity_key": "magnitude_at_maximum_brightness", "evidence_kind": "light_curve_extremum", "unit_raw": "mag", "reference_field": "Ref1", "quality_fields": ["l_magMax", "u_magMax", "flt"], "method": "nsv_compiled_light_curve", "normalization_version": "nsv_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "magMin", "quantity_key": "minimum_magnitude_or_amplitude", "evidence_kind": "light_curve_extremum", "unit_raw": "mag", "reference_field": "Ref1", "quality_fields": ["l_magMin", "n_magMin", "u_magMin", "unnamed_72_72", "flt"], "method": "nsv_compiled_light_curve", "normalization_version": "nsv_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "f_NSV", "quantity_key": "later_named_variable_link_flag", "evidence_kind": "catalog_identity_transition", "normalize_numeric": false, "reference_field": "Ref1", "quality_fields": ["VarName"], "method": "nsv_catalog_adjudication", "normalization_version": "nsv_source_native_lexical_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "Ref2", "quantity_key": "chart_reference", "evidence_kind": "observation_document_reference", "normalize_numeric": false, "reference_field": "Ref2", "method": "nsv_catalog_bibliography", "normalization_version": "nsv_source_native_lexical_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "source_suspected_variable_identity", "parameter_set_kind": "nsv_source_spectral_classification", "classification_field": "SpType", "classification_scheme": "spectral_type", "reference_field": "Ref1", "quality_fields": ["VarType"], "measurements": [], "method": "nsv_compiled_spectral_classification", "normalization_version": "nsv_source_native_lexical_v1"},
+            {"scope_key": "source_suspected_variable_identity_hd", "parameter_set_kind": "nsv_hd_spectral_classification", "classification_field": "SpType2", "classification_scheme": "spectral_type", "reference_field": "Ref1", "quality_fields": ["VarType"], "measurements": [], "method": "nsv_henry_draper_spectral_classification", "normalization_version": "nsv_source_native_lexical_v1"}
+          ]
+        },
+        "gcvs_variable_type_dictionary": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "source_method_document"
+        },
+        "gcvs_readme": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "source_method_document"
         }
       }
     },
