@@ -1442,6 +1442,39 @@ def test_artifact_audit_rejects_compact_object_without_parameters() -> None:
     assert report["checks"]["empty_compact_object_parameter_sets"] == 1
 
 
+def test_artifact_audit_reports_source_nonbracketing_interval_endpoints() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','source.test','r1','rows','star','{}','{}','row-hash',1,"
+            "'raw','typed','raw-tree','typed-table',timestamp '2026-07-20')"
+        )
+        con.execute(
+            "insert into stellar_parameter_sets values "
+            "('set','record',null,'source','model',null,null,null,'{}')"
+        )
+        con.execute(
+            "insert into stellar_parameter_evidence ("
+            "evidence_id,parameter_set_id,source_record_id,quantity_key,"
+            "normalized_value,uncertainty_lower,uncertainty_upper,bound_semantics,"
+            "quality_json) values ('evidence','set','record','luminosity',1,2,3,"
+            "'source_confidence_interval_endpoints',"
+            "'{\"uncertainty_field_semantics\":\"interval_endpoints\"}')"
+        )
+        reported = artifact_audit.audit_evidence(con)
+        con.execute(
+            "update stellar_parameter_evidence set uncertainty_lower=4 "
+            "where evidence_id='evidence'"
+        )
+        reversed_interval = artifact_audit.audit_evidence(con)
+    assert reported["status"] == "pass"
+    assert reported["source_nonbracketing_interval_endpoints"] == 1
+    assert reported["checks"]["invalid_interval_endpoints"] == 0
+    assert reversed_interval["status"] == "fail"
+    assert reversed_interval["checks"]["invalid_interval_endpoints"] == 1
+
+
 def test_logical_key_expression_qualifies_source_id_against_lineage_alias() -> None:
     expression = compiler.logical_key_expression(["source_id"], "t")
     with duckdb.connect() as con:

@@ -850,9 +850,10 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   multi-model probability vectors remain together without hundreds of millions
   of scalar rows or an invented cross-model winner. It also makes configured
   domain uncertainty fields distinguish error magnitudes from absolute interval
-  endpoints. The independent audit permits signed interval bounds but requires
-  every endpoint interval to bracket its normalized value. These general gates
-  precede Gaia AP materialization.
+  endpoints. The independent audit permits signed interval bounds, rejects
+  reversed endpoints, and reports source-native central estimates outside their
+  published intervals without rewriting them. These general gates precede Gaia
+  AP materialization.
 - Compiler/contract v68 maps all 482 hard/supplement field occurrences in the
   main Gaia DR3 astrophysical-parameters release with zero schema-name remainder.
   It keeps DSC/ESP-ELS probability vectors coherent; separates GSP-Phot,

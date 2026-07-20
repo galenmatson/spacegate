@@ -19,6 +19,11 @@ RAW_SNAPSHOT_ID = "1f13c88951b996b95e702913"
 TYPED_SNAPSHOT_ID = "3da71b75938d286c44c5a5e0"
 GAIA_SOLUTION_ID = "1636148068921376768"
 FIELD_OCCURRENCES = 482
+SOURCE_NONBRACKETING_INTERVALS = {
+    ("gaia_dr3_ap_photometry_flame_uncertain_distance_supplement_v1", "stellar_luminosity"): 4,
+    ("gaia_dr3_ap_photometry_flame_v2", "stellar_luminosity"): 271_968,
+    ("gaia_dr3_ap_spectroscopy_v2", "abundance_mg_fe"): 3,
+}
 EXPECTED_TABLE_ROWS = {
     "gaia_dr3_ap_activity_specialized_uncertain_distance_supplement_v1": 139_530,
     "gaia_dr3_ap_activity_specialized_v2": 6_128_293,
@@ -185,31 +190,38 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             con,
             "select count(*) from stellar_parameter_evidence where "
             "json_extract_string(quality_json,'$.uncertainty_field_semantics')="
-            "'interval_endpoints' and normalized_value is not null and "
-            "((uncertainty_lower is not null and uncertainty_lower>normalized_value) or "
-            "(uncertainty_upper is not null and uncertainty_upper<normalized_value) or "
-            "(uncertainty_lower is not null and uncertainty_upper is not null "
-            "and uncertainty_lower>uncertainty_upper))",
+            "'interval_endpoints' and uncertainty_lower>uncertainty_upper",
         )
         + scalar(
             con,
             "select count(*) from astrometry_distance_evidence where "
             "json_extract_string(quality_json,'$.uncertainty_field_semantics')="
-            "'interval_endpoints' and normalized_value is not null and "
-            "((uncertainty_lower is not null and uncertainty_lower>normalized_value) or "
-            "(uncertainty_upper is not null and uncertainty_upper<normalized_value) or "
-            "(uncertainty_lower is not null and uncertainty_upper is not null "
-            "and uncertainty_lower>uncertainty_upper))",
+            "'interval_endpoints' and uncertainty_lower>uncertainty_upper",
         )
         + scalar(
             con,
             "select count(*) from photometry_extinction_evidence where "
             "json_extract_string(quality_json,'$.uncertainty_field_semantics')="
-            "'interval_endpoints' and normalized_value is not null and "
-            "((uncertainty_lower is not null and uncertainty_lower>normalized_value) or "
-            "(uncertainty_upper is not null and uncertainty_upper<normalized_value) or "
-            "(uncertainty_lower is not null and uncertainty_upper is not null "
-            "and uncertainty_lower>uncertainty_upper))",
+            "'interval_endpoints' and uncertainty_lower>uncertainty_upper",
+        ),
+        "unexpected_source_nonbracketing_intervals": scalar(
+            con,
+            "with expected(source_table,quantity_key,anomaly_count) as (values "
+            + ",".join(
+                f"('{source_table}','{quantity_key}',{anomaly_count})"
+                for (source_table, quantity_key), anomaly_count in sorted(
+                    SOURCE_NONBRACKETING_INTERVALS.items()
+                )
+            )
+            + "), actual as (select r.source_table,e.quantity_key,count(*) anomaly_count "
+            "from stellar_parameter_evidence e join source_records r using(source_record_id) "
+            "where json_extract_string(e.quality_json,'$.uncertainty_field_semantics')="
+            "'interval_endpoints' and e.normalized_value is not null and "
+            "((e.uncertainty_lower is not null and e.uncertainty_lower>e.normalized_value) "
+            "or (e.uncertainty_upper is not null and e.uncertainty_upper<e.normalized_value)) "
+            "group by all) select count(*) from ("
+            "select * from expected except select * from actual union all "
+            "select * from actual except select * from expected)",
         ),
         "missing_parameter_set_lineage": scalar(
             con,
@@ -288,6 +300,18 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
                 con,
                 "select binding_scope,component_scope,binding_status,count(*) outcome_count "
                 "from object_binding_outcomes group by all order by all",
+            ),
+            "source_nonbracketing_intervals": rows(
+                con,
+                "select r.source_table,e.quantity_key,count(*) anomaly_count "
+                "from stellar_parameter_evidence e join source_records r "
+                "using(source_record_id) where "
+                "json_extract_string(e.quality_json,'$.uncertainty_field_semantics')="
+                "'interval_endpoints' and e.normalized_value is not null and "
+                "((e.uncertainty_lower is not null and "
+                "e.uncertainty_lower>e.normalized_value) or "
+                "(e.uncertainty_upper is not null and "
+                "e.uncertainty_upper<e.normalized_value)) group by all order by all",
             ),
         },
     }

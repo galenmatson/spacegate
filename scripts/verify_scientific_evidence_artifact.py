@@ -276,9 +276,7 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             con,
             f"select count(*) from {table} where "
             "quality_json->>'uncertainty_field_semantics'='interval_endpoints' "
-            "and (uncertainty_lower>uncertainty_upper "
-            "or (normalized_value is not null and uncertainty_lower>normalized_value) "
-            "or (normalized_value is not null and uncertainty_upper<normalized_value))",
+            "and uncertainty_lower>uncertainty_upper",
         )
         for table in uncertainty_tables
     ) + scalar_count(
@@ -287,10 +285,27 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         "unnest(b.measurements) as nested(measurement) "
         "where measurement.quality_json->>'uncertainty_field_semantics'="
         "'interval_endpoints' and "
-        "(measurement.uncertainty_lower>measurement.uncertainty_upper "
-        "or (measurement.normalized_value is not null and "
-        "measurement.uncertainty_lower>measurement.normalized_value) "
-        "or (measurement.normalized_value is not null and "
+        "measurement.uncertainty_lower>measurement.uncertainty_upper",
+    )
+    source_nonbracketing_intervals = sum(
+        scalar_count(
+            con,
+            f"select count(*) from {table} where "
+            "quality_json->>'uncertainty_field_semantics'='interval_endpoints' "
+            "and normalized_value is not null and "
+            "((uncertainty_lower is not null and uncertainty_lower>normalized_value) "
+            "or (uncertainty_upper is not null and uncertainty_upper<normalized_value))",
+        )
+        for table in uncertainty_tables
+    ) + scalar_count(
+        con,
+        "select count(*) from astrometry_distance_evidence_bundles b, "
+        "unnest(b.measurements) as nested(measurement) "
+        "where measurement.quality_json->>'uncertainty_field_semantics'="
+        "'interval_endpoints' and measurement.normalized_value is not null and "
+        "((measurement.uncertainty_lower is not null and "
+        "measurement.uncertainty_lower>measurement.normalized_value) or "
+        "(measurement.uncertainty_upper is not null and "
         "measurement.uncertainty_upper<measurement.normalized_value))",
     )
     checks["referenced_evidence_without_citations"] = sum(
@@ -354,6 +369,7 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         "checks": checks,
         "orphan_source_record_counts_by_table": orphan_counts,
         "relation_summary": relation_summary,
+        "source_nonbracketing_interval_endpoints": source_nonbracketing_intervals,
     }
 
 

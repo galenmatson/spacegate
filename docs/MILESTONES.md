@@ -1721,8 +1721,8 @@ Current status (July 19, 2026, in progress):
   `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`
 - compiler/contract v67 preserves multi-model classification probabilities as
   coherent source vectors without choosing a winner, distinguishes configured
-  domain interval endpoints from error magnitudes, and independently rejects
-  intervals that do not bracket their normalized value
+  domain interval endpoints from error magnitudes, rejects reversed endpoints,
+  and reports rather than rewrites source-native non-bracketing estimates
 - Gaia AP compiler/contract v68 accounts all 482 main/supplement field
   occurrences and separates every Gaia pipeline/model context without a
   field-wise composite. Exact typed-schema reconciliation and real-row smoke

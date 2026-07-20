@@ -1897,9 +1897,10 @@ Representative commits:
 - Configured astrometry/variability evidence had also treated every lower/upper
   field as a nonnegative error magnitude. The shared contract now explicitly
   distinguishes error magnitudes from absolute interval endpoints. Independent
-  audit permits signed endpoints only for the latter representation and rejects
-  reversed intervals or intervals that do not bracket their normalized value.
-  Focused tests cover both changes; no Gaia-specific selection branch exists.
+  audit permits signed endpoints only for the latter representation, rejects
+  reversed intervals, and reports source-native central estimates outside their
+  published intervals without changing them. Focused tests cover both changes;
+  no Gaia-specific selection branch exists.
 
 ### 64) Gaia DR3 Main Astrophysical-Parameter Contract
 

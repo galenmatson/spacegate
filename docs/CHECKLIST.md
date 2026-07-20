@@ -1300,8 +1300,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   promote no crossmatch directly to accepted identity
 - [x] E4 Gaia AP compiler foundation: retain multi-model classifier probability
   vectors as one coherent source bundle without winner selection; distinguish
-  domain interval endpoints from error magnitudes and reject intervals that do
-  not bracket the normalized value
+  domain interval endpoints from error magnitudes; reject reversed endpoints
+  and report source-native non-bracketing estimates without rewriting them
 - [x] E4 Gaia AP main contract: account all 482 hard/supplement source fields;
   preserve coherent DSC/ESP, GSP-Phot, FLAME, GSP-Spec, MSC component/system,
   and OA contexts; validate source-native units and real-row materialization
