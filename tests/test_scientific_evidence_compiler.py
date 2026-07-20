@@ -2078,6 +2078,68 @@ def test_missing_uncertainty_sentinel_does_not_become_large_uncertainty() -> Non
     assert rows == [(None,), (0.25,)]
 
 
+def test_scoped_stellar_evidence_preserves_interval_endpoints(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "stellar_bounds.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 1::bigint source_id, 10.0 measurement_value, "
+            f"9.0 lower_bound, 11.0 upper_bound) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.stellar','r1','parameters','star',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-20 00:00:00')",
+            [source_hash],
+        )
+        consumed = compiler.materialize_scoped_stellar_evidence(
+            con,
+            source_id="test.stellar",
+            release_id="r1",
+            table_name="parameters",
+            path=parquet,
+            parameter_sets=[
+                {
+                    "scope_key": "model",
+                    "parameter_set_kind": "source_model",
+                    "method": "source_pipeline",
+                    "normalization_version": "source_native_v1",
+                    "measurements": [
+                        {
+                            "value_field": "measurement_value",
+                            "uncertainty_lower_field": "lower_bound",
+                            "uncertainty_upper_field": "upper_bound",
+                            "uncertainty_field_semantics": "interval_endpoints",
+                            "bound_semantics": "posterior_interval_endpoints",
+                            "quantity_key": "effective_temperature",
+                            "unit_raw": "K",
+                        }
+                    ],
+                }
+            ],
+            available_fields={
+                "source_id",
+                "measurement_value",
+                "lower_bound",
+                "upper_bound",
+            },
+        )
+        row = con.execute(
+            "select normalized_value,uncertainty_lower,uncertainty_upper,"
+            "bound_semantics,quality_json::varchar from stellar_parameter_evidence"
+        ).fetchone()
+    assert consumed == {"measurement_value", "lower_bound", "upper_bound"}
+    assert row[:4] == (10.0, 9.0, 11.0, "posterior_interval_endpoints")
+    assert json.loads(row[4])["uncertainty_field_semantics"] == "interval_endpoints"
+
+
 def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
     tmp_path: Path,
 ) -> None:

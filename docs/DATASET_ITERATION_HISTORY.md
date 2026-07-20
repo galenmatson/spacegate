@@ -1848,9 +1848,18 @@ Representative commits:
   keys. After reacquisition, the branches contain 85,724 and 1,351 disjoint
   rows. Gaia also reuses `solution_id` across distinct per-source model rows;
   `(source_id, solution_id, nss_solution_type)` is the verified source-native
-  solution key. Checkpoint `cd4014b0e26860fbb59a8db8` accounts all 87,075
+  solution key. Compiler-v65 checkpoint `1881e02d8e9f1d33a1d9b64a` accounts all 87,075
   orbits and 154 table-field occurrences with zero collisions or pending fields;
-  source-specific, generic artifact, and clean-reproduction audits pass.
+  source-specific, generic artifact, and clean-reproduction audits pass at
+  logical hash
+  `3aeabe350ec4e224ab9b04dceae6fab9678cdd27a5337919ed6c1c8912f51e5a`.
+- Preparing the Gaia AP adapters exposed a general uncertainty-shape hazard:
+  the scoped stellar-parameter compiler had interpreted every lower/upper field
+  as an error magnitude. Compiler/contract v65 makes that representation
+  explicit. Error columns remain absolute magnitudes, while published posterior
+  lower/upper columns remain absolute interval endpoints with a required named
+  bound semantic. Focused tests preserve both forms; no catalog-specific or
+  named-object branch was introduced.
 
 ## Recurrent Defect Classes and Mitigations
 

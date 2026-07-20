@@ -630,6 +630,23 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                         errors.append(
                             f"{measurement_prefix}.normalize_numeric must be boolean"
                         )
+                    uncertainty_semantics = measurement.get(
+                        "uncertainty_field_semantics", "error_magnitudes"
+                    )
+                    if uncertainty_semantics not in {
+                        "error_magnitudes",
+                        "interval_endpoints",
+                    }:
+                        errors.append(
+                            f"{measurement_prefix}.uncertainty_field_semantics is invalid"
+                        )
+                    if (
+                        uncertainty_semantics == "interval_endpoints"
+                        and not str(measurement.get("bound_semantics") or "").strip()
+                    ):
+                        errors.append(
+                            f"{measurement_prefix}.bound_semantics is required for interval endpoints"
+                        )
                     if measurement.get("uncertainty_field") and (
                         measurement.get("uncertainty_lower_field")
                         or measurement.get("uncertainty_upper_field")
@@ -2809,6 +2826,24 @@ def materialize_scoped_stellar_evidence(
             uncertainty_upper_field = measurement.get(
                 "uncertainty_upper_field", uncertainty_field
             )
+            uncertainty_semantics = measurement.get(
+                "uncertainty_field_semantics", "error_magnitudes"
+            )
+            if uncertainty_semantics not in {
+                "error_magnitudes",
+                "interval_endpoints",
+            }:
+                raise ValueError(
+                    f"unsupported scoped uncertainty semantics: {uncertainty_semantics}"
+                )
+            if (
+                uncertainty_semantics == "interval_endpoints"
+                and not str(measurement.get("bound_semantics") or "").strip()
+            ):
+                raise ValueError(
+                    "scoped interval endpoints require explicit bound semantics"
+                )
+            uncertainty_is_magnitude = uncertainty_semantics == "error_magnitudes"
             predicate = configured_measurement_predicate(field, measurement)
             raw = text_expression(field)
             uncertainty_lower = nullable_measurement_double_expression(
@@ -2819,7 +2854,7 @@ def materialize_scoped_stellar_evidence(
                         measurement.get("missing_values") or [],
                     )
                 ),
-                absolute=True,
+                absolute=uncertainty_is_magnitude,
                 minimum_value=measurement.get("uncertainty_minimum_value"),
                 maximum_value=measurement.get("uncertainty_maximum_value"),
             )
@@ -2831,7 +2866,7 @@ def materialize_scoped_stellar_evidence(
                         measurement.get("missing_values") or [],
                     )
                 ),
-                absolute=True,
+                absolute=uncertainty_is_magnitude,
                 minimum_value=measurement.get("uncertainty_minimum_value"),
                 maximum_value=measurement.get("uncertainty_maximum_value"),
             )
@@ -2851,7 +2886,8 @@ def materialize_scoped_stellar_evidence(
                   {parameter_set_id}, r.source_record_id, {component_scope_sql},
                   {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
                   {normalized_value}, {normalized_unit},
-                  {uncertainty_lower}, {uncertainty_upper}, 'measurement',
+                  {uncertainty_lower}, {uncertainty_upper},
+                  {sql_string(str(measurement.get('bound_semantics') or 'measurement'))},
                   {sql_string(method)}, {nullable_sql_string(config.get('model'))},
                   {reference},
                   json_object(
@@ -2859,6 +2895,7 @@ def materialize_scoped_stellar_evidence(
                     'uncertainty_field', {nullable_sql_string(uncertainty_field)},
                     'uncertainty_lower_field', {nullable_sql_string(uncertainty_lower_field)},
                     'uncertainty_upper_field', {nullable_sql_string(uncertainty_upper_field)},
+                    'uncertainty_field_semantics', {sql_string(str(uncertainty_semantics))},
                     'evidence_scope', {sql_string(scope)},
                     'component_scope', {component_scope_sql},
                     'parameter_set_kind', {sql_string(kind)},

@@ -1290,6 +1290,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   rows plus 77 fields as coherent model-specific solutions; qualify solution
   keys by NSS model; and pass collision, field, source-specific, artifact, and
   clean-reproduction audits without fabricated endpoints
+- [x] E4 scoped uncertainty contract: distinguish error magnitudes from absolute
+  lower/upper posterior endpoints, require explicit endpoint bound semantics,
+  and preserve both representations through focused compiler regression tests
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

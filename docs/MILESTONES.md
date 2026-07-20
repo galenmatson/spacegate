@@ -1703,12 +1703,16 @@ Current status (July 19, 2026, in progress):
   `Orbital`, `AstroSpectroSB1`, targeted-search, validated-search, and
   alternative models stay distinct, and no missing companion endpoint is
   fabricated. Clean reproduction and the independent artifact audit pass.
-- corrected NSS checkpoint `cd4014b0e26860fbb59a8db8` uses authoritative Gaia
+- corrected NSS compiler-v65 checkpoint `1881e02d8e9f1d33a1d9b64a` uses authoritative Gaia
   source parallax for the hard boundary and materializes 85,724 hard plus 1,351
   disjoint uncertainty rows. Model-qualified `(source_id, solution_id,
   nss_solution_type)` keys eliminate 2,322 false collisions; source-specific,
-  generic artifact, and clean-reproduction audits pass scientific hash
-  `d3728d85f9bdec6562ee5ecdf0001529c53800bd1c15b573de4ae9d3a52ffebb`.
+  generic artifact, and clean-reproduction audits pass logical hash
+  `3aeabe350ec4e224ab9b04dceae6fab9678cdd27a5337919ed6c1c8912f51e5a`
+- compiler/contract v65 distinguishes uncertainty error magnitudes from absolute
+  posterior interval endpoints in the shared scoped stellar-parameter adapter;
+  interval endpoints require explicit bound semantics and focused regression
+  coverage before Gaia AP parameter-set materialization
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

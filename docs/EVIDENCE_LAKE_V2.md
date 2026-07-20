@@ -820,12 +820,19 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   binary endpoints. Each `(source_id, solution_id, nss_solution_type)` retains
   its source model, all fitted values and errors, the correlation vector and bit
   index, observation counts, fit diagnostics, quality flags, ICRS J2016.0 frame, and
-  Gaia data-model reference in one solution. Checkpoint
-  corrected checkpoint `cd4014b0e26860fbb59a8db8` accounts all 87,075 rows
+  Gaia data-model reference in one solution. Corrected compiler-v65 checkpoint
+  `1881e02d8e9f1d33a1d9b64a` accounts all 87,075 rows
   and 154 table-field occurrences with zero pending mappings or solution-key
   collisions. Source-specific, generic artifact, and clean-reproduction audits
-  pass scientific hash
-  `d3728d85f9bdec6562ee5ecdf0001529c53800bd1c15b573de4ae9d3a52ffebb`.
+  pass logical hash
+  `3aeabe350ec4e224ab9b04dceae6fab9678cdd27a5337919ed6c1c8912f51e5a`.
+- Compiler/contract v65 extends the scoped stellar-parameter adapter with an
+  explicit uncertainty-field semantic. Ordinary error columns remain absolute
+  magnitudes; source-published lower and upper posterior columns remain absolute
+  interval endpoints and require a named bound semantic. A focused regression
+  test prevents either representation from being silently converted into the
+  other. This shared contract is required before Gaia AP parameter sets are
+  materialized and does not select any public winning value.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961
