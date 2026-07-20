@@ -1807,6 +1807,15 @@ Representative commits:
   `9f93b59b7ab0ddde233063585b0ee19c4ad2a248a2cfdd08fb20ff810a74da4a`
   retired only rejected GALAH v61 and reclaimed 5,170,827,264 allocated bytes;
   all accepted builds and source snapshots remain protected.
+- A subsequent E0 audit exposed 621 GiB of legacy-name build output that the
+  standard timestamp contract correctly ignored. Retention now requires both
+  explicit `--include-legacy-builds` and an exact reviewed candidate hash for
+  that ambiguous name class. Candidate
+  `e32226b51121daf22850650296cfae330606010998a858ae30f6617c8eced540`
+  removed only 18 superseded build trees (364.82 GiB), retained the newest 12,
+  all 11 E0-referenced/served builds, every historical report, and every source
+  or E4 artifact. The refreshed audit reports 495.6 GiB free and restores the
+  acquisition gate.
 
 ## Recurrent Defect Classes and Mitigations
 

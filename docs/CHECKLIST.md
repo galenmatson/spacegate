@@ -1103,6 +1103,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   HTTP acquisition with exact responses, checksum/row/MAXREC gates,
   inter-process manifest locking, atomic promotion, and source-native
   VOTable/FITS Parquet support
+- [x] E0 retention compatibility: make pre-contract `YYYYMMDDT_<label>` builds
+  opt-in and exact-hash gated; preserve every E0-referenced build and all reports
+  while reclaiming 364.82 GiB of superseded Photon build payloads
 - [x] E3 envelope contract: pair every Gaia AP, supplementary AP, NSS,
   variability/rotation, and official external-crossmatch hard-parallax product
   with a disjoint posterior-overlap acquisition and executable parity gate

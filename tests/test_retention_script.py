@@ -100,3 +100,72 @@ def test_retention_rejects_invalid_protected_build_id(tmp_path: Path) -> None:
     )
     assert result.returncode == 2
     assert "Invalid protected build ID" in result.stderr
+
+
+def test_retention_legacy_builds_are_opt_in_and_hash_gated(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    legacy = state / "out" / "20260712T_tess_evidence_v1"
+    legacy.mkdir(parents=True)
+    (state / "reports").mkdir()
+    (legacy / "payload").write_bytes(b"legacy")
+
+    default = subprocess.run(
+        [str(SCRIPT), "--state-dir", str(state), "--keep-builds", "0"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert str(legacy) not in default.stdout
+
+    dry_run = subprocess.run(
+        [
+            str(SCRIPT),
+            "--state-dir",
+            str(state),
+            "--keep-builds",
+            "0",
+            "--include-legacy-builds",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert str(legacy) in dry_run.stdout
+    candidate_hash = next(
+        line.split(": ", 1)[1]
+        for line in dry_run.stdout.splitlines()
+        if line.startswith("Candidate set SHA256:")
+    )
+
+    refused = subprocess.run(
+        [
+            str(SCRIPT),
+            "--state-dir",
+            str(state),
+            "--keep-builds",
+            "0",
+            "--include-legacy-builds",
+            "--apply",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert refused.returncode == 2
+    assert legacy.exists()
+
+    subprocess.run(
+        [
+            str(SCRIPT),
+            "--state-dir",
+            str(state),
+            "--keep-builds",
+            "0",
+            "--include-legacy-builds",
+            "--expected-candidate-set-sha256",
+            candidate_hash,
+            "--apply",
+        ],
+        check=True,
+    )
+    assert not legacy.exists()

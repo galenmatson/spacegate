@@ -102,6 +102,14 @@ Photon's current generous default:
 scripts/prune_state_retention.sh --keep-builds 12 --keep-reports 24 --apply
 ```
 
+Builds created before the timestamped-ID contract may use the legacy
+`YYYYMMDDT_<label>` form. They remain invisible by default because a named
+workspace can have the same shape. Include them only in a reviewed maintenance
+window with `--include-legacy-builds`; applying that mode requires the exact
+`--expected-candidate-set-sha256` printed by the immediately preceding dry run.
+Retain historical reports independently when their size is negligible, for
+example with `--keep-reports 1000`.
+
 Before applying retention, preserve every published, rollback, or otherwise
 referenced build reported by the Evidence Lake storage audit. Supply the set
 explicitly so an unserved but required checkpoint cannot be selected merely by
@@ -125,6 +133,17 @@ metadata references the retention script cannot safely infer on its own.
 
 Run retention only after successful promotion and verification. Do not run it
 during ingest or while diagnosing a failed build.
+
+On July 20, 2026, an E0 storage audit found 621 GiB under `state/out` while the
+ordinary dry run returned zero candidates: 18 superseded builds used the
+legacy name form. No ingest/compiler process was active, LAMOST v63 had passed
+clean reproduction and been pushed, and the refreshed protection file listed
+all 11 published/rollback/served references. A build-only dry run retained the
+newest 12 builds and all reports; exact candidate hash
+`e32226b51121daf22850650296cfae330606010998a858ae30f6617c8eced540`
+authorized removal of 364.82 GiB. Post-apply verification found every protected
+build and `served/current`, and `/data` rose to 495.6 GiB free. Raw, typed,
+cooked, report, accepted E4, and source artifacts were not candidates.
 
 Evidence Lake v2 raw and typed snapshots are not `out/` retention candidates.
 Keep the active raw snapshot and active parser-contract snapshot for every

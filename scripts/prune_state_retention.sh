@@ -11,6 +11,8 @@ KEEP_BUILDS=6
 KEEP_REPORTS=12
 APPLY=0
 PRUNE_TMP=1
+INCLUDE_LEGACY_BUILDS=0
+EXPECTED_CANDIDATE_SET_SHA256=""
 declare -a PROTECTED_BUILD_IDS=()
 declare -a PROTECTED_BUILD_FILES=()
 
@@ -29,6 +31,11 @@ Options:
   --protect-build ID   Preserve this build and its report directory (repeatable).
   --protect-file FILE  Preserve build IDs listed one per line (repeatable).
   --no-prune-tmp       Do not prune out/*.tmp directories.
+  --include-legacy-builds
+                        Include pre-contract YYYYMMDDT_<label> build names.
+                        Apply requires --expected-candidate-set-sha256.
+  --expected-candidate-set-sha256 HASH
+                        Require the exact reviewed candidate identity/size set.
   --apply              Perform deletions.
   -h, --help           Show help.
 
@@ -49,6 +56,11 @@ is_nonnegative_int() {
 is_build_id_dir() {
   local name="${1:-}"
   [[ "$name" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8})T([0-9]{4}|[0-9]{6})Z_[A-Za-z0-9._-]+$ ]]
+}
+
+is_legacy_build_id_dir() {
+  local name="${1:-}"
+  [[ "$name" =~ ^[0-9]{8}T_[A-Za-z0-9._-]+$ ]]
 }
 
 path_bytes() {
@@ -114,6 +126,14 @@ while [[ $# -gt 0 ]]; do
     --no-prune-tmp)
       PRUNE_TMP=0
       shift
+      ;;
+    --include-legacy-builds)
+      INCLUDE_LEGACY_BUILDS=1
+      shift
+      ;;
+    --expected-candidate-set-sha256)
+      EXPECTED_CANDIDATE_SET_SHA256="${2:-}"
+      shift 2
       ;;
     --apply)
       APPLY=1
@@ -182,6 +202,8 @@ for name in "${out_dirs[@]}"; do
   fi
   if is_build_id_dir "$name"; then
     build_dirs+=("$name")
+  elif (( INCLUDE_LEGACY_BUILDS == 1 )) && is_legacy_build_id_dir "$name"; then
+    build_dirs+=("$name")
   fi
 done
 
@@ -211,7 +233,7 @@ fi
 declare -A keep_report_map=()
 declare -a build_report_dirs=()
 for name in "${report_dirs[@]}"; do
-  if is_build_id_dir "$name"; then
+  if is_build_id_dir "$name" || { (( INCLUDE_LEGACY_BUILDS == 1 )) && is_legacy_build_id_dir "$name"; }; then
     build_report_dirs+=("$name")
   fi
 done
@@ -236,6 +258,7 @@ total_reclaim=0
 echo "State dir: $STATE_DIR"
 echo "Served build: ${served_build_id:-"(none)"}"
 echo "Retention: keep_builds=$KEEP_BUILDS keep_reports=$KEEP_REPORTS prune_tmp=$PRUNE_TMP"
+echo "Legacy build names: include=$INCLUDE_LEGACY_BUILDS"
 if (( ${#PROTECTED_BUILD_IDS[@]} > 0 )); then
   echo "Explicit protected builds (${#PROTECTED_BUILD_IDS[@]}):"
   printf '  %s\n' "${PROTECTED_BUILD_IDS[@]}" | sort -u
@@ -264,11 +287,34 @@ print_candidates() {
 print_candidates "Build paths to prune" "${remove_build_paths[@]}"
 print_candidates "Report paths to prune" "${remove_report_paths[@]}"
 
+declare -a candidate_identity_lines=()
+for p in "${remove_build_paths[@]}"; do
+  candidate_identity_lines+=("build|$(basename "$p")|$(path_bytes "$p")")
+done
+for p in "${remove_report_paths[@]}"; do
+  candidate_identity_lines+=("report|$(basename "$p")|$(path_bytes "$p")")
+done
+candidate_set_sha256="$({
+  if (( ${#candidate_identity_lines[@]} > 0 )); then
+    printf '%s\n' "${candidate_identity_lines[@]}" | LC_ALL=C sort
+  fi
+} | sha256sum | awk '{print $1}')"
+
 echo "Estimated reclaimable: $(format_bytes "$total_reclaim")"
+echo "Candidate set SHA256: $candidate_set_sha256"
 
 if (( APPLY == 0 )); then
   echo "Dry-run only. Re-run with --apply to delete."
   exit 0
+fi
+
+if (( INCLUDE_LEGACY_BUILDS == 1 )) && [[ -z "$EXPECTED_CANDIDATE_SET_SHA256" ]]; then
+  echo "Refusing legacy-build apply without --expected-candidate-set-sha256." >&2
+  exit 2
+fi
+if [[ -n "$EXPECTED_CANDIDATE_SET_SHA256" && "$candidate_set_sha256" != "$EXPECTED_CANDIDATE_SET_SHA256" ]]; then
+  echo "Candidate set hash changed: $candidate_set_sha256 != $EXPECTED_CANDIDATE_SET_SHA256" >&2
+  exit 2
 fi
 
 echo "Applying deletions..."
