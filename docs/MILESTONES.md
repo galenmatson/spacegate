@@ -1197,7 +1197,7 @@ July 17, 2026 catalog-wide follow-up:
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
-E3 acquisition is in progress.
+registered E3 acquisition completed July 20, 2026; E4 is in progress.
 
 Goal:
 
@@ -1250,6 +1250,11 @@ Current status (July 18, 2026):
   fields and exact source-format contracts for E1 parser work
 - full-refresh preflight now gates registry validity, manifest completeness,
   schema drift, field accounting, and the 300 GiB acquisition floor
+- July 20 reviewed the additive E3 schema delta and repinned the registry at 139
+  active entries and 5,962 fields under fingerprint
+  `6d406797b9ba26b609726030d5d0455debb572954baa5da64eac6ba1a8ea19f1`;
+  three checksum-declared superseded SIMBAD pilot entries remain retained
+  lineage and no longer masquerade as active unregistered sources
 - retention added explicit protected-build inputs, preserved 11 referenced
   lineage builds, reclaimed 196.21 GiB, and left raw/cooked/catalog/scratch
   science state untouched; `/data` now has about 385 GiB free
@@ -1370,7 +1375,7 @@ Exit criteria:
 - large observation products are discoverable and retrievable without requiring
   an unbounded local mirror
 
-Current status (July 19, 2026, in progress):
+Current status (July 20, 2026, acquisition complete):
 
 - deterministic TAP and HTTP acquisition programs now preserve exact queries or
   release bytes, upstream schemas, source field dispositions, timestamps,
@@ -1438,13 +1443,22 @@ Current status (July 19, 2026, in progress):
   than silently selecting one extension: 733,901 allStar rows/234 fields, the
   one-row six-field model-grid definition, and 2,215 field-version rows/three
   fields all pass typed verification and clean reproduction
-- the Gaia AP spectroscopy uncertainty supplement completed all 17 resumable
-  TAP partitions. Its final three partitions contain 970, 936, and 963 rows;
-  the acquisition manifest is atomic and the remaining 12-product E3 tail stays
-  explicitly pending rather than being hidden by this checkpoint
-- the remaining large source transfers and typed cooks are still running; E3
-  remains open until every registered product is complete, field-accounted,
-  typed, and covered by the machine-readable acquisition report
+- repeated archive-side uncertainty-envelope joins proved operationally
+  unsuitable: Gaia rejected oversized plans for VMEM or left 3-, 7-, and
+  31-way plans nonterminal. A general checksum-bound target compiler now derives
+  the exact 189,145 DR3 source IDs from the accepted typed envelope. Seed
+  `638c3ff4e58abcd355029e0f` drives 31 direct target buckets for the remaining
+  AP-supplement, NSS, variability/rotation, and external-crossmatch products
+  without altering envelope membership
+- the final acquisition report passes 56/56 registered products with
+  170,218,414 rows, 23,962,374,516 response bytes, and zero pending products;
+  all nine direct-target products retain seed/hash/count/coverage lineage and
+  complete 31-bucket accounting
+- the five expanded Gaia releases are immutable raw snapshots and 30 typed
+  Parquet tables containing 83,873,800 rows, 1,320 column occurrences, and
+  6,567,970,168 bytes. All five source verifications and independent clean-state
+  reproductions pass. E3 acquisition is complete; E4 scientific contracts,
+  normalization, scope, and selection remain open
 
 #### M8.3c-E4. Typed Evidence Contracts
 

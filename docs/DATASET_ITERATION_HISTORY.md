@@ -1817,6 +1817,32 @@ Representative commits:
   or E4 artifact. The refreshed audit reports 495.6 GiB free and restores the
   acquisition gate.
 
+### 61) Gaia Uncertainty Target Seed and E3 Acquisition Completion
+
+- Repeating the full Gaia DR3, EDR3-distance, and source-table join for every
+  uncertainty-envelope supplement did not scale reliably. Oversized activity
+  plans hit Gaia VMEM; spectroscopic plans remained nonterminal under 3-, 7-,
+  and 31-way partitioning. All remote jobs from stopped attempts were explicitly
+  aborted, and no partial response set was promoted.
+- The durable solution is general and evidence-bound rather than source-object
+  specific. `scripts/build_gaia_uncertainty_target_seed.py` verifies the
+  accepted `gaia_dr3_source_uncertain_distance_supplement_v1` Parquet checksum,
+  requires one distinct target per source row, sorts all 189,145 Gaia DR3 IDs,
+  and publishes immutable seed `638c3ff4e58abcd355029e0f`. Its target artifact,
+  manifest, values hash, and build identity are inputs to every dependent query.
+- Nine remaining AP-supplement, NSS, variability/rotation, and external-
+  crossmatch products query their source tables directly through 31 modulo
+  target buckets. Every product manifest proves the same seed build, exact
+  uncertainty-envelope coverage, all 189,145 values, 31 nonempty buckets, and
+  its own response-set hash. Scientific membership is unchanged; only archive
+  query execution differs.
+- The final E3 report passes 56/56 products, 170,218,414 rows,
+  23,962,374,516 response bytes, and zero pending products. The five expanded
+  Gaia raw snapshots type to 30 Parquet tables, 83,873,800 rows, 1,320 column
+  occurrences, and 6,567,970,168 bytes. Aggregate verification and independent
+  clean-state reproduction pass for every release. E3 acquisition is complete;
+  E4 normalization, evidence materialization, scope, and selection remain open.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

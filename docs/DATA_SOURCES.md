@@ -107,6 +107,24 @@ within the 383.245-pc build buffer or the lower 16th-percentile bound overlaps
 the 306.601-pc public sphere. The Bailer-Jones release is acquired separately;
 its estimates are evidence and never replace Gaia source astrometry.
 
+For source tables beyond `gaia_source`, repeatedly executing that three-way
+archive join proved unsafe: some plans exceeded Gaia VMEM and smaller plans
+remained nonterminal. The accepted uncertainty-envelope Parquet table is now
+the authoritative acquisition target input. A deterministic compiler verifies
+its checksum and emits content-addressed seed `638c3ff4e58abcd355029e0f`
+containing exactly 189,145 unique sorted Gaia DR3 source IDs. Direct `VALUES`
+queries are divided into 31 modulo buckets and every product manifest pins the
+seed, values, artifact, coverage, and bucket hashes. This is an execution
+optimization only; it cannot add targets outside or omit targets inside the
+accepted envelope.
+
+The completed E3 acquisition report accounts 56 products, 170,218,414 rows,
+23,962,374,516 bytes, and no pending product. Expanded Gaia AP,
+supplementary-AP, NSS, variability/rotation, and external-crossmatch snapshots
+produce 30 verified typed tables with 83,873,800 rows and 1,320 column
+occurrences. Each release also passes an independent clean raw-to-typed
+reproduction.
+
 The separate Bailer-Jones envelope snapshot contains 17,310,560 rows and all
 10 source fields; typed snapshot `5a60000592215924b3305095` passes verification
 and clean reproduction. VizieR names its lower and upper percentile columns

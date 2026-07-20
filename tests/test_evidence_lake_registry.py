@@ -193,6 +193,56 @@ def test_registry_audit_enumerates_fields_and_rejects_unregistered_entries(
     ]
 
 
+def test_registry_audit_accepts_only_checksum_bound_superseded_lineage(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    raw = state / "raw" / "test"
+    manifests = state / "reports" / "manifests"
+    raw.mkdir(parents=True)
+    manifests.mkdir(parents=True)
+    artifact = raw / "rows.csv"
+    artifact.write_text("source_id,value\n1,2.5\n", encoding="utf-8")
+    (manifests / "test_manifest.json").write_text(
+        json.dumps(
+            [
+                {
+                    "source_name": "test_rows",
+                    "dest_path": "raw/test/rows.csv",
+                    "sha256": "source-hash",
+                },
+                {
+                    "source_name": "old_rows",
+                    "dest_path": "raw/test/rows.csv",
+                    "sha256": "a" * 64,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = minimal_registry()
+    registry["retained_superseded_manifest_entries"] = [
+        {
+            "manifest": "test_manifest.json",
+            "source_name": "old_rows",
+            "sha256": "a" * 64,
+            "replaced_by": "test_rows",
+            "reason": "immutable test lineage",
+        }
+    ]
+    report = collect_registry_audit(registry, state)
+    assert report["status"] == "pass"
+    assert report["summary"]["retained_superseded_manifest_entries"] == 1
+    assert report["unregistered_manifest_entries"] == []
+
+    registry["retained_superseded_manifest_entries"][0]["sha256"] = "b" * 64
+    mismatch = collect_registry_audit(registry, state)
+    assert mismatch["status"] == "fail"
+    assert mismatch["retained_superseded_manifest_mismatches"][0]["error"] == (
+        "sha256_mismatch"
+    )
+
+
 def test_storage_audit_finds_served_and_metadata_references(tmp_path: Path) -> None:
     state = tmp_path / "state"
     downloads = tmp_path / "downloads"

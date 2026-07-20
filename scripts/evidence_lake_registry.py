@@ -91,6 +91,7 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
 
     seen_sources: set[str] = set()
     seen_manifest_entries: set[tuple[str, str]] = set()
+    seen_superseded_entries: set[tuple[str, str]] = set()
     sources = registry.get("sources")
     if not isinstance(sources, list) or not sources:
         return errors + ["sources must be a non-empty list"]
@@ -256,6 +257,23 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"{source_id}.schema_policy.readme_bindings references unregistered artifacts"
                 )
+
+    for index, entry in enumerate(registry.get("retained_superseded_manifest_entries") or []):
+        prefix = f"retained_superseded_manifest_entries[{index}]"
+        key = (str(entry.get("manifest") or ""), str(entry.get("source_name") or ""))
+        if not all(key):
+            errors.append(f"{prefix} requires manifest and source_name")
+        elif key in seen_manifest_entries:
+            errors.append(f"{prefix} overlaps an active manifest entry: {key}")
+        elif key in seen_superseded_entries:
+            errors.append(f"retained superseded manifest entry repeated: {key}")
+        seen_superseded_entries.add(key)
+        if not re.fullmatch(r"[0-9a-f]{64}", str(entry.get("sha256") or "")):
+            errors.append(f"{prefix}.sha256 must be a lowercase SHA-256")
+        if not str(entry.get("replaced_by") or "").strip():
+            errors.append(f"{prefix}.replaced_by is required")
+        if not str(entry.get("reason") or "").strip():
+            errors.append(f"{prefix}.reason is required")
 
     return errors
 
@@ -477,10 +495,37 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
             continue
         actual_entries[(manifest_name, str(entry.get("source_name") or ""))] = entry
 
+    retained_superseded: list[dict[str, str]] = []
+    retained_mismatches: list[dict[str, str]] = []
+    retained_keys: set[tuple[str, str]] = set()
+    for expected in registry.get("retained_superseded_manifest_entries") or []:
+        key = (str(expected["manifest"]), str(expected["source_name"]))
+        actual = actual_entries.get(key)
+        if actual is None:
+            retained_mismatches.append(
+                {"manifest": key[0], "source_name": key[1], "error": "missing"}
+            )
+            continue
+        if str(actual.get("sha256") or "") != str(expected["sha256"]):
+            retained_mismatches.append(
+                {"manifest": key[0], "source_name": key[1], "error": "sha256_mismatch"}
+            )
+            continue
+        retained_keys.add(key)
+        retained_superseded.append(
+            {
+                "manifest": key[0],
+                "source_name": key[1],
+                "sha256": str(expected["sha256"]),
+                "replaced_by": str(expected["replaced_by"]),
+                "reason": str(expected["reason"]),
+            }
+        )
+
     unregistered = sorted(
         (
             {"manifest": key[0], "source_name": key[1]}
-            for key in set(actual_entries) - set(registered)
+            for key in set(actual_entries) - set(registered) - retained_keys
         ),
         key=lambda row: (row["manifest"], row["source_name"]),
     )
@@ -605,6 +650,8 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
         errors.append("one or more source manifests could not be loaded")
     if unregistered:
         errors.append("one or more manifest entries are not registered")
+    if retained_mismatches:
+        errors.append("one or more retained superseded manifest entries failed lineage checks")
     if active_missing:
         errors.append("one or more active registry entries are missing from manifests")
     for record in all_schema_records:
@@ -623,6 +670,8 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
         "errors": sorted(set(errors)),
         "manifest_load_errors": manifest_load_errors,
         "unregistered_manifest_entries": unregistered,
+        "retained_superseded_manifest_entries": retained_superseded,
+        "retained_superseded_manifest_mismatches": retained_mismatches,
         "missing_registered_entries": missing_registered,
         "sources": source_reports,
         "schema_snapshot": schema_snapshot,
@@ -630,6 +679,7 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
             "registered_sources": len(registry["sources"]),
             "registered_manifest_entries": len(registered),
             "actual_manifest_entries": len(actual_entries),
+            "retained_superseded_manifest_entries": len(retained_superseded),
             "planned_sources": sum(1 for source in registry["sources"] if source["state"] == "planned"),
             "machine_enumerated_fields": sum(
                 len(record.get("fields") or []) for record in all_schema_records

@@ -1115,7 +1115,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   catalog rows from page furniture; normalize only registry-declared GCVS
   trailing layout delimiters, preserve internal delimiters and exact raw rows,
   and pass typed A/B plus clean-reproduction gates
-- [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
+- [x] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
 - [x] E3 Gaia boundary checkpoint: complete, type, verify, and clean-reproduce the disjoint
   Bailer-Jones-selected Gaia uncertainty supplement; report hard, posterior,
@@ -1125,7 +1125,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   clean-reproduce all 17,310,560 bounded Bailer-Jones distance rows plus the
   1,329,052 Hunt-Reffert cluster, membership, and literature-crossmatch rows;
   retain case-distinct percentile fields and all 171 table-column occurrences
-- [ ] E3: acquire/migrate current Gaia cluster and confidence-bearing wide-
+- [x] E3: acquire/migrate current Gaia cluster and confidence-bearing wide-
   binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
   multiplicity/compact/ultracool/extended sources under the new contracts
 - [x] E3 wide-binary checkpoint: pin, source-native type, verify, and clean-
@@ -1137,7 +1137,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   input with a separate complete-catalog profile; preserve all 4,080 systems,
   102,459 aliases, 261 configurations, 5,169 full orbit rows, and all 73
   table-column occurrences without changing the served legacy input
-- [ ] E3: acquire complete relevant NASA reference-specific/composite planet,
+- [x] E3: acquire complete relevant NASA reference-specific/composite planet,
   host, TOI, Kepler/K2 candidate/status, transit, and RV metadata plus matched
   APOGEE/GALAH/LAMOST stellar-physics evidence
 - [x] E3 NASA checkpoint: preserve and verify 12 source-native tables, 206,989
@@ -1148,8 +1148,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   products; preserve every configured APOGEE table HDU and fixed-size array
   rather than selecting only the primary catalog extension
 - [x] E3 Gaia AP spectroscopy supplement checkpoint: complete and validate all
-  17 uncertainty-envelope TAP partitions while leaving the remaining E3 product
-  tail explicitly pending
+  17 uncertainty-envelope TAP partitions; subsequently close the registered E3
+  product tail through the checksum-bound target-seed acquisition
+- [x] E3 acquisition completion: derive a checksum-bound 189,145-source Gaia DR3
+  uncertainty target seed; complete and account all 56 registered products;
+  snapshot/type the five expanded Gaia source families; and pass per-source plus
+  aggregate verification and clean-state reproduction with zero pending products
 - [ ] E4: materialize typed stellar, astrometric/distance, photometric,
   spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
   planet/transit/RV, compact-object, extended-object, citation, and product-

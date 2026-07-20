@@ -1,6 +1,7 @@
 # Spacegate Evidence Lake v2
 
-Status: active main quest. E0-E2 completed July 18, 2026; E3 acquisition is in
+Status: active main quest. E0-E2 completed July 18, 2026; registered E3
+acquisition completed July 20, 2026; E4 typed scientific materialization is in
 progress.
 
 E0 checkpoint:
@@ -8,17 +9,20 @@ E0 checkpoint:
 - `config/evidence_lake/source_releases.json` registers 44 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
-- `config/evidence_lake/schema_baseline.json` pins 63 current manifest entries,
-  1,824 machine-enumerated fields, and exact format contracts for source formats
-  whose schemas live in official source documents. The baseline fingerprint is
-  `5f1ec5ec044733acf6da32a7532a84cc8d1d118f6ba168d6f9f5e05530f53cbf`.
+- `config/evidence_lake/schema_baseline.json` pins 139 active manifest entries,
+  5,962 machine-enumerated fields, and exact format contracts for source formats
+  whose schemas live in official source documents. Three superseded SIMBAD
+  pilot entries remain immutable but are separately checksum-declared rather
+  than treated as active. The reviewed baseline fingerprint is
+  `6d406797b9ba26b609726030d5d0455debb572954baa5da64eac6ba1a8ea19f1`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
 - Reference-aware retention preserved 11 served/published/rollback lineage
-  builds and reclaimed 196.21 GiB of unreferenced immutable builds. Photon has
-  about 385 GiB free on `/data`, above the 300 GiB acquisition floor. The
-  separate 54 GiB scratch area was not pruned.
+  builds and first reclaimed 196.21 GiB of unreferenced immutable builds. The
+  later exact-hash legacy-build pass reclaimed another 364.82 GiB without
+  touching raw, typed, report, or E4 artifacts. Photon has about 489 GiB free
+  on `/data`, above the 300 GiB acquisition floor.
 - Machine reports are under
   `/data/spacegate/state/reports/evidence_lake_v2/`.
 
@@ -228,7 +232,7 @@ and raw/typed contracts. Acquisition is complete only when every targeted
 source record and upstream field is present or has an explicit omission reason.
 Large observation products follow the metadata-first storage policy.
 
-E3 acquisition checkpoint (July 19, 2026, in progress):
+E3 acquisition checkpoint (completed July 20, 2026):
 
 - `config/evidence_lake/e3_acquisition_program.json` and
   `scripts/evidence_tap_acquire.py` define exact schema-accounted TAP products,
@@ -270,14 +274,27 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   `1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35`;
   the scratch tree was removed after the durable report was written.
 - Fifteen Gaia-derived AP, supplementary-AP, NSS, variability/rotation, and
-  official external-crossmatch products now have explicit disjoint posterior-
-  overlap companions. A checked acquisition contract requires matching source,
-  table, field-selection, partition, cap, and disposition semantics so later
-  products cannot silently fall back to hard-parallax-only coverage.
+  official external-crossmatch products have explicit disjoint posterior-
+  overlap companions. The first archive-side three-way join plans hit Gaia
+  VMEM limits or remained nonterminal under 3-, 7-, and 31-way partitioning.
+  `scripts/build_gaia_uncertainty_target_seed.py` therefore derives the exact
+  189,145-source DR3 target set from the accepted uncertainty-envelope typed
+  table, verifies its Parquet checksum, and publishes content-addressed seed
+  `638c3ff4e58abcd355029e0f`. The nine remaining products query their source
+  tables directly through 31 checksum-pinned target buckets; this changes query
+  execution, not scientific membership.
+- The acquisition report passes with 56/56 products, 170,218,414 rows,
+  23,962,374,516 response bytes, and no pending product. Every direct-target
+  product records seed build, artifact/value hashes, exact coverage, 189,145
+  values, and all 31 nonempty buckets in its immutable manifest.
 - The program accounts for all 764 upstream columns across `gaia_source`, AP
   main and supplementary, NSS orbit, variability summary, and rotation-
-  modulation tables; large exact acquisitions continue in crash-resilient
-  tmux jobs.
+  modulation tables. The five expanded Gaia source releases are raw-
+  snapshotted and typed into 30 Parquet tables, 83,873,800 rows, 1,320 column
+  occurrences, and 6,567,970,168 bytes. Per-release verification and clean-state
+  reproduction pass for snapshots `1f13c88951b996b95e702913`,
+  `c80bde75b53fb38389c242a2`, `d8cc84b6d789827c31d719a4`,
+  `4c00e4b5b40a8f32c56a4459`, and `17cf207d8471b3ec00e1cb07`.
 - Expanded NSS already preserves 50,762 complete 77-column orbit rows. The
   complete NASA acquisition is also typed and verified: 12 planet, host, TOI,
   K2, Kepler-name, KOI, TCE, and transit-detection tables preserve 206,989 rows
@@ -289,8 +306,9 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   while retaining the exact VizieR names in lineage. Hunt-Reffert is complete
   at this layer with 7,167 cluster, 1,291,929 membership, and 29,956 crossmatch
   rows across 161 field occurrences. These are source-native facts; E4/E5 still
-  own scope and scientific selection. Remaining registered sources retain E3
-  completion and typed-coverage exit gates.
+  own scope and scientific selection. E3 source acquisition is complete; E4
+  still owns normalization, scope, evidence contracts, and scientific
+  selection for these source-native tables.
 - SIMBAD is deliberately staged rather than mirrored: acquire the release-
   pinned Gaia DR3 identity bridge, intersect locally with the Evidence Lake
   envelope, then request basic, alias, and bibliography evidence for the

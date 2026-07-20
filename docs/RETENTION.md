@@ -157,6 +157,15 @@ estate is 63 raw artifacts and 5,213,454,799 typed Parquet bytes across 27
 source releases; older immutable parser checkpoints explain why the physical
 typed directory is larger until E7 retirement.
 
+Content-addressed acquisition target seeds under
+`derived/evidence_lake_v2/acquisition_targets/` are also lineage artifacts, not
+scratch. Preserve seed `638c3ff4e58abcd355029e0f` while any accepted Gaia
+uncertainty-supplement product manifest references it. A future seed may be
+retired only after every dependent product is superseded, the replacement raw
+and typed releases pass clean reproduction, and E7 proves no retained manifest,
+report, publication, rollback, or adjudication packet references the old seed.
+Never prune individual seed artifacts or rewrite their manifests.
+
 The July 19 E4 wide-binary compiler work produced bounded checkpoint
 `aaf262b1791d98ce3e9f96e7` (11,129,073,664 bytes) and several hidden temporary
 scientific-evidence directories from failed or deliberately interrupted

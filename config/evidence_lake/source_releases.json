@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.13",
+  "registry_version": "2026-07-20.14",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -15,7 +15,7 @@
     ],
     "parallax_floor_mas": 2.609272,
     "measured_gaia_dr3_source_count": 31987126,
-    "status": "measured_acquisition_in_progress"
+    "status": "measured_acquisition_complete"
   },
   "storage_budgets": {
     "internal_min_free_before_acquisition_gib": 300,
@@ -50,6 +50,29 @@
     "extended_objects": "non-stellar object identity, geometry, and distance",
     "observation_products": "spectra, light curves, atmosphere spectra, images, and product metadata"
   },
+  "retained_superseded_manifest_entries": [
+    {
+      "manifest": "evidence_lake_e3_manifest.json",
+      "source_name": "simbad_gaia_hard_basic_supplement_v1",
+      "sha256": "60a9752141aa4f0d2d664d2507644a67f81967f3800ef19074910e860f6274e1",
+      "replaced_by": "simbad_gaia_uncertainty_basic_supplement_v1",
+      "reason": "retained immutable hard-envelope pilot lineage"
+    },
+    {
+      "manifest": "evidence_lake_e3_manifest.json",
+      "source_name": "simbad_gaia_hard_bibliography_supplement_v1",
+      "sha256": "57ff2cadf2c9ac4ce4614bf3d6e2decf9f8b61b9de2446c359918609ee5675d9",
+      "replaced_by": "simbad_gaia_uncertainty_bibliography_supplement_v1",
+      "reason": "retained immutable hard-envelope pilot lineage"
+    },
+    {
+      "manifest": "evidence_lake_e3_manifest.json",
+      "source_name": "simbad_gaia_hard_identifier_supplement_v1",
+      "sha256": "4b58ecec0057637c6a685f3e5e3d2bc5a8a7990093a51c3efae024d7fe7401bd",
+      "replaced_by": "simbad_gaia_uncertainty_identifier_supplement_v1",
+      "reason": "retained immutable hard-envelope pilot lineage"
+    }
+  ],
   "sources": [
     {
       "source_id": "gaia.dr3.gaia_source",

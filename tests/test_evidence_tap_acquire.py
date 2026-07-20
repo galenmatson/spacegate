@@ -58,11 +58,31 @@ def test_gaia_derived_products_cover_both_envelope_branches() -> None:
         hard = products[hard_name]
         supplement = products[supplement_name]
         assert "parallax >= 2.609272" in hard["where"]
-        assert "external.gaiaedr3_distance bj" in supplement["from"]
-        assert "parallax < 2.60927200 or" in supplement["where"]
-        assert "bj.r_med_geo <= 383.245 or bj.r_lo_geo <= 306.601" in supplement["where"]
+        if supplement.get("target_values"):
+            target = supplement["target_values"]
+            assert "external.gaiaedr3_distance bj" not in supplement["from"]
+            assert target["build_id"] == "638c3ff4e58abcd355029e0f"
+            assert target["coverage"] == "complete_gaia_dr3_uncertainty_envelope"
+            assert target["partition_values_by_bucket"] is True
+            assert supplement["buckets"] == 31
+        else:
+            assert "external.gaiaedr3_distance bj" in supplement["from"]
+            assert "parallax < 2.60927200 or" in supplement["where"]
+            assert "bj.r_med_geo <= 383.245 or bj.r_lo_geo <= 306.601" in supplement["where"]
         for key in field_contract_keys:
             assert hard.get(key) == supplement.get(key), (hard_name, supplement_name, key)
+    assert (
+        products["gaia_dr3_ap_activity_specialized_uncertain_distance_supplement_v1"][
+            "buckets"
+        ]
+        == 31
+    )
+    wide_supplements = {
+        "gaia_dr3_ap_multiple_oa_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_supp_photometric_models_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_supp_spectroscopic_models_uncertain_distance_supplement_v1",
+    }
+    assert all(products[name]["buckets"] == 31 for name in wide_supplements)
 
 
 def test_simbad_ordering_uses_unqualified_output_fields() -> None:
