@@ -1924,6 +1924,15 @@ Representative commits:
   Gaia `source_id`, and collapses record and identifier binding to one star scope.
   This removes 51,164,425 false duplicate identity claims and the corresponding
   redundant binding outcomes before the large build.
+- The first full v68 attempt completed scientific evidence materialization but
+  hit the 32-GB cap while inserting every release binding at the end. This was
+  an operation-order scaling defect, not invalid AP data. Compiler/contract v69
+  emits the identical deterministic binding keys after each source table, which
+  bounds working state and retains idempotent primary-key deduplication. Exact
+  candidate hash
+  `fae1354fe191776ed93d66967563075b762d0af37d1df518e76670f9f93eccb7`
+  authorized retirement of the sole 110,793,879,552-byte manifestless staging
+  tree before retry.
 
 ## Recurrent Defect Classes and Mitigations
 

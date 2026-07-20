@@ -867,6 +867,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   so it remains lineage rather than producing 51 million false object-identity
   claims; each source-table row keys and binds by Gaia source at star scope.
   The large immutable source build and independent audits remain pending.
+- The first full AP build materialized the scientific tables but failed closed
+  at the final release-wide unresolved-binding insert under the 32-GB cap.
+  Compiler/contract v69 emits the same deterministic primary-keyed scopes after
+  each source table instead of aggregating all ten tables at release end. This
+  bounds working state without changing evidence or binding identity. The sole
+  manifestless v68 staging tree was retired whole through exact-hash retention;
+  the v69 retry remains pending.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

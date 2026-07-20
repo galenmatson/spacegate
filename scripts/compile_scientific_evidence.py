@@ -4869,34 +4869,37 @@ def materialize_unresolved_binding_outcomes(
     *,
     source_id: str,
     release_id: str,
+    source_table: str,
 ) -> None:
-    """Emit binding scopes without a release-wide DISTINCT aggregation."""
+    """Emit one source table's scopes without a release-wide aggregation."""
     binding_scope_queries = (
         """
         select source_record_id, object_scope binding_scope,
           null::varchar component_scope
         from source_records
-        where source_id=? and release_id=?
+        where source_id=? and release_id=? and source_table=?
         """,
         """
         select i.source_record_id, i.claim_scope binding_scope, i.component_scope
         from identifier_claim_evidence i
         join source_records r using (source_record_id)
-        where r.source_id=? and r.release_id=?
+        where r.source_id=? and r.release_id=? and r.source_table=?
         """,
         """
         select e.source_record_id, 'stellar_component' binding_scope,
           e.component_scope
         from stellar_parameter_evidence e
         join source_records r using (source_record_id)
-        where r.source_id=? and r.release_id=? and e.component_scope is not null
+        where r.source_id=? and r.release_id=? and r.source_table=?
+          and e.component_scope is not null
         """,
         """
         select e.source_record_id, 'stellar_component' binding_scope,
           e.component_scope
         from stellar_classification_evidence e
         join source_records r using (source_record_id)
-        where r.source_id=? and r.release_id=? and e.component_scope is not null
+        where r.source_id=? and r.release_id=? and r.source_table=?
+          and e.component_scope is not null
         """,
     )
     for binding_scope_query in binding_scope_queries:
@@ -4924,7 +4927,7 @@ def materialize_unresolved_binding_outcomes(
             from ({binding_scope_query}) s
             join source_records r using (source_record_id)
             """,
-            [source_id, release_id],
+            [source_id, release_id, source_table],
         )
 
 
@@ -5534,6 +5537,12 @@ def materialize_source(
                     adapter["adapter_version"],
                 ]
             )
+        materialize_unresolved_binding_outcomes(
+            con,
+            source_id=source_id,
+            release_id=release_id,
+            source_table=table_name,
+        )
         report_tables.append(
             {
                 "source_table": table_name,
@@ -5569,11 +5578,6 @@ def materialize_source(
     con.executemany(
         "insert into source_field_dispositions values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         disposition_rows,
-    )
-    materialize_unresolved_binding_outcomes(
-        con,
-        source_id=source_id,
-        release_id=release_id,
     )
     return {
         "source_id": source_id,

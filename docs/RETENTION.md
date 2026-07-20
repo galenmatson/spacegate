@@ -617,6 +617,12 @@ sudo scripts/normalize_state_permissions.sh --apply
   authorized whole-tree retirement, reclaiming 30,327,984,128 and
   30,865,903,616 allocated bytes. The accepted 47.3-GiB artifact and all raw,
   typed, report, served, and rollback data were not candidates.
+- The first Gaia AP v68 full build failed closed at release-wide unresolved
+  binding insertion after scientific materialization. A zero-age dry run proved
+  exactly one manifestless, unreferenced, closed staging tree; candidate hash
+  `fae1354fe191776ed93d66967563075b762d0af37d1df518e76670f9f93eccb7`
+  authorized whole-tree retirement of 110,793,879,552 allocated bytes. No raw,
+  typed, accepted, served, rollback, or report artifact was selected.
 
 ## Extended-Object Catalog Artifacts
 

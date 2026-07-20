@@ -960,6 +960,7 @@ def test_unresolved_binding_materialization_deduplicates_scopes_without_union() 
                 con,
                 source_id="test.source",
                 release_id="r1",
+                source_table="rows",
             )
         rows = con.execute(
             "select binding_scope,component_scope from object_binding_outcomes "

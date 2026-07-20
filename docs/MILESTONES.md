@@ -1728,6 +1728,10 @@ Current status (July 19, 2026, in progress):
   field-wise composite. Exact typed-schema reconciliation and real-row smoke
   materialization pass; immutable build, source audit, generic artifact audit,
   and clean reproduction remain the next E4 gate
+- the first full Gaia AP build failed closed only at release-wide unresolved
+  binding insertion. Compiler/contract v69 emits identical scopes per source
+  table under the same 32-GB limit; the failed manifestless staging tree was
+  retired by exact-hash retention and the immutable retry remains pending
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general
