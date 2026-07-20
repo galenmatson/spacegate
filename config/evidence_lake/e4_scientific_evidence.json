@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.60",
-  "compiler_version": "scientific_evidence_compiler_v60",
+  "contract_version": "2026-07-19.e4-foundation.62",
+  "compiler_version": "scientific_evidence_compiler_v62",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1355,6 +1355,56 @@
         "reason": "remaining APOGEE targeting, photometry, copied crossmatch, visit, fit-array, flag, and release context retained source-natively"
       }
     ],
+    "galah_dr4_allstar": [
+      {
+        "pattern": "^(sobject_id|tmass_id|gaiadr3_source_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "GALAH observation, 2MASS target, and explicit Gaia DR3 identity evidence"
+      },
+      {
+        "pattern": "^(teff|e_teff|logg|e_logg|fe_h|e_fe_h|flag_fe_h|vmic|e_vmic|vsini|e_vsini|nn_li_fe|nn_e_li_fe|nn_flag_li_fe|[a-z]+_fe|e_[a-z]+_fe|flag_[a-z]+_fe)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "coherent GALAH DR4 spectroscopic stellar parameters, abundances, uncertainties, and flags"
+      },
+      {
+        "pattern": "^(mass|age|bc_ks|lbol)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "GALAH DR4 isochrone and bolometric model evidence retained as a separate coherent parameter set"
+      },
+      {
+        "pattern": "^(ew_h_beta|ew_h_alpha|res_h_beta|res_h_alpha|ew_li|e_ew_li_low|e_ew_li_upp|a_li|a_li_upp_lim|e_a_li_low|e_a_li_upp|e_a_li_teff|flag_a_li)$",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_evidence",
+        "reason": "GALAH DR4 hydrogen and lithium line/activity diagnostics with bounds and quality"
+      },
+      {
+        "pattern": "^(ra|dec|r_med|r_lo|r_hi|rv_comp_1|e_rv_comp_1|rv_comp_2|e_rv_comp_2|v_bary_eff|sb2_rv_16|sb2_rv_50|sb2_rv_84)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "GALAH coordinates, source-native radial velocities, barycentric correction, and SB2 velocity evidence"
+      },
+      {
+        "pattern": "^(ebv|a_ks|ew_k_is|sigma_k_is|rv_k_is|ew_dib5780|sigma_dib5780|rv_dib5780|ew_dib5797|sigma_dib5797|rv_dib5797|ew_dib6613|sigma_dib6613|rv_dib6613)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "GALAH reddening, extinction, and line-of-sight interstellar absorption evidence"
+      },
+      {
+        "pattern": "^(rv_gaia_dr3|e_rv_gaia_dr3|phot_g_mean_mag|bp_rp|j_m|j_msigcom|h_m|h_msigcom|ks_m|ks_msigcom|W2mag|e_W2mag|ruwe|parallax|parallax_error)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "copied Gaia, 2MASS, and AllWISE values remain byte-preserved in E1 Parquet; their release-native sources own competing E4 evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "remaining GALAH survey, observation, fit, model, reduction, SNR, and quality context retained source-natively"
+      }
+    ],
     "bailer_jones_edr3_distance": [
       {
         "pattern": "^Source$",
@@ -1384,6 +1434,157 @@
     ]
   },
   "source_adapters": {
+    "spectroscopy.galah_dr4": {
+      "adapter_version": "galah_dr4_scientific_evidence_v1",
+      "tables": {
+        "galah_dr4_allstar_240705": {
+          "raw_artifact_name": "galah_dr4_allstar_240705",
+          "logical_key_fields": ["sobject_id"],
+          "object_scope": "spectroscopic_observation_target",
+          "field_profile": "galah_dr4_allstar",
+          "row_selection": {
+            "policy_id": "registered_gaia_dr3_uncertainty_envelope_v1",
+            "sql_predicate": "true",
+            "cache_selected_rows": true,
+            "reason": "retain GALAH rows whose explicit Gaia DR3 identity occurs in either checksum-bound component of the Spacegate uncertainty-aware DR3 envelope",
+            "external_membership_groups": [
+              {
+                "membership_id": "spacegate_gaia_dr3_uncertainty_envelope_v1",
+                "local_field": "gaiadr3_source_id",
+                "normalization": "unsigned_integer_decimal_v1",
+                "match": "any",
+                "targets": [
+                  {
+                    "source_id": "gaia.dr3.gaia_source",
+                    "release_id": "gaia_dr3_1250ly_envelope_v2",
+                    "raw_snapshot_id": "fcd1f77edf401a7e19c72197",
+                    "typed_snapshot_id": "35a41010cf74f950e61b5412",
+                    "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35",
+                    "target_table": "gaia_dr3_source_envelope_v2",
+                    "target_field": "source_id",
+                    "target_table_sha256": "524606bf49b9be6feac2bdff067b1fd333365a5c0081e751cef863f59799466a"
+                  },
+                  {
+                    "source_id": "gaia.dr3.gaia_source",
+                    "release_id": "gaia_dr3_1250ly_envelope_v2",
+                    "raw_snapshot_id": "fcd1f77edf401a7e19c72197",
+                    "typed_snapshot_id": "35a41010cf74f950e61b5412",
+                    "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35",
+                    "target_table": "gaia_dr3_source_uncertain_distance_supplement_v1",
+                    "target_field": "source_id",
+                    "target_table_sha256": "ebf7c1620786e79bb155d08e7e991f0c293ac791d239ab968281ccd77d3e3f65"
+                  }
+                ]
+              }
+            ]
+          },
+          "identifier_claims": {
+            "sobject_id": {"namespace": "galah_sobject_id", "claim_scope": "observation_product"},
+            "tmass_id": {"namespace": "2mass_id", "claim_scope": "observation_target", "excluded_values": ["None", "nan", "null"]},
+            "gaiadr3_source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "galah_spectroscopic_fit",
+              "parameter_set_kind": "galah_dr4_spectroscopic_parameters_and_abundances",
+              "method": "galah_dr4_spectrum_analysis_pipeline",
+              "model": "GALAH_DR4_allStar",
+              "reference_raw": "GALAH DR4 allStar 240705",
+              "normalization_version": "galah_dr4_source_native_v1",
+              "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "flag_fe_h", "snr_px_ccd1", "snr_px_ccd2", "snr_px_ccd3", "snr_px_ccd4", "chi2_sp", "px_used_perc", "model_name", "closest_model", "nn_flag_li_fe", "flag_c_fe", "flag_n_fe", "flag_o_fe", "flag_na_fe", "flag_mg_fe", "flag_al_fe", "flag_si_fe", "flag_k_fe", "flag_ca_fe", "flag_sc_fe", "flag_ti_fe", "flag_v_fe", "flag_cr_fe", "flag_mn_fe", "flag_co_fe", "flag_ni_fe", "flag_cu_fe", "flag_zn_fe", "flag_rb_fe", "flag_sr_fe", "flag_y_fe", "flag_zr_fe", "flag_mo_fe", "flag_ru_fe", "flag_ba_fe", "flag_la_fe", "flag_ce_fe", "flag_nd_fe", "flag_sm_fe", "flag_eu_fe"],
+              "measurements": [
+                {"value_field": "teff", "uncertainty_field": "e_teff", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg", "uncertainty_field": "e_logg", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "fe_h", "uncertainty_field": "e_fe_h", "quantity_key": "abundance_fe_h", "unit_raw": "dex"},
+                {"value_field": "vmic", "uncertainty_field": "e_vmic", "quantity_key": "microturbulence_velocity", "unit_raw": "km s-1"},
+                {"value_field": "vsini", "uncertainty_field": "e_vsini", "quantity_key": "projected_rotation_velocity", "unit_raw": "km s-1"},
+                {"value_field": "nn_li_fe", "uncertainty_field": "nn_e_li_fe", "quantity_key": "abundance_li_fe_neural_network", "unit_raw": "dex"},
+                {"value_field": "c_fe", "uncertainty_field": "e_c_fe", "quantity_key": "abundance_c_fe", "unit_raw": "dex"},
+                {"value_field": "n_fe", "uncertainty_field": "e_n_fe", "quantity_key": "abundance_n_fe", "unit_raw": "dex"},
+                {"value_field": "o_fe", "uncertainty_field": "e_o_fe", "quantity_key": "abundance_o_fe", "unit_raw": "dex"},
+                {"value_field": "na_fe", "uncertainty_field": "e_na_fe", "quantity_key": "abundance_na_fe", "unit_raw": "dex"},
+                {"value_field": "mg_fe", "uncertainty_field": "e_mg_fe", "quantity_key": "abundance_mg_fe", "unit_raw": "dex"},
+                {"value_field": "al_fe", "uncertainty_field": "e_al_fe", "quantity_key": "abundance_al_fe", "unit_raw": "dex"},
+                {"value_field": "si_fe", "uncertainty_field": "e_si_fe", "quantity_key": "abundance_si_fe", "unit_raw": "dex"},
+                {"value_field": "k_fe", "uncertainty_field": "e_k_fe", "quantity_key": "abundance_k_fe", "unit_raw": "dex"},
+                {"value_field": "ca_fe", "uncertainty_field": "e_ca_fe", "quantity_key": "abundance_ca_fe", "unit_raw": "dex"},
+                {"value_field": "sc_fe", "uncertainty_field": "e_sc_fe", "quantity_key": "abundance_sc_fe", "unit_raw": "dex"},
+                {"value_field": "ti_fe", "uncertainty_field": "e_ti_fe", "quantity_key": "abundance_ti_fe", "unit_raw": "dex"},
+                {"value_field": "v_fe", "uncertainty_field": "e_v_fe", "quantity_key": "abundance_v_fe", "unit_raw": "dex"},
+                {"value_field": "cr_fe", "uncertainty_field": "e_cr_fe", "quantity_key": "abundance_cr_fe", "unit_raw": "dex"},
+                {"value_field": "mn_fe", "uncertainty_field": "e_mn_fe", "quantity_key": "abundance_mn_fe", "unit_raw": "dex"},
+                {"value_field": "co_fe", "uncertainty_field": "e_co_fe", "quantity_key": "abundance_co_fe", "unit_raw": "dex"},
+                {"value_field": "ni_fe", "uncertainty_field": "e_ni_fe", "quantity_key": "abundance_ni_fe", "unit_raw": "dex"},
+                {"value_field": "cu_fe", "uncertainty_field": "e_cu_fe", "quantity_key": "abundance_cu_fe", "unit_raw": "dex"},
+                {"value_field": "zn_fe", "uncertainty_field": "e_zn_fe", "quantity_key": "abundance_zn_fe", "unit_raw": "dex"},
+                {"value_field": "rb_fe", "uncertainty_field": "e_rb_fe", "quantity_key": "abundance_rb_fe", "unit_raw": "dex"},
+                {"value_field": "sr_fe", "uncertainty_field": "e_sr_fe", "quantity_key": "abundance_sr_fe", "unit_raw": "dex"},
+                {"value_field": "y_fe", "uncertainty_field": "e_y_fe", "quantity_key": "abundance_y_fe", "unit_raw": "dex"},
+                {"value_field": "zr_fe", "uncertainty_field": "e_zr_fe", "quantity_key": "abundance_zr_fe", "unit_raw": "dex"},
+                {"value_field": "mo_fe", "uncertainty_field": "e_mo_fe", "quantity_key": "abundance_mo_fe", "unit_raw": "dex"},
+                {"value_field": "ru_fe", "uncertainty_field": "e_ru_fe", "quantity_key": "abundance_ru_fe", "unit_raw": "dex"},
+                {"value_field": "ba_fe", "uncertainty_field": "e_ba_fe", "quantity_key": "abundance_ba_fe", "unit_raw": "dex"},
+                {"value_field": "la_fe", "uncertainty_field": "e_la_fe", "quantity_key": "abundance_la_fe", "unit_raw": "dex"},
+                {"value_field": "ce_fe", "uncertainty_field": "e_ce_fe", "quantity_key": "abundance_ce_fe", "unit_raw": "dex"},
+                {"value_field": "nd_fe", "uncertainty_field": "e_nd_fe", "quantity_key": "abundance_nd_fe", "unit_raw": "dex"},
+                {"value_field": "sm_fe", "uncertainty_field": "e_sm_fe", "quantity_key": "abundance_sm_fe", "unit_raw": "dex"},
+                {"value_field": "eu_fe", "uncertainty_field": "e_eu_fe", "quantity_key": "abundance_eu_fe", "unit_raw": "dex"}
+              ]
+            },
+            {
+              "scope_key": "galah_isochrone_model",
+              "parameter_set_kind": "galah_dr4_isochrone_and_bolometric_model",
+              "method": "galah_dr4_isochrone_pipeline",
+              "model": "GALAH_DR4_allStar_isochrone",
+              "reference_raw": "GALAH DR4 allStar 240705",
+              "normalization_version": "galah_dr4_source_native_v1",
+              "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "model_name", "closest_model"],
+              "measurements": [
+                {"value_field": "mass", "quantity_key": "stellar_mass_model_estimate", "unit_raw": "M_sun"},
+                {"value_field": "age", "quantity_key": "stellar_age_model_estimate", "unit_raw": "Gyr"},
+                {"value_field": "bc_ks", "quantity_key": "bolometric_correction_ks_model", "unit_raw": "mag"},
+                {"value_field": "lbol", "quantity_key": "bolometric_luminosity_model", "unit_raw": "L_sun"}
+              ]
+            }
+          ],
+          "photometry_measurements": [
+            {"value_field": "a_ks", "quantity_key": "extinction", "bandpass": "2MASS Ks", "unit_raw": "mag", "method": "galah_dr4_isochrone_extinction_model", "model": "GALAH_DR4_allStar_isochrone", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "ebv", "quantity_key": "reddening", "bandpass": "E(B-V)", "unit_raw": "mag", "method": "galah_dr4_reddening_estimate", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "ew_k_is", "quantity_key": "interstellar_absorption_equivalent_width", "bandpass": "K I 7699", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "sigma_k_is", "quantity_key": "interstellar_absorption_line_width", "bandpass": "K I 7699", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "rv_k_is", "quantity_key": "interstellar_absorption_radial_velocity", "bandpass": "K I 7699", "unit_raw": "km s-1", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "ew_dib5780", "quantity_key": "interstellar_absorption_equivalent_width", "bandpass": "DIB 5780", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "sigma_dib5780", "quantity_key": "interstellar_absorption_line_width", "bandpass": "DIB 5780", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "rv_dib5780", "quantity_key": "interstellar_absorption_radial_velocity", "bandpass": "DIB 5780", "unit_raw": "km s-1", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "ew_dib5797", "quantity_key": "interstellar_absorption_equivalent_width", "bandpass": "DIB 5797", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "sigma_dib5797", "quantity_key": "interstellar_absorption_line_width", "bandpass": "DIB 5797", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "rv_dib5797", "quantity_key": "interstellar_absorption_radial_velocity", "bandpass": "DIB 5797", "unit_raw": "km s-1", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "ew_dib6613", "quantity_key": "interstellar_absorption_equivalent_width", "bandpass": "DIB 6613", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "sigma_dib6613", "quantity_key": "interstellar_absorption_line_width", "bandpass": "DIB 6613", "unit_raw": "Angstrom", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"value_field": "rv_dib6613", "quantity_key": "interstellar_absorption_radial_velocity", "bandpass": "DIB 6613", "unit_raw": "km s-1", "method": "galah_dr4_interstellar_absorption_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "galah_target_coordinate", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "galah_target_coordinate", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "r_med", "quantity_key": "distance_model_median", "unit_raw": "pc", "normalized_unit": "pc", "method": "galah_dr4_distance_used_for_parallax_gravity", "model": "GALAH_DR4_allStar_isochrone", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "r_lo", "quantity_key": "distance_model_lower_bound", "unit_raw": "pc", "normalized_unit": "pc", "bound_semantics": "lower_bound", "method": "galah_dr4_distance_used_for_parallax_gravity", "model": "GALAH_DR4_allStar_isochrone", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "r_hi", "quantity_key": "distance_model_upper_bound", "unit_raw": "pc", "normalized_unit": "pc", "bound_semantics": "upper_bound", "method": "galah_dr4_distance_used_for_parallax_gravity", "model": "GALAH_DR4_allStar_isochrone", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_comp_1", "uncertainty_field": "e_rv_comp_1", "quantity_key": "primary_component_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["fit_global_rv", "flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_spectral_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_comp_2", "uncertainty_field": "e_rv_comp_2", "quantity_key": "candidate_secondary_component_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["fit_global_rv", "flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_spectral_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "v_bary_eff", "quantity_key": "effective_barycentric_velocity_correction", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "method": "galah_dr4_barycentric_correction", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "sb2_rv_16", "quantity_key": "sb2_radial_velocity_posterior_p16", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_sb2_model", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "sb2_rv_50", "quantity_key": "sb2_radial_velocity_posterior_median", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_sb2_model", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "sb2_rv_84", "quantity_key": "sb2_radial_velocity_posterior_p84", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_sb2_model", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "ew_h_alpha", "quantity_key": "h_alpha_equivalent_width", "unit_raw": "Angstrom", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd3"], "method": "galah_dr4_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "res_h_alpha", "quantity_key": "h_alpha_residual", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd3"], "method": "galah_dr4_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "ew_h_beta", "quantity_key": "h_beta_equivalent_width", "unit_raw": "Angstrom", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd1"], "method": "galah_dr4_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "res_h_beta", "quantity_key": "h_beta_residual", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd1"], "method": "galah_dr4_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "ew_li", "uncertainty_lower_field": "e_ew_li_low", "uncertainty_upper_field": "e_ew_li_upp", "quantity_key": "lithium_equivalent_width", "unit_raw": "mAngstrom", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_a_li", "flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd3"], "method": "galah_dr4_lithium_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "a_li", "uncertainty_lower_field": "e_a_li_low", "uncertainty_upper_field": "e_a_li_upp", "quantity_key": "absolute_lithium_abundance", "unit_raw": "dex", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["a_li_upp_lim", "e_a_li_teff", "flag_a_li", "flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_lithium_abundance_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"}
+          ]
+        }
+      }
+    },
     "spectroscopy.apogee_dr17": {
       "adapter_version": "apogee_dr17_scientific_evidence_v1",
       "tables": {

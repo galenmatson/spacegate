@@ -1496,6 +1496,18 @@ Current status (July 19, 2026, in progress):
   11:54 and peak RSS to 6.53 GB; this is the accepted compiler path for the
   pending GALAH/LAMOST adapters. Clean reproduction passes in 11:56 with no
   differing sections and removes its external scratch tree
+- GALAH DR4 v62 checkpoint `a4fc03c66ea1cfb44c25df28` retains 117,885
+  checksum-bound Gaia DR3 envelope rows and accounts all 184 source fields as
+  169 materialized and 15 copied-catalog exclusions. It preserves spectroscopy
+  and 31 elemental abundances as a coherent set, keeps mass/age/luminosity in a
+  separate source-model set, and emits source-native distance/RV, extinction,
+  interstellar-line, hydrogen/lithium diagnostic, identity, quality, and
+  citation evidence. A v61 semantic diagnostic was rejected when the official
+  source description proved `r_med/r_lo/r_hi` are distance bounds rather than
+  stellar radii. Generic/source audits and clean reproduction pass at logical
+  hash `7c0a367810903b18dad7e408d3feade5821325bfa8a670b5e051e1534cded8db`;
+  all bindings remain unresolved and LAMOST plus the broader E4 tail remain
+  open
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308

@@ -30,6 +30,7 @@ SUPPORTED_FAILED_ARTIFACT_AUDITS = {
     "spacegate.tess_targeted_scientific_evidence_audit.v1",
     "spacegate.bailer_jones_scientific_evidence_audit.v1",
     "spacegate.apogee_scientific_evidence_audit.v1",
+    "spacegate.galah_scientific_evidence_audit.v1",
 }
 
 

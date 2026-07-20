@@ -377,6 +377,18 @@ allocated bytes. v60 clean reproduction passes and removes its external scratch
 tree. Valid v58/v59 artifacts remain protected pending a reviewed successful-
 artifact retirement policy.
 
+Accepted GALAH DR4 v62 checkpoint `a4fc03c66ea1cfb44c25df28`, raw snapshot
+`d5e378390f1922e70396fdaf`, typed snapshot `c5a93f54ed5899e03efc188c`, and its
+compile, generic audit, GALAH source audit, and clean-reproduction reports are
+protected E4/E5 inputs. Its 5,091,897,344-byte database is not a cleanup
+candidate. The GALAH source-audit schema is allowlisted only for the existing
+fail-closed whole-artifact retirement workflow. Diagnostic v61
+`3d331821ee7b22d996a8efe3` is not accepted because it mislabeled published
+distance fields as radii; retain it until an exact retention dry-run and apply
+prove that no build or report requires it. v62 compilation and reproduction
+used `/mnt/space` scratch and removed the build-specific trees after database
+close and logical-hash agreement.
+
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`
 (DEBCat), `d08c5aa9af7dc8bcdbf0d6c3` (Green SNR), and

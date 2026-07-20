@@ -220,6 +220,23 @@ abundances, target photometry/extinction, coordinates/RV, release-scoped
 identities, citations, and product locators. Copied Gaia columns and redundant
 ASPCAP arrays remain preserved in E1 but are deliberate E4 exclusions.
 
+GALAH E4 admission is bounded by the checksum-bound OR of the registered Gaia
+DR3 hard-parallax and uncertainty-supplement envelope tables. Accepted v62
+checkpoint `a4fc03c66ea1cfb44c25df28` retains 117,885 allStar rows and accounts
+all 184 fields. The adapter keeps the pipeline spectroscopy and 31 elemental
+abundances coherent; separates source isochrone mass, age, bolometric
+correction, and luminosity; and materializes source-native coordinates,
+distance estimates, primary/candidate-secondary and SB2 radial velocities,
+extinction, interstellar absorption lines, and hydrogen/lithium diagnostics.
+Copied Gaia, 2MASS, and AllWISE values remain E1-preserved reviewed exclusions.
+The source descriptions define `r_med/r_lo/r_hi` as distance values used to
+calculate parallax gravity; the rejected v61 diagnostic mislabeled them as
+stellar radii, and v62 corrects this without rewriting either immutable source
+snapshot. All values retain source flags, model/method, reference, and lineage;
+E5 has not selected public winners. The allStar file supplies no source-native
+spectrum locator, so a registered GALAH spectra-index acquisition remains
+pending rather than deriving an unverified URL.
+
 E4 source adapters are declared in
 `config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream
 field a domain, identity, lineage, context, or reviewed-exclusion disposition

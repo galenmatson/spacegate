@@ -168,6 +168,52 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert apogee_allstar["identifier_claims"]["GAIAEDR3_SOURCE_ID"][
         "namespace"
     ] == "gaia_edr3_source_id"
+    galah = contract["source_adapters"]["spectroscopy.galah_dr4"]
+    assert set(galah["tables"]) == {"galah_dr4_allstar_240705"}
+    galah_allstar = galah["tables"]["galah_dr4_allstar_240705"]
+    assert galah_allstar["row_selection"]["cache_selected_rows"] is True
+    galah_membership = galah_allstar["row_selection"][
+        "external_membership_groups"
+    ][0]
+    assert galah_membership["match"] == "any"
+    assert galah_membership["normalization"] == "unsigned_integer_decimal_v1"
+    assert [target["target_table"] for target in galah_membership["targets"]] == [
+        "gaia_dr3_source_envelope_v2",
+        "gaia_dr3_source_uncertain_distance_supplement_v1",
+    ]
+    assert galah_allstar["identifier_claims"]["gaiadr3_source_id"][
+        "namespace"
+    ] == "gaia_dr3_source_id"
+    assert [
+        parameter_set["parameter_set_kind"]
+        for parameter_set in galah_allstar["scoped_stellar_parameter_sets"]
+    ] == [
+        "galah_dr4_spectroscopic_parameters_and_abundances",
+        "galah_dr4_isochrone_and_bolometric_model",
+    ]
+    assert len(galah_allstar["scoped_stellar_parameter_sets"][0]["measurements"]) == 36
+    assert len(galah_allstar["scoped_stellar_parameter_sets"][1]["measurements"]) == 4
+    assert len(galah_allstar["photometry_measurements"]) == 14
+    galah_domain = galah_allstar["configured_domain_measurements"]
+    assert len(galah_domain) == 17
+    assert {
+        measurement["quantity_key"]
+        for measurement in galah_domain
+        if measurement["value_field"] in {"r_lo", "r_med", "r_hi"}
+    } == {
+        "distance_model_lower_bound",
+        "distance_model_median",
+        "distance_model_upper_bound",
+    }
+    assert {
+        measurement["quantity_key"]
+        for measurement in galah_domain
+        if measurement["value_field"].startswith("sb2_rv_")
+    } == {
+        "sb2_radial_velocity_posterior_p16",
+        "sb2_radial_velocity_posterior_median",
+        "sb2_radial_velocity_posterior_p84",
+    }
     extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
     assert len(extended["tables"]) == 16
     assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (

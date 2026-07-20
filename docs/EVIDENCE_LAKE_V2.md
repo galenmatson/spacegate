@@ -441,6 +441,26 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   both generic and source-specific audits pass.
   Clean reproduction completes in 11:56 with no differing report sections and
   removes its `/mnt/space` artifact and compiler scratch after comparison.
+- Compiler/contract v62 applies the same bounded path to GALAH DR4. Accepted
+  checkpoint `a4fc03c66ea1cfb44c25df28` retains 117,885 of 917,588 allStar rows
+  through an OR across the exact hard-parallax and uncertainty-supplement Gaia
+  DR3 tables. It accounts all 184 fields as 169 materialized and 15 reviewed
+  copied-Gaia/2MASS/AllWISE exclusions; emits 353,655 release-scoped identity
+  claims, 4,052,282 coherent stellar/model measurements, 857,173 coordinate,
+  distance, and RV measurements, 973,436 extinction/interstellar measurements,
+  and 623,253 line/activity measurements; and leaves every object binding
+  unresolved for E5. The first v61 build was rejected after the source FITS
+  descriptions and official schema showed that `r_med/r_lo/r_hi` are distance
+  estimates used for parallax gravity, not stellar radii. v62 preserves them as
+  explicit distance median/lower/upper facts and keeps SB2 percentiles as three
+  values rather than inventing symmetric errors. Generic and source-specific
+  audits pass, including an explicit no-clamping gate for extreme source E(B-V)
+  evidence. Clean reproduction matches logical hash
+  `7c0a367810903b18dad7e408d3feade5821325bfa8a670b5e051e1534cded8db`
+  with no differing sections and removes its external scratch. The allStar
+  release has no source-native spectrum URL column, so spectrum-product locator
+  acquisition remains an explicit E3 follow-up rather than a manufactured E4
+  URL template.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

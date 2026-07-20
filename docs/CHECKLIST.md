@@ -1158,6 +1158,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 compiler scaling: cache checksum-bound selected rows and insert large
   evidence branches incrementally; prove the APOGEE logical hash unchanged
   before materializing GALAH or LAMOST
+- [x] E4 GALAH checkpoint: retain 117,885 exact Gaia DR3-envelope allStar rows;
+  account all 184 fields; separate spectroscopic, isochrone/model, distance/RV,
+  interstellar, and activity evidence; reject the initial distance-as-radius
+  interpretation; pass generic/source audits and clean reproduction
 - [x] E4 foundation: add the immutable 23-domain compiler contract, deterministic
   source-record identity, exact-duplicate accounting, explicit binding outcomes,
   field dispositions, cached-artifact checksum verification, and clean logical-

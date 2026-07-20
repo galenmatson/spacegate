@@ -1749,6 +1749,35 @@ Representative commits:
   3,238,584,320 allocated bytes; older ambiguous trees and valid v58/v59 builds
   were not touched.
 
+### 59) Bounded GALAH DR4 Evidence and Distance Semantics
+
+- Compiler/contract v61 first applied checksum-bound DR3 envelope selection and
+  the exact selected-row cache to GALAH DR4, retaining 117,885 of 917,588
+  allStar rows. That diagnostic completed, but review of the immutable FITS
+  column descriptions and official GALAH schema found a semantic error:
+  `r_med`, `r_lo`, and `r_hi` are distance values used to calculate
+  parallax-based gravity, not stellar-radius estimates. The artifact was not
+  accepted and was not rewritten.
+- Compiler/contract v62 moves the three fields to typed distance evidence with
+  explicit median/lower/upper semantics. It likewise stores published
+  `sb2_rv_16/50/84` as separate percentile facts instead of treating posterior
+  endpoints as measurement errors. Source mass, age, bolometric correction,
+  and luminosity remain a separate coherent model set from the spectroscopy
+  and 31 elemental-abundance quantities.
+- Accepted checkpoint `a4fc03c66ea1cfb44c25df28` accounts all 184 fields as
+  169 materialized and 15 copied-Gaia/2MASS/AllWISE exclusions. It emits
+  353,655 release-scoped identity claims, 4,052,282 stellar/model measurements,
+  857,173 astrometry/distance/RV measurements, 973,436 extinction/interstellar
+  measurements, and 623,253 hydrogen/lithium activity/line measurements. All
+  object bindings remain unresolved for E5, and extreme published E(B-V)
+  values remain evidence rather than being silently clamped.
+- Generic and GALAH-specific audits pass with all checks zero. The 6:21 compile
+  peaks at 4.90 GB RSS; clean reproduction completes in 6:25, matches logical
+  hash `7c0a367810903b18dad7e408d3feade5821325bfa8a670b5e051e1534cded8db`,
+  reports no differing sections, and removes external scratch. The source
+  allStar product contains no spectrum URL field, so an authoritative product
+  index remains an explicit E3 follow-up rather than a derived URL convention.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
