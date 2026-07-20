@@ -606,6 +606,17 @@ sudo scripts/normalize_state_permissions.sh --apply
 - Failed builds may be kept temporarily for diagnosis, but once the root cause is
   captured in a report or issue, remove them through the retention script rather
   than manual edits inside immutable build directories.
+- Large clean-reproduction builds may use
+  `verify_scientific_evidence_reproduction.py --scratch-parent` on
+  `/mnt/space/spacegate/evidence-lake-reproduction`. Only disposable verifier
+  scratch belongs there: accepted manifests and evidence databases remain on
+  internal storage, the report must record `scratch_removed=true`, and a failed
+  verifier must be inspected before its scratch tree is removed.
+- The Gaia external-crossmatch v66 scale diagnostics created two manifestless
+  failed staging trees. Separate zero-age dry runs and exact candidate hashes
+  authorized whole-tree retirement, reclaiming 30,327,984,128 and
+  30,865,903,616 allocated bytes. The accepted 47.3-GiB artifact and all raw,
+  typed, report, served, and rollback data were not candidates.
 
 ## Extended-Object Catalog Artifacts
 

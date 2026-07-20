@@ -1293,6 +1293,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 scoped uncertainty contract: distinguish error magnitudes from absolute
   lower/upper posterior endpoints, require explicit endpoint bound semantics,
   and preserve both representations through focused compiler regression tests
+- [x] E4 Gaia external-crossmatch checkpoint: preserve every bounded official
+  AllWISE, 2MASS, Hipparcos-2, Tycho-2, and RAVE DR6 best-neighbour row as
+  candidate relation evidence with source-scoped endpoints, separation, flags,
+  neighbour counts, exhaustive field accounting, and exact clean reproduction;
+  promote no crossmatch directly to accepted identity
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

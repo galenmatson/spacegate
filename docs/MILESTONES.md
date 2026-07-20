@@ -1713,6 +1713,12 @@ Current status (July 19, 2026, in progress):
   posterior interval endpoints in the shared scoped stellar-parameter adapter;
   interval endpoints require explicit bound semantics and focused regression
   coverage before Gaia AP parameter-set materialization
+- Gaia external-crossmatch checkpoint `81b0cc4aa29453088a62f3de` preserves all
+  24,045,693 bounded official AllWISE, 2MASS, Hipparcos-2, Tycho-2, and RAVE DR6
+  best-neighbour rows as candidate relations with angular-separation and quality
+  context. All 62 fields are accounted, no relation becomes accepted identity,
+  and source, artifact, and clean-reproduction gates pass logical hash
+  `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

@@ -833,6 +833,19 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   test prevents either representation from being silently converted into the
   other. This shared contract is required before Gaia AP parameter sets are
   materialized and does not select any public winning value.
+- Compiler/contract v66 materializes the complete bounded Gaia DR3 AllWISE,
+  2MASS, Hipparcos-2, Tycho-2, and RAVE DR6 official best-neighbour products as
+  candidate crossmatch relations, never accepted identity merges. Checkpoint
+  `81b0cc4aa29453088a62f3de` accounts 24,045,693 source rows, 48,091,386
+  endpoint identifiers, 24,045,693 angular-separation-bearing relation claims,
+  72,137,079 unresolved binding scopes, and all 62 field occurrences with zero
+  pending fields or normalization rejections. Source-specific and independent
+  artifact audits pass; clean reproduction on the bulk scratch disk matches
+  logical hash
+  `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`.
+  Large exact materialization uses one thread, disabled insertion-order
+  preservation, a 32-GB Photon memory ceiling, and primary-key deduplication
+  without a release-wide `UNION DISTINCT` aggregation.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

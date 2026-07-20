@@ -101,6 +101,16 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert "corr_vec" in nss_orbit["quality_fields"]
     assert len(nss_orbit["parameter_fields"]) == 56
     assert len(nss_orbit["quality_fields"]) == 18
+    external = contract["source_adapters"]["gaia.dr3.external_crossmatches"]
+    assert len(external["tables"]) == 10
+    for table_name, table in external["tables"].items():
+        if "uncertain_distance_supplement" in table_name:
+            assert "table_contract_ref" in table
+            continue
+        relation = table["relation_claim"]
+        assert relation["evidence_polarity"] == "candidate"
+        assert "probability_field" not in relation
+        assert relation["confidence_statistic_field"] == "angular_distance"
     wgsn = contract["source_adapters"]["naming.iau_wgsn"]["tables"][
         "iau_wgsn_catalog_html"
     ]
@@ -892,6 +902,36 @@ def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
         "object_binding_outcomes",
         "identifier_normalization_rejections",
     } <= tables
+
+
+def test_unresolved_binding_materialization_deduplicates_scopes_without_union() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records "
+            "(source_record_id,source_id,release_id,source_table,object_scope,"
+            "logical_key_json,source_context_json,source_row_sha256,"
+            "source_duplicate_count,raw_snapshot_id,typed_snapshot_id,"
+            "raw_artifact_sha256,typed_table_sha256) values "
+            "('record','test.source','r1','rows','crossmatch_relation',"
+            "'{}','{}','row-hash',1,'raw','typed','raw-hash','typed-hash')"
+        )
+        con.execute(
+            "insert into identifier_claim_evidence values "
+            "('id-1','record','test_id','A','A','observation_target',null,null,'{}'),"
+            "('id-2','record','test_alias','B','B','observation_target',null,null,'{}')"
+        )
+        for _ in range(2):
+            compiler.materialize_unresolved_binding_outcomes(
+                con,
+                source_id="test.source",
+                release_id="r1",
+            )
+        rows = con.execute(
+            "select binding_scope,component_scope from object_binding_outcomes "
+            "order by binding_scope,component_scope"
+        ).fetchall()
+    assert rows == [("crossmatch_relation", None), ("observation_target", None)]
 
 
 def test_source_record_compilation_is_deterministic_and_accounts_duplicates(

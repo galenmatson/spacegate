@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-20.e4-foundation.65",
-  "compiler_version": "scientific_evidence_compiler_v65",
+  "contract_version": "2026-07-20.e4-foundation.66",
+  "compiler_version": "scientific_evidence_compiler_v66",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -666,6 +666,26 @@
         "disposition": "domain",
         "destination": "orbital_solution_evidence",
         "reason": "complete coherent Gaia NSS fitted solution, uncertainties, correlations, diagnostics, model, and source lineage"
+      }
+    ],
+    "gaia_external_best_neighbour": [
+      {
+        "pattern": "^(source_id|original_ext_source_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia DR3 source and external-catalog observation-target identity"
+      },
+      {
+        "pattern": "^angular_distance$",
+        "disposition": "domain",
+        "destination": "relation_claim_evidence",
+        "reason": "Gaia-published best-neighbour angular separation retained as a non-probabilistic candidate-match statistic"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "Gaia crossmatch flags, neighbour/mate counts, and external-catalog row keys retained as relation quality context"
       }
     ],
     "iau_wgsn_names": [
@@ -2377,6 +2397,101 @@
         "gaia_dr3_nss_two_body_orbit_uncertain_distance_supplement_v1": {
           "table_contract_ref": "gaia_dr3_nss_two_body_orbit_full_v2"
         }
+      }
+    },
+    "gaia.dr3.external_crossmatches": {
+      "adapter_version": "gaia_dr3_external_best_neighbour_scientific_evidence_v1",
+      "tables": {
+        "gaia_dr3_allwise_best_neighbour_v1": {
+          "logical_key_fields": ["source_id", "original_ext_source_id"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "gaia_external_best_neighbour",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"},
+            "original_ext_source_id": {"namespace": "allwise_designation", "claim_scope": "observation_target", "component_scope": "external_source"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+            "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "allwise_designation", "right_component_scope": "external_source",
+            "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_allwise", "evidence_polarity": "candidate",
+            "method": "gaiadr3.allwise_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+            "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia-published best-neighbour angular separation; smaller supports a match but is not a probability or accepted identity",
+            "quality_fields": ["xm_flag", "allwise_oid", "number_of_neighbours", "number_of_mates"]
+          }
+        },
+        "gaia_dr3_tmass_best_neighbour_v1": {
+          "logical_key_fields": ["source_id", "original_ext_source_id"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "gaia_external_best_neighbour",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"},
+            "original_ext_source_id": {"namespace": "twomass_designation", "claim_scope": "observation_target", "component_scope": "external_source"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+            "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "twomass_designation", "right_component_scope": "external_source",
+            "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_2mass", "evidence_polarity": "candidate",
+            "method": "gaiadr3.tmass_psc_xsc_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+            "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia-published best-neighbour angular separation; smaller supports a match but is not a probability or accepted identity",
+            "quality_fields": ["xm_flag", "clean_tmass_psc_xsc_oid", "number_of_neighbours", "number_of_mates"]
+          }
+        },
+        "gaia_dr3_hipparcos2_best_neighbour_v1": {
+          "logical_key_fields": ["source_id", "original_ext_source_id"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "gaia_external_best_neighbour",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"},
+            "original_ext_source_id": {"namespace": "hip_id", "claim_scope": "observation_target", "component_scope": "external_source", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+            "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "hip_id", "right_component_scope": "external_source",
+            "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_hipparcos2", "evidence_polarity": "candidate",
+            "method": "gaiadr3.hipparcos2_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+            "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia-published best-neighbour angular separation; smaller supports a match but is not a probability or accepted identity",
+            "quality_fields": ["xm_flag", "number_of_neighbours"]
+          }
+        },
+        "gaia_dr3_tycho2_best_neighbour_v1": {
+          "logical_key_fields": ["source_id", "original_ext_source_id"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "gaia_external_best_neighbour",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"},
+            "original_ext_source_id": {"namespace": "tyc_id", "claim_scope": "observation_target", "component_scope": "external_source"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+            "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "tyc_id", "right_component_scope": "external_source",
+            "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_tycho2", "evidence_polarity": "candidate",
+            "method": "gaiadr3.tycho2tdsc_merge_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+            "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia-published best-neighbour angular separation; smaller supports a match but is not a probability or accepted identity",
+            "quality_fields": ["xm_flag", "tycho2tdsc_merge_oid", "number_of_neighbours"]
+          }
+        },
+        "gaia_dr3_ravedr6_best_neighbour_v1": {
+          "logical_key_fields": ["source_id", "original_ext_source_id"],
+          "object_scope": "gaia_external_best_neighbour_relation",
+          "field_profile": "gaia_external_best_neighbour",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"},
+            "original_ext_source_id": {"namespace": "rave_dr6_observation_id", "claim_scope": "observation_target", "component_scope": "external_source"}
+          },
+          "relation_claim": {
+            "left_identifier_field": "source_id", "left_identifier_namespace": "gaia_dr3_source_id", "left_component_scope": "gaia_source",
+            "right_identifier_field": "original_ext_source_id", "right_identifier_namespace": "rave_dr6_observation_id", "right_component_scope": "external_source",
+            "relation_kind": "official_gaia_external_best_neighbour", "relation_scope": "gaia_dr3_to_rave_dr6", "evidence_polarity": "candidate",
+            "method": "gaiadr3.ravedr6_best_neighbour", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/",
+            "confidence_statistic_field": "angular_distance", "confidence_statistic_key": "angular_separation", "confidence_statistic_unit": "arcsec", "confidence_statistic_semantics": "Gaia-published best-neighbour angular separation; smaller supports a match but is not a probability or accepted identity",
+            "quality_fields": ["xm_flag", "ravedr6_oid", "number_of_neighbours"]
+          }
+        },
+        "gaia_dr3_allwise_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_allwise_best_neighbour_v1"},
+        "gaia_dr3_tmass_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_tmass_best_neighbour_v1"},
+        "gaia_dr3_hipparcos2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_hipparcos2_best_neighbour_v1"},
+        "gaia_dr3_tycho2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_tycho2_best_neighbour_v1"},
+        "gaia_dr3_ravedr6_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ravedr6_best_neighbour_v1"}
       }
     },
     "nasa_exoplanet_archive.planetary_systems": {

@@ -1861,6 +1861,32 @@ Representative commits:
   bound semantic. Focused tests preserve both forms; no catalog-specific or
   named-object branch was introduced.
 
+### 62) Official Gaia External Best-Neighbour Evidence
+
+- E4 compiler/contract v66 preserves 24,045,693 bounded Gaia DR3 best-neighbour
+  rows across AllWISE, 2MASS, Hipparcos-2, Tycho-2, and RAVE DR6. Each row emits
+  separate release-scoped endpoint identifiers and a candidate relation with
+  the published angular separation and match-quality context. No row is treated
+  as an accepted identity merge.
+- The first complete compile exposed a general scale defect: unresolved binding
+  scopes were deduplicated by one release-wide `UNION DISTINCT`. The compiler
+  now emits scope families separately and relies on deterministic primary keys
+  with `INSERT OR IGNORE`, preserving exact output and idempotence without the
+  global aggregation. A regression test covers multiple aliases sharing one
+  binding scope.
+- Exact primary-key maintenance for 72,137,079 binding outcomes still exceeded
+  the former 16-GB cap. Photon materialization now defaults to 32 GB, one thread,
+  and disabled insertion-order preservation; hashing retains its independent
+  16-GB cap. Both failed manifestless staging trees were retired whole through
+  reviewed exact-hash retention, reclaiming 30,327,984,128 and 30,865,903,616
+  allocated bytes.
+- Accepted checkpoint `81b0cc4aa29453088a62f3de` has zero pending fields or
+  normalization rejections. Source-specific and generic artifact audits pass.
+  Clean reproduction used `/mnt/space` for its disposable 47-GB scratch build,
+  matched logical hash
+  `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`,
+  and removed the scratch tree automatically.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

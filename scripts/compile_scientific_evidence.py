@@ -31,7 +31,7 @@ LOGICAL_HASH_MEMORY_LIMIT = os.environ.get(
     "SPACEGATE_E4_HASH_MEMORY_LIMIT", "16GB"
 )
 MATERIALIZATION_MEMORY_LIMIT = os.environ.get(
-    "SPACEGATE_E4_MEMORY_LIMIT", "16GB"
+    "SPACEGATE_E4_MEMORY_LIMIT", "32GB"
 )
 LOGICAL_HASH_THREADS = max(
     1,
@@ -4700,6 +4700,70 @@ def materialize_lifecycle_claims(
     return consumed
 
 
+def materialize_unresolved_binding_outcomes(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+) -> None:
+    """Emit binding scopes without a release-wide DISTINCT aggregation."""
+    binding_scope_queries = (
+        """
+        select source_record_id, object_scope binding_scope,
+          null::varchar component_scope
+        from source_records
+        where source_id=? and release_id=?
+        """,
+        """
+        select i.source_record_id, i.claim_scope binding_scope, i.component_scope
+        from identifier_claim_evidence i
+        join source_records r using (source_record_id)
+        where r.source_id=? and r.release_id=?
+        """,
+        """
+        select e.source_record_id, 'stellar_component' binding_scope,
+          e.component_scope
+        from stellar_parameter_evidence e
+        join source_records r using (source_record_id)
+        where r.source_id=? and r.release_id=? and e.component_scope is not null
+        """,
+        """
+        select e.source_record_id, 'stellar_component' binding_scope,
+          e.component_scope
+        from stellar_classification_evidence e
+        join source_records r using (source_record_id)
+        where r.source_id=? and r.release_id=? and e.component_scope is not null
+        """,
+    )
+    for binding_scope_query in binding_scope_queries:
+        con.execute(
+            f"""
+            insert or ignore into object_binding_outcomes
+            select
+              sha256('binding|unresolved|' || s.source_record_id || '|'
+                || s.binding_scope || '|' || coalesce(s.component_scope, '')),
+              s.source_record_id,
+              'unresolved',
+              s.binding_scope,
+              null,
+              null,
+              null,
+              null,
+              s.component_scope,
+              'awaiting release-scoped identity and component-scope binding',
+              json_object(
+                'source_id', r.source_id,
+                'release_id', r.release_id,
+                'source_table', r.source_table,
+                'source_row_sha256', r.source_row_sha256
+              )
+            from ({binding_scope_query}) s
+            join source_records r using (source_record_id)
+            """,
+            [source_id, release_id],
+        )
+
+
 def materialize_source(
     con: duckdb.DuckDBPyConnection,
     input_row: dict[str, Any],
@@ -5329,60 +5393,10 @@ def materialize_source(
         "insert into source_field_dispositions values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         disposition_rows,
     )
-    con.execute(
-        """
-        insert into object_binding_outcomes
-        with binding_scopes as (
-          select source_record_id, object_scope binding_scope, null::varchar component_scope
-          from source_records
-          where source_id=? and release_id=?
-          union
-          select i.source_record_id, i.claim_scope binding_scope, i.component_scope
-          from identifier_claim_evidence i
-          join source_records r using (source_record_id)
-          where r.source_id=? and r.release_id=?
-          union
-          select e.source_record_id, 'stellar_component' binding_scope, e.component_scope
-          from stellar_parameter_evidence e
-          join source_records r using (source_record_id)
-          where r.source_id=? and r.release_id=? and e.component_scope is not null
-          union
-          select e.source_record_id, 'stellar_component' binding_scope, e.component_scope
-          from stellar_classification_evidence e
-          join source_records r using (source_record_id)
-          where r.source_id=? and r.release_id=? and e.component_scope is not null
-        )
-        select
-          sha256('binding|unresolved|' || s.source_record_id || '|' || s.binding_scope
-            || '|' || coalesce(s.component_scope, '')),
-          s.source_record_id,
-          'unresolved',
-          s.binding_scope,
-          null,
-          null,
-          null,
-          null,
-          s.component_scope,
-          'awaiting release-scoped identity and component-scope binding',
-          json_object(
-            'source_id', r.source_id,
-            'release_id', r.release_id,
-            'source_table', r.source_table,
-            'source_row_sha256', r.source_row_sha256
-          )
-        from binding_scopes s
-        join source_records r using (source_record_id)
-        """,
-        [
-            source_id,
-            release_id,
-            source_id,
-            release_id,
-            source_id,
-            release_id,
-            source_id,
-            release_id,
-        ],
+    materialize_unresolved_binding_outcomes(
+        con,
+        source_id=source_id,
+        release_id=release_id,
     )
     return {
         "source_id": source_id,
