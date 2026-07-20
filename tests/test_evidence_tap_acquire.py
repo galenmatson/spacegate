@@ -58,6 +58,10 @@ def test_gaia_derived_products_cover_both_envelope_branches() -> None:
         hard = products[hard_name]
         supplement = products[supplement_name]
         assert "parallax >= 2.609272" in hard["where"]
+        assert "gaiadr3.gaia_source" in hard["from"]
+        assert "gs.parallax >= 2.609272" in hard["where"] or (
+            "g.parallax >= 2.609272" in hard["where"]
+        )
         if supplement.get("target_values"):
             target = supplement["target_values"]
             assert "external.gaiaedr3_distance bj" not in supplement["from"]

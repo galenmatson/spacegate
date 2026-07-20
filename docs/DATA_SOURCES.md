@@ -118,10 +118,10 @@ seed, values, artifact, coverage, and bucket hashes. This is an execution
 optimization only; it cannot add targets outside or omit targets inside the
 accepted envelope.
 
-The completed E3 acquisition report accounts 56 products, 170,218,414 rows,
-23,962,374,516 bytes, and no pending product. Expanded Gaia AP,
+The completed E3 acquisition report accounts 56 products, 170,253,376 rows,
+23,970,068,085 bytes, and no pending product. Expanded Gaia AP,
 supplementary-AP, NSS, variability/rotation, and external-crossmatch snapshots
-produce 30 verified typed tables with 83,873,800 rows and 1,320 column
+produce 30 verified typed tables with 83,908,762 rows and 1,320 column
 occurrences. Each release also passes an independent clean raw-to-typed
 reproduction.
 

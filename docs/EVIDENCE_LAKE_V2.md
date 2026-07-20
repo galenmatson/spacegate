@@ -14,7 +14,7 @@ E0 checkpoint:
   whose schemas live in official source documents. Three superseded SIMBAD
   pilot entries remain immutable but are separately checksum-declared rather
   than treated as active. The reviewed baseline fingerprint is
-  `6d406797b9ba26b609726030d5d0455debb572954baa5da64eac6ba1a8ea19f1`.
+  `7e862068e7e4a18516e84bfc3a7d2e2dbb7dd0e4d780d1b62708869a33aa9752`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
@@ -283,19 +283,21 @@ E3 acquisition checkpoint (completed July 20, 2026):
   `638c3ff4e58abcd355029e0f`. The nine remaining products query their source
   tables directly through 31 checksum-pinned target buckets; this changes query
   execution, not scientific membership.
-- The acquisition report passes with 56/56 products, 170,218,414 rows,
-  23,962,374,516 response bytes, and no pending product. Every direct-target
+- The acquisition report passes with 56/56 products, 170,253,376 rows,
+  23,970,068,085 response bytes, and no pending product. Every direct-target
   product records seed build, artifact/value hashes, exact coverage, 189,145
   values, and all 31 nonempty buckets in its immutable manifest.
 - The program accounts for all 764 upstream columns across `gaia_source`, AP
   main and supplementary, NSS orbit, variability summary, and rotation-
   modulation tables. The five expanded Gaia source releases are raw-
-  snapshotted and typed into 30 Parquet tables, 83,873,800 rows, 1,320 column
-  occurrences, and 6,567,970,168 bytes. Per-release verification and clean-state
+  snapshotted and typed into 30 Parquet tables, 83,908,762 rows, 1,320 column
+  occurrences, and 6,575,792,259 bytes. Per-release verification and clean-state
   reproduction pass for snapshots `1f13c88951b996b95e702913`,
-  `c80bde75b53fb38389c242a2`, `d8cc84b6d789827c31d719a4`,
+  `c80bde75b53fb38389c242a2`, `ba9869a742ae9a00aeda0bc2`,
   `4c00e4b5b40a8f32c56a4459`, and `17cf207d8471b3ec00e1cb07`.
-- Expanded NSS already preserves 50,762 complete 77-column orbit rows. The
+- Expanded NSS preserves 87,075 complete 77-column orbit rows. The hard branch
+  uses authoritative `gaia_source.parallax` and contains 85,724 rows; the
+  checksum-bound uncertainty branch contributes 1,351 disjoint rows. The
   complete NASA acquisition is also typed and verified: 12 planet, host, TOI,
   K2, Kepler-name, KOI, TCE, and transit-detection tables preserve 206,989 rows
   and all 2,093 upstream fields with zero omissions; a clean raw-to-typed
@@ -815,13 +817,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   clean reproduction and independent audit pass, and zero claims become
   canonical containment.
 - Expanded Gaia NSS uses the generic coherent-orbit contract without inventing
-  binary endpoints. Each `(source_id, solution_id)` retains its source model,
-  all fitted values and errors, the correlation vector and bit index,
-  observation counts, fit diagnostics, quality flags, ICRS J2016.0 frame, and
+  binary endpoints. Each `(source_id, solution_id, nss_solution_type)` retains
+  its source model, all fitted values and errors, the correlation vector and bit
+  index, observation counts, fit diagnostics, quality flags, ICRS J2016.0 frame, and
   Gaia data-model reference in one solution. Checkpoint
-  `e198804d34abcf04d209d116` accounts all 50,762 rows and 77 fields with zero
-  pending mappings and reproduces logical hash
-  `cadc76e161e0042dbcb4cc7bed43e9c3fef273ede390e86b9588f8e8e5351e51`.
+  corrected checkpoint `cd4014b0e26860fbb59a8db8` accounts all 87,075 rows
+  and 154 table-field occurrences with zero pending mappings or solution-key
+  collisions. Source-specific, generic artifact, and clean-reproduction audits
+  pass scientific hash
+  `d3728d85f9bdec6562ee5ecdf0001529c53800bd1c15b573de4ae9d3a52ffebb`.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

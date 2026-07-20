@@ -1252,7 +1252,7 @@ Current status (July 18, 2026):
   schema drift, field accounting, and the 300 GiB acquisition floor
 - July 20 reviewed the additive E3 schema delta and repinned the registry at 139
   active entries and 5,962 fields under fingerprint
-  `6d406797b9ba26b609726030d5d0455debb572954baa5da64eac6ba1a8ea19f1`;
+  `7e862068e7e4a18516e84bfc3a7d2e2dbb7dd0e4d780d1b62708869a33aa9752`;
   three checksum-declared superseded SIMBAD pilot entries remain retained
   lineage and no longer masquerade as active unregistered sources
 - retention added explicit protected-build inputs, preserved 11 referenced
@@ -1392,8 +1392,8 @@ Current status (July 20, 2026, acquisition complete):
   `35a41010cf74f950e61b5412` are immutable, verified, and clean-reproduced from
   external scratch with exact table, snapshot-ID, and content-hash agreement
 - all 764 fields across the six foundational Gaia table families are assigned
-  to source-native products, and expanded NSS has completed with 50,762 full
-  77-column orbit rows
+  to source-native products. Corrected expanded NSS contains 85,724 hard-
+  envelope and 1,351 disjoint uncertainty rows, all with 77 source fields
 - the separately acquired Bailer-Jones EDR3 distance envelope now preserves
   17,310,560 rows and all 10 published fields; Hunt-Reffert preserves 7,167
   cluster rows, 1,291,929 membership rows, and 29,956 literature-crossmatch
@@ -1451,12 +1451,12 @@ Current status (July 20, 2026, acquisition complete):
   AP-supplement, NSS, variability/rotation, and external-crossmatch products
   without altering envelope membership
 - the final acquisition report passes 56/56 registered products with
-  170,218,414 rows, 23,962,374,516 response bytes, and zero pending products;
+  170,253,376 rows, 23,970,068,085 response bytes, and zero pending products;
   all nine direct-target products retain seed/hash/count/coverage lineage and
   complete 31-bucket accounting
 - the five expanded Gaia releases are immutable raw snapshots and 30 typed
-  Parquet tables containing 83,873,800 rows, 1,320 column occurrences, and
-  6,567,970,168 bytes. All five source verifications and independent clean-state
+  Parquet tables containing 83,908,762 rows, 1,320 column occurrences, and
+  6,575,792,259 bytes. All five source verifications and independent clean-state
   reproductions pass. E3 acquisition is complete; E4 scientific contracts,
   normalization, scope, and selection remain open
 
@@ -1703,6 +1703,12 @@ Current status (July 19, 2026, in progress):
   `Orbital`, `AstroSpectroSB1`, targeted-search, validated-search, and
   alternative models stay distinct, and no missing companion endpoint is
   fabricated. Clean reproduction and the independent artifact audit pass.
+- corrected NSS checkpoint `cd4014b0e26860fbb59a8db8` uses authoritative Gaia
+  source parallax for the hard boundary and materializes 85,724 hard plus 1,351
+  disjoint uncertainty rows. Model-qualified `(source_id, solution_id,
+  nss_solution_type)` keys eliminate 2,322 false collisions; source-specific,
+  generic artifact, and clean-reproduction audits pass scientific hash
+  `d3728d85f9bdec6562ee5ecdf0001529c53800bd1c15b573de4ae9d3a52ffebb`.
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

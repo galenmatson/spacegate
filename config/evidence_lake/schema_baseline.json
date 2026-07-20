@@ -4851,7 +4851,7 @@
       "source_name": "gaia_dr3_backbone"
     },
     {
-      "artifact": "state://raw/evidence_lake_v2_acquisition/gaia_dr3_non_single_star/gaia_dr3_1250ly_nss_v2/snapshots/3849df590a2cb53f422ed8ec/gaia_dr3_nss_two_body_orbit_full_v2",
+      "artifact": "state://raw/evidence_lake_v2_acquisition/gaia_dr3_non_single_star/gaia_dr3_1250ly_nss_v2/snapshots/415491be318011e08cab741e/gaia_dr3_nss_two_body_orbit_full_v2",
       "artifact_kind": "directory",
       "default_disposition": "preserve",
       "field_accounting": "machine_enumerated",
@@ -29336,5 +29336,5 @@
   ],
   "registry_version": "2026-07-20.14",
   "schema_version": "spacegate.evidence_schema_snapshot.v1",
-  "snapshot_sha256": "6d406797b9ba26b609726030d5d0455debb572954baa5da64eac6ba1a8ea19f1"
+  "snapshot_sha256": "7e862068e7e4a18516e84bfc3a7d2e2dbb7dd0e4d780d1b62708869a33aa9752"
 }

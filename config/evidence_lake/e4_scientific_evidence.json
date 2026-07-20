@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-20.e4-foundation.63",
-  "compiler_version": "scientific_evidence_compiler_v63",
+  "contract_version": "2026-07-20.e4-foundation.64",
+  "compiler_version": "scientific_evidence_compiler_v64",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -2331,10 +2331,10 @@
       }
     },
     "gaia.dr3.non_single_star": {
-      "adapter_version": "gaia_dr3_nss_scientific_evidence_v1",
+      "adapter_version": "gaia_dr3_nss_scientific_evidence_v2",
       "tables": {
         "gaia_dr3_nss_two_body_orbit_full_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
+          "logical_key_fields": ["source_id", "solution_id", "nss_solution_type"],
           "object_scope": "nss_orbit_solution",
           "field_profile": "gaia_nss_two_body_orbit",
           "identifier_claims": {
@@ -2342,7 +2342,7 @@
             "solution_id": {"namespace": "gaia_dr3_nss_solution_id", "claim_scope": "orbit_solution", "normalization": "unsigned_integer_decimal_v1"}
           },
           "orbital_solution": {
-            "solution_key_fields": ["source_id", "solution_id"],
+            "solution_key_fields": ["source_id", "solution_id", "nss_solution_type"],
             "parameter_fields": [
               "ra", "ra_error", "dec", "dec_error", "parallax", "parallax_error",
               "pmra", "pmra_error", "pmdec", "pmdec_error",

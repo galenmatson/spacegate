@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_acquisition_program.v1",
-  "program_version": "2026-07-20.e3-foundation.16",
+  "program_version": "2026-07-20.e3-foundation.17",
   "manifest_name": "evidence_lake_e3_manifest.json",
   "products": [
     {
@@ -179,9 +179,9 @@
       "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
       "table": "gaiadr3.nss_two_body_orbit",
       "table_alias": "nss",
-      "from": "gaiadr3.nss_two_body_orbit nss",
+      "from": "gaiadr3.nss_two_body_orbit nss join gaiadr3.gaia_source gs on gs.source_id = nss.source_id",
       "preserve_all_fields": true,
-      "where": "nss.parallax >= 2.60927200",
+      "where": "gs.parallax >= 2.60927200",
       "partition_expression": "nss.source_id",
       "order_by": "nss.source_id, nss.solution_id",
       "buckets": 53,

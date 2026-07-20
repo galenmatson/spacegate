@@ -1285,10 +1285,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   orbits; split component-suffixed HD/HIP designations from numeric IDs, link
   every orbit to one binary relation, and pass clean reproduction plus the
   independent artifact audit without canonical containment promotion
-- [x] E4 Gaia NSS checkpoint: preserve all 50,762 two-body solution rows and 77
-  fields as coherent model-specific solutions with uncertainties, correlation
-  vectors, fit diagnostics, frame/reference lineage, release-scoped source and
-  solution identities, clean reproduction, and no fabricated endpoints
+- [x] E4 Gaia NSS checkpoint: use authoritative Gaia source parallax for the
+  boundary; preserve all 85,724 hard-envelope and 1,351 disjoint uncertainty
+  rows plus 77 fields as coherent model-specific solutions; qualify solution
+  keys by NSS model; and pass collision, field, source-specific, artifact, and
+  clean-reproduction audits without fabricated endpoints
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

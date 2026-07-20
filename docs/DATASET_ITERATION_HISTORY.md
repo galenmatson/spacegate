@@ -1836,12 +1836,21 @@ Representative commits:
   uncertainty-envelope coverage, all 189,145 values, 31 nonempty buckets, and
   its own response-set hash. Scientific membership is unchanged; only archive
   query execution differs.
-- The final E3 report passes 56/56 products, 170,218,414 rows,
-  23,962,374,516 response bytes, and zero pending products. The five expanded
-  Gaia raw snapshots type to 30 Parquet tables, 83,873,800 rows, 1,320 column
-  occurrences, and 6,567,970,168 bytes. Aggregate verification and independent
+- The final E3 report passes 56/56 products, 170,253,376 rows,
+  23,970,068,085 response bytes, and zero pending products. The five expanded
+  Gaia raw snapshots type to 30 Parquet tables, 83,908,762 rows, 1,320 column
+  occurrences, and 6,575,792,259 bytes. Aggregate verification and independent
   clean-state reproduction pass for every release. E3 acquisition is complete;
   E4 normalization, evidence materialization, scope, and selection remain open.
+- The first NSS E4 audit exposed two reusable contract defects. Its hard branch
+  had filtered on the fitted NSS parallax rather than authoritative
+  `gaia_source.parallax`, omitting 34,962 rows and overlapping 330 uncertainty
+  keys. After reacquisition, the branches contain 85,724 and 1,351 disjoint
+  rows. Gaia also reuses `solution_id` across distinct per-source model rows;
+  `(source_id, solution_id, nss_solution_type)` is the verified source-native
+  solution key. Checkpoint `cd4014b0e26860fbb59a8db8` accounts all 87,075
+  orbits and 154 table-field occurrences with zero collisions or pending fields;
+  source-specific, generic artifact, and clean-reproduction audits pass.
 
 ## Recurrent Defect Classes and Mitigations
 

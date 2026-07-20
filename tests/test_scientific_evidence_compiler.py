@@ -82,11 +82,25 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert "probability_field" not in wds_xmatch
     assert wds_xmatch["confidence_statistic_field"] == "angDist"
     nss_adapter = contract["source_adapters"]["gaia.dr3.non_single_star"]
+    assert set(nss_adapter["tables"]) == {
+        "gaia_dr3_nss_two_body_orbit_full_v2",
+        "gaia_dr3_nss_two_body_orbit_uncertain_distance_supplement_v1",
+    }
     nss_orbit = nss_adapter["tables"]["gaia_dr3_nss_two_body_orbit_full_v2"][
         "orbital_solution"
     ]
+    assert nss_adapter["tables"]["gaia_dr3_nss_two_body_orbit_full_v2"][
+        "logical_key_fields"
+    ] == ["source_id", "solution_id", "nss_solution_type"]
+    assert nss_orbit["solution_key_fields"] == [
+        "source_id",
+        "solution_id",
+        "nss_solution_type",
+    ]
     assert nss_orbit["model_field"] == "nss_solution_type"
     assert "corr_vec" in nss_orbit["quality_fields"]
+    assert len(nss_orbit["parameter_fields"]) == 56
+    assert len(nss_orbit["quality_fields"]) == 18
     wgsn = contract["source_adapters"]["naming.iau_wgsn"]["tables"][
         "iau_wgsn_catalog_html"
     ]
