@@ -114,6 +114,9 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     gaia_ap = contract["source_adapters"]["gaia.dr3.astrophysical_parameters"]
     assert len(gaia_ap["tables"]) == 10
     classifier = gaia_ap["tables"]["gaia_dr3_ap_classifier_v2"]
+    assert classifier["logical_key_fields"] == ["source_id"]
+    assert classifier["object_scope"] == "star"
+    assert set(classifier["identifier_claims"]) == {"source_id"}
     assert [
         group["model"]
         for group in classifier["classification_probability_bundle"]["groups"]

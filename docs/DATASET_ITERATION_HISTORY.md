@@ -1918,6 +1918,12 @@ Representative commits:
   activity index from dimensionless to nm before materialization. Contract
   validation, 65 compiler tests, and real-row smoke materialization pass; the
   immutable full-release build remains pending.
+- All five hard AP products use the same single `solution_id` value. It is a
+  processing-solution/release marker, not an independently bindable object ID.
+  The corrected contract retains it as source-record lineage, keys each table by
+  Gaia `source_id`, and collapses record and identifier binding to one star scope.
+  This removes 51,164,425 false duplicate identity claims and the corresponding
+  redundant binding outcomes before the large build.
 
 ## Recurrent Defect Classes and Mitigations
 

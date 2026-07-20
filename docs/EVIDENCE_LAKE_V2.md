@@ -863,7 +863,10 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   against the typed VOTable schema, which corrected DIB equivalent-width and
   ESP-CS activity-index declarations before build. Contract validation, exact
   schema reconciliation, 65 compiler tests, and real-row smoke materialization
-  pass. The large immutable source build and independent audits remain pending.
+  pass. `solution_id` is one constant processing-release value across all rows,
+  so it remains lineage rather than producing 51 million false object-identity
+  claims; each source-table row keys and binds by Gaia source at star scope.
+  The large immutable source build and independent audits remain pending.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

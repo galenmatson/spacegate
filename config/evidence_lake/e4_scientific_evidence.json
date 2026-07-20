@@ -689,12 +689,14 @@
       }
     ],
     "gaia_ap_classifier": [
-      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^source_id$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source identity"},
+      {"pattern": "^solution_id$", "disposition": "lineage", "destination": "source_records", "reason": "Gaia AP processing-solution lineage shared across the release"},
       {"pattern": "^classprob_.*$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "coherent Gaia source-classifier probability vectors"},
       {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "unmatched source-classifier release context"}
     ],
     "gaia_ap_photometry_flame": [
-      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^source_id$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source identity"},
+      {"pattern": "^solution_id$", "disposition": "lineage", "destination": "source_records", "reason": "Gaia AP processing-solution lineage shared across the release"},
       {"pattern": "^distance_gspphot(_lower|_upper)?$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "GSP-Phot model distance posterior"},
       {"pattern": "^(azero|ag|abp|arp|ebpminrp|mg)_gspphot(_lower|_upper)?$|^bc_flame$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "GSP-Phot extinction, colour excess, absolute magnitude, and FLAME bolometric correction"},
       {"pattern": "^evolstage_flame$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "FLAME evolutionary-stage classification"},
@@ -702,12 +704,14 @@
       {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent GSP-Phot or FLAME stellar parameter evidence"}
     ],
     "gaia_ap_spectroscopy": [
-      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^source_id$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source identity"},
+      {"pattern": "^solution_id$", "disposition": "lineage", "destination": "source_records", "reason": "Gaia AP processing-solution lineage shared across the release"},
       {"pattern": "^(flags_gspspec|logchisq_gspspec|.*_nlines|.*_linescatter)$", "disposition": "context", "destination": "source_records", "reason": "GSP-Spec fit, line-count, and scatter quality retained with coherent parameter sets"},
       {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent GSP-Spec atmospheric, abundance, CN-band, or diffuse-interstellar-band evidence"}
     ],
     "gaia_ap_activity_specialized": [
-      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^source_id$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source identity"},
+      {"pattern": "^solution_id$", "disposition": "lineage", "destination": "source_records", "reason": "Gaia AP processing-solution lineage shared across the release"},
       {"pattern": "^(ew_espels_halpha.*|activityindex_espcs.*)$", "disposition": "domain", "destination": "variability_activity_rotation_evidence", "reason": "ESP-ELS H-alpha and ESP-CS activity evidence"},
       {"pattern": "^(classlabel_espels.*|classprob_espels_.*|spectraltype_esphs)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "ESP-ELS and ESP-HS classification evidence"},
       {"pattern": "^(azero|ag|ebpminrp)_esphs.*$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "ESP-HS extinction and colour-excess evidence"},
@@ -715,7 +719,8 @@
       {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "ESP-HS or ESP-UCD stellar parameter evidence"}
     ],
     "gaia_ap_multiple_oa": [
-      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^source_id$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source identity"},
+      {"pattern": "^solution_id$", "disposition": "lineage", "destination": "source_records", "reason": "Gaia AP processing-solution lineage shared across the release"},
       {"pattern": "^distance_msc(_lower|_upper)?$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "MSC model distance posterior"},
       {"pattern": "^(azero|ag)_msc(_lower|_upper)?$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "MSC extinction evidence"},
       {"pattern": "^(neuron_oa_.*|flags_oa)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "Gaia OA self-organizing-map neuron assignment and quality"},
@@ -2532,12 +2537,11 @@
       "adapter_version": "gaia_dr3_astrophysical_parameters_scientific_evidence_v1",
       "tables": {
         "gaia_dr3_ap_classifier_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
-          "object_scope": "gaia_ap_source_classification",
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
           "field_profile": "gaia_ap_classifier",
           "identifier_claims": {
-            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
-            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
           },
           "classification_probability_bundle": {
             "classification_scheme": "gaia_dr3_source_classifier_probability_vectors",
@@ -2552,12 +2556,11 @@
           }
         },
         "gaia_dr3_ap_photometry_flame_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
-          "object_scope": "gaia_ap_stellar_model_solution",
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
           "field_profile": "gaia_ap_photometry_flame",
           "identifier_claims": {
-            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
-            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
           },
           "scoped_stellar_parameter_sets": [
             {
@@ -2595,12 +2598,11 @@
           ]
         },
         "gaia_dr3_ap_spectroscopy_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
-          "object_scope": "gaia_ap_stellar_model_solution",
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
           "field_profile": "gaia_ap_spectroscopy",
           "identifier_claims": {
-            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
-            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
           },
           "scoped_stellar_parameter_sets": [
             {
@@ -2642,12 +2644,11 @@
           ]
         },
         "gaia_dr3_ap_activity_specialized_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
-          "object_scope": "gaia_ap_stellar_model_solution",
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
           "field_profile": "gaia_ap_activity_specialized",
           "identifier_claims": {
-            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
-            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
           },
           "classification_probability_bundle": {
             "classification_scheme": "gaia_dr3_espels_probability_vector", "method": "gaia_dr3_espels", "model": "ESP-ELS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_espels.html",
@@ -2675,12 +2676,11 @@
           ]
         },
         "gaia_dr3_ap_multiple_oa_v2": {
-          "logical_key_fields": ["source_id", "solution_id"],
-          "object_scope": "gaia_ap_stellar_model_solution",
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
           "field_profile": "gaia_ap_multiple_oa",
           "identifier_claims": {
-            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
-            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"}
           },
           "scoped_stellar_parameter_sets": [
             {"scope_key": "MSC_system", "parameter_set_kind": "gaia_dr3_msc_system_model", "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_msc.html", "normalization_version": "gaia_dr3_msc_source_native_v1", "quality_fields": ["logposterior_msc", "mcmcaccept_msc", "mcmcdrift_msc", "flags_msc"], "measurements": [
