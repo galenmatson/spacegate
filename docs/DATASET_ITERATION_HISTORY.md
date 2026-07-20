@@ -1887,6 +1887,20 @@ Representative commits:
   `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`,
   and removed the scratch tree automatically.
 
+### 63) Coherent Classifier Vectors and Domain Interval Semantics
+
+- Preparing Gaia AP exposed two general representation gaps. Expanding every
+  classifier probability into an independent row would produce hundreds of
+  millions of rows and erase the fact that probabilities belong to distinct
+  source models. Compiler/contract v67 instead emits one source-classification
+  bundle containing named model vectors and performs no cross-model selection.
+- Configured astrometry/variability evidence had also treated every lower/upper
+  field as a nonnegative error magnitude. The shared contract now explicitly
+  distinguishes error magnitudes from absolute interval endpoints. Independent
+  audit permits signed endpoints only for the latter representation and rejects
+  reversed intervals or intervals that do not bracket their normalized value.
+  Focused tests cover both changes; no Gaia-specific selection branch exists.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -257,14 +257,41 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
     checks["negative_uncertainty_magnitudes"] = sum(
         scalar_count(
             con,
-            f"select count(*) from {table} where uncertainty_lower<0 or uncertainty_upper<0",
+            f"select count(*) from {table} where "
+            "coalesce(quality_json->>'uncertainty_field_semantics', "
+            "'error_magnitudes')<>'interval_endpoints' and "
+            "(uncertainty_lower<0 or uncertainty_upper<0)",
         )
         for table in uncertainty_tables
     ) + scalar_count(
         con,
         "select count(*) from astrometry_distance_evidence_bundles b, "
         "unnest(b.measurements) as nested(measurement) "
-        "where measurement.uncertainty_lower<0 or measurement.uncertainty_upper<0",
+        "where coalesce(measurement.quality_json->>'uncertainty_field_semantics', "
+        "'error_magnitudes')<>'interval_endpoints' and "
+        "(measurement.uncertainty_lower<0 or measurement.uncertainty_upper<0)",
+    )
+    checks["invalid_interval_endpoints"] = sum(
+        scalar_count(
+            con,
+            f"select count(*) from {table} where "
+            "quality_json->>'uncertainty_field_semantics'='interval_endpoints' "
+            "and (uncertainty_lower>uncertainty_upper "
+            "or (normalized_value is not null and uncertainty_lower>normalized_value) "
+            "or (normalized_value is not null and uncertainty_upper<normalized_value))",
+        )
+        for table in uncertainty_tables
+    ) + scalar_count(
+        con,
+        "select count(*) from astrometry_distance_evidence_bundles b, "
+        "unnest(b.measurements) as nested(measurement) "
+        "where measurement.quality_json->>'uncertainty_field_semantics'="
+        "'interval_endpoints' and "
+        "(measurement.uncertainty_lower>measurement.uncertainty_upper "
+        "or (measurement.normalized_value is not null and "
+        "measurement.uncertainty_lower>measurement.normalized_value) "
+        "or (measurement.normalized_value is not null and "
+        "measurement.uncertainty_upper<measurement.normalized_value))",
     )
     checks["referenced_evidence_without_citations"] = sum(
         scalar_count(

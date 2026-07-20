@@ -369,6 +369,33 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     f"{source_id}.{table_name}.unit_overrides must be a non-empty "
                     "field-to-unit object"
                 )
+            probability_bundle = table.get("classification_probability_bundle")
+            if probability_bundle:
+                prefix = f"{source_id}.{table_name}.classification_probability_bundle"
+                missing = sorted(
+                    {"classification_scheme", "method", "groups"}
+                    - set(probability_bundle)
+                )
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                groups = probability_bundle.get("groups")
+                if not isinstance(groups, list) or not groups:
+                    errors.append(f"{prefix}.groups must be a non-empty list")
+                else:
+                    models: list[str] = []
+                    fields: list[str] = []
+                    for index, group in enumerate(groups):
+                        model = str(group.get("model") or "").strip()
+                        probabilities = group.get("probabilities")
+                        if not model or not isinstance(probabilities, dict) or not probabilities:
+                            errors.append(f"{prefix}.groups[{index}] is incomplete")
+                            continue
+                        models.append(model)
+                        fields.extend(str(value) for value in probabilities.values())
+                    if len(models) != len(set(models)):
+                        errors.append(f"{prefix}.groups has duplicate models")
+                    if len(fields) != len(set(fields)):
+                        errors.append(f"{prefix}.groups reuses probability fields")
             for field, claim in (table.get("identifier_claims") or {}).items():
                 if (
                     not str(field).strip()
@@ -683,6 +710,21 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 ):
                     errors.append(
                         f"{prefix} cannot combine symmetric and asymmetric uncertainty fields"
+                    )
+                uncertainty_semantics = measurement.get(
+                    "uncertainty_field_semantics", "error_magnitudes"
+                )
+                if uncertainty_semantics not in {
+                    "error_magnitudes",
+                    "interval_endpoints",
+                }:
+                    errors.append(f"{prefix}.uncertainty_field_semantics is invalid")
+                if (
+                    uncertainty_semantics == "interval_endpoints"
+                    and not str(measurement.get("bound_semantics") or "").strip()
+                ):
+                    errors.append(
+                        f"{prefix}.bound_semantics is required for interval endpoints"
                     )
                 for bound in (
                     "uncertainty_minimum_value",
@@ -2614,6 +2656,86 @@ def materialize_stellar_classifications(
     return {str(field["column_name"]) for field in fields}
 
 
+def configured_probability_bundle_fields(table_contract: dict[str, Any]) -> set[str]:
+    bundle = table_contract.get("classification_probability_bundle") or {}
+    return {
+        str(field)
+        for group in bundle.get("groups") or []
+        for field in (group.get("probabilities") or {}).values()
+    }
+
+
+def materialize_classification_probability_bundle(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    table_contract: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    bundle = table_contract.get("classification_probability_bundle")
+    if not bundle:
+        return set()
+    fields = configured_probability_bundle_fields(table_contract)
+    missing = sorted(fields - available_fields)
+    if missing:
+        raise ValueError(f"classification probability fields missing from {table_name}: {missing}")
+    model_items: list[str] = []
+    populated: list[str] = []
+    invalid: list[str] = []
+    for group in bundle["groups"]:
+        probability_items: list[str] = []
+        for label, field in group["probabilities"].items():
+            value = f"try_cast({sql_identifier(str(field))} as double)"
+            probability_items.extend((sql_string(str(label)), value))
+            populated.append(f"{value} is not null")
+            invalid.append(f"({value} is not null and ({value}<0 or {value}>1))")
+        model_items.extend(
+            (
+                sql_string(str(group["model"])),
+                f"json_object({', '.join(probability_items)})",
+            )
+        )
+    invalid_count = int(
+        con.execute(
+            f"select count(*) from {source_relation(path)} source_row "
+            f"where {' or '.join(invalid)}"
+        ).fetchone()[0]
+    )
+    if invalid_count:
+        raise ValueError(
+            f"classification probability bundle contains {invalid_count} rows outside [0,1]"
+        )
+    model = bundle.get("model")
+    reference = nullable_sql_string(bundle.get("reference_raw"))
+    con.execute(
+        f"""
+        insert into stellar_classification_evidence
+        select distinct
+          sha256({sql_string('classification-probability-bundle|' + table_name + '|')} || r.source_record_id),
+          r.source_record_id, null,
+          {sql_string(str(bundle['classification_scheme']))},
+          'probability_bundle', null, null,
+          {sql_string(str(bundle['method']))}, {nullable_sql_string(model)},
+          {reference},
+          json_object(
+            'probability_semantics', 'source_published_strict_probability_vectors',
+            'models', json_object({', '.join(model_items)})
+          )
+        from {source_relation(path)} source_row
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(source_row))
+        where {' or '.join(populated)}
+        """
+    )
+    return fields
+
+
 def configured_scoped_stellar_fields(table_contract: dict[str, Any]) -> set[str]:
     fields: set[str] = set()
     for parameter_set in table_contract.get("scoped_stellar_parameter_sets") or []:
@@ -3317,19 +3439,30 @@ def materialize_configured_domain_measurements(
         raw = text_expression(field)
         missing_values = list(measurement.get("missing_values") or [])
         predicate = configured_measurement_predicate(field, measurement)
+        uncertainty_semantics = measurement.get(
+            "uncertainty_field_semantics", "error_magnitudes"
+        )
+        if uncertainty_semantics not in {
+            "error_magnitudes",
+            "interval_endpoints",
+        }:
+            raise ValueError(
+                f"unsupported configured-domain uncertainty semantics: {uncertainty_semantics}"
+            )
+        uncertainty_is_magnitude = uncertainty_semantics == "error_magnitudes"
         uncertainty_lower = nullable_measurement_double_expression(
             str(uncertainty_lower_field) if uncertainty_lower_field else None,
             list(
                 measurement.get("uncertainty_missing_values", missing_values)
             ),
-            absolute=True,
+            absolute=uncertainty_is_magnitude,
             minimum_value=measurement.get("uncertainty_minimum_value"),
             maximum_value=measurement.get("uncertainty_maximum_value"),
         )
         uncertainty_upper = nullable_measurement_double_expression(
             str(uncertainty_upper_field) if uncertainty_upper_field else None,
             list(measurement.get("uncertainty_missing_values", missing_values)),
-            absolute=True,
+            absolute=uncertainty_is_magnitude,
             minimum_value=measurement.get("uncertainty_minimum_value"),
             maximum_value=measurement.get("uncertainty_maximum_value"),
         )
@@ -3360,6 +3493,8 @@ def materialize_configured_domain_measurements(
             nullable_sql_string(uncertainty_upper_field),
             "'missing_values'",
             sql_string(json.dumps(missing_values)),
+            "'uncertainty_field_semantics'",
+            sql_string(str(uncertainty_semantics)),
         ]
         for quality_field in quality_fields:
             quality_members.extend(
@@ -5046,10 +5181,12 @@ def materialize_source(
         classification_fields = fields_by_destination.get(
             "stellar_classification_evidence"
         ) or []
+        probability_bundle_fields = configured_probability_bundle_fields(table_contract)
         classification_fields = [
             field
             for field in classification_fields
             if str(field["column_name"]) not in scoped_stellar_fields
+            and str(field["column_name"]) not in probability_bundle_fields
         ]
         if classification_fields:
             materialized_fields.update(
@@ -5063,6 +5200,17 @@ def materialize_source(
                     table_contract=table_contract,
                 )
             )
+        materialized_fields.update(
+            materialize_classification_probability_bundle(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=evidence_path,
+                table_contract=table_contract,
+                available_fields=set(columns),
+            )
+        )
         materialized_fields.update(
             materialize_scoped_stellar_evidence(
                 con,

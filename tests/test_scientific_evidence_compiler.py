@@ -2180,6 +2180,77 @@ def test_scoped_stellar_evidence_preserves_interval_endpoints(
     assert json.loads(row[4])["uncertainty_field_semantics"] == "interval_endpoints"
 
 
+def test_classification_probability_bundle_preserves_models_without_winner(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "classifier.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 1::bigint source_id, 0.8::double star_prob, "
+            f"0.2::double galaxy_prob, 0.6::double hot_prob, "
+            f"0.4::double cool_prob) to '{parquet}' (format parquet)"
+        )
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.classifier','r1','classifier','star',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-20 00:00:00')",
+            [source_hash],
+        )
+        contract = {
+            "classification_probability_bundle": {
+                "classification_scheme": "test_probability_vectors",
+                "method": "test_classifier",
+                "groups": [
+                    {
+                        "model": "object_model",
+                        "probabilities": {
+                            "star": "star_prob",
+                            "galaxy": "galaxy_prob",
+                        },
+                    },
+                    {
+                        "model": "temperature_model",
+                        "probabilities": {
+                            "hot": "hot_prob",
+                            "cool": "cool_prob",
+                        },
+                    },
+                ],
+            }
+        }
+        consumed = compiler.materialize_classification_probability_bundle(
+            con,
+            source_id="test.classifier",
+            release_id="r1",
+            table_name="classifier",
+            path=parquet,
+            table_contract=contract,
+            available_fields={
+                "source_id",
+                "star_prob",
+                "galaxy_prob",
+                "hot_prob",
+                "cool_prob",
+            },
+        )
+        row = con.execute(
+            "select classification_raw,probability,quality_json::varchar "
+            "from stellar_classification_evidence"
+        ).fetchone()
+    assert consumed == {"star_prob", "galaxy_prob", "hot_prob", "cool_prob"}
+    assert row[:2] == ("probability_bundle", None)
+    quality = json.loads(row[2])
+    assert quality["models"] == {
+        "object_model": {"star": 0.8, "galaxy": 0.2},
+        "temperature_model": {"hot": 0.6, "cool": 0.4},
+    }
+
+
 def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
     tmp_path: Path,
 ) -> None:
@@ -2279,7 +2350,7 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
     parquet = tmp_path / "astrometry.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select * from (values (10.0, 9.0, 11.0, null)) "
+            f"copy (select * from (values (10.0, -9.0, 11.0, null)) "
             f"t(parallax,parallax_lower,parallax_upper,radial_velocity)) "
             f"to '{parquet}' (format parquet)"
         )
@@ -2303,6 +2374,7 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
                 "quantity_key": "parallax",
                 "unit_raw": "mas",
                 "normalized_unit": "mas",
+                "uncertainty_field_semantics": "interval_endpoints",
                 "bound_semantics": "posterior_interval_endpoints",
                 "reference_raw": "2025A&A...1A",
                 "method": "source_astrometry",
@@ -2359,7 +2431,7 @@ def test_configured_astrometry_bundle_preserves_typed_measurements_and_citations
         (
             "parallax",
             "10.0",
-            9.0,
+            -9.0,
             11.0,
             "posterior_interval_endpoints",
             "2025A&A...1A",

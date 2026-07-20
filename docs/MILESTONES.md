@@ -1719,6 +1719,10 @@ Current status (July 19, 2026, in progress):
   context. All 62 fields are accounted, no relation becomes accepted identity,
   and source, artifact, and clean-reproduction gates pass logical hash
   `2cd08ee00ab39b699627eb2614392a7e0c4f241fe9214a476762c6cab15d87a0`
+- compiler/contract v67 preserves multi-model classification probabilities as
+  coherent source vectors without choosing a winner, distinguishes configured
+  domain interval endpoints from error magnitudes, and independently rejects
+  intervals that do not bracket their normalized value
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

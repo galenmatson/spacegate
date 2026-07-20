@@ -1298,6 +1298,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   candidate relation evidence with source-scoped endpoints, separation, flags,
   neighbour counts, exhaustive field accounting, and exact clean reproduction;
   promote no crossmatch directly to accepted identity
+- [x] E4 Gaia AP compiler foundation: retain multi-model classifier probability
+  vectors as one coherent source bundle without winner selection; distinguish
+  domain interval endpoints from error magnitudes and reject intervals that do
+  not bracket the normalized value
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

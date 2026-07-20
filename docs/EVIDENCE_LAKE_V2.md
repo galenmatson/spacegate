@@ -846,6 +846,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   Large exact materialization uses one thread, disabled insertion-order
   preservation, a 32-GB Photon memory ceiling, and primary-key deduplication
   without a release-wide `UNION DISTINCT` aggregation.
+- Compiler/contract v67 adds coherent source-classifier probability bundles so
+  multi-model probability vectors remain together without hundreds of millions
+  of scalar rows or an invented cross-model winner. It also makes configured
+  domain uncertainty fields distinguish error magnitudes from absolute interval
+  endpoints. The independent audit permits signed interval bounds but requires
+  every endpoint interval to bracket its normalized value. These general gates
+  precede Gaia AP materialization.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961
