@@ -623,6 +623,15 @@ sudo scripts/normalize_state_permissions.sh --apply
   `fae1354fe191776ed93d66967563075b762d0af37d1df518e76670f9f93eccb7`
   authorized whole-tree retirement of 110,793,879,552 allocated bytes. No raw,
   typed, accepted, served, rollback, or report artifact was selected.
+- The Gaia AP v69 retry was interrupted when its terminal/session ended before
+  report publication or atomic promotion. The compiler process was absent and a
+  zero-age dry run proved exactly one manifestless, unreferenced, closed staging
+  tree. Candidate hash
+  `0732040b55edb45e63974719f2e1b932e0a56b9d388ca93f86403e0223e41191`
+  authorized retirement of 128,085,159,936 allocated bytes. The refreshed E0
+  storage audit reported 440.7 GiB free, no unrecognized build IDs, and
+  `acquisition_ready=true`; no raw, typed, accepted, served, rollback, or report
+  artifact was selected.
 
 ## Extended-Object Catalog Artifacts
 
