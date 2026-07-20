@@ -794,6 +794,26 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                             errors.append(f"{prefix} entries must map fields to lists")
                         elif any(not str(value).strip() for value in values):
                             errors.append(f"{prefix}.{field} contains an empty value")
+            for index, product in enumerate(
+                table.get("configured_observation_products") or []
+            ):
+                prefix = (
+                    f"{source_id}.{table_name}.configured_observation_products[{index}]"
+                )
+                for field in (
+                    "locator_field",
+                    "product_kind",
+                    "product_key_prefix",
+                    "retrieval_policy",
+                ):
+                    if not str(product.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                if product.get("checksum_field") and not str(
+                    product.get("checksum_algorithm") or ""
+                ).strip():
+                    errors.append(
+                        f"{prefix}.checksum_algorithm is required with checksum_field"
+                    )
             configured_storage = table.get("configured_domain_storage") or {}
             configured_destinations = {
                 str(row.get("destination"))
@@ -3464,6 +3484,92 @@ def materialize_observation_products(
     return {str(field["column_name"]) for field in fields}
 
 
+def materialize_configured_observation_products(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    products: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    for index, product in enumerate(products):
+        locator_field = str(product["locator_field"])
+        checksum_field = product.get("checksum_field")
+        bytes_field = product.get("bytes_field")
+        epoch_field = product.get("observation_epoch_field")
+        processing_level_field = product.get("processing_level_field")
+        quality_fields = [str(value) for value in product.get("quality_fields") or []]
+        configured_fields = {
+            locator_field,
+            *(
+                str(value)
+                for value in (
+                    checksum_field,
+                    bytes_field,
+                    epoch_field,
+                    processing_level_field,
+                )
+                if value
+            ),
+            *quality_fields,
+        }
+        missing = sorted(configured_fields - available_fields)
+        if missing:
+            raise ValueError(
+                f"configured observation-product fields missing from "
+                f"{table_name}: {missing}"
+            )
+        consumed.update(configured_fields)
+        locator = text_expression(locator_field)
+        predicate = missing_value_predicate(
+            locator_field,
+            list(product.get("missing_values") or []),
+        )
+        product_key = (
+            f"{sql_string(str(product['product_key_prefix']))} || {locator}"
+        )
+        checksum = text_expression(str(checksum_field) if checksum_field else None)
+        if checksum_field:
+            checksum = (
+                f"{sql_string(str(product['checksum_algorithm']))} || ':' || {checksum}"
+            )
+        quality_members = [
+            "'source_field'",
+            sql_string(locator_field),
+            "'locator_kind'",
+            nullable_sql_string(product.get("locator_kind")),
+        ]
+        for quality_field in quality_fields:
+            quality_members.extend(
+                (sql_string(quality_field), sql_identifier(quality_field))
+            )
+        con.execute(
+            f"""
+            insert into observation_product_lineage
+            select distinct
+              sha256({sql_string('configured-observation-product|' + str(index) + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(str(product['product_kind']))},
+              {product_key}, {locator},
+              {sql_string(str(product['retrieval_policy']))}, {checksum},
+              {f'try_cast({sql_identifier(str(bytes_field))} as bigint)' if bytes_field else 'null::bigint'},
+              {text_expression(str(epoch_field) if epoch_field else None)},
+              {text_expression(str(processing_level_field)) if processing_level_field else nullable_sql_string(product.get('processing_level'))},
+              json_object({', '.join(quality_members)})
+            from {source_relation(path)} source_row
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(source_row))
+            where {predicate}
+            """
+        )
+    return consumed
+
+
 def materialize_relation_claims(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -4926,6 +5032,19 @@ def materialize_source(
                     ),
                 )
             )
+        materialized_fields.update(
+            materialize_configured_observation_products(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=evidence_path,
+                products=list(
+                    table_contract.get("configured_observation_products") or []
+                ),
+                available_fields=set(columns),
+            )
+        )
         relation_claim = table_contract.get("relation_claim")
         relation_claims = table_contract.get("relation_claims")
         relation_contracts = (

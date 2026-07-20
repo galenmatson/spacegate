@@ -1778,6 +1778,36 @@ Representative commits:
   allStar product contains no spectrum URL field, so an authoritative product
   index remains an explicit E3 follow-up rather than a derived URL convention.
 
+### 60) Bounded LAMOST DR11 Observation Evidence
+
+- Compiler/contract v63 applies the registered Gaia DR3 hard/uncertainty
+  envelope to each LAMOST DR11 v2.0 stellar release independently. Accepted
+  checkpoint `a583819f0a4f3896c312f19e` retains 661,941 LRS stellar, 496,415
+  LRS M-star, and 500,925 MRS stellar observations from 11,418,142 source rows,
+  with no exact duplicate selected rows.
+- All 185 field occurrences are accounted as 170 materialized and 15 reviewed
+  copied-catalog exclusions. LRS LASP physics, M-star TiO/CaH/Na/zeta and
+  H-alpha/magnetic activity, and MRS LASP/CNN physics plus raw and corrected
+  B/R/combined/LASP radial velocities remain separate coherent evidence
+  contexts. Source object class and spectral subtype are not collapsed.
+- Official `obsid`/`mobsid` values index spectra for on-demand archive retrieval
+  without manufacturing URLs. The source-declared Gaia DR3 identifier and
+  conditional Gaia/Pan-STARRS/LAMOST `uid` scope remain release-specific;
+  object bindings stay unresolved for E5.
+- Generic and LAMOST-specific audits pass. Clean reproduction takes 28:55,
+  matches logical hash
+  `eeb6dd86c096100175dc92d829508c8c36636d20f507993750e1f9a0b5a73d37`
+  with no differing sections, and removes its external scratch. The accepted
+  compile uses a 12-GB DuckDB limit and peaks at 16.70 GB process RSS; the
+  bounded source audit uses two threads/12 GB and peaks at 15.11 GB.
+- Before this build, exact hash-gated retention candidate
+  `ce4b84fa18cb9cef35b8adfdf102e850c8c37d2da9135128a1a5a182e65879ba`
+  retired ten old manifestless, unreferenced, idle E4 staging trees and
+  reclaimed 71,672,885,248 allocated bytes. After v62 acceptance, candidate
+  `9f93b59b7ab0ddde233063585b0ee19c4ad2a248a2cfdd08fb20ff810a74da4a`
+  retired only rejected GALAH v61 and reclaimed 5,170,827,264 allocated bytes;
+  all accepted builds and source snapshots remain protected.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

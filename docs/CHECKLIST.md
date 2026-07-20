@@ -1162,6 +1162,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   account all 184 fields; separate spectroscopic, isochrone/model, distance/RV,
   interstellar, and activity evidence; reject the initial distance-as-radius
   interpretation; pass generic/source audits and clean reproduction
+- [x] E4 LAMOST checkpoint: retain 1,659,281 exact Gaia DR3-envelope observation
+  rows across LRS stellar, LRS M-star, and MRS stellar; account all 185 field
+  occurrences; preserve coherent LASP/CNN, molecular/activity, and RV contexts;
+  index official spectrum locators; pass generic/bounded source audits and clean
+  reproduction
 - [x] E4 foundation: add the immutable 23-domain compiler contract, deterministic
   source-record identity, exact-duplicate accounting, explicit binding outcomes,
   field dispositions, cached-artifact checksum verification, and clean logical-

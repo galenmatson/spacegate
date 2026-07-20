@@ -237,6 +237,18 @@ E5 has not selected public winners. The allStar file supplies no source-native
 spectrum locator, so a registered GALAH spectra-index acquisition remains
 pending rather than deriving an unverified URL.
 
+LAMOST E4 admission uses the same checksum-bound Gaia DR3 hard/uncertainty
+envelope without comparing DR2, EDR3, and DR3 identifiers as interchangeable.
+Accepted v63 checkpoint `a583819f0a4f3896c312f19e` retains 661,941 LRS
+stellar, 496,415 LRS M-star, and 500,925 MRS stellar observations and accounts
+all 185 field occurrences. Source-native LASP, CNN, molecular-index/activity,
+and raw/zero-point-corrected arm/combined RV contexts remain separate.
+Official `obsid`/`mobsid` identifiers are on-demand spectrum-product locators;
+the compiler does not invent archive URLs. Copied Pan-STARRS/Gaia photometry is
+preserved in E1 and excluded from E4 competition. Generic and bounded LAMOST
+audits plus clean reproduction pass; object binding and public selection remain
+deferred to E5.
+
 E4 source adapters are declared in
 `config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream
 field a domain, identity, lineage, context, or reviewed-exclusion disposition

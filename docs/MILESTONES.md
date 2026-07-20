@@ -1506,8 +1506,16 @@ Current status (July 19, 2026, in progress):
   source description proved `r_med/r_lo/r_hi` are distance bounds rather than
   stellar radii. Generic/source audits and clean reproduction pass at logical
   hash `7c0a367810903b18dad7e408d3feade5821325bfa8a670b5e051e1534cded8db`;
-  all bindings remain unresolved and LAMOST plus the broader E4 tail remain
-  open
+  all bindings remain unresolved and the broader E4 tail remains open
+- LAMOST DR11 v63 checkpoint `a583819f0a4f3896c312f19e` independently
+  materializes 1,659,281 selected observations across LRS stellar, LRS M-star,
+  and MRS stellar products from 11,418,142 source rows. It accounts all 185
+  field occurrences as 170 materialized and 15 copied-catalog exclusions;
+  preserves LASP, CNN, molecular-index/activity, and raw/corrected RV contexts;
+  and indexes official `obsid`/`mobsid` spectrum products for on-demand
+  retrieval. Generic and bounded source audits plus clean reproduction pass at
+  logical hash `eeb6dd86c096100175dc92d829508c8c36636d20f507993750e1f9a0b5a73d37`.
+  Bindings and winner selection remain E5 work, and E4 remains in progress
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308

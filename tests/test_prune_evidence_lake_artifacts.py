@@ -309,3 +309,6 @@ def test_failed_immutable_retention_accepts_allowlisted_source_audit(
     assert "spacegate.galah_scientific_evidence_audit.v1" in (
         retention.SUPPORTED_FAILED_ARTIFACT_AUDITS
     )
+    assert "spacegate.lamost_scientific_evidence_audit.v1" in (
+        retention.SUPPORTED_FAILED_ARTIFACT_AUDITS
+    )

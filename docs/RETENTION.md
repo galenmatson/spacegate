@@ -383,11 +383,29 @@ compile, generic audit, GALAH source audit, and clean-reproduction reports are
 protected E4/E5 inputs. Its 5,091,897,344-byte database is not a cleanup
 candidate. The GALAH source-audit schema is allowlisted only for the existing
 fail-closed whole-artifact retirement workflow. Diagnostic v61
-`3d331821ee7b22d996a8efe3` is not accepted because it mislabeled published
-distance fields as radii; retain it until an exact retention dry-run and apply
-prove that no build or report requires it. v62 compilation and reproduction
-used `/mnt/space` scratch and removed the build-specific trees after database
-close and logical-hash agreement.
+`3d331821ee7b22d996a8efe3` was not accepted because it mislabeled published
+distance fields as radii. After v62 acceptance, the independent failed audit
+and fail-closed dry run selected only v61; exact candidate hash
+`9f93b59b7ab0ddde233063585b0ee19c4ad2a248a2cfdd08fb20ff810a74da4a`
+authorized removal of 5,170,827,264 allocated bytes. v62 compilation and
+reproduction used `/mnt/space` scratch and removed the build-specific trees
+after database close and logical-hash agreement.
+
+Accepted LAMOST DR11 v63 checkpoint `a583819f0a4f3896c312f19e`, raw snapshot
+`bb2975b809866ddbeba17085`, typed snapshot
+`340242f63e18c31899b1d735`, and its compile, generic audit, bounded LAMOST
+source audit, and clean-reproduction reports are protected E4/E5 inputs. Its
+26,090,418,176-byte database is not a cleanup candidate. The LAMOST source-
+audit schema is allowlisted only for fail-closed whole-artifact retirement and
+cannot independently authorize removal. Compile and reproduction scratch were
+removed after logical comparison.
+
+Before the LAMOST build, exact candidate hash
+`ce4b84fa18cb9cef35b8adfdf102e850c8c37d2da9135128a1a5a182e65879ba`
+authorized removal of ten old hidden, manifestless, unreferenced, idle E4
+staging trees and reclaimed 71,672,885,248 allocated bytes. The dry-run and
+apply reports remain under `state/reports/evidence_lake_v2`; served, rollback,
+published, referenced, accepted, raw, and typed artifacts were excluded.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

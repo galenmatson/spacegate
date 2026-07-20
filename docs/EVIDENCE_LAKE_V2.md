@@ -461,6 +461,22 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   release has no source-native spectrum URL column, so spectrum-product locator
   acquisition remains an explicit E3 follow-up rather than a manufactured E4
   URL template.
+- Compiler/contract v63 materializes all three registered LAMOST DR11 v2.0
+  stellar products as independent observation evidence. Accepted checkpoint
+  `a583819f0a4f3896c312f19e` retains 661,941 of 7,898,024 LRS stellar rows,
+  496,415 of 926,048 LRS M-star rows, and 500,925 of 2,594,070 MRS stellar
+  rows through the same checksum-bound Gaia DR3 hard/uncertainty-envelope OR.
+  It accounts all 185 field occurrences as 170 materialized and 15 reviewed
+  copied-catalog exclusions. LRS LASP physics, M-star molecular/activity
+  diagnostics, and MRS LASP/CNN physics and raw/corrected arm/combined radial
+  velocities remain distinct coherent contexts rather than field-wise
+  composites. Official `obsid`/`mobsid` values provide on-demand spectrum
+  locators without fabricated archive URLs. `gaia_source_id` is explicitly
+  Gaia DR3; `uid`/`gp_id` catalog scope is preserved rather than conflated with
+  Gaia identity. Generic and bounded LAMOST-specific audits pass, and clean
+  reproduction matches logical hash
+  `eeb6dd86c096100175dc92d829508c8c36636d20f507993750e1f9a0b5a73d37`
+  with no differing sections and removes compiler scratch.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

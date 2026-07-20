@@ -31,6 +31,7 @@ SUPPORTED_FAILED_ARTIFACT_AUDITS = {
     "spacegate.bailer_jones_scientific_evidence_audit.v1",
     "spacegate.apogee_scientific_evidence_audit.v1",
     "spacegate.galah_scientific_evidence_audit.v1",
+    "spacegate.lamost_scientific_evidence_audit.v1",
 }
 
 

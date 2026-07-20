@@ -214,6 +214,54 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "sb2_radial_velocity_posterior_median",
         "sb2_radial_velocity_posterior_p84",
     }
+    lamost = contract["source_adapters"]["spectroscopy.lamost_dr11"]
+    assert set(lamost["tables"]) == {
+        "lamost_dr11_v2_lrs_stellar",
+        "lamost_dr11_v2_lrs_mstellar",
+        "lamost_dr11_v2_mrs_stellar",
+    }
+    for lamost_table in lamost["tables"].values():
+        assert lamost_table["row_selection"]["cache_selected_rows"] is True
+        membership = lamost_table["row_selection"]["external_membership_groups"][0]
+        assert membership["match"] == "any"
+        assert membership["normalization"] == "unsigned_integer_decimal_v1"
+        assert [target["target_table"] for target in membership["targets"]] == [
+            "gaia_dr3_source_envelope_v2",
+            "gaia_dr3_source_uncertain_distance_supplement_v1",
+        ]
+        assert lamost_table["identifier_claims"]["gaia_source_id"]["namespace"] == (
+            "gaia_dr3_source_id"
+        )
+        assert lamost_table["configured_observation_products"][0][
+            "retrieval_policy"
+        ] == "on_demand_official_archive"
+        assert lamost_table["configured_domain_storage"] == {
+            "astrometry_distance_evidence": "typed_measurement_bundle_v1"
+        }
+        assert {
+            claim["namespace"]
+            for claim in lamost_table["conditional_identifier_claims"]
+        } == {
+            "gaia_dr3_source_id",
+            "panstarrs1_object_id",
+            "lamost_coordinate_source_id",
+        }
+    assert len(
+        lamost["tables"]["lamost_dr11_v2_lrs_stellar"][
+            "scoped_stellar_parameter_sets"
+        ][1]["measurements"]
+    ) == 5
+    assert len(
+        lamost["tables"]["lamost_dr11_v2_lrs_mstellar"][
+            "scoped_stellar_parameter_sets"
+        ][2]["measurements"]
+    ) == 11
+    assert [
+        len(parameter_set["measurements"])
+        for parameter_set in lamost["tables"]["lamost_dr11_v2_mrs_stellar"][
+            "scoped_stellar_parameter_sets"
+        ]
+    ] == [5, 17]
     extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
     assert len(extended["tables"]) == 16
     assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (
@@ -2416,6 +2464,62 @@ def test_configured_lexical_measurement_does_not_normalize_numeric_looking_code(
             "from variability_activity_rotation_evidence"
         ).fetchone()
     assert value == ("00001", None)
+
+
+def test_configured_observation_product_reuses_archive_identity_as_locator(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "products.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '000123' obsid, 60000 mjd, 42 snr) "
+            f"to '{parquet}' (format parquet)"
+        )
+        compiler.create_schema(con)
+        source_hash = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        con.execute(
+            "insert into source_records values "
+            "('record','test.catalog','r1','products','observation','{}','{}',?,1,"
+            "'raw','typed','raw-tree','typed-table',timestamp '2026-07-19 00:00:00')",
+            [source_hash],
+        )
+        consumed = compiler.materialize_configured_observation_products(
+            con,
+            source_id="test.catalog",
+            release_id="r1",
+            table_name="products",
+            path=parquet,
+            products=[
+                {
+                    "locator_field": "obsid",
+                    "locator_kind": "archive_observation_id",
+                    "product_kind": "spectrum",
+                    "product_key_prefix": "spectrum:",
+                    "retrieval_policy": "on_demand",
+                    "observation_epoch_field": "mjd",
+                    "processing_level": "source_release",
+                    "quality_fields": ["snr"],
+                }
+            ],
+            available_fields={"obsid", "mjd", "snr"},
+        )
+        row = con.execute(
+            "select product_kind,product_key,product_locator,retrieval_policy,"
+            "observation_epoch_raw,processing_level,quality_json->>'$.snr' "
+            "from observation_product_lineage"
+        ).fetchone()
+    assert consumed == {"obsid", "mjd", "snr"}
+    assert row == (
+        "spectrum",
+        "spectrum:000123",
+        "000123",
+        "on_demand",
+        "60000",
+        "source_release",
+        "42",
+    )
 
 
 def test_planet_scalar_materialization_preserves_units_errors_bounds_and_reference(

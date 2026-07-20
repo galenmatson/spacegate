@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.62",
-  "compiler_version": "scientific_evidence_compiler_v62",
+  "contract_version": "2026-07-20.e4-foundation.63",
+  "compiler_version": "scientific_evidence_compiler_v63",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1405,6 +1405,30 @@
         "reason": "remaining GALAH survey, observation, fit, model, reduction, SNR, and quality context retained source-natively"
       }
     ],
+    "lamost_dr11_lrs_stellar": [
+      {"pattern": "^(obsid|uid|designation|ps_id|gaia_source_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "LAMOST observation, target, Pan-STARRS, and explicit Gaia DR3 identities"},
+      {"pattern": "^(class|subclass)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "LAMOST pipeline object and stellar spectral classifications"},
+      {"pattern": "^(teff|teff_err|logg|logg_err|feh|feh_err|alpha_m|alpha_m_err|vsini_lasp)$", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent LAMOST low-resolution LASP stellar-parameter evidence"},
+      {"pattern": "^(ra_obs|dec_obs|ra|dec|z|z_err|rv|rv_err)$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "LAMOST fiber/input coordinates, source redshift, and radial velocity"},
+      {"pattern": "^(mag_ps_g|mag_ps_r|mag_ps_i|mag_ps_z|mag_ps_y|gaia_g_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Pan-STARRS and Gaia photometry remains in E1; release-native catalogs own competing E4 evidence"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST observation, targeting, SNR, fiber, epoch, and reduction context retained source-natively"}
+    ],
+    "lamost_dr11_lrs_mstellar": [
+      {"pattern": "^(obsid|uid|designation|ps_id|gaia_source_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "LAMOST observation, target, Pan-STARRS, and explicit Gaia DR3 identities"},
+      {"pattern": "^(class|subclass)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "LAMOST pipeline object and M-star spectral classifications"},
+      {"pattern": "^(teff|teff_err|logg|logg_err|m_h|m_h_err|tio5|cah2|cah3|tio1|tio2|tio3|tio4|cah1|caoh|tio5_err|cah2_err|cah3_err|tio1_err|tio2_err|tio3_err|tio4_err|cah1_err|caoh_err|zeta|zeta_err|na)$", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "LAMOST M-star LASP physics and coherent molecular/atomic spectral-index evidence"},
+      {"pattern": "^(ewha|ewha_err|type)$", "disposition": "domain", "destination": "variability_activity_rotation_evidence", "reason": "LAMOST M-star H-alpha and magnetic-activity evidence"},
+      {"pattern": "^(ra_obs|dec_obs|ra|dec|z|z_err)$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "LAMOST fiber/input coordinates and source redshift"},
+      {"pattern": "^(mag_ps_g|mag_ps_r|mag_ps_i|mag_ps_z|mag_ps_y|gaia_g_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Pan-STARRS and Gaia photometry remains in E1; release-native catalogs own competing E4 evidence"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST M-star observation, targeting, SNR, fiber, epoch, and reduction context retained source-natively"}
+    ],
+    "lamost_dr11_mrs_stellar": [
+      {"pattern": "^(mobsid|obsid|uid|designation|gaia_source_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "LAMOST medium-resolution exposure, observation, target, designation, and explicit Gaia DR3 identities"},
+      {"pattern": "^(teff_lasp|teff_lasp_err|logg_lasp|logg_lasp_err|feh_lasp|feh_lasp_err|vsini_lasp|vsini_lasp_err|alpha_m_lasp|alpha_m_lasp_err|alpha_m_cnn|m_h_cnn|teff_cnn|logg_cnn|feh_cnn|c_fe|n_fe|o_fe|mg_fe|al_fe|si_fe|s_fe|ca_fe|ti_fe|cr_fe|ni_fe|cu_fe)$", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "separate coherent LAMOST medium-resolution LASP and CNN parameter sets"},
+      {"pattern": "^(ra_obs|dec_obs|ra|dec|rv_b0|rv_b0_err|rv_b1|rv_b1_err|rv_b_flag|rv_r0|rv_r0_err|rv_r1|rv_r1_err|rv_r_flag|rv_br0|rv_br0_err|rv_br1|rv_br1_err|rv_br_flag|rv_lasp0|rv_lasp0_err|rv_lasp1|rv_lasp1_err)$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "LAMOST fiber/input coordinates and independently flagged raw/corrected B, R, combined, and LASP velocities"},
+      {"pattern": "^(gaia_g_mean_mag|gaia_bp_mean_mag|gaia_rp_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Gaia photometry remains in E1; release-native Gaia owns competing E4 evidence"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST medium-resolution observation, band, coadd, SNR, fiber, moon, epoch, and reduction context retained source-natively"}
+    ],
     "bailer_jones_edr3_distance": [
       {
         "pattern": "^Source$",
@@ -1582,6 +1606,164 @@
             {"destination": "variability_activity_rotation_evidence", "value_field": "ew_li", "uncertainty_lower_field": "e_ew_li_low", "uncertainty_upper_field": "e_ew_li_upp", "quantity_key": "lithium_equivalent_width", "unit_raw": "mAngstrom", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["flag_a_li", "flag_sp", "flag_sp_fit", "flag_red", "snr_px_ccd3"], "method": "galah_dr4_lithium_line_measurement", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"},
             {"destination": "variability_activity_rotation_evidence", "value_field": "a_li", "uncertainty_lower_field": "e_a_li_low", "uncertainty_upper_field": "e_a_li_upp", "quantity_key": "absolute_lithium_abundance", "unit_raw": "dex", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["a_li_upp_lim", "e_a_li_teff", "flag_a_li", "flag_sp", "flag_sp_fit", "flag_red"], "method": "galah_dr4_lithium_abundance_fit", "reference_raw": "GALAH DR4 allStar 240705", "normalization_version": "galah_dr4_source_native_v1"}
           ]
+        }
+      }
+    },
+    "spectroscopy.lamost_dr11": {
+      "adapter_version": "lamost_dr11_scientific_evidence_v1",
+      "tables": {
+        "lamost_dr11_v2_lrs_stellar": {
+          "raw_artifact_name": "lamost_dr11_v2_lrs_stellar",
+          "logical_key_fields": ["obsid"],
+          "object_scope": "spectroscopic_observation",
+          "field_profile": "lamost_dr11_lrs_stellar",
+          "row_selection": {
+            "policy_id": "registered_gaia_dr3_uncertainty_envelope_v1",
+            "sql_predicate": "true",
+            "cache_selected_rows": true,
+            "reason": "retain LAMOST LRS stellar observations whose explicit Gaia DR3 identity occurs in either checksum-bound component of the Spacegate uncertainty-aware DR3 envelope",
+            "external_membership_groups": [{
+              "membership_id": "spacegate_gaia_dr3_uncertainty_envelope_v1",
+              "local_field": "gaia_source_id",
+              "normalization": "unsigned_integer_decimal_v1",
+              "match": "any",
+              "targets": [
+                {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_envelope_v2", "target_field": "source_id", "target_table_sha256": "524606bf49b9be6feac2bdff067b1fd333365a5c0081e751cef863f59799466a"},
+                {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_uncertain_distance_supplement_v1", "target_field": "source_id", "target_table_sha256": "ebf7c1620786e79bb155d08e7e991f0c293ac791d239ab968281ccd77d3e3f65"}
+              ]
+            }]
+          },
+          "identifier_claims": {
+            "obsid": {"namespace": "lamost_obsid", "claim_scope": "observation_product"},
+            "uid": {"namespace": "lamost_uid", "claim_scope": "observation_target"},
+            "designation": {"namespace": "lamost_designation", "claim_scope": "observation_target"},
+            "ps_id": {"namespace": "panstarrs1_object_id", "claim_scope": "observation_target", "excluded_values": ["0"]},
+            "gaia_source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "gp_id", "namespace": "gaia_dr3_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'G')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "panstarrs1_object_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'P')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "lamost_coordinate_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'L')", "normalization": "unsigned_integer_decimal_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "lamost_lrs_object_class", "parameter_set_kind": "lamost_dr11_lrs_object_classification", "method": "lamost_dr11_lrs_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "classification_field": "class", "classification_scheme": "lamost_object_class", "classification_missing_values": ["UNKNOWN", "Unknown", "null"], "measurements": []},
+            {
+              "scope_key": "lamost_lrs_lasp", "parameter_set_kind": "lamost_dr11_lrs_lasp_stellar_parameters", "method": "lamost_dr11_lasp", "model": "LAMOST_DR11_v2.0_LASP", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "classification_field": "subclass", "classification_scheme": "spectral_type", "classification_missing_values": ["UNKNOWN", "Unknown", "null"],
+              "quality_fields": ["snru", "snrg", "snrr", "snri", "snrz", "class", "fibertype", "offsets", "offsets_v"],
+              "measurements": [
+                {"value_field": "teff", "uncertainty_field": "teff_err", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg", "uncertainty_field": "logg_err", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)"},
+                {"value_field": "feh", "uncertainty_field": "feh_err", "quantity_key": "abundance_fe_h", "unit_raw": "dex"},
+                {"value_field": "alpha_m", "uncertainty_field": "alpha_m_err", "quantity_key": "alpha_to_metals_abundance", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+                {"value_field": "vsini_lasp", "quantity_key": "projected_rotation_velocity", "unit_raw": "km s-1", "missing_values": ["-9999", "-9999.0"]}
+              ]
+            }
+          ],
+          "configured_domain_storage": {"astrometry_distance_evidence": "typed_measurement_bundle_v1"},
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_obs", "quantity_key": "fiber_pointing_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_obs", "quantity_key": "fiber_pointing_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "input_catalog_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "input_catalog_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "z", "uncertainty_field": "z_err", "quantity_key": "spectroscopic_redshift", "method": "lamost_lrs_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv", "uncertainty_field": "rv_err", "quantity_key": "radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["snrg", "class", "subclass"], "method": "lamost_dr11_lasp", "reference_raw": "LAMOST DR11 v2.0 LRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]}
+          ],
+          "configured_observation_products": [
+            {"locator_field": "obsid", "locator_kind": "lamost_obsid", "product_kind": "low_resolution_spectrum", "product_key_prefix": "lamost-dr11-lrs:", "retrieval_policy": "on_demand_official_archive", "observation_epoch_field": "mjd", "processing_level": "LAMOST_DR11_v2.0_LRS", "quality_fields": ["planid", "spid", "fiberid", "snru", "snrg", "snrr", "snri", "snrz", "fibertype"]}
+          ]
+        },
+        "lamost_dr11_v2_lrs_mstellar": {
+          "raw_artifact_name": "lamost_dr11_v2_lrs_mstellar",
+          "logical_key_fields": ["obsid"],
+          "object_scope": "spectroscopic_observation",
+          "field_profile": "lamost_dr11_lrs_mstellar",
+          "row_selection": {
+            "policy_id": "registered_gaia_dr3_uncertainty_envelope_v1", "sql_predicate": "true", "cache_selected_rows": true,
+            "reason": "retain LAMOST M-star observations whose explicit Gaia DR3 identity occurs in either checksum-bound component of the Spacegate uncertainty-aware DR3 envelope",
+            "external_membership_groups": [{"membership_id": "spacegate_gaia_dr3_uncertainty_envelope_v1", "local_field": "gaia_source_id", "normalization": "unsigned_integer_decimal_v1", "match": "any", "targets": [
+              {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_envelope_v2", "target_field": "source_id", "target_table_sha256": "524606bf49b9be6feac2bdff067b1fd333365a5c0081e751cef863f59799466a"},
+              {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_uncertain_distance_supplement_v1", "target_field": "source_id", "target_table_sha256": "ebf7c1620786e79bb155d08e7e991f0c293ac791d239ab968281ccd77d3e3f65"}
+            ]}]
+          },
+          "identifier_claims": {
+            "obsid": {"namespace": "lamost_obsid", "claim_scope": "observation_product"}, "uid": {"namespace": "lamost_uid", "claim_scope": "observation_target"}, "designation": {"namespace": "lamost_designation", "claim_scope": "observation_target"}, "ps_id": {"namespace": "panstarrs1_object_id", "claim_scope": "observation_target", "excluded_values": ["0"]}, "gaia_source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "gp_id", "namespace": "gaia_dr3_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'G')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "panstarrs1_object_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'P')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "lamost_coordinate_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'L')", "normalization": "unsigned_integer_decimal_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "lamost_mstar_object_class", "parameter_set_kind": "lamost_dr11_lrs_mstar_object_classification", "method": "lamost_dr11_lrs_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "classification_field": "class", "classification_scheme": "lamost_object_class", "classification_missing_values": ["UNKNOWN", "Unknown", "null"], "measurements": []},
+            {"scope_key": "lamost_mstar_lasp", "parameter_set_kind": "lamost_dr11_lrs_mstar_parameters", "method": "lamost_dr11_mstar_parameter_pipeline", "model": "LAMOST_DR11_v2.0_MSTAR", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "classification_field": "subclass", "classification_scheme": "spectral_type", "classification_missing_values": ["UNKNOWN", "Unknown", "null"], "quality_fields": ["snru", "snrg", "snrr", "snri", "snrz", "class", "fibertype", "offsets", "offsets_v"], "measurements": [
+              {"value_field": "teff", "uncertainty_field": "teff_err", "quantity_key": "effective_temperature", "unit_raw": "K", "missing_values": ["-9999", "-9999.0"]},
+              {"value_field": "logg", "uncertainty_field": "logg_err", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9999", "-9999.0"]},
+              {"value_field": "m_h", "uncertainty_field": "m_h_err", "quantity_key": "metallicity_m_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}
+            ]},
+            {"scope_key": "lamost_mstar_spectral_indices", "parameter_set_kind": "lamost_dr11_lrs_mstar_spectral_indices", "method": "lamost_dr11_mstar_index_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "quality_fields": ["snrr", "snri", "class", "subclass"], "measurements": [
+              {"value_field": "tio5", "uncertainty_field": "tio5_err", "quantity_key": "spectral_index_tio5", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "cah2", "uncertainty_field": "cah2_err", "quantity_key": "spectral_index_cah2", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "cah3", "uncertainty_field": "cah3_err", "quantity_key": "spectral_index_cah3", "missing_values": ["-9999", "-9999.0"]},
+              {"value_field": "tio1", "uncertainty_field": "tio1_err", "quantity_key": "spectral_index_tio1", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "tio2", "uncertainty_field": "tio2_err", "quantity_key": "spectral_index_tio2", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "tio3", "uncertainty_field": "tio3_err", "quantity_key": "spectral_index_tio3", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "tio4", "uncertainty_field": "tio4_err", "quantity_key": "spectral_index_tio4", "missing_values": ["-9999", "-9999.0"]},
+              {"value_field": "cah1", "uncertainty_field": "cah1_err", "quantity_key": "spectral_index_cah1", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "caoh", "uncertainty_field": "caoh_err", "quantity_key": "spectral_index_caoh", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "zeta", "uncertainty_field": "zeta_err", "quantity_key": "metallicity_sensitive_zeta_index", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "na", "quantity_key": "spectral_index_na", "missing_values": ["-9999", "-9999.0"]}
+            ]}
+          ],
+          "configured_domain_storage": {"astrometry_distance_evidence": "typed_measurement_bundle_v1"},
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_obs", "quantity_key": "fiber_pointing_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_obs", "quantity_key": "fiber_pointing_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "input_catalog_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "input_catalog_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "z", "uncertainty_field": "z_err", "quantity_key": "spectroscopic_redshift", "method": "lamost_lrs_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "ewha", "uncertainty_field": "ewha_err", "quantity_key": "h_alpha_equivalent_width", "unit_raw": "Angstroms", "normalized_unit": "Angstrom", "evidence_kind": "spectral_activity_diagnostic", "quality_fields": ["snrr", "class", "subclass"], "method": "lamost_dr11_mstar_line_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "type", "quantity_key": "magnetic_activity_class", "evidence_kind": "magnetic_activity_classification", "quality_fields": ["snrr", "class", "subclass"], "method": "lamost_dr11_mstar_activity_pipeline", "reference_raw": "LAMOST DR11 v2.0 LRS M-star", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]}
+          ],
+          "configured_observation_products": [{"locator_field": "obsid", "locator_kind": "lamost_obsid", "product_kind": "low_resolution_mstar_spectrum", "product_key_prefix": "lamost-dr11-lrs-mstar:", "retrieval_policy": "on_demand_official_archive", "observation_epoch_field": "mjd", "processing_level": "LAMOST_DR11_v2.0_LRS_MSTAR", "quality_fields": ["planid", "spid", "fiberid", "snru", "snrg", "snrr", "snri", "snrz", "fibertype"]}]
+        },
+        "lamost_dr11_v2_mrs_stellar": {
+          "raw_artifact_name": "lamost_dr11_v2_mrs_stellar",
+          "logical_key_fields": ["mobsid"],
+          "object_scope": "spectroscopic_observation",
+          "field_profile": "lamost_dr11_mrs_stellar",
+          "row_selection": {
+            "policy_id": "registered_gaia_dr3_uncertainty_envelope_v1", "sql_predicate": "true", "cache_selected_rows": true,
+            "reason": "retain LAMOST MRS stellar observations whose explicit Gaia DR3 identity occurs in either checksum-bound component of the Spacegate uncertainty-aware DR3 envelope",
+            "external_membership_groups": [{"membership_id": "spacegate_gaia_dr3_uncertainty_envelope_v1", "local_field": "gaia_source_id", "normalization": "unsigned_integer_decimal_v1", "match": "any", "targets": [
+              {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_envelope_v2", "target_field": "source_id", "target_table_sha256": "524606bf49b9be6feac2bdff067b1fd333365a5c0081e751cef863f59799466a"},
+              {"source_id": "gaia.dr3.gaia_source", "release_id": "gaia_dr3_1250ly_envelope_v2", "raw_snapshot_id": "fcd1f77edf401a7e19c72197", "typed_snapshot_id": "35a41010cf74f950e61b5412", "typed_content_sha256": "1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35", "target_table": "gaia_dr3_source_uncertain_distance_supplement_v1", "target_field": "source_id", "target_table_sha256": "ebf7c1620786e79bb155d08e7e991f0c293ac791d239ab968281ccd77d3e3f65"}
+            ]}]
+          },
+          "identifier_claims": {
+            "mobsid": {"namespace": "lamost_mobsid", "claim_scope": "observation_product"}, "obsid": {"namespace": "lamost_obsid", "claim_scope": "observation_product"}, "uid": {"namespace": "lamost_uid", "claim_scope": "observation_target"}, "designation": {"namespace": "lamost_designation", "claim_scope": "observation_target"}, "gaia_source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["0"]}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "gp_id", "namespace": "gaia_dr3_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'G')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "panstarrs1_object_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'P')", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "gp_id", "namespace": "lamost_coordinate_source_id", "claim_scope": "observation_target", "sql_predicate": "starts_with(uid, 'L')", "normalization": "unsigned_integer_decimal_v1"}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "lamost_mrs_lasp", "parameter_set_kind": "lamost_dr11_mrs_lasp_stellar_parameters", "method": "lamost_dr11_lasp", "model": "LAMOST_DR11_v2.0_MRS_LASP", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "quality_fields": ["snr", "band", "coadd", "fibermask", "moon_angle", "lunardate", "moon_flg"], "measurements": [
+              {"value_field": "teff_lasp", "uncertainty_field": "teff_lasp_err", "quantity_key": "effective_temperature", "unit_raw": "K", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "logg_lasp", "uncertainty_field": "logg_lasp_err", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "feh_lasp", "uncertainty_field": "feh_lasp_err", "quantity_key": "abundance_fe_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "vsini_lasp", "uncertainty_field": "vsini_lasp_err", "quantity_key": "projected_rotation_velocity", "unit_raw": "km s-1", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "alpha_m_lasp", "uncertainty_field": "alpha_m_lasp_err", "quantity_key": "alpha_to_metals_abundance", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}
+            ]},
+            {"scope_key": "lamost_mrs_cnn", "parameter_set_kind": "lamost_dr11_mrs_cnn_stellar_parameters_and_abundances", "method": "lamost_dr11_mrs_cnn", "model": "LAMOST_DR11_v2.0_MRS_CNN", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "quality_fields": ["snr", "band", "coadd", "fibermask", "moon_angle", "lunardate", "moon_flg"], "measurements": [
+              {"value_field": "teff_cnn", "quantity_key": "effective_temperature", "unit_raw": "K", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "logg_cnn", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "feh_cnn", "quantity_key": "abundance_fe_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "m_h_cnn", "quantity_key": "metallicity_m_h", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "alpha_m_cnn", "quantity_key": "alpha_to_metals_abundance", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]},
+              {"value_field": "c_fe", "quantity_key": "abundance_c_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "n_fe", "quantity_key": "abundance_n_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "o_fe", "quantity_key": "abundance_o_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "mg_fe", "quantity_key": "abundance_mg_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "al_fe", "quantity_key": "abundance_al_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "si_fe", "quantity_key": "abundance_si_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "s_fe", "quantity_key": "abundance_s_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "ca_fe", "quantity_key": "abundance_ca_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "ti_fe", "quantity_key": "abundance_ti_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "cr_fe", "quantity_key": "abundance_cr_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "ni_fe", "quantity_key": "abundance_ni_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}, {"value_field": "cu_fe", "quantity_key": "abundance_cu_fe", "unit_raw": "dex", "missing_values": ["-9999", "-9999.0"]}
+            ]}
+          ],
+          "configured_domain_storage": {"astrometry_distance_evidence": "typed_measurement_bundle_v1"},
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_obs", "quantity_key": "fiber_pointing_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_obs", "quantity_key": "fiber_pointing_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "epoch_field": "mjd", "method": "lamost_fiber_pointing", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra", "quantity_key": "input_catalog_right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec", "quantity_key": "input_catalog_declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS", "method": "lamost_input_catalog_coordinate", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_b0", "uncertainty_field": "rv_b0_err", "quantity_key": "blue_band_radial_velocity_raw", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_b_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_b1", "uncertainty_field": "rv_b1_err", "quantity_key": "blue_band_radial_velocity_zero_point_corrected", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_b_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_r0", "uncertainty_field": "rv_r0_err", "quantity_key": "red_band_radial_velocity_raw", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_r_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_r1", "uncertainty_field": "rv_r1_err", "quantity_key": "red_band_radial_velocity_zero_point_corrected", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_r_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_br0", "uncertainty_field": "rv_br0_err", "quantity_key": "combined_band_radial_velocity_raw", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_br_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_br1", "uncertainty_field": "rv_br1_err", "quantity_key": "combined_band_radial_velocity_zero_point_corrected", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["rv_br_flag", "snr", "band", "coadd", "fibermask"], "method": "lamost_mrs_kurucz_template_fit", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_lasp0", "uncertainty_field": "rv_lasp0_err", "quantity_key": "lasp_radial_velocity_raw", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["snr", "band", "coadd", "fibermask"], "method": "lamost_dr11_lasp", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_lasp1", "uncertainty_field": "rv_lasp1_err", "quantity_key": "lasp_radial_velocity_zero_point_corrected", "unit_raw": "km s-1", "normalized_unit": "km s-1", "epoch_field": "mjd", "quality_fields": ["snr", "band", "coadd", "fibermask"], "method": "lamost_dr11_lasp", "reference_raw": "LAMOST DR11 v2.0 MRS stellar", "normalization_version": "lamost_dr11_source_native_v1", "missing_values": ["-9999", "-9999.0"]}
+          ],
+          "configured_observation_products": [{"locator_field": "mobsid", "locator_kind": "lamost_mobsid", "product_kind": "medium_resolution_spectrum", "product_key_prefix": "lamost-dr11-mrs:", "retrieval_policy": "on_demand_official_archive", "observation_epoch_field": "mjd", "processing_level": "LAMOST_DR11_v2.0_MRS", "quality_fields": ["obsid", "planid", "spid", "fiberid", "band", "snr", "coadd", "fibermask"]}]
         }
       }
     },
