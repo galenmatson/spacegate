@@ -1933,6 +1933,21 @@ Representative commits:
   `fae1354fe191776ed93d66967563075b762d0af37d1df518e76670f9f93eccb7`
   authorized retirement of the sole 110,793,879,552-byte manifestless staging
   tree before retry.
+- The first v69 retry was terminated with its terminal before report publication
+  or atomic promotion. Exact candidate hash
+  `0732040b55edb45e63974719f2e1b932e0a56b9d388ca93f86403e0223e41191`
+  authorized retirement of its sole closed, unreferenced 128,085,159,936-byte
+  staging tree. Subsequent large compiles run in a persistent tmux window with
+  an external log and exit-code sentinel.
+- The tmux-isolated retry proved the per-table binding fix, then exposed a
+  separate execution defect: ordinary evidence-reference joins remained
+  release-wide even though nested astrometry-bundle citations were already
+  divided into 32 deterministic source-record hash buckets. The join failed
+  closed at the 32-GB cap without promotion. Compiler/contract v70 applies the
+  same bucket policy to every reference-bearing evidence table; 66 focused
+  tests preserve exact link keys and counts. Exact candidate hash
+  `a546c331f63e4c09e9a7b8afdeb9a46058a5d3261acde897f36449be851aa79e`
+  authorized retirement of the sole 128,089,096,192-byte failed staging tree.
 
 ## Recurrent Defect Classes and Mitigations
 

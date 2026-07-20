@@ -4728,19 +4728,21 @@ def materialize_citations(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         """
     )
     for table in sorted(EVIDENCE_REFERENCE_TABLES):
-        con.execute(
-            f"""
-            insert into evidence_citations
-            select
-              {sql_string(table)}, e.evidence_id, c.citation_id, 'source_reference'
-            from {sql_identifier(table)} e
-            join source_records r using (source_record_id)
-            join citation_match_keys c
-              on c.source_id=r.source_id
-             and c.match_key=e.reference_raw
-            where nullif(trim(e.reference_raw), '') is not null
-            """
-        )
+        for bucket in range(CITATION_LINK_BUCKET_COUNT):
+            con.execute(
+                f"""
+                insert into evidence_citations
+                select
+                  {sql_string(table)}, e.evidence_id, c.citation_id, 'source_reference'
+                from {sql_identifier(table)} e
+                join source_records r using (source_record_id)
+                join citation_match_keys c
+                  on c.source_id=r.source_id
+                 and c.match_key=e.reference_raw
+                where nullif(trim(e.reference_raw), '') is not null
+                  and hash(e.source_record_id) % {CITATION_LINK_BUCKET_COUNT} = {bucket}
+                """
+            )
     for bucket in range(CITATION_LINK_BUCKET_COUNT):
         con.execute(
             f"""
@@ -5958,6 +5960,7 @@ def compile_evidence(
             "threads": 1,
             "preserve_insertion_order": False,
             "astrometry_citation_link_bucket_count": CITATION_LINK_BUCKET_COUNT,
+            "citation_link_bucket_count": CITATION_LINK_BUCKET_COUNT,
             "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
             * 1024,
             "temporary_storage_policy": temporary_storage_policy,

@@ -1308,6 +1308,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E4 Gaia AP main build: materialize the 51,164,425-row bounded release and
   pass source-specific, generic artifact, clean-reproduction, storage, scope,
   probability, interval, and zero-pending-field gates
+- [x] E4 Gaia AP scale guard: materialize unresolved bindings per source table
+  and link every ordinary and nested evidence-reference table through 32
+  deterministic source-record hash buckets; preserve identical primary keys and
+  counts under the 32-GB Photon compiler cap
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

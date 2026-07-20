@@ -3293,6 +3293,42 @@ def test_citation_materialization_matches_key_or_text_without_duplicate_links(
     assert links == [("same",), ("text",)]
 
 
+def test_citation_materialization_preserves_links_across_hash_buckets() -> None:
+    row_count = compiler.CITATION_LINK_BUCKET_COUNT * 3
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            f"""
+            insert into source_records
+            select
+              'record-' || i, 'identity.test', 'r1', 'rows', 'star',
+              '{{}}', '{{}}', 'row-hash-' || i, 1, 'raw', 'typed',
+              'raw-tree', 'typed-table', timestamp '2026-07-19 00:00:00'
+            from range({row_count}) rows(i)
+            """
+        )
+        con.execute(
+            f"""
+            insert into stellar_classification_evidence
+            select
+              'evidence-' || i, 'record-' || i, null, 'spectral_type',
+              'G2V', 'G2V', null, 'source', null, 'shared-reference', '{{}}'
+            from range({row_count}) rows(i)
+            """
+        )
+        con.execute(
+            "insert into citations values "
+            "('citation','identity.test','shared-reference','shared-reference',"
+            "null,null,null,null,'{}')"
+        )
+        summary = compiler.materialize_citations(con)
+        linked_records = con.execute(
+            "select count(*),count(distinct evidence_id) from evidence_citations"
+        ).fetchone()
+    assert summary == {"citations": 1, "evidence_links": row_count}
+    assert linked_records == (row_count, row_count)
+
+
 def test_source_citation_link_attaches_catalog_reference_to_identifier_claim(
     tmp_path: Path,
 ) -> None:

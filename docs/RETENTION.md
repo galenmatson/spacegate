@@ -632,6 +632,16 @@ sudo scripts/normalize_state_permissions.sh --apply
   storage audit reported 440.7 GiB free, no unrecognized build IDs, and
   `acquisition_ready=true`; no raw, typed, accepted, served, rollback, or report
   artifact was selected.
+- The tmux-isolated Gaia AP retry then completed the bounded per-table binding
+  stage but failed closed when the still-unbounded ordinary evidence-citation
+  join reached the 32-GB compiler cap. The traceback remains in
+  `e4_gaia_ap_compile_v70.log`; compiler/contract v70 replaces that operation
+  with 32 deterministic source-record hash buckets. A zero-age dry run selected
+  exactly one manifestless, unreferenced, closed staging tree. Candidate hash
+  `a546c331f63e4c09e9a7b8afdeb9a46058a5d3261acde897f36449be851aa79e`
+  authorized retirement of 128,089,096,192 allocated bytes. The refreshed E0
+  storage audit again reported 440.7 GiB free and `acquisition_ready=true`; no
+  raw, typed, accepted, served, rollback, or report artifact was selected.
 
 ## Extended-Object Catalog Artifacts
 

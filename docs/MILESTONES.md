@@ -1730,8 +1730,12 @@ Current status (July 19, 2026, in progress):
   and clean reproduction remain the next E4 gate
 - the first full Gaia AP build failed closed only at release-wide unresolved
   binding insertion. Compiler/contract v69 emits identical scopes per source
-  table under the same 32-GB limit; the failed manifestless staging tree was
-  retired by exact-hash retention and the immutable retry remains pending
+  table under the same 32-GB limit. A tmux-isolated retry proved that fix and
+  then exposed a separate unbounded ordinary evidence-citation join.
+  Compiler/contract v70 applies the existing deterministic 32-bucket policy to
+  every evidence-reference table without changing scientific keys or counts;
+  failed manifestless staging trees were retired by exact-hash retention and
+  the immutable retry remains pending
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

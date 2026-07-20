@@ -873,7 +873,16 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   each source table instead of aggregating all ten tables at release end. This
   bounds working state without changing evidence or binding identity. The sole
   manifestless v68 staging tree was retired whole through exact-hash retention;
-  the v69 retry remains pending.
+  the first v69 retry was interrupted before report publication and its closed,
+  unreferenced staging tree was likewise retired through exact-hash retention.
+- The tmux-isolated v69 retry completed all per-table binding work and then
+  failed closed while linking ordinary evidence citations: only nested
+  astrometry-bundle citations used the existing 32-bucket execution policy, so
+  a single evidence-table join reached the 32-GB cap. Compiler/contract v70
+  applies deterministic source-record hash buckets to every evidence-reference
+  table while preserving the same citation keys and counts. All 66 focused
+  compiler tests pass; the immutable AP retry and independent audits remain
+  pending.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961
