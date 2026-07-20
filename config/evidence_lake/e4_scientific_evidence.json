@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-20.e4-foundation.67",
-  "compiler_version": "scientific_evidence_compiler_v67",
+  "contract_version": "2026-07-20.e4-foundation.68",
+  "compiler_version": "scientific_evidence_compiler_v68",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -687,6 +687,40 @@
         "destination": "source_records",
         "reason": "Gaia crossmatch flags, neighbour/mate counts, and external-catalog row keys retained as relation quality context"
       }
+    ],
+    "gaia_ap_classifier": [
+      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^classprob_.*$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "coherent Gaia source-classifier probability vectors"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "unmatched source-classifier release context"}
+    ],
+    "gaia_ap_photometry_flame": [
+      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^distance_gspphot(_lower|_upper)?$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "GSP-Phot model distance posterior"},
+      {"pattern": "^(azero|ag|abp|arp|ebpminrp|mg)_gspphot(_lower|_upper)?$|^bc_flame$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "GSP-Phot extinction, colour excess, absolute magnitude, and FLAME bolometric correction"},
+      {"pattern": "^evolstage_flame$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "FLAME evolutionary-stage classification"},
+      {"pattern": "^(logposterior_gspphot|mcmcaccept_gspphot|libname_gspphot|flags_flame)$", "disposition": "context", "destination": "source_records", "reason": "source model, posterior, sampler, and quality context"},
+      {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent GSP-Phot or FLAME stellar parameter evidence"}
+    ],
+    "gaia_ap_spectroscopy": [
+      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^(flags_gspspec|logchisq_gspspec|.*_nlines|.*_linescatter)$", "disposition": "context", "destination": "source_records", "reason": "GSP-Spec fit, line-count, and scatter quality retained with coherent parameter sets"},
+      {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent GSP-Spec atmospheric, abundance, CN-band, or diffuse-interstellar-band evidence"}
+    ],
+    "gaia_ap_activity_specialized": [
+      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^(ew_espels_halpha.*|activityindex_espcs.*)$", "disposition": "domain", "destination": "variability_activity_rotation_evidence", "reason": "ESP-ELS H-alpha and ESP-CS activity evidence"},
+      {"pattern": "^(classlabel_espels.*|classprob_espels_.*|spectraltype_esphs)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "ESP-ELS and ESP-HS classification evidence"},
+      {"pattern": "^(azero|ag|ebpminrp)_esphs.*$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "ESP-HS extinction and colour-excess evidence"},
+      {"pattern": "^(flags_esphs|flags_espucd)$", "disposition": "context", "destination": "source_records", "reason": "specialized-source quality flags retained with coherent parameter sets"},
+      {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "ESP-HS or ESP-UCD stellar parameter evidence"}
+    ],
+    "gaia_ap_multiple_oa": [
+      {"pattern": "^(source_id|solution_id)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "release-scoped Gaia DR3 source and AP solution identity"},
+      {"pattern": "^distance_msc(_lower|_upper)?$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "MSC model distance posterior"},
+      {"pattern": "^(azero|ag)_msc(_lower|_upper)?$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "MSC extinction evidence"},
+      {"pattern": "^(neuron_oa_.*|flags_oa)$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "Gaia OA self-organizing-map neuron assignment and quality"},
+      {"pattern": "^(logposterior_msc|mcmcaccept_msc|mcmcdrift_msc|flags_msc)$", "disposition": "context", "destination": "source_records", "reason": "MSC posterior, sampler, drift, and quality context"},
+      {"pattern": ".*", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "coherent MSC system or component parameter evidence"}
     ],
     "iau_wgsn_names": [
       {
@@ -2492,6 +2526,189 @@
         "gaia_dr3_hipparcos2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_hipparcos2_best_neighbour_v1"},
         "gaia_dr3_tycho2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_tycho2_best_neighbour_v1"},
         "gaia_dr3_ravedr6_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ravedr6_best_neighbour_v1"}
+      }
+    },
+    "gaia.dr3.astrophysical_parameters": {
+      "adapter_version": "gaia_dr3_astrophysical_parameters_scientific_evidence_v1",
+      "tables": {
+        "gaia_dr3_ap_classifier_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "gaia_ap_source_classification",
+          "field_profile": "gaia_ap_classifier",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "classification_probability_bundle": {
+            "classification_scheme": "gaia_dr3_source_classifier_probability_vectors",
+            "method": "gaia_dr3_astrophysical_parameters_source_classifiers",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_astrophysical_parameter_tables/ssec_dm_astrophysical_parameters.html",
+            "groups": [
+              {"model": "DSC_combmod", "probabilities": {"quasar": "classprob_dsc_combmod_quasar", "galaxy": "classprob_dsc_combmod_galaxy", "star": "classprob_dsc_combmod_star", "white_dwarf": "classprob_dsc_combmod_whitedwarf", "binary_star": "classprob_dsc_combmod_binarystar"}},
+              {"model": "DSC_specmod", "probabilities": {"quasar": "classprob_dsc_specmod_quasar", "galaxy": "classprob_dsc_specmod_galaxy", "star": "classprob_dsc_specmod_star", "white_dwarf": "classprob_dsc_specmod_whitedwarf", "binary_star": "classprob_dsc_specmod_binarystar"}},
+              {"model": "DSC_allosmod", "probabilities": {"quasar": "classprob_dsc_allosmod_quasar", "galaxy": "classprob_dsc_allosmod_galaxy", "star": "classprob_dsc_allosmod_star"}},
+              {"model": "ESP_ELS", "probabilities": {"WC_star": "classprob_espels_wcstar", "WN_star": "classprob_espels_wnstar", "Be_star": "classprob_espels_bestar", "T_Tauri_star": "classprob_espels_ttauristar", "Herbig_AeBe_star": "classprob_espels_herbigstar", "dMe_star": "classprob_espels_dmestar", "planetary_nebula": "classprob_espels_pne"}}
+            ]
+          }
+        },
+        "gaia_dr3_ap_photometry_flame_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "gaia_ap_stellar_model_solution",
+          "field_profile": "gaia_ap_photometry_flame",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "GSP-Phot", "parameter_set_kind": "gaia_dr3_gspphot_posterior", "method": "gaia_dr3_gspphot", "model": "Aeneas_MCMC_BP_RP_spectrophotometry", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_gspphot.html", "normalization_version": "gaia_dr3_gspphot_source_native_v1", "quality_fields": ["logposterior_gspphot", "mcmcaccept_gspphot", "libname_gspphot"],
+              "measurements": [
+                {"value_field": "teff_gspphot", "uncertainty_lower_field": "teff_gspphot_lower", "uncertainty_upper_field": "teff_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_gspphot", "uncertainty_lower_field": "logg_gspphot_lower", "uncertainty_upper_field": "logg_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "log10_surface_gravity", "unit_raw": "log(cm.s**-2)", "normalized_unit": "dex(cm s-2)"},
+                {"value_field": "mh_gspphot", "uncertainty_lower_field": "mh_gspphot_lower", "uncertainty_upper_field": "mh_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "metallicity_m_h", "unit_raw": "dex"},
+                {"value_field": "radius_gspphot", "uncertainty_lower_field": "radius_gspphot_lower", "uncertainty_upper_field": "radius_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "stellar_radius", "unit_raw": "solRad"}
+              ]
+            },
+            {
+              "scope_key": "FLAME", "parameter_set_kind": "gaia_dr3_flame_photometric_evolution_model", "method": "gaia_dr3_flame", "model": "FLAME_photometric", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_flame.html", "normalization_version": "gaia_dr3_flame_source_native_v1", "quality_fields": ["flags_flame"],
+              "measurements": [
+                {"value_field": "radius_flame", "uncertainty_lower_field": "radius_flame_lower", "uncertainty_upper_field": "radius_flame_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "stellar_radius", "unit_raw": "solRad"},
+                {"value_field": "lum_flame", "uncertainty_lower_field": "lum_flame_lower", "uncertainty_upper_field": "lum_flame_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "stellar_luminosity", "unit_raw": "solLum"},
+                {"value_field": "mass_flame", "uncertainty_lower_field": "mass_flame_lower", "uncertainty_upper_field": "mass_flame_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "stellar_mass", "unit_raw": "solMass"},
+                {"value_field": "age_flame", "uncertainty_lower_field": "age_flame_lower", "uncertainty_upper_field": "age_flame_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "stellar_age", "unit_raw": "Gyr"},
+                {"value_field": "gravredshift_flame", "uncertainty_lower_field": "gravredshift_flame_lower", "uncertainty_upper_field": "gravredshift_flame_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "gravitational_redshift_velocity", "unit_raw": "km / s", "normalized_unit": "km s-1"}
+              ]
+            },
+            {"scope_key": "FLAME_evolution_stage", "parameter_set_kind": "gaia_dr3_flame_evolution_stage", "classification_field": "evolstage_flame", "classification_scheme": "gaia_flame_evolution_stage", "quality_fields": ["flags_flame"], "measurements": [], "method": "gaia_dr3_flame", "model": "FLAME_photometric", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_flame.html", "normalization_version": "gaia_dr3_flame_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "distance_gspphot", "uncertainty_lower_field": "distance_gspphot_lower", "uncertainty_upper_field": "distance_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "gspphot_model_distance", "unit_raw": "pc", "normalized_unit": "pc", "method": "gaia_dr3_gspphot", "model": "Aeneas_MCMC_BP_RP_spectrophotometry", "normalization_version": "gaia_dr3_gspphot_source_native_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "azero_gspphot", "uncertainty_lower_field": "azero_gspphot_lower", "uncertainty_upper_field": "azero_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "monochromatic_extinction_a0", "unit_raw": "mag", "method": "gaia_dr3_gspphot", "model": "Aeneas_MCMC_BP_RP_spectrophotometry"},
+            {"value_field": "ag_gspphot", "uncertainty_lower_field": "ag_gspphot_lower", "uncertainty_upper_field": "ag_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "band_extinction", "bandpass": "Gaia G", "unit_raw": "mag", "method": "gaia_dr3_gspphot"},
+            {"value_field": "abp_gspphot", "uncertainty_lower_field": "abp_gspphot_lower", "uncertainty_upper_field": "abp_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "band_extinction", "bandpass": "Gaia BP", "unit_raw": "mag", "method": "gaia_dr3_gspphot"},
+            {"value_field": "arp_gspphot", "uncertainty_lower_field": "arp_gspphot_lower", "uncertainty_upper_field": "arp_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "band_extinction", "bandpass": "Gaia RP", "unit_raw": "mag", "method": "gaia_dr3_gspphot"},
+            {"value_field": "ebpminrp_gspphot", "uncertainty_lower_field": "ebpminrp_gspphot_lower", "uncertainty_upper_field": "ebpminrp_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "color_excess", "bandpass": "Gaia BP-RP", "unit_raw": "mag", "method": "gaia_dr3_gspphot"},
+            {"value_field": "mg_gspphot", "uncertainty_lower_field": "mg_gspphot_lower", "uncertainty_upper_field": "mg_gspphot_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_16th_84th_percentile_interval_endpoints", "quantity_key": "absolute_magnitude", "bandpass": "Gaia G", "unit_raw": "mag", "method": "gaia_dr3_gspphot"},
+            {"value_field": "bc_flame", "quantity_key": "bolometric_correction", "bandpass": "Gaia G", "unit_raw": "mag", "method": "gaia_dr3_flame", "model": "FLAME_photometric"}
+          ]
+        },
+        "gaia_dr3_ap_spectroscopy_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "gaia_ap_stellar_model_solution",
+          "field_profile": "gaia_ap_spectroscopy",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "GSP-Spec_atmosphere_abundances", "parameter_set_kind": "gaia_dr3_gspspec_atmosphere_and_abundances", "method": "gaia_dr3_gspspec", "model": "MatisseGauguin_RVS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_gspspec.html", "normalization_version": "gaia_dr3_gspspec_source_native_v1",
+              "quality_fields": ["fem_gspspec_nlines", "fem_gspspec_linescatter", "sife_gspspec_nlines", "sife_gspspec_linescatter", "cafe_gspspec_nlines", "cafe_gspspec_linescatter", "tife_gspspec_nlines", "tife_gspspec_linescatter", "mgfe_gspspec_nlines", "mgfe_gspspec_linescatter", "ndfe_gspspec_nlines", "ndfe_gspspec_linescatter", "feiim_gspspec_nlines", "feiim_gspspec_linescatter", "sfe_gspspec_nlines", "sfe_gspspec_linescatter", "zrfe_gspspec_nlines", "zrfe_gspspec_linescatter", "nfe_gspspec_nlines", "nfe_gspspec_linescatter", "crfe_gspspec_nlines", "crfe_gspspec_linescatter", "cefe_gspspec_nlines", "cefe_gspspec_linescatter", "nife_gspspec_nlines", "nife_gspspec_linescatter", "flags_gspspec", "logchisq_gspspec"],
+              "measurements": [
+                {"value_field": "teff_gspspec", "uncertainty_lower_field": "teff_gspspec_lower", "uncertainty_upper_field": "teff_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "effective_temperature", "unit_raw": "K"},
+                {"value_field": "logg_gspspec", "uncertainty_lower_field": "logg_gspspec_lower", "uncertainty_upper_field": "logg_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "log10_surface_gravity", "unit_raw": "log(cm.s**-2)", "normalized_unit": "dex(cm s-2)"},
+                {"value_field": "mh_gspspec", "uncertainty_lower_field": "mh_gspspec_lower", "uncertainty_upper_field": "mh_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "metallicity_m_h", "unit_raw": "dex"},
+                {"value_field": "alphafe_gspspec", "uncertainty_lower_field": "alphafe_gspspec_lower", "uncertainty_upper_field": "alphafe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_alpha_fe", "unit_raw": "dex"},
+                {"value_field": "fem_gspspec", "uncertainty_lower_field": "fem_gspspec_lower", "uncertainty_upper_field": "fem_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_fe_m", "unit_raw": "dex"},
+                {"value_field": "sife_gspspec", "uncertainty_lower_field": "sife_gspspec_lower", "uncertainty_upper_field": "sife_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_si_fe", "unit_raw": "dex"},
+                {"value_field": "cafe_gspspec", "uncertainty_lower_field": "cafe_gspspec_lower", "uncertainty_upper_field": "cafe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_ca_fe", "unit_raw": "dex"},
+                {"value_field": "tife_gspspec", "uncertainty_lower_field": "tife_gspspec_lower", "uncertainty_upper_field": "tife_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_ti_fe", "unit_raw": "dex"},
+                {"value_field": "mgfe_gspspec", "uncertainty_lower_field": "mgfe_gspspec_lower", "uncertainty_upper_field": "mgfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_mg_fe", "unit_raw": "dex"},
+                {"value_field": "ndfe_gspspec", "uncertainty_lower_field": "ndfe_gspspec_lower", "uncertainty_upper_field": "ndfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_nd_fe", "unit_raw": "dex"},
+                {"value_field": "feiim_gspspec", "uncertainty_lower_field": "feiim_gspspec_lower", "uncertainty_upper_field": "feiim_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_feii_m", "unit_raw": "dex"},
+                {"value_field": "sfe_gspspec", "uncertainty_lower_field": "sfe_gspspec_lower", "uncertainty_upper_field": "sfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_s_fe", "unit_raw": "dex"},
+                {"value_field": "zrfe_gspspec", "uncertainty_lower_field": "zrfe_gspspec_lower", "uncertainty_upper_field": "zrfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_zr_fe", "unit_raw": "dex"},
+                {"value_field": "nfe_gspspec", "uncertainty_lower_field": "nfe_gspspec_lower", "uncertainty_upper_field": "nfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_n_fe", "unit_raw": "dex"},
+                {"value_field": "crfe_gspspec", "uncertainty_lower_field": "crfe_gspspec_lower", "uncertainty_upper_field": "crfe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_cr_fe", "unit_raw": "dex"},
+                {"value_field": "cefe_gspspec", "uncertainty_lower_field": "cefe_gspspec_lower", "uncertainty_upper_field": "cefe_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_ce_fe", "unit_raw": "dex"},
+                {"value_field": "nife_gspspec", "uncertainty_lower_field": "nife_gspspec_lower", "uncertainty_upper_field": "nife_gspspec_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "source_confidence_interval_endpoints", "quantity_key": "abundance_ni_fe", "unit_raw": "dex"}
+              ]
+            },
+            {
+              "scope_key": "GSP-Spec_spectral_features", "parameter_set_kind": "gaia_dr3_gspspec_cn_and_dib_features", "method": "gaia_dr3_gspspec", "model": "MatisseGauguin_RVS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_gspspec.html", "normalization_version": "gaia_dr3_gspspec_source_native_v1", "quality_fields": ["dibqf_gspspec", "flags_gspspec", "logchisq_gspspec"],
+              "measurements": [
+                {"value_field": "cn0ew_gspspec", "uncertainty_field": "cn0ew_gspspec_uncertainty", "quantity_key": "cn_band_equivalent_width", "unit_raw": "nm"},
+                {"value_field": "cn0_gspspec_centralline", "quantity_key": "cn_band_central_wavelength", "unit_raw": "nm"},
+                {"value_field": "cn0_gspspec_width", "quantity_key": "cn_band_width", "unit_raw": "nm"},
+                {"value_field": "dib_gspspec_lambda", "uncertainty_field": "dib_gspspec_lambda_uncertainty", "quantity_key": "diffuse_interstellar_band_central_wavelength", "unit_raw": "nm"},
+                {"value_field": "dibew_gspspec", "uncertainty_field": "dibew_gspspec_uncertainty", "quantity_key": "diffuse_interstellar_band_equivalent_width", "unit_raw": "Angstrom"},
+                {"value_field": "dibewnoise_gspspec_uncertainty", "quantity_key": "diffuse_interstellar_band_equivalent_width_noise", "unit_raw": "Angstrom"},
+                {"value_field": "dibp0_gspspec", "quantity_key": "diffuse_interstellar_band_profile_p0", "unit_raw": "source_native"},
+                {"value_field": "dibp2_gspspec", "uncertainty_field": "dibp2_gspspec_uncertainty", "quantity_key": "diffuse_interstellar_band_profile_p2", "unit_raw": "Angstrom"}
+              ]
+            }
+          ]
+        },
+        "gaia_dr3_ap_activity_specialized_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "gaia_ap_stellar_model_solution",
+          "field_profile": "gaia_ap_activity_specialized",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "classification_probability_bundle": {
+            "classification_scheme": "gaia_dr3_espels_probability_vector", "method": "gaia_dr3_espels", "model": "ESP-ELS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_espels.html",
+            "groups": [{"model": "ESP_ELS", "probabilities": {"WC_star": "classprob_espels_wcstar", "WN_star": "classprob_espels_wnstar", "Be_star": "classprob_espels_bestar", "T_Tauri_star": "classprob_espels_ttauristar", "Herbig_AeBe_star": "classprob_espels_herbigstar", "dMe_star": "classprob_espels_dmestar", "planetary_nebula": "classprob_espels_pne"}}]
+          },
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "ESP-ELS_label", "parameter_set_kind": "gaia_dr3_espels_classification", "classification_field": "classlabel_espels", "classification_scheme": "gaia_espels_class_label", "quality_fields": ["classlabel_espels_flag", "ew_espels_halpha_flag", "ew_espels_halpha_model"], "measurements": [], "method": "gaia_dr3_espels", "model": "ESP-ELS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_espels.html", "normalization_version": "gaia_dr3_espels_source_native_v1"},
+            {"scope_key": "ESP-HS", "parameter_set_kind": "gaia_dr3_esphs_hot_star_parameters", "classification_field": "spectraltype_esphs", "classification_scheme": "gaia_esphs_spectral_type", "quality_fields": ["flags_esphs"], "measurements": [
+              {"value_field": "teff_esphs", "uncertainty_field": "teff_esphs_uncertainty", "quantity_key": "effective_temperature", "unit_raw": "K"},
+              {"value_field": "logg_esphs", "uncertainty_field": "logg_esphs_uncertainty", "quantity_key": "log10_surface_gravity", "unit_raw": "log(cm.s**-2)", "normalized_unit": "dex(cm s-2)"},
+              {"value_field": "vsini_esphs", "uncertainty_field": "vsini_esphs_uncertainty", "quantity_key": "projected_rotation_velocity", "unit_raw": "km / s", "normalized_unit": "km s-1"}
+            ], "method": "gaia_dr3_esphs", "model": "ESP-HS", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_esphs.html", "normalization_version": "gaia_dr3_esphs_source_native_v1"},
+            {"scope_key": "ESP-UCD", "parameter_set_kind": "gaia_dr3_espucd_temperature", "quality_fields": ["flags_espucd"], "measurements": [
+              {"value_field": "teff_espucd", "uncertainty_field": "teff_espucd_uncertainty", "quantity_key": "effective_temperature", "unit_raw": "K"}
+            ], "method": "gaia_dr3_espucd", "model": "ESP-UCD", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_espucd.html", "normalization_version": "gaia_dr3_espucd_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "variability_activity_rotation_evidence", "value_field": "ew_espels_halpha", "uncertainty_field": "ew_espels_halpha_uncertainty", "quantity_key": "halpha_equivalent_width", "unit_raw": "nm", "quality_fields": ["ew_espels_halpha_flag", "ew_espels_halpha_model"], "method": "gaia_dr3_espels", "model": "ESP-ELS", "normalization_version": "gaia_dr3_espels_source_native_v1"},
+            {"destination": "variability_activity_rotation_evidence", "value_field": "activityindex_espcs", "uncertainty_field": "activityindex_espcs_uncertainty", "quantity_key": "chromospheric_activity_index", "unit_raw": "nm", "quality_fields": ["activityindex_espcs_input"], "method": "gaia_dr3_espcs", "model": "ESP-CS", "normalization_version": "gaia_dr3_espcs_source_native_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "azero_esphs", "uncertainty_field": "azero_esphs_uncertainty", "quantity_key": "monochromatic_extinction_a0", "unit_raw": "mag", "method": "gaia_dr3_esphs", "model": "ESP-HS"},
+            {"value_field": "ag_esphs", "uncertainty_field": "ag_esphs_uncertainty", "quantity_key": "band_extinction", "bandpass": "Gaia G", "unit_raw": "mag", "method": "gaia_dr3_esphs", "model": "ESP-HS"},
+            {"value_field": "ebpminrp_esphs", "uncertainty_field": "ebpminrp_esphs_uncertainty", "quantity_key": "color_excess", "bandpass": "Gaia BP-RP", "unit_raw": "mag", "method": "gaia_dr3_esphs", "model": "ESP-HS"}
+          ]
+        },
+        "gaia_dr3_ap_multiple_oa_v2": {
+          "logical_key_fields": ["source_id", "solution_id"],
+          "object_scope": "gaia_ap_stellar_model_solution",
+          "field_profile": "gaia_ap_multiple_oa",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "normalization": "unsigned_integer_decimal_v1"},
+            "solution_id": {"namespace": "gaia_dr3_ap_solution_id", "claim_scope": "source_model_solution", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "MSC_system", "parameter_set_kind": "gaia_dr3_msc_system_model", "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_msc.html", "normalization_version": "gaia_dr3_msc_source_native_v1", "quality_fields": ["logposterior_msc", "mcmcaccept_msc", "mcmcdrift_msc", "flags_msc"], "measurements": [
+              {"value_field": "mh_msc", "uncertainty_lower_field": "mh_msc_lower", "uncertainty_upper_field": "mh_msc_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "system_metallicity_m_h", "unit_raw": "dex"}
+            ]},
+            {"scope_key": "MSC_primary", "component_scope": "primary_source_model_component", "parameter_set_kind": "gaia_dr3_msc_component_parameters", "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_msc.html", "normalization_version": "gaia_dr3_msc_source_native_v1", "quality_fields": ["flags_msc"], "measurements": [
+              {"value_field": "teff_msc1", "uncertainty_lower_field": "teff_msc1_lower", "uncertainty_upper_field": "teff_msc1_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "effective_temperature", "unit_raw": "K"},
+              {"value_field": "logg_msc1", "uncertainty_lower_field": "logg_msc1_lower", "uncertainty_upper_field": "logg_msc1_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "log10_surface_gravity", "unit_raw": "log(cm.s**-2)", "normalized_unit": "dex(cm s-2)"}
+            ]},
+            {"scope_key": "MSC_secondary", "component_scope": "secondary_source_model_component", "parameter_set_kind": "gaia_dr3_msc_component_parameters", "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_msc.html", "normalization_version": "gaia_dr3_msc_source_native_v1", "quality_fields": ["flags_msc"], "measurements": [
+              {"value_field": "teff_msc2", "uncertainty_lower_field": "teff_msc2_lower", "uncertainty_upper_field": "teff_msc2_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "effective_temperature", "unit_raw": "K"},
+              {"value_field": "logg_msc2", "uncertainty_lower_field": "logg_msc2_lower", "uncertainty_upper_field": "logg_msc2_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "log10_surface_gravity", "unit_raw": "log(cm.s**-2)", "normalized_unit": "dex(cm s-2)"}
+            ]},
+            {"scope_key": "OA_neuron", "parameter_set_kind": "gaia_dr3_oa_neuron_assignment", "classification_field": "neuron_oa_id", "classification_scheme": "gaia_oa_self_organizing_map_neuron", "quality_fields": ["neuron_oa_dist", "neuron_oa_dist_percentile_rank", "flags_oa"], "measurements": [], "method": "gaia_dr3_outlier_analysis", "model": "OA_self_organizing_map", "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Data_analysis/chap_cu8par/sec_cu8par_apsis/ssec_cu8par_apsis_oa.html", "normalization_version": "gaia_dr3_oa_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "distance_msc", "uncertainty_lower_field": "distance_msc_lower", "uncertainty_upper_field": "distance_msc_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "msc_model_distance", "unit_raw": "pc", "normalized_unit": "pc", "quality_fields": ["flags_msc"], "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier", "normalization_version": "gaia_dr3_msc_source_native_v1"}
+          ],
+          "photometry_measurements": [
+            {"value_field": "azero_msc", "uncertainty_lower_field": "azero_msc_lower", "uncertainty_upper_field": "azero_msc_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "monochromatic_extinction_a0", "unit_raw": "mag", "quality_fields": ["flags_msc"], "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier"},
+            {"value_field": "ag_msc", "uncertainty_lower_field": "ag_msc_lower", "uncertainty_upper_field": "ag_msc_upper", "uncertainty_field_semantics": "interval_endpoints", "bound_semantics": "posterior_interval_endpoints", "quantity_key": "band_extinction", "bandpass": "Gaia G", "unit_raw": "mag", "quality_fields": ["flags_msc"], "method": "gaia_dr3_msc", "model": "Multiple_Star_Classifier"}
+          ]
+        },
+        "gaia_dr3_ap_classifier_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ap_classifier_v2"},
+        "gaia_dr3_ap_photometry_flame_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ap_photometry_flame_v2"},
+        "gaia_dr3_ap_spectroscopy_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ap_spectroscopy_v2"},
+        "gaia_dr3_ap_activity_specialized_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ap_activity_specialized_v2"},
+        "gaia_dr3_ap_multiple_oa_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ap_multiple_oa_v2"}
       }
     },
     "nasa_exoplanet_archive.planetary_systems": {

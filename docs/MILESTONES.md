@@ -1723,6 +1723,11 @@ Current status (July 19, 2026, in progress):
   coherent source vectors without choosing a winner, distinguishes configured
   domain interval endpoints from error magnitudes, and independently rejects
   intervals that do not bracket their normalized value
+- Gaia AP compiler/contract v68 accounts all 482 main/supplement field
+  occurrences and separates every Gaia pipeline/model context without a
+  field-wise composite. Exact typed-schema reconciliation and real-row smoke
+  materialization pass; immutable build, source audit, generic artifact audit,
+  and clean reproduction remain the next E4 gate
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

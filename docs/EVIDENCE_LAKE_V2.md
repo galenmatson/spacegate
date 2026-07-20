@@ -853,6 +853,17 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   endpoints. The independent audit permits signed interval bounds but requires
   every endpoint interval to bracket its normalized value. These general gates
   precede Gaia AP materialization.
+- Compiler/contract v68 maps all 482 hard/supplement field occurrences in the
+  main Gaia DR3 astrophysical-parameters release with zero schema-name remainder.
+  It keeps DSC/ESP-ELS probability vectors coherent; separates GSP-Phot,
+  photometric FLAME, GSP-Spec atmosphere/abundances, GSP-Spec CN/DIB features,
+  ESP-ELS, ESP-HS, ESP-CS, ESP-UCD, MSC system, MSC component, and OA neuron
+  contexts; preserves posterior endpoints; and gives MSC primary/secondary
+  model components explicit unresolved scopes. Source-native units were checked
+  against the typed VOTable schema, which corrected DIB equivalent-width and
+  ESP-CS activity-index declarations before build. Contract validation, exact
+  schema reconciliation, 65 compiler tests, and real-row smoke materialization
+  pass. The large immutable source build and independent audits remain pending.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

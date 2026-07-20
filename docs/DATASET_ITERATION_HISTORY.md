@@ -1901,6 +1901,24 @@ Representative commits:
   reversed intervals or intervals that do not bracket their normalized value.
   Focused tests cover both changes; no Gaia-specific selection branch exists.
 
+### 64) Gaia DR3 Main Astrophysical-Parameter Contract
+
+- Compiler/contract v68 maps all 482 field occurrences in the ten hard-envelope
+  and uncertainty-supplement AP tables. Source models remain separate: DSC and
+  ESP-ELS classifier vectors, GSP-Phot, photometric FLAME, GSP-Spec atmosphere
+  and abundances, GSP-Spec CN/DIB features, ESP-ELS/HS/CS/UCD, MSC system and
+  component fits, and OA neuron assignments are never field-wise composited.
+- MSC primary and secondary fitted parameters use explicit unresolved component
+  scopes. OA neuron assignment is an unsupervised source classification, not a
+  physical spectral type. Gaia source-model distances do not replace source
+  astrometry, and no AP estimate is selected as a public winner at E4.
+- Exact typed-schema reconciliation finds no missing configured field and no
+  unassigned source field. Comparing configured units to source VOTable metadata
+  corrected DIB equivalent width/profile units from nm to Angstrom and ESP-CS
+  activity index from dimensionless to nm before materialization. Contract
+  validation, 65 compiler tests, and real-row smoke materialization pass; the
+  immutable full-release build remains pending.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1302,6 +1302,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   vectors as one coherent source bundle without winner selection; distinguish
   domain interval endpoints from error magnitudes and reject intervals that do
   not bracket the normalized value
+- [x] E4 Gaia AP main contract: account all 482 hard/supplement source fields;
+  preserve coherent DSC/ESP, GSP-Phot, FLAME, GSP-Spec, MSC component/system,
+  and OA contexts; validate source-native units and real-row materialization
+- [ ] E4 Gaia AP main build: materialize the 51,164,425-row bounded release and
+  pass source-specific, generic artifact, clean-reproduction, storage, scope,
+  probability, interval, and zero-pending-field gates
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

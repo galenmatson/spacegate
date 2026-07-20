@@ -778,6 +778,21 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"{prefix} cannot combine symmetric and asymmetric uncertainty fields"
                     )
+                uncertainty_semantics = measurement.get(
+                    "uncertainty_field_semantics", "error_magnitudes"
+                )
+                if uncertainty_semantics not in {
+                    "error_magnitudes",
+                    "interval_endpoints",
+                }:
+                    errors.append(f"{prefix}.uncertainty_field_semantics is invalid")
+                if (
+                    uncertainty_semantics == "interval_endpoints"
+                    and not str(measurement.get("bound_semantics") or "").strip()
+                ):
+                    errors.append(
+                        f"{prefix}.bound_semantics is required for interval endpoints"
+                    )
                 for bound in (
                     "uncertainty_minimum_value",
                     "uncertainty_maximum_value",
@@ -3111,6 +3126,17 @@ def materialize_configured_photometry(
             raise ValueError(f"photometry fields missing from {table_name}: {missing}")
         consumed.update(fields)
         raw = text_expression(field)
+        uncertainty_semantics = measurement.get(
+            "uncertainty_field_semantics", "error_magnitudes"
+        )
+        if uncertainty_semantics not in {
+            "error_magnitudes",
+            "interval_endpoints",
+        }:
+            raise ValueError(
+                f"unsupported photometry uncertainty semantics: {uncertainty_semantics}"
+            )
+        uncertainty_is_magnitude = uncertainty_semantics == "error_magnitudes"
         uncertainty_lower = nullable_measurement_double_expression(
             str(uncertainty_lower_field) if uncertainty_lower_field else None,
             list(
@@ -3119,7 +3145,7 @@ def materialize_configured_photometry(
                     measurement.get("missing_values") or [],
                 )
             ),
-            absolute=True,
+            absolute=uncertainty_is_magnitude,
             minimum_value=measurement.get("uncertainty_minimum_value"),
             maximum_value=measurement.get("uncertainty_maximum_value"),
         )
@@ -3131,7 +3157,7 @@ def materialize_configured_photometry(
                     measurement.get("missing_values") or [],
                 )
             ),
-            absolute=True,
+            absolute=uncertainty_is_magnitude,
             minimum_value=measurement.get("uncertainty_minimum_value"),
             maximum_value=measurement.get("uncertainty_maximum_value"),
         )
@@ -3157,6 +3183,8 @@ def materialize_configured_photometry(
             nullable_sql_string(bandpass_field),
             "'missing_values'",
             sql_string(json.dumps(measurement.get("missing_values") or [])),
+            "'uncertainty_field_semantics'",
+            sql_string(str(uncertainty_semantics)),
         ]
         for quality_field in quality_fields:
             quality_members.extend(
@@ -3171,7 +3199,8 @@ def materialize_configured_photometry(
               r.source_record_id, {sql_string(str(measurement['quantity_key']))},
               {bandpass}, {raw}, {unit},
               try_cast({sql_identifier(field)} as double), {normalized_unit},
-              {uncertainty_lower}, {uncertainty_upper}, 'measurement',
+              {uncertainty_lower}, {uncertainty_upper},
+              {sql_string(str(measurement.get('bound_semantics') or 'measurement'))},
               {nullable_sql_string(measurement.get('method'))},
               {nullable_sql_string(measurement.get('model'))},
               {sql_string(str(reference_raw)) if reference_raw is not None else text_expression(reference_field)},

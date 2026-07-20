@@ -111,6 +111,37 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         assert relation["evidence_polarity"] == "candidate"
         assert "probability_field" not in relation
         assert relation["confidence_statistic_field"] == "angular_distance"
+    gaia_ap = contract["source_adapters"]["gaia.dr3.astrophysical_parameters"]
+    assert len(gaia_ap["tables"]) == 10
+    classifier = gaia_ap["tables"]["gaia_dr3_ap_classifier_v2"]
+    assert [
+        group["model"]
+        for group in classifier["classification_probability_bundle"]["groups"]
+    ] == ["DSC_combmod", "DSC_specmod", "DSC_allosmod", "ESP_ELS"]
+    photometry_flame = gaia_ap["tables"]["gaia_dr3_ap_photometry_flame_v2"]
+    assert [
+        value["parameter_set_kind"]
+        for value in photometry_flame["scoped_stellar_parameter_sets"]
+    ] == [
+        "gaia_dr3_gspphot_posterior",
+        "gaia_dr3_flame_photometric_evolution_model",
+        "gaia_dr3_flame_evolution_stage",
+    ]
+    spectroscopy = gaia_ap["tables"]["gaia_dr3_ap_spectroscopy_v2"]
+    assert len(spectroscopy["scoped_stellar_parameter_sets"][0]["measurements"]) == 17
+    assert len(spectroscopy["scoped_stellar_parameter_sets"][1]["measurements"]) == 8
+    specialized = gaia_ap["tables"]["gaia_dr3_ap_activity_specialized_v2"]
+    assert len(specialized["scoped_stellar_parameter_sets"]) == 3
+    multiple = gaia_ap["tables"]["gaia_dr3_ap_multiple_oa_v2"]
+    component_scopes = {
+        value.get("component_scope")
+        for value in multiple["scoped_stellar_parameter_sets"]
+    }
+    assert component_scopes == {
+        None,
+        "primary_source_model_component",
+        "secondary_source_model_component",
+    }
     wgsn = contract["source_adapters"]["naming.iau_wgsn"]["tables"][
         "iau_wgsn_catalog_html"
     ]
@@ -2258,7 +2289,7 @@ def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
     with duckdb.connect() as con:
         con.execute(
             f"copy (select '8.4' mag, 'V' band, '2024A&A...1A' reference, "
-            f"'primary' component, '0.1' mag_lower, '0.2' mag_upper) "
+            f"'primary' component, '-0.1' mag_lower, '9.2' mag_upper) "
             f"to '{parquet}' (format parquet)"
         )
         source_row_sha256 = con.execute(
@@ -2288,6 +2319,8 @@ def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
                     "reference_field": "reference",
                     "quality_fields": ["component"],
                     "unit_raw": "mag",
+                    "uncertainty_field_semantics": "interval_endpoints",
+                    "bound_semantics": "posterior_interval_endpoints",
                 }
             ],
             available_fields={
@@ -2313,7 +2346,7 @@ def test_configured_photometry_preserves_dynamic_band_reference_and_quality(
         "component",
     }
     assert row[:2] == ("V", "2024A&A...1A")
-    assert row[2:4] == (0.1, 0.2)
+    assert row[2:4] == (-0.1, 9.2)
     quality = json.loads(row[4])
     assert quality["component"] == "primary"
     assert quality["uncertainty_lower_field"] == "mag_lower"
