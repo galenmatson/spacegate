@@ -1,3 +1,30 @@
+## Tag Color Schema
+
+Tag colors should teach category at a glance without becoming the only carrier
+of meaning. Every tag still needs a text label, tooltip, and eventually a
+concept-page link where useful.
+
+- Stellar spectral and physical classes use physically suggestive colors: O/B
+  blue, A white, F pale yellow-white, G yellow, K orange, M red, L/T/Y deep
+  infrared magenta/indigo, WD white/cyan, NS/PULSAR/MAGNETAR electric
+  cyan-violet, and BLACK HOLE black with a bright rim.
+- Planet, habitability, and chemistry tags use green/teal for habitability and
+  biosignature-adjacent context, cyan for water/ice, orange/red for hot inner
+  thresholds, and muted blue-gray for cold outer-system chemistry.
+- System architecture tags such as Single, Binary, Multiple, Planet Host, and
+  Circumbinary use blue families.
+- Motion and dynamics tags such as High Proper Motion, Runaway, Hypervelocity,
+  Resonant, Eccentric, and Inclined use violet/purple families.
+- Activity, hazard, and transient tags such as Flare Star, X-Ray Source, Nova,
+  Supernova, Magnetar, and Radiation Hazard use red/orange families.
+- Evidence/provenance tags keep the existing semantic palette: SOURCE blue,
+  DERIVED cyan, ASSUMED amber, MISSING gray.
+- Catalog, survey, and admin/review tags use restrained neutral/slate colors so
+  they do not compete with object-science tags.
+- RIM, lore, and user/worldbuilding tags must use a visually distinct palette
+  from science tags so fiction and user overlays are never mistaken for
+  canonical or derived astronomy.
+
 ## Orbital Parameter Tags
 
 ULTRASHORT PERIOD
@@ -59,32 +86,6 @@ This ultimate boundary marks the very edge of the planetary system, where almost
 Habitable Zone
 The habitable zone, often dubbed the "Goldilocks Zone," is the precise orbital region around a star where conditions are just right for liquid water to pool on a rocky planet's surface. The boundaries of this precious cosmic real estate are entirely dictated by the host star's temperature and luminosity, sitting incredibly close to dim red dwarfs and stretching far outward for blazing blue giants. However, residing in this zone is not a guarantee of paradise; a planet must also possess a stable atmosphere and magnetic field to prevent its oceans from boiling away or freezing solid. Because stars slowly brighten as they age, this zone is not static but gradually creeps outward over billions of years, occasionally leaving once-temperate worlds to fry in a runaway greenhouse effect. For Spacegate explorers and astrobiologists alike, this narrow orbital band remains the ultimate hunting ground in the search for extraterrestrial life.
 
-## Tag Color Schema
-
-Tag colors should teach category at a glance without becoming the only carrier
-of meaning. Every tag still needs a text label, tooltip, and eventually a
-concept-page link where useful.
-
-- Stellar spectral and physical classes use physically suggestive colors: O/B
-  blue, A white, F pale yellow-white, G yellow, K orange, M red, L/T/Y deep
-  infrared magenta/indigo, WD white/cyan, NS/PULSAR/MAGNETAR electric
-  cyan-violet, and BLACK HOLE black with a bright rim.
-- Planet, habitability, and chemistry tags use green/teal for habitability and
-  biosignature-adjacent context, cyan for water/ice, orange/red for hot inner
-  thresholds, and muted blue-gray for cold outer-system chemistry.
-- System architecture tags such as Single, Binary, Multiple, Planet Host, and
-  Circumbinary use blue families.
-- Motion and dynamics tags such as High Proper Motion, Runaway, Hypervelocity,
-  Resonant, Eccentric, and Inclined use violet/purple families.
-- Activity, hazard, and transient tags such as Flare Star, X-Ray Source, Nova,
-  Supernova, Magnetar, and Radiation Hazard use red/orange families.
-- Evidence/provenance tags keep the existing semantic palette: SOURCE blue,
-  DERIVED cyan, ASSUMED amber, MISSING gray.
-- Catalog, survey, and admin/review tags use restrained neutral/slate colors so
-  they do not compete with object-science tags.
-- RIM, lore, and user/worldbuilding tags must use a visually distinct palette
-  from science tags so fiction and user overlays are never mistaken for
-  canonical or derived astronomy.
 
 ## Orbital Parameters
 
