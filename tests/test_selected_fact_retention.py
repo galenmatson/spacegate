@@ -114,6 +114,38 @@ def test_selected_fact_retention_requires_exact_dry_run_hash(tmp_path: Path) -> 
     assert applied_report["candidate_set_sha256"] == candidate_hash
 
 
+def test_selected_fact_retention_requires_exact_report_acknowledgement(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    build_id = "c" * 24
+    artifact, audit = make_failed_artifact(state, build_id)
+    retained = state / "reports/evidence_lake_v2/historical.json"
+    write_json(retained, {"historical_build_id": build_id})
+    report = state / "reports/evidence_lake_v2/retention.json"
+
+    refused = run_retention(state, build_id, audit, report)
+    assert refused.returncode != 0
+    assert artifact.exists()
+
+    accepted = run_retention(
+        state,
+        build_id,
+        audit,
+        report,
+        "--acknowledged-report",
+        f"{build_id}={retained}",
+    )
+    assert accepted.returncode == 0, accepted.stderr
+    value = json.loads(report.read_text(encoding="utf-8"))
+    assert value["candidates"][0]["retained_report_references"] == [
+        {
+            "path": str(retained.resolve()),
+            "sha256": hashlib.sha256(retained.read_bytes()).hexdigest(),
+        }
+    ]
+
+
 def test_interrupted_selected_fact_staging_requires_exact_hash(tmp_path: Path) -> None:
     state = tmp_path / "state"
     root = state / "derived/evidence_lake_v2/selected_facts"

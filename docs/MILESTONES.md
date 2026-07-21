@@ -2002,6 +2002,12 @@ Foundation checkpoint (July 21, 2026):
   hashes and removed its USB scratch tree; the isolated 12-thread/48-GB profile
   took 1,331.7 wall seconds and 6,384.9 CPU-seconds, only 7.6% faster while using
   6.5% more CPU, so 8 threads/32 GB remains the normal shared-host profile
+- fail-closed scratch and historical E5 retention reclaimed 169,680,891,904
+  allocated bytes; current, rollback, passing distance reference, reports, raw,
+  typed, and E4 release-set inputs remain protected
+- the refreshed storage audit reports 258.7 GiB free: adequate for measured E5
+  builds with external spill, but below the 300-GiB acquisition floor, so the
+  remaining policy batches must use already pinned sources
 
 Deliverables:
 

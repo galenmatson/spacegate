@@ -2579,6 +2579,24 @@ Representative commits:
   6.5%; the result favors the 8-thread/32-GB shared-host default and a bounded
   Gaia materialization query experiment over indiscriminate concurrency.
 
+### 86) E5 Storage and Historical Binding-Accounting Audit
+
+- Exact-candidate scratch retention retired eleven named, closed June/July
+  diagnostic workspaces and reclaimed 57,562,382,336 allocated bytes without
+  touching identity targets, active caches, reports, served builds, or accepted
+  evidence artifacts.
+- The current auditor was made schema-aware for historical decision-quality and
+  Parquet contracts. It then proved foundation `237158e…` and Gaia-source v2
+  artifacts `5c84220…` and `e8cb152…` lacked exhaustive missing-binding outcome
+  accounting; the distance checkpoint `bfe3e1d…` passed and remains protected.
+- An exact failed-artifact retention pass retained and hashed all six historical
+  reports, removed only the three independently rejected artifacts, and
+  reclaimed 112,118,509,568 allocated bytes. Current `f04aa4…`, rollback
+  `d3f255…`, and passing reference `bfe3e1…` remain.
+- Internal free space rose to 258.7 GiB. This is sufficient for measured E5
+  compilation using external spill, but below the 300-GiB acquisition floor;
+  no new large source release may be acquired in this state.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

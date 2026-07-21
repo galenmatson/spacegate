@@ -796,10 +796,17 @@ independent audit, and clean-reproduction report remain protected. That
 reproduction matched logical hash
 `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
 and removed its external scratch tree. Future E5 runs must retain at least the
-new 161.6-GB measured spill margin plus operating headroom. Prior distance build `bfe3e1da9ddc5257f79b6838`,
-coherent-source build `e8cb1529df6dbcc7c5baadee`, complete monolithic build
-`5c84220e408e8fea5f4da218`, and foundation build
-`237158e09fce993f1b033414` are valid rollback/reference artifacts. Diagnostics
+new 161.6-GB measured spill margin plus operating headroom. Prior distance build `bfe3e1da9ddc5257f79b6838`
+remains a passing historical reference. A current compatibility audit found
+that coherent-source build `e8cb1529df6dbcc7c5baadee`, complete monolithic
+build `5c84220e408e8fea5f4da218`, and foundation build
+`237158e09fce993f1b033414` omitted millions of explicit missing-binding outcomes
+required by the accepted accounting contract. Exact acknowledged-report and
+candidate-set hash
+`dc2adb94f838b1745f6c361b7e7f891893c6ae0a115ea36950444164bde7f6af`
+authorized removal of only those three independently rejected artifacts for
+112,118,509,568 allocated bytes. Their six small historical reports remain and
+their hashes are recorded in the applied report. Diagnostics
 `a8a74dbc173b9566fc4d5e5c` (zero Gaia-source coverage) and
 `b68c1e6b5649588175854701` (missing required partitions) are not rollback
 artifacts. On July 21, 2026, `scripts/audit_selected_fact_artifact.py`
@@ -825,6 +832,19 @@ authorized removal of only those two trees and reclaimed 110,415,441,920
 allocated bytes. Dry-run and applied reports are retained under
 `state/reports/evidence_lake_v2`; accepted selected facts and all E4/raw/typed
 inputs were excluded.
+
+An explicit `state/tmp` retention pass separately retired eleven superseded
+June/July ARM, hierarchy, WISE rekey, and TESS test workspaces. The fail-closed
+tool verified direct-child paths, age, process liveness, hardlinks, and exact
+tree identities; internal symlinks were recorded and unlinked without following
+their protected targets. Candidate hash
+`28163dc9b354d6912b8c68880e9ba8bd67cff1d3f873b5fdc61cfcce9cf3a808`
+authorized 57,562,382,336 allocated bytes. Gaia DR2/DR3 identity target files,
+active caches, accepted artifacts, served builds, and reports were excluded.
+The refreshed storage audit reports 258.7 GiB free. This supports bounded E5
+compilation against already pinned sources, but remains below the 300-GiB new-
+acquisition gate and 400-GiB post-retention target; do not acquire another large
+release until a later reviewed retention pass restores that floor.
 
 The E5 source-disposition ledger and its machine-readable audit report are
 protected compiler-policy inputs. Current build `f04aa4bc9c86d0c6f97a34da`

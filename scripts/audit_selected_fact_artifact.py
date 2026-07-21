@@ -102,6 +102,12 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
         selected_fact_columns = {
             str(row[0]) for row in con.execute("DESCRIBE selected_facts").fetchall()
         }
+        decision_columns = {
+            str(row[0])
+            for row in con.execute(
+                "DESCRIBE parameter_set_selection_decisions"
+            ).fetchall()
+        }
         if "binding_id" in selected_fact_columns:
             checks["selected_source_facts_without_binding_ids"] = scalar(
                 con,
@@ -160,18 +166,20 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             "AND (canonical_object_node_key IS NOT NULL OR stable_object_key IS NOT NULL "
             "OR system_stable_object_key IS NOT NULL)",
         )
-        checks["nonfinite_selection_quality_scores"] = scalar(
-            con,
-            "SELECT COUNT(*) FROM parameter_set_selection_decisions "
-            "WHERE selection_quality_score IS NOT NULL "
-            "AND NOT isfinite(selection_quality_score)",
-        )
-        checks["nonfinite_runner_up_quality_scores"] = scalar(
-            con,
-            "SELECT COUNT(*) FROM parameter_set_selection_decisions "
-            "WHERE runner_up_quality_score IS NOT NULL "
-            "AND NOT isfinite(runner_up_quality_score)",
-        )
+        if "selection_quality_score" in decision_columns:
+            checks["nonfinite_selection_quality_scores"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                "WHERE selection_quality_score IS NOT NULL "
+                "AND NOT isfinite(selection_quality_score)",
+            )
+        if "runner_up_quality_score" in decision_columns:
+            checks["nonfinite_runner_up_quality_scores"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                "WHERE runner_up_quality_score IS NOT NULL "
+                "AND NOT isfinite(runner_up_quality_score)",
+            )
         accounting_columns = {
             str(row[0])
             for row in con.execute("DESCRIBE selection_source_accounting").fetchall()
@@ -215,7 +223,10 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             )
             for group in source.get("quantity_groups") or []:
                 for authority in group.get("authorities") or []:
-                    if not authority.get("quality_order"):
+                    if (
+                        not authority.get("quality_order")
+                        or "selection_quality_score" not in decision_columns
+                    ):
                         continue
                     check_key = (
                         f"missing_selection_quality_score_{source_id}_"
@@ -249,30 +260,31 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
         con.close()
 
     declared = manifest.get("report", {}).get("partition_exports") or {}
-    declared_facts = declared.get("selected_facts") or {}
-    declared_decisions = declared.get("selection_decisions") or {}
-    checks["missing_fact_partition_declarations"] = sum(
-        1 for key in fact_rows if f"selected_facts__{key}.parquet" not in declared_facts
-    )
-    checks["missing_decision_partition_declarations"] = sum(
-        1 for key in decision_rows if f"selection_decisions__{key}.parquet" not in declared_decisions
-    )
-    checks["missing_fact_partition_files"] = sum(
-        1 for key in fact_rows if not (artifact / f"selected_facts__{key}.parquet").is_file()
-    )
-    checks["missing_decision_partition_files"] = sum(
-        1 for key in decision_rows if not (artifact / f"selection_decisions__{key}.parquet").is_file()
-    )
-    checks["declared_fact_partition_row_mismatch"] = sum(
-        1
-        for key, count in fact_rows.items()
-        if int(declared_facts.get(f"selected_facts__{key}.parquet", -1)) != int(count)
-    )
-    checks["declared_decision_partition_row_mismatch"] = sum(
-        1
-        for key, count in decision_rows.items()
-        if int(declared_decisions.get(f"selection_decisions__{key}.parquet", -1)) != int(count)
-    )
+    if declared:
+        declared_facts = declared.get("selected_facts") or {}
+        declared_decisions = declared.get("selection_decisions") or {}
+        checks["missing_fact_partition_declarations"] = sum(
+            1 for key in fact_rows if f"selected_facts__{key}.parquet" not in declared_facts
+        )
+        checks["missing_decision_partition_declarations"] = sum(
+            1 for key in decision_rows if f"selection_decisions__{key}.parquet" not in declared_decisions
+        )
+        checks["missing_fact_partition_files"] = sum(
+            1 for key in fact_rows if not (artifact / f"selected_facts__{key}.parquet").is_file()
+        )
+        checks["missing_decision_partition_files"] = sum(
+            1 for key in decision_rows if not (artifact / f"selection_decisions__{key}.parquet").is_file()
+        )
+        checks["declared_fact_partition_row_mismatch"] = sum(
+            1
+            for key, count in fact_rows.items()
+            if int(declared_facts.get(f"selected_facts__{key}.parquet", -1)) != int(count)
+        )
+        checks["declared_decision_partition_row_mismatch"] = sum(
+            1
+            for key, count in decision_rows.items()
+            if int(declared_decisions.get(f"selection_decisions__{key}.parquet", -1)) != int(count)
+        )
     failing = {key: value for key, value in checks.items() if value}
     return {
         "schema_version": "spacegate.selected_fact_artifact_audit.v1",

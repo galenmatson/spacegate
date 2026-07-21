@@ -1308,6 +1308,15 @@ It reduced peak spill from 150.5 to 124.5 GiB. Extra resources are therefore an
 operational option for isolated builds, not a substitute for profiling Gaia
 direct fact materialization.
 
+Post-checkpoint retention reclaimed 169,680,891,904 allocated bytes from eleven
+explicit scratch diagnostics and three historical E5 artifacts that a current,
+schema-aware audit independently rejected for incomplete missing-binding outcome
+accounting. Historical reports remain content-hashed; current, rollback, and the
+passing distance reference remain protected. The refreshed audit reports 258.7
+GiB free, below the 300-GiB new-source acquisition floor. E5 policy work may use
+the pinned release set and external scratch, but acquisition of another large
+release is gated.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

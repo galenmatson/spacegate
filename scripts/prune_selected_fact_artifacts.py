@@ -58,6 +58,7 @@ def inspect_failed_artifact(
     *,
     minimum_age_minutes: float,
     ignored_reports: set[Path],
+    acknowledged_reports: set[Path],
 ) -> dict[str, Any]:
     root = (state_dir / "derived/evidence_lake_v2/selected_facts").resolve(strict=True)
     candidate = (root / build_id).resolve(strict=True)
@@ -108,13 +109,26 @@ def inspect_failed_artifact(
     pointers = current_pointer_references(root, candidate)
     if pointers:
         raise ValueError(f"candidate is current: {build_id}:{pointers}")
-    references = report_references(
-        state_dir,
-        build_id,
-        ignored={audit_path, *ignored_reports},
-    )
-    if references:
-        raise ValueError(f"candidate is referenced by retained reports: {build_id}:{references}")
+    references = {
+        Path(value).resolve()
+        for value in report_references(
+            state_dir,
+            build_id,
+            ignored={audit_path, *ignored_reports},
+        )
+    }
+    unexpected_references = references - acknowledged_reports
+    stale_acknowledgements = acknowledged_reports - references
+    if unexpected_references or stale_acknowledgements:
+        raise ValueError(
+            f"candidate report references require an exact acknowledgement set: {build_id}:"
+            f"unexpected={sorted(map(str, unexpected_references))}:"
+            f"stale={sorted(map(str, stale_acknowledgements))}"
+        )
+    retained_report_references = [
+        {"path": str(path), "sha256": file_hash(path)}
+        for path in sorted(references)
+    ]
 
     newest_mtime_ns = max(int(row["mtime_ns"]) for row in identity)
     age_seconds = max(
@@ -139,6 +153,7 @@ def inspect_failed_artifact(
         "audit_report": str(audit_path),
         "audit_sha256": file_hash(audit_path),
         "failed_checks": failing,
+        "retained_report_references": retained_report_references,
     }
 
 
@@ -233,6 +248,7 @@ def retention_report(
     reason: str,
     minimum_age_minutes: float,
     output_report: Path,
+    acknowledged_reports: dict[str, set[Path]] | None = None,
 ) -> dict[str, Any]:
     if not failed_audits and not interrupted_staging and spill is None:
         raise ValueError("at least one explicit candidate is required")
@@ -240,6 +256,12 @@ def retention_report(
         raise ValueError("spill cleanup requires an explicitly named interrupted staging tree")
     if not reason.strip():
         raise ValueError("an explicit retention reason is required")
+    acknowledged_reports = acknowledged_reports or {}
+    unknown_acknowledgements = set(acknowledged_reports) - set(failed_audits)
+    if unknown_acknowledgements:
+        raise ValueError(
+            f"report acknowledgements name non-candidates: {sorted(unknown_acknowledgements)}"
+        )
     rows = [
         inspect_failed_artifact(
             state_dir,
@@ -247,6 +269,7 @@ def retention_report(
             audit,
             minimum_age_minutes=minimum_age_minutes,
             ignored_reports={output_report.resolve()},
+            acknowledged_reports=acknowledged_reports.get(build_id, set()),
         )
         for build_id, audit in sorted(failed_audits.items())
     ]
@@ -273,6 +296,9 @@ def retention_report(
                 "allocated_bytes": row["allocated_bytes"],
                 "tree_identity_sha256": row["tree_identity_sha256"],
                 "audit_sha256": row.get("audit_sha256"),
+                "retained_report_references": row.get(
+                    "retained_report_references", []
+                ),
             }
             for row in rows
         ]
@@ -298,6 +324,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--failed-audit", action="append", default=[], metavar="BUILD_ID=REPORT")
+    parser.add_argument(
+        "--acknowledged-report",
+        action="append",
+        default=[],
+        metavar="BUILD_ID=REPORT",
+        help="retain and hash an explicitly reviewed report that mentions a failed candidate",
+    )
     parser.add_argument("--interrupted-staging", action="append", default=[], metavar="NAME")
     parser.add_argument("--spill", type=Path)
     parser.add_argument("--minimum-age-minutes", type=float, default=60.0)
@@ -314,6 +347,18 @@ def main() -> int:
         if not build_id or not report or build_id in failed_audits:
             raise ValueError("failed audit must identify one unique build and report")
         failed_audits[build_id] = Path(report)
+    acknowledged_reports: dict[str, set[Path]] = {}
+    for specification in args.acknowledged_report:
+        if specification.count("=") != 1:
+            raise ValueError("acknowledged report must use BUILD_ID=REPORT")
+        build_id, report = specification.split("=", 1)
+        if not build_id or not report:
+            raise ValueError("acknowledged report requires a build and path")
+        resolved = Path(report).resolve(strict=True)
+        reports = acknowledged_reports.setdefault(build_id, set())
+        if resolved in reports:
+            raise ValueError("acknowledged report list contains duplicates")
+        reports.add(resolved)
     report = retention_report(
         args.state_dir.resolve(),
         failed_audits,
@@ -322,6 +367,7 @@ def main() -> int:
         reason=args.reason,
         minimum_age_minutes=args.minimum_age_minutes,
         output_report=args.report,
+        acknowledged_reports=acknowledged_reports,
     )
     if args.apply:
         if args.expected_candidate_set_sha256 != report["candidate_set_sha256"]:
