@@ -8,8 +8,11 @@ import hashlib
 import json
 import os
 import re
+import resource
 import shutil
 import tempfile
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +26,179 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e5_selection_policies.json"
 DEFAULT_DISPOSITIONS = ROOT / "config/evidence_lake/e5_source_dispositions.json"
 SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def allocated_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for entry in path.rglob("*"):
+        try:
+            if entry.is_file():
+                total += entry.stat().st_blocks * 512
+        except FileNotFoundError:
+            continue
+    return total
+
+
+def process_cpu_seconds() -> float:
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    return float(usage.ru_utime + usage.ru_stime)
+
+
+class PhaseRecorder:
+    """Persist incremental compiler timing and resource observations."""
+
+    def __init__(
+        self,
+        *,
+        build_id: str,
+        compiler_version: str,
+        staging: Path,
+        spill: Path,
+        report_path: Path,
+    ) -> None:
+        self.build_id = build_id
+        self.compiler_version = compiler_version
+        self.staging = staging
+        self.spill = spill
+        self.report_path = report_path
+        self.phases: list[dict[str, Any]] = []
+        self.active: dict[str, Any] | None = None
+        self._stop: threading.Event | None = None
+        self._sampler: threading.Thread | None = None
+        self._peaks: dict[str, int] = {}
+
+    def _snapshot(self, status: str) -> dict[str, Any]:
+        return {
+            "schema_version": "spacegate.e5_compile_performance.v1",
+            "status": status,
+            "build_id": self.build_id,
+            "compiler_version": self.compiler_version,
+            "active_phase": self.active,
+            "phases": self.phases,
+        }
+
+    def _write(self, status: str = "in_progress") -> None:
+        atomic_json(self.report_path, self._snapshot(status))
+
+    def _sample(self) -> None:
+        while self._stop is not None and not self._stop.wait(1.0):
+            self._sample_once()
+
+    def _sample_once(self) -> None:
+        self._peaks["peak_staging_allocated_bytes"] = max(
+            self._peaks.get("peak_staging_allocated_bytes", 0),
+            allocated_bytes(self.staging),
+        )
+        self._peaks["peak_spill_allocated_bytes"] = max(
+            self._peaks.get("peak_spill_allocated_bytes", 0),
+            allocated_bytes(self.spill),
+        )
+        self._peaks["process_peak_rss_kib"] = max(
+            self._peaks.get("process_peak_rss_kib", 0),
+            int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss),
+        )
+
+    def start(self, phase: str, *, source_id: str | None = None) -> None:
+        if self.active is not None:
+            raise RuntimeError(f"compiler phase already active: {self.active['phase']}")
+        self._peaks = {}
+        self._sample_once()
+        self.active = {
+            "phase": phase,
+            "source_id": source_id,
+            "started_at": utc_now(),
+            "start_monotonic": time.monotonic(),
+            "start_cpu_seconds": process_cpu_seconds(),
+            "start_staging_allocated_bytes": allocated_bytes(self.staging),
+            "start_spill_allocated_bytes": allocated_bytes(self.spill),
+        }
+        self._stop = threading.Event()
+        self._sampler = threading.Thread(target=self._sample, daemon=True)
+        self._sampler.start()
+        print(
+            f"E5 phase start: {phase}"
+            + (f" source={source_id}" if source_id else ""),
+            flush=True,
+        )
+        self._write()
+
+    def add_completed(
+        self,
+        phase: str,
+        *,
+        started_at: str,
+        start_monotonic: float,
+        start_cpu_seconds: float,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        row = {
+            "phase": phase,
+            "source_id": None,
+            "started_at": started_at,
+            "finished_at": utc_now(),
+            "status": "pass",
+            "wall_seconds": round(time.monotonic() - start_monotonic, 6),
+            "cpu_seconds": round(process_cpu_seconds() - start_cpu_seconds, 6),
+            "staging_allocated_bytes": allocated_bytes(self.staging),
+            "spill_allocated_bytes": allocated_bytes(self.spill),
+            "peak_staging_allocated_bytes": allocated_bytes(self.staging),
+            "peak_spill_allocated_bytes": allocated_bytes(self.spill),
+            "process_peak_rss_kib": int(
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            ),
+            "details": details or {},
+        }
+        self.phases.append(row)
+        print(
+            f"E5 phase pass: {phase} wall={row['wall_seconds']:.3f}s "
+            f"cpu={row['cpu_seconds']:.3f}s",
+            flush=True,
+        )
+        self._write()
+
+    def finish(
+        self, *, status: str = "pass", details: dict[str, Any] | None = None
+    ) -> None:
+        if self.active is None:
+            return
+        if self._stop is not None:
+            self._stop.set()
+        if self._sampler is not None:
+            self._sampler.join()
+        self._sample_once()
+        finished = time.monotonic()
+        cpu = process_cpu_seconds()
+        row = {
+            "phase": self.active["phase"],
+            "source_id": self.active["source_id"],
+            "started_at": self.active["started_at"],
+            "finished_at": utc_now(),
+            "status": status,
+            "wall_seconds": round(finished - self.active["start_monotonic"], 6),
+            "cpu_seconds": round(cpu - self.active["start_cpu_seconds"], 6),
+            "staging_allocated_bytes": allocated_bytes(self.staging),
+            "spill_allocated_bytes": allocated_bytes(self.spill),
+            **self._peaks,
+            "details": details or {},
+        }
+        self.phases.append(row)
+        print(
+            f"E5 phase {status}: {row['phase']} wall={row['wall_seconds']:.3f}s "
+            f"cpu={row['cpu_seconds']:.3f}s",
+            flush=True,
+        )
+        self.active = None
+        self._stop = None
+        self._sampler = None
+        self._write("failed" if status == "fail" else "in_progress")
+
+    def complete(self, status: str) -> dict[str, Any]:
+        self.finish(status="fail" if status == "failed" else "pass")
+        report = self._snapshot(status)
+        atomic_json(self.report_path, report)
+        return report
 
 
 def utc_now() -> str:
@@ -767,7 +943,8 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           authority_reason VARCHAR,
           policy_version VARCHAR,
           normalization_version VARCHAR,
-          quality_json JSON
+          quality_json JSON,
+          binding_id VARCHAR
         );
         CREATE TABLE selected_fact_derivations (
           derivation_id VARCHAR,
@@ -1276,6 +1453,7 @@ def insert_candidates(
         WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows}),
         candidates AS (
           SELECT b.object_type, b.stable_object_key, b.system_stable_object_key,
+                 b.binding_id,
                  q.group_key, q.selected_quantity AS quantity_key,
                  pe.value_raw, pe.normalized_value, pe.normalized_unit,
                  pe.uncertainty_lower, pe.uncertainty_upper, pe.bound_semantics,
@@ -1305,7 +1483,8 @@ def insert_candidates(
                evidence_id, parameter_set_id, source_record_id,
                {sql_literal(source['source_id'])}, {sql_literal(release_id)},
                method, model, reference_raw, authority_rank, authority_reason,
-               selection_quality_score, normalization_version, quality_json
+               selection_quality_score, normalization_version, quality_json,
+               binding_id
         FROM candidates WHERE authority_rank IS NOT NULL
         """
     )
@@ -1332,6 +1511,7 @@ def insert_classification_candidates(
           VALUES {quantity_rows}
         ), candidates AS (
           SELECT b.object_type, b.stable_object_key, b.system_stable_object_key,
+                 b.binding_id,
                  q.group_key, q.selected_quantity quantity_key,
                  ce.classification_raw value_raw, NULL::DOUBLE normalized_value,
                  NULL::VARCHAR normalized_unit, NULL::DOUBLE uncertainty_lower,
@@ -1362,7 +1542,7 @@ def insert_classification_candidates(
                source_record_id, {sql_literal(source['source_id'])},
                {sql_literal(release_id)}, method, model, reference_raw,
                authority_rank, authority_reason, selection_quality_score,
-               normalization_version, quality_json
+               normalization_version, quality_json, binding_id
         FROM candidates WHERE authority_rank IS NOT NULL
         """
     )
@@ -1499,7 +1679,7 @@ def insert_measurement_bundle_direct(
                nested.measurement.reference_raw,
                d.decision_id, d.authority_rank, d.authority_reason,
                {policy_version}, nested.measurement.normalization_version,
-               nested.measurement.quality_json
+               nested.measurement.quality_json, b.binding_id
         FROM {source_alias}.{bundle_table} bundle
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
@@ -1648,7 +1828,7 @@ def insert_coherent_direct(
                sha256(concat_ws('|', b.object_type, b.stable_object_key,
                                 v.quantity_group, ps.{set_id_field}, {policy_version})),
                d.authority_rank, d.authority_reason, {policy_version},
-               ps.normalization_version, ps.quality_json
+               ps.normalization_version, ps.quality_json, b.binding_id
         FROM {source_alias}.{set_table} ps
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
@@ -1739,7 +1919,7 @@ def insert_coherent_candidates(
                 f"CASE {' '.join(rank_clauses)} ELSE NULL END AS authority_rank, "
                 f"CASE {' '.join(reason_clauses)} ELSE NULL END AS authority_reason, "
                 f"CASE {' '.join(quality_clauses)} ELSE NULL END AS selection_quality_score, "
-                "ps.normalization_version, ps.quality_json "
+                "ps.normalization_version, ps.quality_json, b.binding_id "
                 f"FROM {source_alias}.{set_table} ps "
                 f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
                 "JOIN evidence_object_bindings b "
@@ -1764,7 +1944,7 @@ def create_candidate_table(con: duckdb.DuckDBPyConnection) -> None:
           release_id VARCHAR, method VARCHAR, model VARCHAR, reference_raw VARCHAR,
           authority_rank INTEGER, authority_reason VARCHAR,
           selection_quality_score DOUBLE,
-          normalization_version VARCHAR, quality_json JSON
+          normalization_version VARCHAR, quality_json JSON, binding_id VARCHAR
         );
         """
     )
@@ -1850,7 +2030,7 @@ def select_parameter_sets(con: duckdb.DuckDBPyConnection, policy_version: str) -
                c.source_record_id, c.source_id, c.release_id, c.method, c.model,
                c.reference_raw, d.decision_id, c.authority_rank,
                c.authority_reason, {sql_literal(policy_version)},
-               c.normalization_version, c.quality_json
+               c.normalization_version, c.quality_json, c.binding_id
         FROM fact_candidates c
         JOIN parameter_set_selection_decisions d
           ON d.object_type = c.object_type
@@ -1914,7 +2094,7 @@ def derive_stellar_luminosity(
                NULL, NULL, NULL, NULL, NULL, 'spacegate.derivation',
                {sql_literal(version)}, {sql_literal(key)}, NULL, NULL, NULL, NULL,
                NULL, {sql_literal(policy_version)}, {sql_literal(version)},
-               json_object('solar_effective_temperature_k', 5772.0)
+               json_object('solar_effective_temperature_k', 5772.0), NULL
         FROM luminosity_derivations;
 
         INSERT INTO selected_fact_derivations
@@ -1931,7 +2111,9 @@ def derive_stellar_luminosity(
     )
 
 
-def verify_keys(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
+def verify_keys(
+    con: duckdb.DuckDBPyConnection, recorder: PhaseRecorder | None = None
+) -> dict[str, int]:
     checks = {
         "duplicate_binding_ids": "SELECT COUNT(*) - COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
         "duplicate_preselection_ids": "SELECT COUNT(*) - COUNT(DISTINCT preselection_id) FROM source_parameter_set_preselections",
@@ -1946,12 +2128,25 @@ def verify_keys(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "duplicate_selected_fact_ids": "SELECT COUNT(*) - COUNT(DISTINCT selected_fact_id) FROM selected_facts",
         "duplicate_object_quantities": "SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT COUNT(*) n FROM selected_facts GROUP BY object_type, stable_object_key, quantity_key HAVING COUNT(*) > 1)",
         "selected_source_facts_without_evidence": "SELECT COUNT(*) FROM selected_facts WHERE fact_status='source_selected' AND (evidence_build_id IS NULL OR evidence_id IS NULL OR parameter_set_id IS NULL)",
-        "selected_source_facts_without_accepted_subject_binding": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND NOT EXISTS (SELECT 1 FROM evidence_object_bindings b WHERE b.source_id=f.source_id AND b.binding_status='accepted' AND ((b.binding_subject_kind='source_record' AND b.source_record_id=f.source_record_id) OR (b.binding_subject_kind='classification_evidence' AND b.binding_subject_id=f.evidence_id) OR (b.binding_subject_kind='parameter_set' AND b.binding_subject_id=f.parameter_set_id)))",
+        "selected_source_facts_without_binding_id": "SELECT COUNT(*) FROM selected_facts WHERE fact_status='source_selected' AND binding_id IS NULL",
+        "selected_source_facts_without_accepted_subject_binding": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND NOT EXISTS (SELECT 1 FROM evidence_object_bindings b WHERE b.binding_id=f.binding_id AND b.source_id=f.source_id AND b.binding_status='accepted')",
         "selected_source_facts_outside_required_preselection": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND f.source_id IN (SELECT DISTINCT source_id FROM source_parameter_set_preselections) AND NOT EXISTS (SELECT 1 FROM source_parameter_set_preselections p WHERE p.source_id=f.source_id AND p.source_record_id=f.source_record_id AND p.selected_parameter_set_id=f.parameter_set_id)",
         "derived_facts_without_derivation": "SELECT COUNT(*) FROM selected_facts f LEFT JOIN selected_fact_derivations d ON d.output_selected_fact_id=f.selected_fact_id WHERE f.fact_status='derived' AND d.derivation_id IS NULL",
         "lower_authority_winner": "SELECT COUNT(*) FROM parameter_set_selection_decisions WHERE runner_up_authority_rank IS NOT NULL AND runner_up_authority_rank < authority_rank",
     }
-    result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
+    result: dict[str, int] = {}
+    for name, sql in checks.items():
+        if recorder is not None:
+            recorder.start(f"integrity_check.{name}")
+        try:
+            count = int(con.execute(sql).fetchone()[0] or 0)
+        except Exception:
+            if recorder is not None:
+                recorder.finish(status="fail")
+            raise
+        result[name] = count
+        if recorder is not None:
+            recorder.finish(details={"failure_count": count})
     failing = {name: count for name, count in result.items() if count}
     if failing:
         raise ValueError(f"selected-fact integrity checks failed: {failing}")
@@ -1987,6 +2182,9 @@ def compile_selected_facts(
     threads: int = 8,
     temp_directory: Path | None = None,
 ) -> dict[str, Any]:
+    preflight_started_at = utc_now()
+    preflight_start_monotonic = time.monotonic()
+    preflight_start_cpu = process_cpu_seconds()
     state_dir = state_dir.resolve()
     policy_path = policy_path.resolve()
     dispositions_path = (
@@ -2054,20 +2252,54 @@ def compile_selected_facts(
     database = staging / "selected_facts.duckdb"
     temp_directory = (temp_directory or Path("/mnt/space/spacegate/e5-selection-spill")).resolve()
     temp_directory.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(
-        str(database),
-        config={
-            "memory_limit": memory_limit,
-            "threads": str(max(1, threads)),
-            "temp_directory": str(temp_directory),
-            "preserve_insertion_order": "false",
+    timing_report_path = (
+        report_path.with_name(f"{report_path.stem}_timing.json")
+        if report_path is not None
+        else state_dir / "reports/evidence_lake_v2"
+        / f"e5_selected_fact_{build_id}_timing.json"
+    )
+    recorder = PhaseRecorder(
+        build_id=build_id,
+        compiler_version=str(policy["compiler_version"]),
+        staging=staging,
+        spill=temp_directory,
+        report_path=timing_report_path,
+    )
+    recorder.add_completed(
+        "preflight",
+        started_at=preflight_started_at,
+        start_monotonic=preflight_start_monotonic,
+        start_cpu_seconds=preflight_start_cpu,
+        details={
+            "selection_sources": len(policy["selection_sources"]),
+            "source_disposition_status": disposition_audit["status"],
         },
     )
+    recorder.start("database_open")
     try:
+        con = duckdb.connect(
+            str(database),
+            config={
+                "memory_limit": memory_limit,
+                "threads": str(max(1, threads)),
+                "temp_directory": str(temp_directory),
+                "preserve_insertion_order": "false",
+            },
+        )
+    except Exception:
+        recorder.finish(status="fail")
+        recorder.complete("failed")
+        raise
+    recorder.finish(
+        details={"memory_limit": memory_limit, "threads": max(1, threads)}
+    )
+    try:
+        recorder.start("schema_and_inputs")
         create_schema(con)
         create_candidate_table(con)
         con.execute(f"ATTACH {sql_literal(str(identity_db))} AS identity (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(str(core_db))} AS core (READ_ONLY)")
+        recorder.finish()
         source_runtime: list[tuple[dict[str, Any], str, dict[str, Any], str, int, int]] = []
         for index, configured_source in enumerate(policy["selection_sources"]):
             source = dict(configured_source)
@@ -2077,6 +2309,7 @@ def compile_selected_facts(
             alias = f"e4_{index}"
             artifact_path = state_dir / str(member["artifact_path"])
             db_path = artifact_path / str(member["database"])
+            recorder.start("source_prepare", source_id=source_id)
             if file_sha256(artifact_path / "manifest.json") != member["manifest_sha256"]:
                 raise ValueError(f"E4 member manifest changed: {source_id}")
             if db_path.stat().st_size != int(member["database_bytes"]):
@@ -2085,6 +2318,13 @@ def compile_selected_facts(
                 raise ValueError(f"E4 member database checksum changed: {source_id}")
             con.execute(f"ATTACH {sql_literal(str(db_path))} AS {sql_identifier(alias)} (READ_ONLY)")
             release_id = str(member["release_ids"][source_id])
+            recorder.finish(
+                details={
+                    "evidence_build_id": member["build_id"],
+                    "database_bytes": int(member["database_bytes"]),
+                }
+            )
+            recorder.start("source_binding", source_id=source_id)
             eligible, accepted = create_binding(
                 con,
                 source=source,
@@ -2116,6 +2356,14 @@ def compile_selected_facts(
                     f"selection source accepted-binding floor failed: "
                     f"{source_id}:{accepted}<{source.get('minimum_accepted_bindings', 1)}"
                 )
+            recorder.finish(
+                details={
+                    "eligible_binding_subjects": eligible,
+                    "accepted_bindings": accepted,
+                    "binding_outcomes": actual_outcomes,
+                }
+            )
+            recorder.start("source_preselection", source_id=source_id)
             preselected = create_parameter_set_preselection(
                 con,
                 source=source,
@@ -2145,6 +2393,19 @@ def compile_selected_facts(
                         f"source parameter-set preselection count changed: "
                         f"{source_id}:expected={expected_preselected}:actual={preselected}"
                     )
+            recorder.finish(details={"selected_parameter_sets": preselected})
+            before_fact_candidates = int(
+                con.execute("SELECT COUNT(*) FROM fact_candidates").fetchone()[0]
+            )
+            before_selected_facts = int(
+                con.execute("SELECT COUNT(*) FROM selected_facts").fetchone()[0]
+            )
+            before_decisions = int(
+                con.execute(
+                    "SELECT COUNT(*) FROM parameter_set_selection_decisions"
+                ).fetchone()[0]
+            )
+            recorder.start("source_candidate_insertion", source_id=source_id)
             insert_candidates(
                 con,
                 source=source,
@@ -2152,11 +2413,53 @@ def compile_selected_facts(
                 member=member,
                 release_id=release_id,
             )
+            recorder.finish(
+                details={
+                    "fact_candidates_added": int(
+                        con.execute("SELECT COUNT(*) FROM fact_candidates").fetchone()[0]
+                    ) - before_fact_candidates,
+                    "direct_selected_facts_added": int(
+                        con.execute("SELECT COUNT(*) FROM selected_facts").fetchone()[0]
+                    ) - before_selected_facts,
+                    "direct_decisions_added": int(
+                        con.execute(
+                            "SELECT COUNT(*) FROM parameter_set_selection_decisions"
+                        ).fetchone()[0]
+                    ) - before_decisions,
+                }
+            )
             source_runtime.append((source, alias, member, release_id, eligible, accepted))
 
+        recorder.start("global_parameter_set_selection")
         select_parameter_sets(con, str(policy["policy_version"]))
+        recorder.finish(
+            details={
+                "selection_decisions": int(
+                    con.execute(
+                        "SELECT COUNT(*) FROM parameter_set_selection_decisions"
+                    ).fetchone()[0]
+                ),
+                "source_selected_facts": int(
+                    con.execute(
+                        "SELECT COUNT(*) FROM selected_facts "
+                        "WHERE fact_status='source_selected'"
+                    ).fetchone()[0]
+                ),
+            }
+        )
+        recorder.start("derivations")
         derive_stellar_luminosity(con, policy)
+        recorder.finish(
+            details={
+                "derived_facts": int(
+                    con.execute(
+                        "SELECT COUNT(*) FROM selected_facts WHERE fact_status='derived'"
+                    ).fetchone()[0]
+                )
+            }
+        )
 
+        recorder.start("source_accounting")
         for source, _alias, member, release_id, eligible, accepted in source_runtime:
             source_id = str(source["source_id"])
             if str(source.get("selection_mode") or "ranked_candidates") == "authoritative_direct":
@@ -2204,8 +2507,9 @@ def compile_selected_facts(
                     selected_sets, selected,
                 ],
             )
+        recorder.finish(details={"sources": len(source_runtime)})
 
-        checks = verify_keys(con)
+        checks = verify_keys(con, recorder)
         con.execute(
             "INSERT INTO evidence_build VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
@@ -2216,7 +2520,10 @@ def compile_selected_facts(
                 policy["compiler_version"], compiler_sha, utc_now(), "pass",
             ],
         )
+        recorder.start("checkpoint")
         con.execute("CHECKPOINT")
+        recorder.finish()
+        recorder.start("summary_accounting")
         counts = table_counts(con)
         binding_outcomes: dict[str, dict[str, int]] = {}
         for source_id, binding_status, row_count in con.execute(
@@ -2226,8 +2533,12 @@ def compile_selected_facts(
             binding_outcomes.setdefault(str(source_id), {})[str(binding_status)] = int(
                 row_count
             )
+        recorder.finish(
+            details={"table_counts": counts, "binding_outcomes": binding_outcomes}
+        )
         fact_exports: dict[str, int] = {}
         decision_exports: dict[str, int] = {}
+        recorder.start("selected_fact_exports")
         for quantity_key, row_count in con.execute(
             "SELECT quantity_key, COUNT(*) FROM selected_facts "
             "GROUP BY quantity_key ORDER BY quantity_key"
@@ -2241,6 +2552,13 @@ def compile_selected_facts(
                 f"TO {sql_literal(str(output))} "
                 "(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
             )
+        recorder.finish(
+            details={
+                "partitions": len(fact_exports),
+                "rows": sum(fact_exports.values()),
+            }
+        )
+        recorder.start("selection_decision_exports")
         for quantity_group, row_count in con.execute(
             "SELECT quantity_group, COUNT(*) FROM parameter_set_selection_decisions "
             "GROUP BY quantity_group ORDER BY quantity_group"
@@ -2254,6 +2572,13 @@ def compile_selected_facts(
                 f"TO {sql_literal(str(output))} "
                 "(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
             )
+        recorder.finish(
+            details={
+                "partitions": len(decision_exports),
+                "rows": sum(decision_exports.values()),
+            }
+        )
+        recorder.start("auxiliary_exports")
         for table, order_key in [
             ("selected_fact_derivations", "derivation_id"),
             ("selection_source_accounting", "source_id"),
@@ -2264,7 +2589,10 @@ def compile_selected_facts(
                 f"COPY (SELECT * FROM {sql_identifier(table)} ORDER BY {sql_identifier(order_key)}) "
                 f"TO {sql_literal(str(output))} (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
             )
+        recorder.finish(details={"tables": 3})
     except Exception:
+        recorder.finish(status="fail")
+        recorder.complete("failed")
         con.close()
         shutil.rmtree(staging, ignore_errors=True)
         raise
@@ -2272,8 +2600,11 @@ def compile_selected_facts(
         con.close()
 
     expected_exports = {**fact_exports, **decision_exports}
+    recorder.start("export_validation")
     missing_exports = sorted(name for name in expected_exports if not (staging / name).is_file())
     if missing_exports:
+        recorder.finish(status="fail", details={"missing_exports": missing_exports})
+        recorder.complete("failed")
         shutil.rmtree(staging, ignore_errors=True)
         raise ValueError(f"selected-fact partition exports missing: {missing_exports}")
     export_con = duckdb.connect(":memory:")
@@ -2294,14 +2625,28 @@ def compile_selected_facts(
         if expected_exports[name] != export_counts[name]
     }
     if mismatched_exports:
+        recorder.finish(
+            status="fail", details={"mismatched_exports": mismatched_exports}
+        )
+        recorder.complete("failed")
         shutil.rmtree(staging, ignore_errors=True)
         raise ValueError(f"selected-fact partition row accounting failed: {mismatched_exports}")
+    recorder.finish(
+        details={
+            "files": len(expected_exports),
+            "rows": sum(expected_exports.values()),
+        }
+    )
 
+    recorder.start("artifact_hashing")
     files = {
         path.name: {"bytes": path.stat().st_size, "sha256": file_sha256(path)}
         for path in sorted(staging.iterdir()) if path.is_file()
     }
     logical_sha = stable_sha256({name: value["sha256"] for name, value in files.items() if name.endswith(".parquet")})
+    recorder.finish(
+        details={"files": len(files), "logical_content_sha256": logical_sha}
+    )
     report = {
         "schema_version": "spacegate.selected_fact_compile_report.v1",
         "status": "pass",
@@ -2323,6 +2668,8 @@ def compile_selected_facts(
             "selection_decisions": decision_exports,
         },
         "files": files,
+        "performance_report": str(timing_report_path),
+        "performance_phase_count_before_promotion": len(recorder.phases),
     }
     manifest = {
         "schema_version": "spacegate.selected_fact_artifact.v1",
@@ -2331,12 +2678,20 @@ def compile_selected_facts(
         "inputs": inputs,
         "report": report,
     }
+    recorder.start("manifest_write")
     atomic_json(staging / "manifest.json", manifest)
+    recorder.finish()
+    recorder.start("artifact_promotion")
     os.replace(staging, final_dir)
+    recorder.finish(details={"artifact_path": str(final_dir)})
+    recorder.start("current_pointer_promotion")
     current_temp = artifact_root / f".current.{os.getpid()}.tmp"
     current_temp.unlink(missing_ok=True)
     current_temp.symlink_to(build_id)
     os.replace(current_temp, artifact_root / "current")
+    recorder.finish(details={"current_target": build_id})
+    performance = recorder.complete("pass")
+    report["performance"] = performance
     if report_path:
         atomic_json(report_path, report)
     return report

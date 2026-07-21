@@ -112,3 +112,48 @@ def test_selected_fact_retention_requires_exact_dry_run_hash(tmp_path: Path) -> 
     applied_report = json.loads(report.read_text(encoding="utf-8"))
     assert applied_report["action"] == "applied"
     assert applied_report["candidate_set_sha256"] == candidate_hash
+
+
+def test_interrupted_selected_fact_staging_requires_exact_hash(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    root = state / "derived/evidence_lake_v2/selected_facts"
+    root.mkdir(parents=True)
+    staging = root / f".{('b' * 24)}.interrupted"
+    staging.mkdir()
+    (staging / "selected_facts.duckdb").write_bytes(b"partial")
+    report = state / "reports/evidence_lake_v2/interrupted-retention.json"
+
+    command = [
+        sys.executable,
+        str(SCRIPT),
+        "--state-dir",
+        str(state),
+        "--interrupted-staging",
+        staging.name,
+        "--minimum-age-minutes",
+        "0",
+        "--reason",
+        "unit-test interrupted compiler",
+        "--report",
+        str(report),
+    ]
+    dry_run = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert dry_run.returncode == 0, dry_run.stderr
+    dry_report = json.loads(report.read_text(encoding="utf-8"))
+    assert dry_report["candidates"][0]["artifact_state"] == (
+        "interrupted_manifestless_selected_fact_staging"
+    )
+
+    applied = subprocess.run(
+        [
+            *command,
+            "--apply",
+            "--expected-candidate-set-sha256",
+            dry_report["candidate_set_sha256"],
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert applied.returncode == 0, applied.stderr
+    assert not staging.exists()

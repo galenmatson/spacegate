@@ -99,7 +99,24 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             str(row[0])
             for row in con.execute("DESCRIBE evidence_object_bindings").fetchall()
         }
-        if {"binding_subject_kind", "binding_subject_id"}.issubset(binding_columns):
+        selected_fact_columns = {
+            str(row[0]) for row in con.execute("DESCRIBE selected_facts").fetchall()
+        }
+        if "binding_id" in selected_fact_columns:
+            checks["selected_source_facts_without_binding_ids"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM selected_facts "
+                "WHERE fact_status='source_selected' AND binding_id IS NULL",
+            )
+            checks["selected_source_facts_without_accepted_subject_binding"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM selected_facts f "
+                "WHERE f.fact_status='source_selected' AND NOT EXISTS ("
+                "SELECT 1 FROM evidence_object_bindings b "
+                "WHERE b.binding_id=f.binding_id AND b.source_id=f.source_id "
+                "AND b.binding_status='accepted')",
+            )
+        elif {"binding_subject_kind", "binding_subject_id"}.issubset(binding_columns):
             checks["bindings_without_subjects"] = scalar(
                 con,
                 "SELECT COUNT(*) FROM evidence_object_bindings "

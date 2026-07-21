@@ -805,6 +805,21 @@ The applied report records 34,929,528,832 reclaimed allocated bytes. Future E5
 cleanup requires the same independent failed-artifact audit, reference/current/
 process/link checks, and exact candidate-set dry-run/apply process.
 
+The policy-v6/compiler-v6 diagnostic staging tree
+`.0a50fc1790001c87c8568bae.wczxlv1h` was stopped after scientific
+materialization when a pathological integrity anti-join consumed 2 hours 25
+minutes without progress. The current pointer remained on verified build
+`d3f255b55e4573676347b206`. After the query plan and partial row accounting were
+captured, the extended E5 fail-closed retention workflow proved that the
+manifestless staging tree and `/mnt/space/spacegate/e5-selection-spill` were
+closed, unreferenced, real trees with no symlinks or shared files. Exact
+candidate hash
+`b714aacda3b912e8eec26a00dc6808d81e2859c085cd3b1ea72d582ea67b6998`
+authorized removal of only those two trees and reclaimed 110,415,441,920
+allocated bytes. Dry-run and applied reports are retained under
+`state/reports/evidence_lake_v2`; accepted selected facts and all E4/raw/typed
+inputs were excluded.
+
 The E5 source-disposition ledger and its machine-readable audit report are
 protected compiler-policy inputs. The compiler now hashes the ledger, but the
 active `d3f255b55e4573676347b206` artifact predates that identity input. Do not

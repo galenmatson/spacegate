@@ -2543,6 +2543,32 @@ Representative commits:
   No large selected-fact artifact is promoted yet; these two policies are
   intentionally batched into the next storage cycle.
 
+### 85) E5 Compiler Integrity-Join Diagnosis
+
+- The first full policy-v6/compiler-v6 diagnostic completed its scientific
+  tables: 75,062,360 binding outcomes, 164,425 source-model preselections,
+  36,985,305 decisions, 110,867,283 facts, 65,171 derivations, and all nine
+  source-accounting rows. It did not insert the evidence-build pass row, export,
+  manifest, or promote an artifact.
+- After output stopped growing, one uninstrumented integrity phase saturated
+  eight threads for 2 hours 25 minutes and nearly 18 CPU-hours. The process was
+  terminated with the verified v4 current pointer unchanged. Inspection proved
+  scientific compilation was complete and isolated the delay to verification.
+- DuckDB's plan for the new subject-lineage gate used a delimiter anti-join
+  correlated on source, source record, evidence, and parameter-set IDs, then a
+  three-branch `OR` against accepted bindings. This was a general query-contract
+  defect, not a white-dwarf or named-object exception.
+- Compiler v7 carries the exact accepted `binding_id` into each source-selected
+  fact and verifies that direct key instead. It also writes an incremental
+  machine-readable timing report with per-source/per-phase wall and CPU time,
+  rows, peak RSS, durable bytes, and peak spill so future interruptions retain
+  actionable evidence.
+- An exact-candidate E5 retention dry-run and apply removed only the stopped
+  manifestless staging and its external spill under candidate hash
+  `b714aacda3b912e8eec26a00dc6808d81e2859c085cd3b1ea72d582ea67b6998`,
+  reclaiming 110,415,441,920 allocated bytes. The accepted current artifact and
+  every E4/raw/typed input remained protected.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

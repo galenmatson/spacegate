@@ -58,7 +58,10 @@ Evidence Lake v2 staging rule:
   `selected_facts.duckdb` preserves object/system keys, quantity group/key,
   raw and normalized values, interval semantics, exact E4 evidence and
   parameter-set lineage, authority decision, policy, normalization, and
-  quality metadata. `parameter_set_selection_decisions` records the selected
+  quality metadata. Compiler v7 also stores the exact accepted `binding_id` on
+  every source-selected fact, replacing inferred multi-column binding lookup;
+  derived facts keep null binding IDs and point to derivation/input fact IDs.
+  `parameter_set_selection_decisions` records the selected
   coherent set, selected source-native quality score, runner-up authority, and
   runner-up quality score; `selected_fact_derivations` records
   input selected-fact IDs, algorithm/version, applicability, formula,

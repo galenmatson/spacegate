@@ -779,6 +779,15 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
         "excluded": 1,
     }
     artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
+    performance_path = Path(report["performance_report"])
+    assert performance_path.is_file()
+    performance = json.loads(performance_path.read_text())
+    assert performance["status"] == "pass"
+    assert performance["active_phase"] is None
+    assert any(
+        row["phase"] == "integrity_check.selected_source_facts_without_accepted_subject_binding"
+        for row in performance["phases"]
+    )
     assert (artifact / "selected_facts__teff_k.parquet").is_file()
     assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
     assert sum(report["partition_exports"]["selected_facts"].values()) == 13
@@ -823,6 +832,11 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
         "SELECT quantity_key,normalized_value,parameter_set_id "
         "FROM selected_facts WHERE source_id='source.model' ORDER BY quantity_key"
     ).fetchall()
+    binding_lineage_counts = con.execute(
+        "SELECT COUNT(*) FILTER(WHERE fact_status='source_selected' AND binding_id IS NULL),"
+        "COUNT(*) FILTER(WHERE fact_status='derived' AND binding_id IS NOT NULL) "
+        "FROM selected_facts"
+    ).fetchone()
     con.close()
 
     assert ("teff_k", 5800.0, 5700.0, 5900.0, "source_selected") in facts
@@ -856,6 +870,7 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
         ("mass_msun", 0.7, "model-he"),
         ("teff_k", 11000.0, "model-he"),
     ]
+    assert binding_lineage_counts == (0, 0)
     assert ("parallax_mas", 20.0, 19.5, 20.5, "source_selected") in facts
     assert ("distance_geometric_pc", 50.0, 45.0, 57.0, "source_selected") in facts
     assert ("distance_photogeometric_pc", 49.0, 46.0, 53.0, "source_selected") in facts

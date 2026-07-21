@@ -1239,7 +1239,7 @@ boundary. This compiler change is intentionally queued with the next batch of
 classification/applicability work rather than producing an otherwise identical
 53-GB checkpoint.
 
-Policy/compiler v6 adds reusable evidence-subject binding, source-level
+Policy v6/compiler v7 adds reusable evidence-subject binding, source-level
 applicability predicates, and coherent source-model preselection. A binding may
 therefore name a source record, classification evidence row, or scoped
 parameter set; it still retains the parent source record and may emit facts only
@@ -1269,6 +1269,25 @@ into these coherent specialized models. Two-pass verification reports zero
 scope, probability, completeness, fit-order, duplicate, or lineage failures and
 logical hash
 `89c6648d6a933d8bde53902b54033c1550c126674b5744c90c57b9fa14a7408f`.
+
+The first full v6 diagnostic batch exposed insufficient compiler observability.
+All scientific compilation completed with 75,062,360 binding outcomes,
+36,985,305 decisions, 110,867,283 facts, nine source-accounting rows, and no
+promotion, but one integrity phase continued for 2 hours 25 minutes and nearly
+18 CPU-hours without writing output. The diagnostic was terminated; the
+verified v4 artifact and current pointer were never changed. Query planning
+showed the new subject-lineage check had become a four-column delimiter
+anti-join with a three-branch `OR` over the global fact and binding tables.
+
+Compiler v7 carries the exact accepted `binding_id` into every source-selected
+fact, while derived facts retain their derivation/input-fact lineage. This turns
+the pathological inferred lookup into a direct-key check and strengthens the
+scientific provenance contract. Before clean reproduction, the compiler emits
+incremental machine-readable
+per-source and per-phase wall/CPU time, input/output rows, durable bytes, peak
+memory, and spill bytes for binding, candidacy, preselection, global selection,
+derivation, integrity checks, exports, hashing, and promotion. Measured slow
+queries must retain explain/analyze evidence and an optimization comparison.
 
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and

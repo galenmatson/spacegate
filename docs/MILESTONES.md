@@ -1962,7 +1962,7 @@ Foundation checkpoint (July 21, 2026):
 - the compiler hashes that ledger into build identity and records its status and
   blockers in each report; the next large compile is deferred until compatible
   classification/applicability work is batched into the same storage cycle
-- policy/compiler v6 binds eligible evidence subjects rather than assuming one
+- policy v6/compiler v7 binds eligible evidence subjects rather than assuming one
   unscoped subject per source record; classification rows and scoped parameter
   sets retain explicit scope, applicability, parent-record, and outcome lineage
 - UltracoolSheet focused verification selects 5,282 categorical classification
@@ -1977,6 +1977,16 @@ Foundation checkpoint (July 21, 2026):
 - the classification and white-dwarf policies are queued for the next batched
   selected-fact build; the current accepted artifact remains
   `d3f255b55e4573676347b206` until full audit and clean reproduction pass
+- the v6 batch also establishes a compiler-performance gate: capture per-source
+  and per-phase wall/CPU time, row volume, durable output, peak memory, and spill
+  use; retain query plans for measured bottlenecks and optimize them before the
+  clean reproduction rather than accepting opaque hour-scale phases
+- the first diagnostic full run completed all scientific tables but was stopped
+  after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
+  its delimiter anti-join inferred bindings through four correlated fact keys
+- compiler v7 stores the exact accepted binding ID on each source fact, uses a
+  direct-key lineage gate, and writes incremental phase telemetry so interrupted
+  attempts retain actionable timing and resource evidence
 
 Deliverables:
 
