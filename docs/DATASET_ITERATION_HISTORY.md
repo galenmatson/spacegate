@@ -2353,6 +2353,29 @@ Representative commits:
   protects every referenced shard and prevents age-based cleanup from breaking
   an active or rollback evidence set.
 
+### 78) E5 Selected-Fact Compiler Foundation
+
+- Selection policy `2026-07-21.e5-selection.1` pins E4 release set
+  `a188a3adc6207d3a217d54a9`, E2 identity graph
+  `c84389ad55f17081fff008b4`, and canonical stability reference
+  `20260717T0614Z_f452835_side`. The compiler verifies the selected E4 manifest
+  and database checksums before reading evidence.
+- Build `237158e09fce993f1b033414` binds 2,785,923 eligible Gaia AP records and
+  84,588 NASA source rows to current objects, records 4,136,484 coherent-set
+  decisions, selects 12,229,171 source facts, and derives 65,204 luminosities
+  only where direct selected luminosity is absent. Source facts retain exact
+  E4 build/table/evidence/set/record lineage; derived facts retain both input
+  selected-fact IDs and versioned supersession metadata.
+- Gaia specialized UCD/hot-star, GSP-Spec, and GSP-Phot atmosphere sets and
+  FLAME/fallback fundamental sets use quantity-specific authority. NASA default
+  reference-specific solutions outrank composite rows without field-wise
+  mixing inside a quantity group. All duplicate, missing-lineage, and
+  lower-authority-winner gates pass.
+- This checkpoint proves the compiler architecture but deliberately does not
+  declare E5 complete. Remaining domain policies, the exhaustive legacy
+  derivation/prior inventory, shared consumer cutover, and the E6 scientific
+  A/B build remain open.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

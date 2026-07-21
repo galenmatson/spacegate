@@ -1131,6 +1131,26 @@ derivation records its inputs, algorithm version, applicability, confidence,
 and supersession state. Verification must detect a fallback selected despite
 acceptable higher-authority evidence.
 
+The first E5 foundation artifact is selected-fact build
+`237158e09fce993f1b033414`, compiled from immutable E4 release set
+`a188a3adc6207d3a217d54a9`, identity graph `c84389ad55f17081fff008b4`,
+and canonical stability reference `20260717T0614Z_f452835_side`. Policy
+`2026-07-21.e5-selection.1` selects coherent Gaia DR3 AP atmosphere and FLAME
+sets plus NASA default reference-specific planet sets, using composite NASA
+rows only as a lower-authority fallback. It materializes 12,294,375 facts,
+4,136,484 parameter-set decisions, 2,870,511 current-object bindings, and
+65,204 Stefan-Boltzmann luminosity derivations. All source facts point to exact
+E4 records and parameter sets; all derived facts point to their selected input
+fact IDs. Duplicate identity/fact, missing-lineage, and lower-authority-winner
+checks are zero.
+
+This is an E5 foundation checkpoint, not E5 completion or a public selection
+cutover. Coherent Gaia source arrays, distance/astrometry, spectroscopy,
+classification, variability, compact-object, relation/orbit, and naming
+policies remain to be compiled or explicitly assigned a non-selected evidence
+role. The complete legacy derivation/presentation-prior inventory and shared
+consumer migration also remain open before E6.
+
 ### E6. Reproducible Product Projections and Shadow Build
 
 CORE, ARM, canonical hierarchy, DISC, search indexes, public slices, map tiles,

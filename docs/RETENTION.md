@@ -773,6 +773,17 @@ Retention tooling must resolve active and rollback release-set manifests before
 considering any E4 artifact candidate. Superseded diagnostics remain subject to
 the existing exact-candidate dry-run/apply rules, never an age-only sweep.
 
+## E5 Selected-Fact Artifacts
+
+`derived/evidence_lake_v2/selected_facts/<build_id>/` contains immutable E5
+compiler outputs. Protect the active `current` target, every build referenced
+by an E6/E7 report or rollback, its pinned E4 release set and all transitive E4
+shards, the E2 identity graph, and the canonical stability reference. A failed
+staging directory may be considered only after no compiler process is active;
+use an exact candidate dry run before deletion. DuckDB spill under
+`/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
+after the compiler exits and the accepted artifact/report are verified.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

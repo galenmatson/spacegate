@@ -53,6 +53,16 @@ Evidence Lake v2 staging rule:
   E5 opens only those databases read-only. This preserves one atomic scientific
   build identity while avoiding another 449.2 GB copy of already immutable
   domain tables.
+- E5 selected-fact artifacts live at
+  `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/selected_facts/<build_id>/`.
+  `selected_facts.duckdb` preserves object/system keys, quantity group/key,
+  raw and normalized values, interval semantics, exact E4 evidence and
+  parameter-set lineage, authority decision, policy, normalization, and
+  quality metadata. `parameter_set_selection_decisions` records the selected
+  coherent set and runner-up authority; `selected_fact_derivations` records
+  input selected-fact IDs, algorithm/version, applicability, formula,
+  assumptions, uncertainty method, confidence, and superseded paths. These are
+  pre-ARM compiler artifacts until the E6 shadow build passes.
 - `source_field_dispositions.source_field` is the legal typed-column name, while
   `source_native_field` retains the exact upstream spelling. They differ only
   when a source format requires an alias, including case-only VOTable collisions

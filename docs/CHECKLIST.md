@@ -1417,8 +1417,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,
   SNR flux, and TESS EB sector/flag/Tmag evidence
-- [ ] E4: reconcile default-disabled exoplanet lifecycle sources with M5.3 and
+- [x] E4: reconcile default-disabled exoplanet lifecycle sources with M5.3 and
   retain negative evidence, conflicts, transitions, and tombstones
+- [x] E5 foundation: compile immutable Gaia AP/NASA selected facts with coherent
+  parameter-set decisions, exact evidence/derivation lineage, per-quantity
+  authority, uncertainty semantics, and lower-authority-winner gates
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

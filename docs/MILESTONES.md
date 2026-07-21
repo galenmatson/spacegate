@@ -1894,6 +1894,22 @@ Current status (July 19, 2026, in progress):
 
 #### M8.3c-E5. Selection and Derivation Compiler
 
+Foundation checkpoint (July 21, 2026):
+
+- policy `2026-07-21.e5-selection.1` and compiler v1 produce immutable build
+  `237158e09fce993f1b033414` from the pinned E4 release set, E2 identity graph,
+  and canonical stability reference
+- the build selects 12,229,171 exact Gaia/NASA source facts and derives 65,204
+  missing stellar luminosities from selected radius/temperature inputs; all
+  12,294,375 output facts retain evidence or derivation lineage
+- 4,136,484 coherent-set decisions pass duplicate, missing-lineage, and
+  lower-authority-winner gates; checked-in fixture coverage exercises source
+  authority, exact interval endpoints, error magnitudes, unique-name binding,
+  and derivation supersession JSON
+- this checkpoint does not close E5: remaining evidence domains, exhaustive
+  legacy fallback inventory, shared consumer migration, and E6 shadow review
+  remain mandatory
+
 Deliverables:
 
 - versioned, per-quantity authority and applicability policies

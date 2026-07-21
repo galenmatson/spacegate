@@ -1,0 +1,159 @@
+{
+  "schema_version": "spacegate.selected_fact_policy.v1",
+  "policy_version": "2026-07-21.e5-selection.1",
+  "compiler_version": "selected_fact_compiler_v1",
+  "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
+  "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "selection_sources": [
+    {
+      "source_id": "gaia.dr3.astrophysical_parameters",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs",
+            "metallicity_m_h": "metallicity_m_h"
+          },
+          "authorities": [
+            {"rank": 10, "method": "gaia_dr3_espucd", "reason": "Gaia specialized ultracool-dwarf parameter solution"},
+            {"rank": 10, "method": "gaia_dr3_esphs", "reason": "Gaia specialized hot-star parameter solution"},
+            {"rank": 20, "method": "gaia_dr3_gspspec", "reason": "Gaia calibrated RVS spectroscopic atmosphere solution"},
+            {"rank": 30, "method": "gaia_dr3_gspphot", "reason": "Gaia calibrated BP/RP photometric atmosphere solution"}
+          ]
+        },
+        {
+          "group_key": "stellar_fundamental",
+          "quantities": {
+            "stellar_radius": "radius_rsun",
+            "stellar_luminosity": "luminosity_lsun",
+            "stellar_mass": "mass_msun",
+            "stellar_age": "age_gyr"
+          },
+          "authorities": [
+            {"rank": 10, "method": "gaia_dr3_flame", "reason": "Gaia FLAME coherent physical/evolution solution"},
+            {"rank": 20, "method": "gaia_dr3_gspphot", "reason": "Gaia GSP-Phot coherent atmosphere solution used only when FLAME is absent"}
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "object_type": "planet",
+      "binding_scope": "planet",
+      "binding": {
+        "strategy": "canonical_unique_name",
+        "claim_namespace": "nasa_planet_name",
+        "canonical_table": "planets",
+        "canonical_name_field": "planet_name_norm",
+        "normalization": "spacegate_public_name_v1"
+      },
+      "parameter_set_table": "planet_parameter_sets",
+      "parameter_evidence_table": "planet_parameter_evidence",
+      "quantity_groups": [
+        {
+          "group_key": "planet_orbit",
+          "quantities": {
+            "nasa_exoplanet_archive.pl_orbper": "orbital_period_days",
+            "nasa_exoplanet_archive.pl_orbsmax": "semi_major_axis_au",
+            "nasa_exoplanet_archive.pl_orbeccen": "eccentricity",
+            "nasa_exoplanet_archive.pl_orbincl": "inclination_deg",
+            "nasa_exoplanet_archive.pl_orblper": "argument_of_periastron_deg"
+          },
+          "authorities": [
+            {"rank": 10, "source_table": "nasa_ps_reference_v2", "context_field": "default_flag", "context_value": "1", "reason": "NASA default reference-specific confirmed-planet solution"},
+            {"rank": 20, "source_table": "nasa_pscomppars_v2", "reason": "NASA composite parameter fallback when no default coherent solution is usable"}
+          ]
+        },
+        {
+          "group_key": "planet_bulk",
+          "quantities": {
+            "nasa_exoplanet_archive.pl_rade": "radius_earth",
+            "nasa_exoplanet_archive.pl_radj": "radius_jup",
+            "nasa_exoplanet_archive.pl_bmasse": "best_mass_earth",
+            "nasa_exoplanet_archive.pl_bmassj": "best_mass_jup",
+            "nasa_exoplanet_archive.pl_masse": "mass_earth",
+            "nasa_exoplanet_archive.pl_massj": "mass_jup",
+            "nasa_exoplanet_archive.pl_msinie": "minimum_mass_earth",
+            "nasa_exoplanet_archive.pl_msinij": "minimum_mass_jup",
+            "nasa_exoplanet_archive.pl_dens": "density_g_cm3"
+          },
+          "authorities": [
+            {"rank": 10, "source_table": "nasa_ps_reference_v2", "context_field": "default_flag", "context_value": "1", "reason": "NASA default reference-specific confirmed-planet solution"},
+            {"rank": 20, "source_table": "nasa_pscomppars_v2", "reason": "NASA composite parameter fallback when no default coherent solution is usable"}
+          ]
+        },
+        {
+          "group_key": "planet_environment",
+          "quantities": {
+            "nasa_exoplanet_archive.pl_eqt": "eq_temp_k",
+            "nasa_exoplanet_archive.pl_insol": "insol_earth"
+          },
+          "authorities": [
+            {"rank": 10, "source_table": "nasa_ps_reference_v2", "context_field": "default_flag", "context_value": "1", "reason": "NASA default reference-specific confirmed-planet solution"},
+            {"rank": 20, "source_table": "nasa_pscomppars_v2", "reason": "NASA composite parameter fallback when no default coherent solution is usable"}
+          ]
+        }
+      ]
+    }
+  ],
+  "derivations": [
+    {
+      "derivation_key": "stellar_luminosity_stefan_boltzmann",
+      "version": "stefan_boltzmann_v2",
+      "output_quantity": "luminosity_lsun",
+      "inputs": ["radius_rsun", "teff_k"],
+      "formula": "L/Lsun = (R/Rsun)^2 * (Teff/5772 K)^4",
+      "applicability": "positive selected radius and effective temperature; only when direct selected luminosity is absent",
+      "uncertainty": "propagate selected lower/upper interval endpoints when both inputs provide usable bounds",
+      "layer": "arm",
+      "supersedes": ["build_arm.py:stefan_boltzmann_from_radius_teff", "main.py runtime luminosity fallback"]
+    },
+    {
+      "derivation_key": "planet_semimajor_axis_kepler",
+      "version": "kepler_two_body_v2",
+      "output_quantity": "semi_major_axis_au",
+      "inputs": ["orbital_period_days", "host_mass_msun"],
+      "formula": "a_au = ((Mstar_msun + Mplanet_msun) * period_years^2)^(1/3)",
+      "applicability": "bound planet with positive selected period and host mass; use planet mass when selected",
+      "uncertainty": "propagate selected period and mass bounds when present",
+      "layer": "arm",
+      "supersedes": ["build_arm.py:kepler_from_period_host_mass", "main.py runtime Kepler fallback"]
+    },
+    {
+      "derivation_key": "planet_insolation",
+      "version": "inverse_square_insolation_v2",
+      "output_quantity": "insol_earth",
+      "inputs": ["host_luminosity_lsun", "semi_major_axis_au"],
+      "formula": "S/Searth = L/Lsun / a_au^2",
+      "applicability": "single resolved host and positive selected luminosity/semi-major axis; only when direct selected insolation is absent",
+      "uncertainty": "propagate selected luminosity and orbit bounds",
+      "layer": "arm",
+      "supersedes": ["build_arm.py:insolation_from_luminosity_sma"]
+    },
+    {
+      "derivation_key": "planet_equilibrium_temperature",
+      "version": "equilibrium_temperature_v2",
+      "output_quantity": "eq_temp_k",
+      "inputs": ["insol_earth"],
+      "formula": "Teq = 278.5 K * (S/Searth)^0.25",
+      "applicability": "positive selected/derived insolation and absent direct selected equilibrium temperature",
+      "uncertainty": "propagate selected insolation bounds; retain explicit albedo/redistribution assumptions",
+      "layer": "arm",
+      "supersedes": ["build_arm.py:equilibrium_temp_from_insolation", "main.py environment proxy"]
+    }
+  ]
+}
