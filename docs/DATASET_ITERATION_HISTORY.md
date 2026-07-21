@@ -2109,6 +2109,14 @@ Representative commits:
   collector has always emitted `sol_authority_horizons_responses`. The audit
   and fixture now use the production manifest name, preventing a scratch-only
   naming convention from passing a gate the registered artifact could not.
+- The resulting production-shaped E1 preview then failed the natural audit
+  because the fixture had also required artificial-only `target_body_name`
+  while omitting natural-only `object_class_aliases_json`. Required fields are
+  now split into common, natural, and artificial contracts; preview reruns must
+  pass both independently before registry cutover. The corrected preview does:
+  both sources account two raw artifacts, type two complete tables, pass their
+  source audits at 60/60 and 11/11 projection/response rows, reproduce exact
+  typed IDs and content hashes, and remove the clean scratch tree.
 
 ### 70) Gaia DR3 Backbone Envelope Audit
 

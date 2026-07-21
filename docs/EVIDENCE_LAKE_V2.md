@@ -981,8 +981,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `center_target_command`, parsed generically from each exact Horizons center
   expression, so relation evidence can bind to a source identifier without
   trusting operator-written parent names. Its deltas report zero further
-  scientific changes. Registry cutover, Evidence Lake typing, and both E4
-  adapters remain pending until the active Gaia build reproduces.
+  scientific changes. A temporary-registry preview then accounts and types both
+  parsed/response-index artifacts: natural raw/typed snapshots
+  `1905bbe6c368e5f6a321194a` / `c8652fd839feaa7b59104ad3` and artificial
+  snapshots `677018070eec1039a43e2652` / `b9e3f2cced96b8f2b071b7ea` pass
+  raw/typed verification, independent source audits, and clean typed
+  reproduction with scratch removal. Checked-in registry cutover and both E4
+  domain adapters remain pending until the active Gaia build reproduces.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

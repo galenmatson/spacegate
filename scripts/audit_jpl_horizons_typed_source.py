@@ -38,7 +38,7 @@ DEFAULT_REPORT = Path(
     "/data/spacegate/state/reports/evidence_lake_v2/"
     "e4_jpl_horizons_typed_source_audit.json"
 )
-PARSED_REQUIRED_FIELDS = {
+PARSED_COMMON_REQUIRED_FIELDS = {
     "source_pk",
     "object_name",
     "object_class",
@@ -54,7 +54,6 @@ PARSED_REQUIRED_FIELDS = {
     "orbital_period_days",
     "radius_km",
     "mass_kg",
-    "target_body_name",
     "horizons_query_url",
     "horizons_response_path",
     "horizons_response_sha256",
@@ -62,6 +61,15 @@ PARSED_REQUIRED_FIELDS = {
     "operator_seed_sha256",
     "retrieved_at",
     "source_row_hash",
+}
+PARSED_SOURCE_REQUIRED_FIELDS = {
+    "solar_system.jpl_horizons_authority": {
+        "object_class_aliases_json",
+    },
+    "solar_system.jpl_horizons_artificial": {
+        "freshness_window_days",
+        "target_body_name",
+    },
 }
 RESPONSE_REQUIRED_FIELDS = {
     "source_pk",
@@ -123,7 +131,13 @@ def audit(
     checks: dict[str, Any] = {
         "missing_required_tables": missing_tables,
         "pending_typed_tables": pending_tables,
-        "missing_parsed_fields": sorted(PARSED_REQUIRED_FIELDS - parsed_fields),
+        "missing_parsed_fields": sorted(
+            (
+                PARSED_COMMON_REQUIRED_FIELDS
+                | PARSED_SOURCE_REQUIRED_FIELDS[source_id]
+            )
+            - parsed_fields
+        ),
         "missing_response_fields": sorted(RESPONSE_REQUIRED_FIELDS - response_fields),
     }
     summaries: dict[str, Any] = {"typed_tables": sorted(tables)}

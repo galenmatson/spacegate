@@ -595,6 +595,9 @@ compatibility projection; it is not the sole durable source artifact.
 Parsed projections preserve both the exact Horizons `center_code` and its
 syntax-derived `center_target_command`; later relation binding must prefer that
 source identifier over the operator seed's human-readable parent name.
+The production-shaped Evidence Lake preview types both the parsed table and
+response index for all 60 natural targets and passes raw/typed accounting,
+source-response integrity, and clean reproduction.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
@@ -621,6 +624,8 @@ Artificial-object snapshots use the same raw-response contract. Per-row
 freshness windows remain applicability evidence; an expired trajectory is not
 silently treated as a current orbit merely because its catalog snapshot still
 falls within the broader feed refresh window.
+The corresponding 11-target preview passes the same gates independently from
+the natural-object source.
 
 ## 3) Gaia DR3 astrophysical classifier probabilities
 

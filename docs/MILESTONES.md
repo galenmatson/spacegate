@@ -1783,7 +1783,12 @@ Current status (July 19, 2026, in progress):
   artificial trajectories. Follow-up snapshots `6ae83d9fce64f13783f05e59`
   and `17fd89afbd89e4b2303b832f` add a generic parsed
   `center_target_command` beside the exact center expression; zero scientific
-  values changed, and registry typing/cutover remains pending
+  values changed. A production-shaped temporary-registry preview creates raw
+  snapshots `1905bbe6c368e5f6a321194a` / `677018070eec1039a43e2652`
+  and typed snapshots `c8652fd839feaa7b59104ad3` /
+  `b9e3f2cced96b8f2b071b7ea`; raw/typed accounting, source audits, and clean
+  reproduction all pass. Checked-in registry cutover and E4 domain
+  materialization remain pending
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,

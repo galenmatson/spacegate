@@ -1347,6 +1347,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Preserve a syntax-derived Horizons `center_target_command` beside each
   exact center expression; verify the refreshed 60/11 snapshots change no
   scientific values and never require name-specific parent parsing
+- [x] Run a production-shaped JPL Evidence Lake preview with both parsed and
+  response-index artifacts; pass natural/artificial raw accounting, typed
+  cooking, source audits, and clean deterministic reproduction independently
 - [ ] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
   stale artificial trajectory tail, register both response-index artifacts,
   type and materialize scoped object/relation/orbit evidence, and keep operator
