@@ -101,6 +101,14 @@ Evidence Lake v2 staging rule:
   destination table. Source-native false membership flags are selected as
   categorical negative context with null numeric values, not discarded or
   converted into measurements.
+- A selected source may declare `channel_dispositions` for scientifically
+  distinct E4 destinations or model families. Every declaration is either
+  `selected` or `evidence_only` and carries a reason; duplicate or reasonless
+  channels fail policy validation. Evidence-only means the typed evidence stays
+  inspectable and may participate in the future public evidence inspector, not
+  that it is deleted or silently ignored. Gaia supplementary GSP-Phot libraries
+  use this contract because the publisher-selected best-library values already
+  enter through the main AP table.
 - Bailer-Jones distance selection preserves `gaia_edr3_source_id` separately
   from canonical `gaia_dr3`. Binding is permitted only by the policy-pinned,
   authoritative EDR3-to-DR3 source-list relationship and records that release

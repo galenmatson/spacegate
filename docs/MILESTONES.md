@@ -2026,6 +2026,22 @@ Foundation checkpoint (July 21, 2026):
   for direct selection and about 3 seconds for binding; compatible source
   policies will use these measured focused gates before paying the full-build
   cost
+- the first `gaia_scalar_and_variability` batch is complete: Gaia supplementary
+  GSP-Phot libraries remain coherent alternatives because the official
+  best-library values already enter through main AP; official-best-quality ANN
+  and spectroscopic FLAME enter only as lower-authority fallbacks
+- focused supplementary-AP A/B accounts 8,019,372 subjects as 2,715,345
+  accepted and 5,304,027 missing. It selects 323,433 supplementary fallback
+  facts without a lower-authority displacement and recovers 2,657,698 omitted
+  main-AP alpha-abundance, projected-rotation, and gravitational-redshift facts;
+  two passes match logical hash
+  `54466b7b5bfdf5f0a144226f7d509b7cd9a1edb166f35475ed991c753b1a0384`
+- compiler v9 verifies each immutable E4 database byte-for-byte against its
+  pinned SHA once per invocation, parallelizes independent hashes, and reuses a
+  process-local attestation only while device, inode, size, mtime, and ctime are
+  unchanged. The AP verifier measures 151.76 seconds for first-pass hashing and
+  0.001 seconds for safe second-pass reuse, cutting the two-pass checkpoint from
+  roughly eight minutes to four
 
 Deliverables:
 

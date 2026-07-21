@@ -789,8 +789,13 @@ timing, and performance-analysis reports are protected. Clean reproduction
 matched every logical and per-file Parquet hash, reported no differing
 sections, and removed its external scratch tree. The reference compile peaked
 at 66,102,259,712 staging and 161,548,070,912 spill allocated bytes; reproduction
-peaked at 133,656,276,992 spill allocated bytes. The
-immediate verified rollback `d3f255b55e4573676347b206`, its
+peaked at 133,656,276,992 spill allocated bytes.
+compiler's immutable-input attestation is process-local and is not a durable
+artifact or substitute for a checksum. Each invocation byte-hashes every pinned
+E4 input against its expected SHA; within that process only, the result may be
+reused while device, inode, size, mtime, and ctime remain unchanged. No retained
+metadata cache authorizes deletion, mutation, or checksum bypass. The immediate
+verified rollback `d3f255b55e4573676347b206`, its
 28,307,894,272-byte DuckDB, deterministic Parquet exports, manifest,
 independent audit, and clean-reproduction report remain protected. That
 reproduction matched logical hash

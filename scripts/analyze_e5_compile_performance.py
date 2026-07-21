@@ -150,17 +150,22 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
                 "constraint": "Preserve stable filenames, row ordering, compression, row accounting, and logical hashes before changing the artifact contract.",
             }
         )
-    prepares = next(
-        (row for row in category_rows if row["category"] == "source_prepare"), None
+    input_verification = next(
+        (
+            row
+            for row in category_rows
+            if row["category"] == "immutable_e4_input_verification"
+        ),
+        None,
     )
-    if prepares:
+    if input_verification:
         optimization_candidates.append(
             {
                 "priority": 3,
                 "target": "immutable_input_checksum_verification",
-                "measured_wall_seconds": prepares["wall_seconds"],
-                "measured_wall_percent": prepares["wall_percent"],
-                "next_experiment": "Measure storage throughput and evaluate a separately attested local checksum inventory for repeated builds.",
+                "measured_wall_seconds": input_verification["wall_seconds"],
+                "measured_wall_percent": input_verification["wall_percent"],
+                "next_experiment": "Compare one, two, and four parallel byte-hash workers while checking aggregate storage throughput and build contention.",
                 "constraint": "Do not replace byte-level input verification with mtime, size, or manifest trust alone.",
             }
         )

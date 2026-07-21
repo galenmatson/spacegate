@@ -1340,6 +1340,39 @@ seconds; direct materialization accounts for 24.25 seconds and binding about 3
 seconds. This focused gate avoids another approximately 24-minute full compile
 until compatible policy changes are ready to batch.
 
+The first policy batch closes with Gaia supplementary AP/FLAME. The official
+`libname_best_gspphot` already names the library whose published values appear
+in the main AP table, so MARCS, PHOENIX, OB, and A rows remain coherent
+evidence alternatives rather than duplicate public candidates. E5 selects ANN
+atmosphere and alpha evidence only under the official best-quality numeric flag
+criterion `flags_gspspec_ann < 10000`, at lower authority than primary
+GSP-Spec. Spectroscopic FLAME remains a coherent fallback behind primary
+photometric FLAME. Evolution-stage indexes, library model distances/extinction,
+and bolometric correction remain typed, inspectable evidence with explicit
+channel dispositions.
+
+Two focused A/B passes account all 8,019,372 supplementary subjects as
+2,715,345 accepted and 5,304,027 missing. Against current selected winners,
+the supplement contributes 2,871 atmosphere, 1,186 alpha-abundance, 251,087
+fundamental, and 68,289 gravitational-redshift facts. The same checkpoint
+recovers 729,881 primary GSP-Spec alpha abundances, 10,549 ESP-HS projected
+rotation velocities, and 1,917,268 primary FLAME gravitational redshifts that
+the prior policy omitted. No GSP-Phot alternative becomes a candidate, no ANN
+row fails the official quality gate, and no lower-authority set wins. Both
+passes match logical hash
+`54466b7b5bfdf5f0a144226f7d509b7cd9a1edb166f35475ed991c753b1a0384`.
+
+Compiler v9 removes repeated byte hashing inside one invocation without
+replacing byte verification with metadata trust. Independent E4 files are
+hashed in parallel against their pinned SHA. The resulting attestation may be
+reused only in that process and only while device, inode, size, mtime, and ctime
+all remain unchanged; a new compiler/verifier invocation performs full byte
+verification again. The two AP databases take 151.76 seconds to verify in the
+first focused pass and 0.001 seconds to attest in the unchanged second pass.
+Scientific compile phases take about 48 and 45 seconds, reducing the complete
+two-pass checkpoint from roughly eight minutes to four while retaining exact
+input integrity.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

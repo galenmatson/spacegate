@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -220,6 +221,87 @@ def file_sha256(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
+class FileHashAttestor:
+    """Cache byte hashes only while an input's full stat identity is unchanged."""
+
+    def __init__(self) -> None:
+        self._cache: dict[Path, tuple[tuple[int, ...], str]] = {}
+        self._lock = threading.Lock()
+        self.hash_count = 0
+
+    @staticmethod
+    def signature(path: Path) -> tuple[int, ...]:
+        stat = path.stat()
+        return (
+            int(stat.st_dev),
+            int(stat.st_ino),
+            int(stat.st_size),
+            int(stat.st_mtime_ns),
+            int(stat.st_ctime_ns),
+        )
+
+    def digest(self, path: Path) -> str:
+        path = path.resolve()
+        before = self.signature(path)
+        with self._lock:
+            cached = self._cache.get(path)
+        if cached is not None and cached[0] == before:
+            return cached[1]
+        digest = file_sha256(path)
+        after = self.signature(path)
+        if before != after:
+            raise ValueError(f"input changed while hashing: {path}")
+        with self._lock:
+            self._cache[path] = (after, digest)
+            self.hash_count += 1
+        return digest
+
+    def verify(self, path: Path, expected_sha256: str) -> None:
+        actual = self.digest(path)
+        if actual != expected_sha256:
+            raise ValueError(
+                f"immutable input checksum changed: {path}:"
+                f"expected={expected_sha256}:actual={actual}"
+            )
+
+
+def verify_e4_member_inputs(
+    *,
+    state_dir: Path,
+    sources: list[dict[str, Any]],
+    members: dict[str, dict[str, Any]],
+    attestor: FileHashAttestor,
+    workers: int,
+) -> dict[str, int]:
+    unique: dict[Path, tuple[Path, dict[str, Any]]] = {}
+    for source in sources:
+        member = members[str(source["source_id"])]
+        artifact = (state_dir / str(member["artifact_path"])).resolve()
+        database = artifact / str(member["database"])
+        unique[database] = (artifact, member)
+
+    def verify(item: tuple[Path, tuple[Path, dict[str, Any]]]) -> int:
+        database, (artifact, member) = item
+        attestor.verify(artifact / "manifest.json", str(member["manifest_sha256"]))
+        if database.stat().st_size != int(member["database_bytes"]):
+            raise ValueError(
+                f"E4 member database size changed: {member['source_ids']}"
+            )
+        attestor.verify(database, str(member["database_sha256"]))
+        return int(member["database_bytes"])
+
+    worker_count = max(1, min(int(workers), len(unique)))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+        verified_bytes = sum(executor.map(verify, sorted(unique.items())))
+    return {
+        "members": len(unique),
+        "files": len(unique) * 2,
+        "database_bytes": verified_bytes,
+        "workers": worker_count,
+        "byte_hashes": attestor.hash_count,
+    }
+
+
 def stable_sha256(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -355,6 +437,27 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
             or expected_selected_facts < 0
         ):
             raise ValueError(f"invalid expected selected facts: {source_id}")
+        channel_dispositions = source.get("channel_dispositions")
+        if channel_dispositions is not None:
+            channel_names = [
+                str(row.get("channel") or "") for row in channel_dispositions
+            ] if isinstance(channel_dispositions, list) else []
+            if (
+                not isinstance(channel_dispositions, list)
+                or not channel_dispositions
+                or any(
+                    not isinstance(row, dict)
+                    or row.get("disposition") not in {"selected", "evidence_only"}
+                    or not str(row.get("channel") or "").strip()
+                    or not str(row.get("reason") or "").strip()
+                    for row in channel_dispositions
+                )
+                or len(channel_names) != len(set(channel_names))
+                or "selected" not in {
+                    str(row.get("disposition")) for row in channel_dispositions
+                }
+            ):
+                raise ValueError(f"invalid source channel dispositions: {source_id}")
         applicability = source.get("applicability_context")
         if applicability is not None:
             if storage != "eav":
@@ -2250,6 +2353,7 @@ def compile_selected_facts(
             + json.dumps(disposition_audit["checks"], sort_keys=True)
         )
     members = member_by_source(release_manifest)
+    input_attestor = FileHashAttestor()
 
     identity_dir = state_dir / "derived/evidence_lake_v2/identity" / str(policy["identity_graph_id"])
     identity_db = identity_dir / "identity_graph.duckdb"
@@ -2347,6 +2451,15 @@ def compile_selected_facts(
         con.execute(f"ATTACH {sql_literal(str(identity_db))} AS identity (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(str(core_db))} AS core (READ_ONLY)")
         recorder.finish()
+        recorder.start("immutable_e4_input_verification")
+        verified_inputs = verify_e4_member_inputs(
+            state_dir=state_dir,
+            sources=list(policy["selection_sources"]),
+            members=members,
+            attestor=input_attestor,
+            workers=min(4, max(1, threads)),
+        )
+        recorder.finish(details=verified_inputs)
         source_runtime: list[tuple[dict[str, Any], str, dict[str, Any], str, int, int]] = []
         for index, configured_source in enumerate(policy["selection_sources"]):
             source = dict(configured_source)
@@ -2357,12 +2470,6 @@ def compile_selected_facts(
             artifact_path = state_dir / str(member["artifact_path"])
             db_path = artifact_path / str(member["database"])
             recorder.start("source_prepare", source_id=source_id)
-            if file_sha256(artifact_path / "manifest.json") != member["manifest_sha256"]:
-                raise ValueError(f"E4 member manifest changed: {source_id}")
-            if db_path.stat().st_size != int(member["database_bytes"]):
-                raise ValueError(f"E4 member database size changed: {source_id}")
-            if file_sha256(db_path) != member["database_sha256"]:
-                raise ValueError(f"E4 member database checksum changed: {source_id}")
             con.execute(f"ATTACH {sql_literal(str(db_path))} AS {sql_identifier(alias)} (READ_ONLY)")
             release_id = str(member["release_ids"][source_id])
             recorder.finish(

@@ -1456,6 +1456,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   variability-statistic, and classification-membership evidence from its
   matching parameter-set kind; account all 592,197 subjects and pass two-pass
   focused verification before another full selected-fact build
+- [x] E5 supplementary Gaia AP/FLAME checkpoint: preserve GSP-Phot library
+  alternatives as evidence, select only official best-quality ANN and
+  spectroscopic FLAME fallbacks, recover omitted main-AP alpha abundance,
+  projected rotation, and gravitational redshift, and pass a focused A/B against
+  current selected winners
+- [x] E5 repeated-input verification optimization: fully byte-hash every pinned
+  E4 input against its expected SHA on each invocation, parallelize independent
+  hashes, and reuse an attestation within that process only while full stat
+  identity remains unchanged
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

@@ -2622,6 +2622,34 @@ Representative commits:
   batch compatible policy work before incurring the measured 24-minute full
   compiler and reproduction cycle.
 
+### 88) E5 Gaia Supplementary AP Selection and Input Attestation
+
+- Official Gaia documentation establishes that `libname_best_gspphot` is the
+  publisher's selected library and its values already appear in the main AP
+  table. Supplementary MARCS, PHOENIX, OB, and A solutions therefore remain
+  coherent inspectable alternatives rather than duplicate public candidates.
+- ANN atmosphere and alpha evidence require the source-recommended best-quality
+  flag criterion `flags_gspspec_ann < 10000` and rank behind primary GSP-Spec.
+  Spectroscopic FLAME physics ranks behind primary photometric FLAME. Explicit
+  channel dispositions retain model stages, distances, extinction, absolute
+  magnitudes, and bolometric correction as evidence rather than silently
+  dropping them.
+- Focused A/B accounts 8,019,372 supplementary subjects as 2,715,345 accepted
+  and 5,304,027 missing. It adds 323,433 fallback facts while recovering
+  2,657,698 previously omitted primary AP alpha, projected-rotation, and
+  gravitational-redshift facts. Zero GSP-Phot alternatives, invalid ANN rows,
+  unrelated channels, or lower-authority winners enter the projection.
+- Two clean passes match logical hash
+  `54466b7b5bfdf5f0a144226f7d509b7cd9a1edb166f35475ed991c753b1a0384`
+  and remove both scratch databases. The first policy batch is complete with 11
+  selected sources and 23 remaining E5 blockers.
+- Compiler v9 parallelizes full expected-SHA verification of independent E4
+  inputs and keeps a process-local attestation bound to full stat identity.
+  The first AP pass byte-verifies both large databases in 151.76 seconds; the
+  unchanged second pass reuses that attestation in 0.001 seconds. New
+  invocations still byte-hash inputs, preserving the immutable-input gate while
+  halving this focused two-pass checkpoint's elapsed time.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

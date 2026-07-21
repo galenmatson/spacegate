@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.7",
-  "compiler_version": "selected_fact_compiler_v8",
+  "policy_version": "2026-07-21.e5-selection.8",
+  "compiler_version": "selected_fact_compiler_v9",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -191,6 +191,151 @@
           "authorities": [
             {"rank": 10, "method": "gaia_dr3_flame", "reason": "Gaia FLAME coherent physical/evolution solution"},
             {"rank": 20, "method": "gaia_dr3_gspphot", "reason": "Gaia GSP-Phot coherent atmosphere solution used only when FLAME is absent"}
+          ]
+        },
+        {
+          "group_key": "stellar_alpha_abundance",
+          "quantities": {
+            "abundance_alpha_fe": "alpha_fe"
+          },
+          "authorities": [
+            {"rank": 20, "method": "gaia_dr3_gspspec", "reason": "Gaia calibrated RVS Matisse-Gauguin alpha-element abundance"}
+          ]
+        },
+        {
+          "group_key": "stellar_projected_rotation",
+          "quantities": {
+            "projected_rotation_velocity": "projected_rotation_velocity_km_s"
+          },
+          "authorities": [
+            {"rank": 10, "method": "gaia_dr3_esphs", "reason": "Gaia ESP-HS projected rotational velocity for hot stars"}
+          ]
+        },
+        {
+          "group_key": "stellar_gravitational_redshift",
+          "quantities": {
+            "gravitational_redshift_velocity": "gravitational_redshift_velocity_km_s"
+          },
+          "authorities": [
+            {"rank": 10, "method": "gaia_dr3_flame", "reason": "Gaia photometric FLAME gravitational-redshift model"}
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "gaia.dr3.astrophysical_parameters_supp",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "minimum_eligible_records": 8000000,
+      "minimum_accepted_bindings": 2700000,
+      "minimum_selected_facts": 300000,
+      "expected_binding_outcomes": {
+        "accepted": 2715345,
+        "missing": 5304027
+      },
+      "expected_selected_facts": 323433,
+      "channel_dispositions": [
+        {
+          "channel": "stellar_parameter_evidence.gsp_spec_ann",
+          "disposition": "selected",
+          "reason": "Official best-quality ANN atmosphere and alpha-abundance estimates are lower-authority RVS fallbacks."
+        },
+        {
+          "channel": "stellar_parameter_evidence.flame_spectroscopic",
+          "disposition": "selected",
+          "reason": "Spectroscopic FLAME physics is a coherent fallback behind the primary photometric FLAME solution."
+        },
+        {
+          "channel": "stellar_parameter_evidence.gsp_phot_library_alternatives",
+          "disposition": "evidence_only",
+          "reason": "The official best-library values are already selected from the main AP table; all four library solutions remain inspectable alternatives."
+        },
+        {
+          "channel": "stellar_classification_evidence.flame_evolution_stage",
+          "disposition": "evidence_only",
+          "reason": "The source-native BASTI stage index remains model evidence pending a shared evolution-stage vocabulary and projection."
+        },
+        {
+          "channel": "astrometry_distance_evidence.gsp_phot_library_alternatives",
+          "disposition": "evidence_only",
+          "reason": "Library-specific model distances remain alternatives; selected distance policy uses source astrometry and Bailer-Jones posteriors."
+        },
+        {
+          "channel": "photometry_extinction_evidence.gsp_phot_library_alternatives",
+          "disposition": "evidence_only",
+          "reason": "Library-specific extinction and absolute-magnitude posteriors remain coherent alternatives to the official best-library result."
+        },
+        {
+          "channel": "photometry_extinction_evidence.flame_bolometric_correction",
+          "disposition": "evidence_only",
+          "reason": "Bolometric correction remains an inspectable intermediate behind the selected FLAME luminosity rather than a standalone public fact."
+        }
+      ],
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs",
+            "metallicity_m_h": "metallicity_m_h"
+          },
+          "authorities": [
+            {
+              "rank": 25,
+              "method": "gaia_dr3_gspspec_ann",
+              "quality_conditions": [
+                {"scope": "source_context", "path": "$.flags_gspspec_ann", "operator": "lt", "value": 10000}
+              ],
+              "quality_order": {"scope": "source_context", "path": "$.logchisq_gspspec_ann", "direction": "asc"},
+              "reason": "Official best-quality Gaia RVS ANN atmosphere fallback after primary GSP-Spec"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_alpha_abundance",
+          "quantities": {
+            "abundance_alpha_fe": "alpha_fe"
+          },
+          "authorities": [
+            {
+              "rank": 25,
+              "method": "gaia_dr3_gspspec_ann",
+              "quality_conditions": [
+                {"scope": "source_context", "path": "$.flags_gspspec_ann", "operator": "lt", "value": 10000}
+              ],
+              "quality_order": {"scope": "source_context", "path": "$.logchisq_gspspec_ann", "direction": "asc"},
+              "reason": "Official best-quality Gaia RVS ANN alpha-element fallback after primary GSP-Spec"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_fundamental",
+          "quantities": {
+            "stellar_radius": "radius_rsun",
+            "stellar_luminosity": "luminosity_lsun",
+            "stellar_mass": "mass_msun",
+            "stellar_age": "age_gyr"
+          },
+          "authorities": [
+            {"rank": 15, "method": "gaia_dr3_flame", "model": "FLAME_spectroscopic", "reason": "Gaia spectroscopic FLAME fallback behind the primary photometric FLAME solution"}
+          ]
+        },
+        {
+          "group_key": "stellar_gravitational_redshift",
+          "quantities": {
+            "gravitational_redshift_velocity": "gravitational_redshift_velocity_km_s"
+          },
+          "authorities": [
+            {"rank": 15, "method": "gaia_dr3_flame", "model": "FLAME_spectroscopic", "reason": "Gaia spectroscopic FLAME gravitational-redshift fallback"}
           ]
         }
       ]

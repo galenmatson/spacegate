@@ -45,10 +45,9 @@ def test_performance_analysis_ranks_measured_targets() -> None:
             ),
             phase("selected_fact_exports", 20, 100),
             phase(
-                "source_prepare",
+                "immutable_e4_input_verification",
                 10,
                 5,
-                source_id="gaia.dr3.astrophysical_parameters",
             ),
             phase(
                 "source_binding",

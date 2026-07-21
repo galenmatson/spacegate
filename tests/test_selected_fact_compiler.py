@@ -955,13 +955,48 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 10
+    assert len(policy["selection_sources"]) == 11
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_policy_rejects_duplicate_source_channel_dispositions(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    policy["selection_sources"][0]["channel_dispositions"] = [
+        {"channel": "measurements", "disposition": "selected", "reason": "used"},
+        {
+            "channel": "measurements",
+            "disposition": "evidence_only",
+            "reason": "duplicate",
+        },
+    ]
+    _, manifest = compiler.release_set_paths(state, policy)
+    with pytest.raises(ValueError, match="invalid source channel dispositions"):
+        compiler.validate_policy(policy, manifest)
+
+
+def test_file_hash_attestor_reuses_only_unchanged_byte_verification(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "artifact.bin"
+    artifact.write_bytes(b"first")
+    attestor = compiler.FileHashAttestor()
+    first = attestor.digest(artifact)
+    assert attestor.digest(artifact) == first
+    assert attestor.hash_count == 1
+
+    artifact.write_bytes(b"second")
+    second = attestor.digest(artifact)
+    assert second != first
+    assert attestor.hash_count == 2
+    with pytest.raises(ValueError, match="immutable input checksum changed"):
+        attestor.verify(artifact, first)
 
 
 def test_scoped_classification_requires_explicit_same_record_policy(

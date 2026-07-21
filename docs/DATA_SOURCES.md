@@ -712,7 +712,10 @@ Role:
 
 Source endpoint:
 
-- ESA Gaia Archive TAP (`gaiadr3.astrophysical_parameters`)
+- ESA Gaia Archive TAP (`gaiadr3.astrophysical_parameters` and
+  `gaiadr3.astrophysical_parameters_supp`)
+- official supplementary-table contract:
+  `https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_astrophysical_parameter_tables/ssec_dm_astrophysical_parameters_supp.html`
 
 July 17, 2026 utilization audit:
 
@@ -722,6 +725,14 @@ July 17, 2026 utilization audit:
 - at the current outer parallax boundary, official TAP count queries return
   3,428,436 rows with FLAME luminosity/radius, 1,136,048 with FLAME mass, and
   1,026,163 with FLAME age
+- E5 policy `2026-07-21.e5-selection.8` treats the supplementary table as
+  alternatives and fallback evidence, not as a second copy of the main AP
+  result. The main table remains authoritative for the publisher-selected
+  GSP-Phot library. Supplementary ANN atmosphere/alpha values require the
+  official best-quality `flags_gspspec_ann < 10000` criterion and rank behind
+  primary GSP-Spec; spectroscopic FLAME ranks behind primary photometric FLAME.
+  Library-specific GSP-Phot parameters, distances, and extinction remain
+  coherent evidence-only alternatives with explicit channel dispositions.
 - acquire a narrow pinned physical-parameter v2 extract and keep those modeled
   source values in ARM; do not silently promote them into CORE facts
 - full findings and the one-rebuild plan are in
