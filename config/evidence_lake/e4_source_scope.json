@@ -1,18 +1,12 @@
 {
   "schema_version": "spacegate.e4_source_scope.v1",
-  "scope_version": "2026-07-21.e4-source-scope.1",
+  "scope_version": "2026-07-21.e4-source-scope.2",
   "explicit_dispositions": {
     "gaia.dr3.gaia_source": {
       "disposition": "scientific_evidence_adapter_pending",
       "owner": "E4",
       "blocks_e4": true,
       "reason": "Primary DR3 inventory, astrometric solution, photometry, radial velocity, quality, and product-availability evidence still require a structured E4 adapter."
-    },
-    "gaia.dr3.variability": {
-      "disposition": "scientific_evidence_adapter_pending",
-      "owner": "E4",
-      "blocks_e4": true,
-      "reason": "Variability summaries and masked rotation-modulation vectors still require coherent typed E4 parameter-set materialization."
     },
     "gaia.dr3.dr2_neighbourhood": {
       "disposition": "identity_graph_only",

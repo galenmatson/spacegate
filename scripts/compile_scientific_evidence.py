@@ -19,6 +19,8 @@ from urllib.parse import unquote
 
 import duckdb
 
+from evidence_parameter_sets import materialize_coherent_parameter_set
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONTRACT = ROOT / "config" / "evidence_lake" / "e4_scientific_evidence.json"
@@ -50,6 +52,8 @@ DOMAIN_TABLES = {
     "photometry_extinction_evidence",
     "spectra_product_index",
     "variability_activity_rotation_evidence",
+    "variability_activity_rotation_parameter_sets",
+    "solar_system_object_parameter_sets",
     "relation_claim_evidence",
     "orbital_solution_evidence",
     "cluster_evidence",
@@ -76,6 +80,7 @@ TABLE_UNIQUE_KEYS = {
     "source_field_dispositions": [
         ("source_id", "release_id", "source_table", "source_field")
     ],
+    "coherent_parameter_set_schemas": [("parameter_schema_id",)],
     "object_binding_outcomes": [("binding_outcome_id",)],
     "identifier_claim_evidence": [("evidence_id",)],
     "identifier_normalization_rejections": [("rejection_id",)],
@@ -87,6 +92,8 @@ TABLE_UNIQUE_KEYS = {
     "photometry_extinction_evidence": [("evidence_id",)],
     "spectra_product_index": [("evidence_id",)],
     "variability_activity_rotation_evidence": [("evidence_id",)],
+    "variability_activity_rotation_parameter_sets": [("evidence_id",)],
+    "solar_system_object_parameter_sets": [("evidence_id",)],
     "relation_claim_evidence": [("evidence_id",)],
     "orbital_solution_evidence": [("evidence_id",)],
     "cluster_evidence": [("evidence_id",)],
@@ -111,6 +118,8 @@ EVIDENCE_REFERENCE_TABLES = {
     "astrometry_distance_evidence",
     "photometry_extinction_evidence",
     "variability_activity_rotation_evidence",
+    "variability_activity_rotation_parameter_sets",
+    "solar_system_object_parameter_sets",
     "relation_claim_evidence",
     "orbital_solution_evidence",
     "cluster_evidence",
@@ -351,6 +360,52 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 table.get("raw_artifact_name")
             ).strip():
                 errors.append(f"{source_id}.{table_name} has an empty raw artifact name")
+            coherent_set = table.get("coherent_parameter_set")
+            if coherent_set:
+                prefix = f"{source_id}.{table_name}.coherent_parameter_set"
+                for field in (
+                    "destination",
+                    "parameter_set_kind",
+                    "method",
+                    "normalization_version",
+                ):
+                    if not str(coherent_set.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                if coherent_set.get("destination") not in {
+                    "variability_activity_rotation_parameter_sets",
+                    "solar_system_object_parameter_sets",
+                }:
+                    errors.append(f"{prefix}.destination is unsupported")
+                if coherent_set.get("epoch_field") and coherent_set.get("epoch_raw"):
+                    errors.append(f"{prefix} cannot define both epoch_field and epoch_raw")
+                if coherent_set.get("reference_field") and coherent_set.get(
+                    "reference_raw"
+                ):
+                    errors.append(
+                        f"{prefix} cannot define both reference_field and reference_raw"
+                    )
+                expected_vectors = coherent_set.get("expected_masked_vector_count")
+                if expected_vectors is not None and (
+                    isinstance(expected_vectors, bool)
+                    or not isinstance(expected_vectors, int)
+                    or expected_vectors < 0
+                ):
+                    errors.append(
+                        f"{prefix}.expected_masked_vector_count must be a nonnegative integer"
+                    )
+                for index, rule in enumerate(
+                    coherent_set.get("masked_vector_rules") or []
+                ):
+                    rule_prefix = f"{prefix}.masked_vector_rules[{index}]"
+                    try:
+                        re.compile(str(rule.get("pattern") or ""))
+                    except re.error as error:
+                        errors.append(f"{rule_prefix}.pattern is invalid: {error}")
+                    for field in ("pattern", "length_field", "mask_token"):
+                        if not str(rule.get(field) or "").strip():
+                            errors.append(f"{rule_prefix}.{field} must be non-empty")
+                    if rule.get("value_type", "double") != "double":
+                        errors.append(f"{rule_prefix}.value_type is unsupported")
             row_selection = table.get("row_selection") or {}
             if row_selection.get("cache_selected_rows") not in {None, True, False}:
                 errors.append(
@@ -1499,6 +1554,43 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           reference_raw varchar,
           quality_json json,
           normalization_version varchar
+        );
+        create table coherent_parameter_set_schemas (
+          parameter_schema_id varchar not null,
+          source_id varchar not null,
+          release_id varchar not null,
+          source_table varchar not null,
+          destination varchar not null,
+          parameter_set_kind varchar not null,
+          schema_json json not null
+        );
+        create table variability_activity_rotation_parameter_sets (
+          evidence_id varchar not null,
+          parameter_schema_id varchar not null,
+          source_record_id varchar not null,
+          component_scope varchar,
+          parameter_set_kind varchar not null,
+          values_json json not null,
+          epoch_raw varchar,
+          method varchar not null,
+          model varchar,
+          reference_raw varchar,
+          quality_json json not null,
+          normalization_version varchar not null
+        );
+        create table solar_system_object_parameter_sets (
+          evidence_id varchar not null,
+          parameter_schema_id varchar not null,
+          source_record_id varchar not null,
+          component_scope varchar,
+          parameter_set_kind varchar not null,
+          values_json json not null,
+          epoch_raw varchar,
+          method varchar not null,
+          model varchar,
+          reference_raw varchar,
+          quality_json json not null,
+          normalization_version varchar not null
         );
         create table relation_claim_evidence (
           evidence_id varchar not null,
@@ -5255,6 +5347,40 @@ def materialize_source(
                         unit_normalizations=contract["unit_normalizations"],
                     )
                 )
+        coherent_set = table_contract.get("coherent_parameter_set")
+        coherent_destinations = {
+            "variability_activity_rotation_parameter_sets",
+            "solar_system_object_parameter_sets",
+        }
+        configured_coherent_destination = (
+            str(coherent_set["destination"]) if coherent_set else None
+        )
+        populated_coherent_destinations = {
+            destination
+            for destination in coherent_destinations
+            if fields_by_destination.get(destination)
+        }
+        if coherent_set or populated_coherent_destinations:
+            if not coherent_set or populated_coherent_destinations != {
+                configured_coherent_destination
+            }:
+                raise ValueError(
+                    f"coherent parameter-set profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_coherent_parameter_set(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    source_table=table_name,
+                    path=evidence_path,
+                    destination_fields=fields_by_destination[
+                        configured_coherent_destination
+                    ],
+                    available_fields=set(columns),
+                    config=coherent_set,
+                )
+            )
         classification_fields = fields_by_destination.get(
             "stellar_classification_evidence"
         ) or []

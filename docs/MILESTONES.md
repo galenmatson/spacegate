@@ -1756,13 +1756,12 @@ Current status (July 19, 2026, in progress):
   audited indexless contract before additional large source families land
 - the E4 source-scope ledger accounts all 44 registry releases without silently
   treating identity-only, superseded, disabled, or transitional inputs as
-  scientific adapters. Thirty adapters exist; five blocking adapter families
-  remain explicit: Gaia source, Gaia variability, VSX, and separate natural and
+  scientific adapters. Thirty-one adapters exist; four blocking adapter
+  families remain explicit: Gaia source, VSX, and separate natural and
   artificial JPL Horizons evidence
-- the VSX typed-source audit accounts all 10,304,568 object rows and confirms
-  unique OIDs, valid coordinates/status/flag domains, positive periods, and two
-  expected public-name collisions. It intentionally remains `incomplete`
-  because the current acquisition omits the source-documented `refs.dat`
+- the current VSX preview accounts all 10,304,607 object rows, 715 ReadMe lines,
+  and 830,415 bibliography links. Source and reproduction audits pass; checked-
+  in registry cutover and E4 domain/citation materialization remain open
   object-to-bibcode table; acquisition, typing, citation linkage, and E4
   materialization remain required
 - the VSX collector now declares the official CDS `refs.dat.gz` endpoint for
@@ -1807,7 +1806,11 @@ Current status (July 19, 2026, in progress):
 - the checked-in Gaia variability audit passes 592,197 rows and every one of 52
   rotation-vector fields with exact length/mask semantics and an exhaustive
   source-column role ledger, establishing coherent per-source variability and
-  rotation parameter sets for E4
+  rotation parameter sets for E4. Compiler/contract v72/v73 materializes all
+  592,197 rows through four ordered schemas with 268/268 field occurrences and
+  592,197 citations accounted; artifact/source audits and clean reproduction
+  pass logical hash
+  `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

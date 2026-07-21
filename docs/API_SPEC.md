@@ -17,7 +17,7 @@ Note: `/api/v1/auth/*` and `/api/v1/admin/*` are deprecated compatibility routes
 - alias examples now reflect authority/cross-catalog alias ingestion (not AT-HYG-origin placeholders).
 - search/detail field semantics remain backward-compatible for the public UI and admin tooling.
 
-## Evidence Lake v2 Staging Status (2026-07-18)
+## Evidence Lake v2 Staging Status (2026-07-21)
 
 M8.3c-E2's release-scoped identity/scope graph is an internal, unserved compiler
 artifact. It does not change any `/api/v1` or `/api/v2` response, public search
@@ -25,6 +25,11 @@ binding, canonical count, or identifier contract. Public selected-fact and
 evidence APIs remain gated on E4/E5 contracts and the E6 shadow scientific A/B
 review; the later evidence inspector must not expose raw graph candidates as
 accepted canonical facts.
+
+E4 coherent parameter-set artifacts, including Gaia variability and rotation
+solutions, remain internal and unserved. Their schema-backed positional values
+must pass E5 selection and E6 scientific A/B review before any public API field
+or endpoint is introduced.
 
 ## Common Types
 

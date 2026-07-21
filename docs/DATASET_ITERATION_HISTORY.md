@@ -2034,9 +2034,11 @@ Representative commits:
   identity references rather than scientific authorities; and source-native
   Cantat-Gaudin DR2 cluster evidence is retained while Hunt/Reffert supplies the
   active current E4 cluster authority.
-- The audit reports `in_progress` rather than a false pass while five adapter
-  requirements remain: Gaia source, Gaia variability/rotation, VSX, natural JPL
-  Horizons, and separately scoped artificial-object Horizons trajectories.
+- At that checkpoint the audit reported `in_progress` rather than a false pass
+  while five adapter requirements remained. After the Gaia variability adapter,
+  scope version 2 accounts 31 adapters and 13 explicit boundary dispositions;
+  the four remaining blockers are Gaia source, VSX, natural JPL Horizons, and
+  separately scoped artificial-object Horizons trajectories.
 
 ### 68) VSX Identity and Bibliography Boundary Audit
 
@@ -2176,6 +2178,18 @@ Representative commits:
   identity, membership flag, cardinality, scalar solution field, or masked
   vector. This makes field disposition inspectable before the E4 adapter and
   prevents silent omission during parameter-set materialization.
+- Compiler/contract v72/v73 adds a reusable coherent-parameter schema contract.
+  Ordered value arrays avoid repeating field names per source row; each schema
+  retains field order, source name, datatype, unit, UCD, description, and any
+  mask/cardinality transform. Generic verification fails on missing schemas or
+  value/schema arity mismatches.
+- Gaia variability build `9e934a3823f3cbcd879b3359` materializes 592,197
+  coherent parameter sets, four schemas, 592,197 Gaia DR3 claims, and 592,197
+  citation links with all 268 field occurrences materialized. Rotation vectors
+  retain whole-vector absence separately from positional source masks. Source
+  and artifact audits pass, and clean reproduction matches logical hash
+  `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`
+  with no differing sections and removes its scratch tree.
 
 ## Recurrent Defect Classes and Mitigations
 

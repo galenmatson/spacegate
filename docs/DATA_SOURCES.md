@@ -125,6 +125,14 @@ produce 30 verified typed tables with 83,908,762 rows and 1,320 column
 occurrences. Each release also passes an independent clean raw-to-typed
 reproduction.
 
+E4 compiler/contract v72/v73 materializes all 592,197 bounded Gaia variability
+and rotation rows through four ordered coherent schemas. The source-native
+Parquet retains exact vector strings; E4 normalizes the 52 rotation-vector
+fields to nullable numeric arrays while preserving whole-vector absence and
+positional source masks as distinct states. All 268 field occurrences and
+592,197 citation links are accounted, and clean reproduction matches logical
+hash `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`.
+
 The separate Bailer-Jones envelope snapshot contains 17,310,560 rows and all
 10 source fields; typed snapshot `5a60000592215924b3305095` passes verification
 and clean reproduction. VizieR names its lower and upper percentile columns

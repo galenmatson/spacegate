@@ -978,15 +978,22 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   The copied GSP-Phot projection defers to the richer release-native AP source.
   Signed `*_over_error` ratios remain distinct from nonnegative uncertainty
   magnitudes.
-- The Gaia variability pre-adapter audit is now reproducible from a checked-in
+- The Gaia variability source audit is reproducible from a checked-in
   script. It passes 592,197 rows and all 52 rotation-vector fields with zero
   source-ID, schema, token, length, period-error, or false-alarm-probability
   defect. Its 99 wholly absent vectors remain distinct from 2,533,499 valid
   `--` element masks. The report also exhaustively partitions every source
   column into identity, membership-flag, cardinality, scalar-solution, or
-  masked-vector roles. E4 will preserve variability summaries and rotation
-  solutions as coherent per-source parameter sets rather than independent
-  scalar selections.
+  masked-vector roles. Compiler/contract v72/v73 now materializes all 592,197
+  source rows as coherent per-source parameter sets backed by four ordered,
+  typed schemas. Rotation vectors become nullable `DOUBLE[]` values: wholly
+  absent vectors remain null while the 2,533,499 valid source masks remain
+  positional null elements. All 268 field occurrences, 592,197 Gaia DR3 claims,
+  and 592,197 citation links are accounted. Build
+  `9e934a3823f3cbcd879b3359` passes source-specific and generic artifact audits;
+  clean reproduction matches logical hash
+  `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`
+  with no differing sections and removes its scratch tree.
 - JPL Horizons collection now has a shared immutable snapshot writer. It keeps
   byte-identical API response bodies, exact query parameters/URLs, checksums,
   sizes, retrieval time, reviewed operator-target seed and collector checksum,

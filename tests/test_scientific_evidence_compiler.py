@@ -101,6 +101,20 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert "corr_vec" in nss_orbit["quality_fields"]
     assert len(nss_orbit["parameter_fields"]) == 56
     assert len(nss_orbit["quality_fields"]) == 18
+    variability = contract["source_adapters"]["gaia.dr3.variability"]
+    assert set(variability["tables"]) == {
+        "gaia_dr3_variability_summary_v2",
+        "gaia_dr3_rotation_modulation_v2",
+        "gaia_dr3_variability_summary_uncertain_distance_supplement_v1",
+        "gaia_dr3_rotation_modulation_uncertain_distance_supplement_v1",
+    }
+    rotation_set = variability["tables"]["gaia_dr3_rotation_modulation_v2"][
+        "coherent_parameter_set"
+    ]
+    assert rotation_set["destination"] == (
+        "variability_activity_rotation_parameter_sets"
+    )
+    assert rotation_set["expected_masked_vector_count"] == 52
     external = contract["source_adapters"]["gaia.dr3.external_crossmatches"]
     assert len(external["tables"]) == 10
     for table_name, table in external["tables"].items():
@@ -1486,6 +1500,25 @@ def test_artifact_audit_rejects_invalid_relation_probability() -> None:
         report = artifact_audit.audit_evidence(con)
     assert report["status"] == "fail"
     assert report["checks"]["strict_probabilities_outside_unit_interval"] == 1
+
+
+def test_artifact_audit_rejects_coherent_parameter_value_arity_mismatch() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into coherent_parameter_set_schemas values "
+            "('schema','test','r1','table',"
+            "'variability_activity_rotation_parameter_sets','kind',"
+            "'{\"fields\":[{\"position\":0},{\"position\":1}]}')"
+        )
+        con.execute(
+            "insert into variability_activity_rotation_parameter_sets values "
+            "('evidence','schema','record',null,'kind','[1]',null,'method',"
+            "null,null,'{}','v1')"
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["status"] == "fail"
+    assert report["checks"]["coherent_parameter_set_value_arity_mismatch"] == 1
 
 
 def test_artifact_audit_rejects_empty_or_orphaned_orbital_solutions() -> None:

@@ -57,6 +57,14 @@ Evidence Lake v2 staging rule:
   in E1 typed storage and explicit field accounting but are not redundantly
   copied into E4 source context merely because their bookkeeping destination is
   `source_records`.
+- Coherent high-dimensional source solutions use a normalized two-table
+  contract: `coherent_parameter_set_schemas` stores one ordered field schema,
+  while the domain parameter-set table stores positional typed values and exact
+  source-record lineage. The schema retains datatype, unit, UCD, description,
+  and transformation semantics. Gaia masked vectors normalize to nullable
+  numeric arrays, preserving a null whole vector separately from null masked
+  elements. Artifact verification requires schema/domain agreement and exact
+  value/schema arity.
 - Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5` validates the
   bounded citation and identity contracts at scale. Its 32-bucket astrometry-
   citation expansion preserves the same exhaustive evidence relation under a

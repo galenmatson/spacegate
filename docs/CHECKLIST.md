@@ -1326,9 +1326,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 source-scope accounting: classify all 44 registered releases as an E4
   adapter or an explicit E2/E3/E6 boundary disposition; fail on unaccounted,
   stale, conflicting, or unregistered entries
-- [ ] E4 remaining registered adapter tail: materialize Gaia source, coherent
-  Gaia variability/rotation, VSX, natural JPL Horizons, and separately scoped
-  artificial JPL Horizons evidence
+- [ ] E4 remaining registered adapter tail: materialize Gaia source, VSX,
+  natural JPL Horizons, and separately scoped artificial JPL Horizons evidence
 - [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
@@ -1338,6 +1337,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   rows and 52 masked vector fields, distinguishing whole-vector absence from
   valid element masks, exhaustively partition every source column by role, and
   record the coherent parameter-set decision
+- [x] E4 Gaia variability checkpoint: materialize all 592,197 source rows and
+  268 field occurrences through four ordered coherent schemas; preserve whole-
+  vector absence versus 52 source-masked nullable vector fields, pass generic
+  and source audits, and cleanly reproduce logical hash
+  `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`
 - [x] E1 JPL collector foundation: preserve exact Horizons response bodies,
   queries, checksums, reviewed target seed, collector identity, and parsed CSV
   in immutable atomic snapshots; pass isolated artificial-source raw/typed

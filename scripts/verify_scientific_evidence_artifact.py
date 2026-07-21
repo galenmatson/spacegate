@@ -245,6 +245,30 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "left join stellar_parameter_evidence e using (parameter_set_id) "
             "where e.parameter_set_id is null",
         ),
+        "coherent_parameter_sets_without_matching_schema": scalar_count(
+            con,
+            "with parameter_sets as ("
+            "select 'variability_activity_rotation_parameter_sets' destination, "
+            "parameter_schema_id from variability_activity_rotation_parameter_sets "
+            "union all select 'solar_system_object_parameter_sets', "
+            "parameter_schema_id from solar_system_object_parameter_sets) "
+            "select count(*) from parameter_sets p "
+            "left join coherent_parameter_set_schemas s using(parameter_schema_id) "
+            "where s.parameter_schema_id is null or s.destination<>p.destination",
+        ),
+        "coherent_parameter_set_value_arity_mismatch": scalar_count(
+            con,
+            "with parameter_sets as ("
+            "select parameter_schema_id,values_json "
+            "from variability_activity_rotation_parameter_sets "
+            "union all select parameter_schema_id,values_json "
+            "from solar_system_object_parameter_sets) "
+            "select count(*) from parameter_sets p "
+            "join coherent_parameter_set_schemas s using(parameter_schema_id) "
+            "where json_type(p.values_json)<>'ARRAY' or "
+            "json_array_length(p.values_json)<>"
+            "json_array_length(json_extract(s.schema_json, '$.fields'))",
+        ),
     }
     uncertainty_tables = [
         "stellar_parameter_evidence",

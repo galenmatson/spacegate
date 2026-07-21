@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-21.e4-foundation.72",
-  "compiler_version": "scientific_evidence_compiler_v71",
+  "contract_version": "2026-07-21.e4-foundation.73",
+  "compiler_version": "scientific_evidence_compiler_v72",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -108,6 +108,8 @@
     "photometry_extinction_evidence",
     "spectra_product_index",
     "variability_activity_rotation_evidence",
+    "variability_activity_rotation_parameter_sets",
+    "solar_system_object_parameter_sets",
     "relation_claim_evidence",
     "orbital_solution_evidence",
     "cluster_evidence",
@@ -1504,6 +1506,26 @@
       {"pattern": "^(gaia_g_mean_mag|gaia_bp_mean_mag|gaia_rp_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Gaia photometry remains in E1; release-native Gaia owns competing E4 evidence"},
       {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST medium-resolution observation, band, coadd, SNR, fiber, moon, epoch, and reduction context retained source-natively"}
     ],
+    "gaia_variability_coherent_solution": [
+      {
+        "pattern": "^source_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Gaia DR3 source identity"
+      },
+      {
+        "pattern": "^solution_id$",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "Gaia DR3 variability processing-solution lineage"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_parameter_sets",
+        "reason": "coherent Gaia variability summary or rotation-modulation solution with source-native covariance and mask semantics"
+      }
+    ],
     "bailer_jones_edr3_distance": [
       {
         "pattern": "^Source$",
@@ -2547,6 +2569,51 @@
         "gaia_dr3_hipparcos2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_hipparcos2_best_neighbour_v1"},
         "gaia_dr3_tycho2_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_tycho2_best_neighbour_v1"},
         "gaia_dr3_ravedr6_best_neighbour_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_ravedr6_best_neighbour_v1"}
+      }
+    },
+    "gaia.dr3.variability": {
+      "adapter_version": "gaia_dr3_variability_scientific_evidence_v1",
+      "tables": {
+        "gaia_dr3_variability_summary_v2": {
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
+          "field_profile": "gaia_variability_coherent_solution",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "coherent_parameter_set": {
+            "destination": "variability_activity_rotation_parameter_sets",
+            "parameter_set_kind": "gaia_dr3_variability_summary",
+            "component_scope": "gaia_source",
+            "expected_masked_vector_count": 0,
+            "method": "gaia_dr3_variability_summary_pipeline",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_variability_tables/ssec_dm_vari_summary.html",
+            "normalization_version": "gaia_dr3_variability_source_native_v1"
+          }
+        },
+        "gaia_dr3_rotation_modulation_v2": {
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
+          "field_profile": "gaia_variability_coherent_solution",
+          "identifier_claims": {
+            "source_id": {"namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "coherent_parameter_set": {
+            "destination": "variability_activity_rotation_parameter_sets",
+            "parameter_set_kind": "gaia_dr3_rotation_modulation_solution",
+            "component_scope": "gaia_source",
+            "masked_vector_rules": [
+              {"pattern": "^outliers_time$", "length_field": "num_outliers", "mask_token": "--", "value_type": "double"},
+              {"pattern": "^segments_.*$", "length_field": "num_segments", "mask_token": "--", "value_type": "double"}
+            ],
+            "expected_masked_vector_count": 52,
+            "method": "gaia_dr3_rotation_modulation_pipeline",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_variability_tables/ssec_dm_vari_rotation_modulation.html",
+            "normalization_version": "gaia_dr3_rotation_modulation_source_native_v1"
+          }
+        },
+        "gaia_dr3_variability_summary_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_variability_summary_v2"},
+        "gaia_dr3_rotation_modulation_uncertain_distance_supplement_v1": {"table_contract_ref": "gaia_dr3_rotation_modulation_v2"}
       }
     },
     "gaia.dr3.astrophysical_parameters": {
