@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-21.e5-policy-batches.4",
-  "disposition_version": "2026-07-21.e5-source-dispositions.6",
+  "batch_version": "2026-07-21.e5-policy-batches.5",
+  "disposition_version": "2026-07-21.e5-source-dispositions.7",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -25,10 +25,11 @@
     },
     {
       "batch_id": "compact_objects",
-      "status": "planned",
+      "status": "complete",
       "output_contract": "compact_object_projection",
       "depends_on": ["identity_and_naming"],
-      "sources": ["compact.atnf", "compact.mcgill_magnetar"]
+      "sources": [],
+      "completed_sources": ["compact.atnf", "compact.mcgill_magnetar"]
     },
     {
       "batch_id": "identity_and_naming",

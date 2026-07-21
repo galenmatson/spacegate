@@ -292,6 +292,12 @@ Evidence Lake v2 staging rule:
   predicate, method, reference, parameter JSON, and quality JSON. McGill
   timing, X-ray, distance, position, and association/activity records use this
   contract rather than one incompatible field-wise composite.
+- Compact evidence selection additionally requires a distinct compatible
+  canonical compact-object leaf. Exact designation/OID/Gaia traversal alone is
+  insufficient when the target carries ordinary stellar evidence consistent
+  with an optical companion. The E5 compact audit therefore quarantines ATNF
+  J0437-4715 instead of copying pulsar facts onto its current K-spectrum Gaia
+  leaf; ATNF and McGill contexts remain evidence until E6 repairs identity.
 - `relation_claim_evidence` stores `left_component_scope` and
   `right_component_scope` explicitly. Audits resolve each endpoint through an
   identifier claim and its matching binding scope; they do not assume all

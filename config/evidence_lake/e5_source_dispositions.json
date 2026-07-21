@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.6",
+  "disposition_version": "2026-07-21.e5-source-dispositions.7",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -15,16 +15,16 @@
       "reason": "Cluster physical solutions and probability-bearing memberships need separate authority, probability, and non-containment selection policies."
     },
     "compact.atnf": {
-      "disposition": "deferred_pending_applicability_policy",
-      "owner": "E5",
-      "blocks_e5": true,
-      "reason": "Pulsar timing, spin, position, association, and classification contexts require compact-object applicability and coherent-context selection."
+      "disposition": "identity_scope_evidence_only",
+      "owner": "E5/E6",
+      "blocks_e5": false,
+      "reason": "The reproducible compact-scope audit finds no distinct safe canonical pulsar leaf. Its only exact SIMBAD/Gaia route, PSR J0437-4715, reaches a lone K-spectrum Gaia leaf with a legacy pulsar type and is quarantined as a pulsar/optical-companion scope conflict. Preserve every ATNF parameter, glitch, reference, and alias until E6 creates or binds distinct compact-object identity without coordinate guessing or companion leakage."
     },
     "compact.mcgill_magnetar": {
-      "disposition": "deferred_pending_applicability_policy",
-      "owner": "E5",
-      "blocks_e5": true,
-      "reason": "Distinct timing, X-ray, distance, association, and activity contexts require compact-object quantity-specific applicability policies."
+      "disposition": "identity_scope_evidence_only",
+      "owner": "E5/E6",
+      "blocks_e5": false,
+      "reason": "The reproducible compact-scope audit finds no McGill name bound to a distinct current canonical magnetar leaf. Preserve all coherent timing, X-ray, distance, position, association, activity, and bibliography contexts until E6 adds or binds compact-object identity inside the ingestion envelope."
     },
     "exoplanet_lifecycle.exoplanet_eu": {
       "disposition": "deferred_pending_projection_policy",

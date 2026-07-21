@@ -1478,6 +1478,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   multi-identifier consensus, identifier-claim selection, and duplicate-target
   ambiguity contracts; select 321,584 SIMBAD spectral classifications and 415
   WGSN proper names while deferring the Izar/Pulcherrima component collision
+- [x] E5 compact-object scope checkpoint: audit all ATNF/McGill names through
+  exact SIMBAD/Gaia identity, quarantine PSR J0437-4715 rather than leak pulsar
+  facts onto its lone K-spectrum Gaia leaf, and retain both sources as complete
+  evidence until distinct compact-object identity exists
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence
@@ -1492,6 +1496,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports
+- [ ] E6: create or bind permanent non-Gaia compact-object identities within
+  the uncertainty-aware ingestion envelope; keep pulsars/magnetars distinct
+  from optical companions, then rerun the compact-scope audit and add typed
+  quantity policies only for safe leaves
 - [ ] E6: review and account for every scientific delta using reusable policy;
   preserve canonical planet/status integrity and prohibit named-object
   transforms used only to satisfy goldens

@@ -1421,6 +1421,20 @@ SIMBAD database takes 24.8 seconds from page cache, while release-bridge binding
 takes about 4.8 seconds. Machine evidence is in
 `e5_identity_selection_verification.json`.
 
+The compact-object batch closes with an explicit scope disposition rather than
+an unsafe low-yield selection. `scripts/audit_compact_selection_scope.py`
+crosses 4,482 distinct ATNF names and 55 distinct McGill name claims through
+exact SIMBAD designation/OID/Gaia evidence into the current identity graph. It
+finds one canonical route: ATNF J0437-4715 reaches Gaia DR3
+4789864076732331648, currently a lone leaf with ordinary `K` spectral evidence
+and a legacy `pulsar` object type. That is a pulsar/optical-companion scope
+conflict, not permission to copy 91,858 ATNF parameter/glitch contexts onto the
+Gaia leaf. McGill has no current canonical magnetar route. Both releases remain
+complete evidence-only inputs until E6 creates or binds distinct permanent
+compact-object identities inside the ingestion envelope. The machine audit is
+`e5_compact_selection_scope_audit.json`; it fails when a safe compact leaf
+appears without a corresponding E5 quantity policy.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

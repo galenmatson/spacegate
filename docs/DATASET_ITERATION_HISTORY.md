@@ -2694,6 +2694,27 @@ Representative commits:
   46-GiB SIMBAD database takes 24.8 seconds and bridge binding about 4.8 seconds,
   so compatible identity policy work should be batched within one invocation.
 
+### 91) Compact Evidence Does Not Override Missing Object Identity
+
+- `scripts/audit_compact_selection_scope.py` performs exact, release-scoped
+  ATNF/McGill designation to SIMBAD OID to Gaia DR3 to canonical traversal. It
+  finds one ATNF route among 4,482 distinct pulsar names and no McGill route
+  among 55 distinct name claims.
+- The ATNF route is J0437-4715 to Gaia DR3 4789864076732331648. The current
+  canonical target is a single leaf with ordinary K-spectrum evidence and a
+  legacy pulsar type, so the audit quarantines it as unresolved pulsar/optical-
+  companion scope. Timing or spin evidence is not copied onto that leaf merely
+  to produce a selected fact.
+- All 91,858 ATNF parameter/glitch contexts and 139 McGill timing, X-ray,
+  distance, position, and context sets remain inspectable evidence. E6 owns
+  permanent non-Gaia compact-object identity within the ingestion envelope and
+  must rerun this audit before compact quantities become selectable.
+- The unrestricted diagnostic completed in 2.5 wall seconds but consumed 53
+  CPU-seconds and about 8.3 GiB RSS. The checked-in four-thread/8-GB profile
+  completes in about 6 seconds and halves CPU consumption; pushing the compact
+  name filter into the SIMBAD scan did not materially reduce mapped database
+  memory, so that attempted optimization is recorded rather than overstated.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

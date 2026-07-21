@@ -2079,6 +2079,17 @@ Foundation checkpoint (July 21, 2026):
   Each pass takes about 40 seconds: cold byte verification of the approximately
   46-GiB SIMBAD evidence database takes 24.8 seconds from cache, while the
   release bridge itself takes 4.7-4.8 seconds
+- the compact-object batch closes through a reproducible scope audit, not a
+  name or coordinate guess. Exact ATNF/McGill designation-to-SIMBAD-OID-to-Gaia
+  traversal finds no safe current compact leaf. The sole ATNF route is
+  J0437-4715 to Gaia DR3 4789864076732331648, a lone canonical leaf carrying
+  ordinary K-spectrum evidence and a legacy pulsar label; it is quarantined as
+  unresolved pulsar/optical-companion scope rather than receiving ATNF facts
+- all 91,858 ATNF compact contexts and 139 McGill coherent contexts remain
+  inspectable evidence. E6 must create or bind permanent non-Gaia compact
+  identities inside the ingestion envelope, keep optical companions separate,
+  rerun the audit, and only then enable compact timing/spin/X-ray/activity
+  selection for safe leaves
 
 Deliverables:
 
