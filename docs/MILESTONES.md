@@ -1774,6 +1774,10 @@ Current status (July 19, 2026, in progress):
   are immutable and atomically manifested. An isolated 11-target artificial
   run passes two-artifact raw/typed accounting and all response checksum/size
   checks; Photon registry cutover and E4 materialization remain pending
+- the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
+  disjoint hard-parallax and uncertainty-envelope branches, with identical
+  complete 152-field schemas, unique identities, correct boundary polarity,
+  and explicit RV/XP/epoch-photometry/RVS product coverage for E4
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

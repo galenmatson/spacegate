@@ -943,6 +943,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   available CDS artifact is a clean but historical partial relation (830,415
   unique OID/bibcode links, 586,530 OIDs, maximum OID 683,950, server-modified
   in 2022), so coverage gaps against the 2026 object table will remain explicit.
+- The source-native Gaia DR3 backbone now passes its independent pre-adapter
+  audit. Its 31,987,126-row hard-parallax branch and 189,145-row uncertainty
+  supplement have identical complete 152-field schemas, unique and disjoint
+  Gaia DR3 identities, correct envelope polarity, one solution release and
+  J2016.0 epoch, and valid coordinate, uncertainty, correlation, and probability
+  domains. The audit records 2,929,216 radial-velocity rows, 5,778,039
+  XP-continuous product indexes, 548,038 epoch-photometry indexes, and 206,781
+  RVS product indexes for E4 materialization. Signed `*_over_error` ratios remain
+  distinct from nonnegative uncertainty magnitudes.
 - JPL Horizons collection now has a shared immutable snapshot writer. It keeps
   byte-identical API response bodies, exact query parameters/URLs, checksums,
   sizes, retrieval time, reviewed operator-target seed and collector checksum,

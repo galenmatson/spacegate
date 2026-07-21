@@ -2077,6 +2077,25 @@ Representative commits:
   passes all checks. Negative semimajor axes remain valid evidence for
   hyperbolic escape trajectories rather than being rejected as invalid orbits.
 
+### 70) Gaia DR3 Backbone Envelope Audit
+
+- `scripts/audit_gaia_source_typed_source.py` independently audits the complete
+  source-native Gaia DR3 backbone before E4 materialization. The accepted typed
+  snapshot has identical 152-field schemas in its 31,987,126-row hard-parallax
+  branch and 189,145-row uncertainty supplement, one unique positive Gaia DR3
+  source ID per row, the expected J2016.0 epoch and solution ID, valid
+  coordinates/correlations/probabilities/errors, and no identity overlap or
+  parallax-boundary violation between branches.
+- The source contains substantial public-feature evidence that the E4 adapter
+  must retain: 2,929,216 radial-velocity rows, 5,778,039 XP-continuous product
+  indexes, 548,038 epoch-photometry indexes, 206,781 RVS product indexes, and
+  6,955,056 rows with the `gaia_source` GSP-Phot projection. The projected AP
+  columns must be accounted against the richer AP source without silently
+  becoming an independent competing parameter set.
+- Gaia `*_over_error` fields are signed signal-to-noise ratios, not uncertainty
+  magnitudes. Their negative values are valid source evidence and are excluded
+  from the audit's nonnegative-error rule.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

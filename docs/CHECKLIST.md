@@ -1326,6 +1326,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E4 remaining registered adapter tail: materialize Gaia source, coherent
   Gaia variability/rotation, VSX, natural JPL Horizons, and separately scoped
   artificial JPL Horizons evidence
+- [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
+  identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
+  envelope polarity, epochs, solution release, and numeric validity domains;
+  report product-index and radial-velocity coverage
 - [x] E1 JPL collector foundation: preserve exact Horizons response bodies,
   queries, checksums, reviewed target seed, collector identity, and parsed CSV
   in immutable atomic snapshots; pass isolated artificial-source raw/typed

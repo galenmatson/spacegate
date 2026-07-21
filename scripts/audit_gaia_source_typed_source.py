@@ -189,13 +189,20 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
         hard_path = typed_root / str(tables[HARD_TABLE]["parquet_path"])
         supplement_path = typed_root / str(tables[SUPPLEMENT_TABLE]["parquet_path"])
         fields = [field for field, _ in schemas[HARD_TABLE]]
-        error_fields = sorted(field for field in fields if field.endswith("_error"))
+        error_fields = sorted(
+            field
+            for field in fields
+            if field.endswith("_error") and not field.endswith("_over_error")
+        )
         correlation_fields = sorted(field for field in fields if field.endswith("_corr"))
         probability_fields = sorted(
             field for field in fields if field.startswith("classprob_")
         )
         con = duckdb.connect()
         try:
+            con.execute("set threads=4")
+            con.execute("set memory_limit='16GB'")
+            con.execute("set preserve_insertion_order=false")
             hard = table_summary(
                 con,
                 hard_path,
