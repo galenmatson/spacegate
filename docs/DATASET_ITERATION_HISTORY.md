@@ -2715,6 +2715,21 @@ Representative commits:
   name filter into the SIMBAD scan did not materially reduce mapped database
   memory, so that attempted optimization is recorded rather than overstated.
 
+### 92) Accepted-Binding Materialization Is Not a Gaia Build Shortcut
+
+- A focused full-scale optimization run materialized the 5,866,595 accepted
+  Gaia bindings once and removed the unused source-context join before direct
+  fact expansion. Artifact `887e762a67ea0b432c49bdd5` contains the expected
+  89,068,940 facts and 23,466,380 decisions and passes the independent audit.
+- Candidate insertion nevertheless regressed from the measured 540.0-second
+  baseline to 661.5 seconds; binding increased from 44.0 to 48.0 seconds. The
+  15:45 run peaked at about 36.7 GiB RSS and 143.5 GiB spill allocation.
+- The attempted compiler change was removed rather than rationalized into
+  production. Machine timing, performance analysis, compile, and artifact-audit
+  reports remain under `reports/evidence_lake_v2`. The analyzer now directs the
+  next experiment toward direct fact encoding and duplicate DuckDB/Parquet
+  durability instead of another accepted-binding cache.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

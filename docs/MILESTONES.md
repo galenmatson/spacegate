@@ -1987,6 +1987,12 @@ Foundation checkpoint (July 21, 2026):
   artifact hashing from cached verification and scientific compilation, ranks
   wall/CPU/I/O/memory/spill costs, compares supported Photon execution profiles,
   and records before/after evidence for each accepted optimization
+- focused Gaia artifact `887e762a67ea0b432c49bdd5` measures and rejects a
+  one-time accepted-binding cache. It passes the independent audit with exactly
+  89,068,940 facts and 23,466,380 decisions, but direct insertion regresses from
+  540.0 to 661.5 seconds and binding rises from 44.0 to 48.0 seconds. The cache
+  code is not retained; the next ranked experiment targets direct encoding and
+  duplicate DuckDB/Parquet durability
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

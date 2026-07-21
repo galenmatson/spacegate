@@ -134,7 +134,7 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
                 "target": "gaia_source_direct_fact_materialization",
                 "measured_wall_seconds": gaia_insert["wall_seconds"],
                 "measured_wall_percent": gaia_insert["wall_percent"],
-                "next_experiment": "Profile a representative bounded run, then compare source-record batching and one-time accepted-binding materialization.",
+                "next_experiment": "Profile direct fact encoding and compare a Parquet-first or single-durable-representation path; one-time accepted-binding materialization was measured and rejected after increasing this phase from 540.0 to 661.5 seconds.",
                 "constraint": "Fact identity, exact binding lineage, row counts, and deterministic partition hashes must remain unchanged.",
             }
         )

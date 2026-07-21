@@ -69,4 +69,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
     assert report["optimization_candidates"][0]["target"] == (
         "gaia_source_direct_fact_materialization"
     )
+    assert "measured and rejected" in report["optimization_candidates"][0][
+        "next_experiment"
+    ]
     assert report["peak_spill_allocated_bytes"] == 300

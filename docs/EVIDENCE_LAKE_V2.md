@@ -1308,6 +1308,20 @@ It reduced peak spill from 150.5 to 124.5 GiB. Extra resources are therefore an
 operational option for isolated builds, not a substitute for profiling Gaia
 direct fact materialization.
 
+The first bounded Gaia optimization experiment tested one-time materialization
+of the 5,866,595 accepted bindings plus removal of an unused source-context join
+before expanding 89,068,940 direct facts. Focused artifact
+`887e762a67ea0b432c49bdd5` produced the expected 23,466,380 decisions and
+89,068,940 facts and passed the independent audit, but candidate insertion took
+661.5 seconds versus the 540.0-second full-build baseline. Binding also rose
+from 44.0 to 48.0 seconds. The compiler change was therefore removed. The
+machine reports `e5_gaia_binding_cache_compile_timing.json`,
+`e5_gaia_binding_cache_performance_analysis.json`, and
+`e5_gaia_binding_cache_artifact_audit.json` preserve the rejected experiment.
+The next experiment targets direct fact encoding and the cost of retaining both
+the large DuckDB table and deterministic per-quantity Parquet projection, not
+another accepted-binding cache.
+
 Post-checkpoint retention reclaimed 169,680,891,904 allocated bytes from eleven
 explicit scratch diagnostics and three historical E5 artifacts that a current,
 schema-aware audit independently rejected for incomplete missing-binding outcome
