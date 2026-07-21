@@ -91,7 +91,10 @@ Evidence Lake v2 staging rule:
   tables require a unique best-priority exact name match and a unique
   WDS/period-compatible MSC relation before component facts become eligible.
   Integrated photometry and metallicity remain system scoped. The projection
-  is an E6 compiler input, not an independently served or canonical database.
+  also binds SB9 magnitudes, classifications, and spectroscopic orbits only
+  through a unique exact MSC `SB9_<sequence>` reference with accepted
+  endpoints. It is an E6 compiler input, not an independently served or
+  canonical database.
 - `evidence_object_bindings` contains exactly one outcome per eligible evidence
   subject. `binding_subject_kind` and `binding_subject_id` distinguish an
   unscoped source record, classification evidence row, or scoped parameter set;

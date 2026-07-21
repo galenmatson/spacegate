@@ -866,7 +866,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `40f3215ac0fed37a9ece1533` accounts all 374
+- E5 component-scope artifact `1dddf975f24d9bba9590d046` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -920,7 +920,7 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `40f3215ac0fed37a9ece1533` now accounts 6,936 WDS systems, 31,347 source
+  `1dddf975f24d9bba9590d046` now accounts 6,936 WDS systems, 31,347 source
   component identities, and 15,748 relations. It anchors 24,000 components and
   accepts 12,052 two-endpoint relation-evidence rows while retaining 7,347
   missing components, 3,693 unresolved relations, and three invalid source
@@ -1178,6 +1178,11 @@ SB9 policy:
   back to name-only or coordinate-only component assignment
 - DEBCat component evidence uses a separate unique canonical-system + period
   match and the same endpoint-existence gates
+- E5 artifact `1dddf975f24d9bba9590d046` applies the SB9 rule to all 4,079
+  catalog relations. It accepts 790 unique references with two resolved MSC
+  endpoints, retains 3,104 missing references, eight ambiguous references, and
+  177 unresolved referenced relations, and makes 874 component magnitudes, 940
+  classifications, and 1,052 orbit solutions eligible for global selection
 
 ## Current Manifest Files
 

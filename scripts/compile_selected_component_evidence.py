@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat"):
+    for source_name in ("msc", "debcat", "sb9"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -136,6 +136,25 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           component_scope VARCHAR, target_scope VARCHAR, target_key VARCHAR,
           canonical_system_stable_object_key VARCHAR, relation_binding_id VARCHAR,
           binding_status VARCHAR, binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE sb9_relation_bindings (
+          relation_binding_id VARCHAR, source_record_id VARCHAR,
+          sb9_relation_evidence_id VARCHAR, sb9_sequence BIGINT,
+          source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
+          msc_reference_candidate_count BIGINT, msc_projected_relation_id VARCHAR,
+          msc_relation_evidence_id VARCHAR, primary_source_component_key VARCHAR,
+          secondary_source_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR,
+          binding_status VARCHAR, binding_method VARCHAR, binding_reason VARCHAR,
+          policy_version VARCHAR
+        );
+        CREATE TABLE sb9_parameter_set_bindings (
+          parameter_set_binding_id VARCHAR, parameter_set_id VARCHAR,
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, component_scope VARCHAR, target_scope VARCHAR,
+          target_key VARCHAR, canonical_system_stable_object_key VARCHAR,
+          relation_binding_id VARCHAR, binding_status VARCHAR,
+          binding_reason VARCHAR, policy_version VARCHAR
         );
         """
     )
@@ -536,6 +555,168 @@ def compile_debcat(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_sb9(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["relation_binding_method"])
+    reference_pattern = sql_literal(source["reference_pattern"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE sb9_relation_subjects AS
+        SELECT r.evidence_id sb9_relation_evidence_id,r.source_record_id,
+               try_cast(i.identifier_normalized AS BIGINT) sb9_sequence
+        FROM sb9.relation_claim_evidence r
+        JOIN sb9.identifier_claim_evidence i USING(source_record_id)
+        WHERE i.namespace='sb9_sequence';
+
+        CREATE TEMP TABLE sb9_msc_reference_candidates AS
+        SELECT m.projected_relation_id,m.relation_evidence_id,
+               m.left_source_component_key,m.right_source_component_key,
+               m.canonical_system_stable_object_key,m.projection_status,
+               try_cast(regexp_extract(
+                 upper(coalesce(json_extract_string(m.quality_json,'$.Comment'),'')),
+                 {reference_pattern},1
+               ) AS BIGINT) sb9_sequence
+        FROM msc_relation_evidence_projection m
+        WHERE regexp_matches(
+          upper(coalesce(json_extract_string(m.quality_json,'$.Comment'),'')),
+          {reference_pattern}
+        );
+
+        INSERT INTO sb9_relation_bindings
+        WITH candidates AS (
+          SELECT s.*,
+                 count(c.projected_relation_id) candidate_count,
+                 min(c.projected_relation_id) projected_relation_id,
+                 min(c.relation_evidence_id) relation_evidence_id,
+                 min(c.left_source_component_key) left_source_component_key,
+                 min(c.right_source_component_key) right_source_component_key,
+                 min(c.canonical_system_stable_object_key) canonical_system_stable_object_key,
+                 min(c.projection_status) projection_status
+          FROM sb9_relation_subjects s
+          LEFT JOIN sb9_msc_reference_candidates c USING(sb9_sequence)
+          GROUP BY s.sb9_relation_evidence_id,s.source_record_id,s.sb9_sequence
+        )
+        SELECT sha256(concat_ws('|',{source_id},source_record_id,'relation',{policy_sql})),
+               source_record_id,sb9_relation_evidence_id,sb9_sequence,
+               {source_id},{release_id},{evidence_build_id},candidate_count,
+               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+                    THEN projected_relation_id END,
+               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+                    THEN relation_evidence_id END,
+               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+                    THEN left_source_component_key END,
+               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+                    THEN right_source_component_key END,
+               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+                    THEN canonical_system_stable_object_key END,
+               CASE WHEN candidate_count=0 THEN 'missing_reference'
+                    WHEN candidate_count>1 THEN 'ambiguous_reference'
+                    WHEN projection_status='accepted_relation_evidence' THEN 'accepted'
+                    ELSE 'unresolved_msc_relation' END,
+               {method},
+               CASE WHEN candidate_count=0 THEN 'no MSC relation carries the exact SB9 sequence reference'
+                    WHEN candidate_count>1 THEN 'multiple MSC relations carry the exact SB9 sequence reference'
+                    WHEN projection_status='accepted_relation_evidence'
+                      THEN 'one exact MSC SB9 sequence reference with two accepted component endpoints'
+                    ELSE 'the unique referenced MSC relation has unresolved or invalid endpoints' END,
+               {policy_sql}
+        FROM candidates;
+
+        INSERT INTO sb9_parameter_set_bindings
+        SELECT sha256(concat_ws('|',{source_id},p.parameter_set_id,{policy_sql})),
+               p.parameter_set_id,p.source_record_id,{source_id},{release_id},
+               {evidence_build_id},p.component_scope,'msc_source_component',
+               CASE WHEN p.component_scope='primary' AND r.binding_status='accepted'
+                      THEN r.primary_source_component_key
+                    WHEN p.component_scope='secondary' AND r.binding_status='accepted'
+                      THEN r.secondary_source_component_key END,
+               CASE WHEN r.binding_status='accepted'
+                    THEN r.canonical_system_stable_object_key END,
+               r.relation_binding_id,
+               CASE WHEN p.component_scope IN ('primary','secondary')
+                    THEN r.binding_status ELSE 'excluded' END,
+               CASE WHEN p.component_scope IN ('primary','secondary')
+                    THEN r.binding_reason ELSE 'unsupported SB9 parameter-set component scope' END,
+               {policy_sql}
+        FROM sb9.stellar_parameter_sets p
+        JOIN sb9_relation_bindings r USING(source_record_id);
+
+        CREATE TABLE sb9_stellar_parameter_projection AS
+        SELECT p.*,b.parameter_set_binding_id,b.target_scope,b.target_key,
+               b.canonical_system_stable_object_key,b.relation_binding_id,
+               {sql_literal(source['parameter_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               b.binding_reason projection_reason,{policy_sql} policy_version
+        FROM sb9.stellar_parameter_evidence p
+        JOIN sb9_parameter_set_bindings b USING(parameter_set_id,source_record_id);
+
+        CREATE TABLE sb9_classification_projection AS
+        SELECT p.*,
+               CASE WHEN p.component_scope='primary' AND r.binding_status='accepted'
+                      THEN r.primary_source_component_key
+                    WHEN p.component_scope='secondary' AND r.binding_status='accepted'
+                      THEN r.secondary_source_component_key END target_key,
+               CASE WHEN r.binding_status='accepted'
+                    THEN r.canonical_system_stable_object_key END
+                 canonical_system_stable_object_key,
+               r.relation_binding_id,
+               {sql_literal(source['classification_authority'])} authority_role,
+               CASE WHEN r.binding_status='accepted'
+                          AND p.component_scope IN ('primary','secondary')
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               r.binding_reason projection_reason,{policy_sql} policy_version
+        FROM sb9.stellar_classification_evidence p
+        JOIN sb9_relation_bindings r USING(source_record_id);
+
+        CREATE TABLE sb9_orbital_solution_projection AS
+        SELECT p.*,r.relation_binding_id,r.primary_source_component_key,
+               r.secondary_source_component_key,r.canonical_system_stable_object_key,
+               {sql_literal(source['orbit_authority'])} authority_role,
+               CASE WHEN r.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               r.binding_reason projection_reason,{policy_sql} policy_version
+        FROM sb9.orbital_solution_evidence p
+        JOIN sb9_relation_bindings r
+          ON r.sb9_relation_evidence_id=p.relation_claim_id;
+        """
+    )
+
+    relation_counts = dict(con.execute("SELECT binding_status,count(*) FROM sb9_relation_bindings GROUP BY 1").fetchall())
+    eligible = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0])
+    observed = {
+        "relation_bindings": sum(relation_counts.values()),
+        "relations_accepted": relation_counts.get("accepted", 0),
+        "relations_missing_reference": relation_counts.get("missing_reference", 0),
+        "relations_ambiguous_reference": relation_counts.get("ambiguous_reference", 0),
+        "relations_unresolved_msc": relation_counts.get("unresolved_msc_relation", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_eligible": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM sb9_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("sb9_stellar_parameter_projection"),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM sb9_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("sb9_classification_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM sb9_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("sb9_orbital_solution_projection"),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"SB9 acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -556,6 +737,13 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "eligible_classifications_without_targets": "SELECT count(*) FROM debcat_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_photometry_without_systems": "SELECT count(*) FROM debcat_photometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_orbits_without_relations": "SELECT count(*) FROM debcat_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_sb9_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM sb9_relation_bindings",
+        "duplicate_sb9_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM sb9_parameter_set_bindings",
+        "accepted_sb9_relations_without_targets": "SELECT count(*) FROM sb9_relation_bindings WHERE binding_status='accepted' AND (primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sb9_relations_with_targets": "SELECT count(*) FROM sb9_relation_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL)",
+        "eligible_sb9_parameters_without_targets": "SELECT count(*) FROM sb9_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sb9_classifications_without_targets": "SELECT count(*) FROM sb9_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sb9_orbits_without_relations": "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -581,7 +769,9 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
     if not all(path.is_file() for path in required):
         raise FileNotFoundError(f"missing component compiler input: {[str(p) for p in required if not p.is_file()]}")
     identity_report_sha = sha256_file(identity_report)
-    source_build_ids = [policy[name]["evidence_build_id"] for name in ("msc", "debcat")]
+    source_build_ids = [
+        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9")
+    ]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
         "compiler_sha256": compiler_sha,
@@ -604,7 +794,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         con.execute(f"ATTACH {sql_literal(identity_db)} AS identity (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(core_db)} AS core (READ_ONLY)")
         evidence_root = state / "derived/evidence_lake_v2/scientific_evidence"
-        for alias, name in (("msc", "msc"), ("debcat", "debcat")):
+        for alias, name in (("msc", "msc"), ("debcat", "debcat"), ("sb9", "sb9")):
             source_db = evidence_root / policy[name]["evidence_build_id"] / "scientific_evidence.duckdb"
             if not source_db.is_file():
                 raise FileNotFoundError(f"missing E4 source artifact: {source_db}")
@@ -613,6 +803,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         source_reports = [
             compile_msc(con, source=policy["msc"], policy_version=policy["policy_version"]),
             compile_debcat(con, source=policy["debcat"], policy_version=policy["policy_version"]),
+            compile_sb9(con, source=policy["sb9"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -633,6 +824,11 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("debcat_classification_projection", "evidence_id"),
             ("debcat_photometry_projection", "evidence_id"),
             ("debcat_orbital_solution_projection", "evidence_id"),
+            ("sb9_relation_bindings", "relation_binding_id"),
+            ("sb9_parameter_set_bindings", "parameter_set_binding_id"),
+            ("sb9_stellar_parameter_projection", "evidence_id"),
+            ("sb9_classification_projection", "evidence_id"),
+            ("sb9_orbital_solution_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -651,7 +847,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v1",
+            "schema_version": "spacegate.e5_selected_components.v2",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

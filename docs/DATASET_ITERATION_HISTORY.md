@@ -2763,7 +2763,7 @@ Representative commits:
 
 ### 95) DEBCat Physics Requires a Relation, Not a Name Guess
 
-- Component-scope artifact `40f3215ac0fed37a9ece1533` materializes 6,936
+- Component-scope artifact `1dddf975f24d9bba9590d046` materializes 6,936
   exact WDS system outcomes, 31,347 release-scoped MSC component identities,
   and all 15,748 MSC relations. It retains 7,347 missing component anchors and
   classifies three identical-endpoint source rows as invalid self-relation
@@ -2784,6 +2784,23 @@ Representative commits:
   Canonical WDS binding also exposes 612 missing and 51 multi-system identity-
   graph diagnostics for later E2/E6 reconciliation rather than silently using
   those pre-grouping routes.
+
+### 96) SB9 Uses Its Explicit MSC Sequence Bridge
+
+- Component policy v2 reads the exact `SB9_<sequence>` references already
+  carried by MSC relation evidence. It does not compare system names or
+  coordinates and withholds both endpoints unless exactly one referenced MSC
+  relation is already accepted.
+- Of 4,079 SB9 relations, 790 bind, 3,104 have no MSC reference, eight have
+  duplicate references, and 177 reference an unresolved or invalid MSC
+  relation. Every source relation retains one explicit outcome.
+- Accepted bindings make 874 component apparent-magnitude measurements, 940
+  primary/secondary spectral classifications, and 1,052 spectroscopic-orbit
+  solutions eligible for later authority selection. Multiple published orbit
+  solutions remain separate; the component compiler does not choose an orbit
+  winner or create hierarchy/containment.
+- Artifact `1dddf975f24d9bba9590d046` passes the independent audit, clean fixture,
+  and byte-identical production reproduction in about 2.6 seconds per pass.
 
 ## Recurrent Defect Classes and Mitigations
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-21.e5-component-scope.1",
-  "compiler_version": "selected_component_evidence_compiler_v1",
+  "policy_version": "2026-07-21.e5-component-scope.2",
+  "compiler_version": "selected_component_evidence_compiler_v2",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -73,6 +73,32 @@
       "expected_photometry_evidence_eligible": 74,
       "expected_orbital_solutions": 374,
       "expected_orbital_solutions_eligible": 20
+    }
+  },
+  "sb9": {
+    "source_id": "multiplicity.sb9",
+    "release_id": "cds_b_sb9_snapshot_20260715",
+    "evidence_build_id": "72663823963198c8fcbbe569",
+    "relation_binding_method": "unique_msc_sb9_sequence_reference_with_accepted_endpoints",
+    "reference_pattern": "SB9_([0-9]+)",
+    "parameter_authority": "sb9_source_component_apparent_magnitude_observation",
+    "classification_authority": "sb9_source_component_spectral_classification",
+    "orbit_authority": "sb9_spectroscopic_orbit_solution",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_relation_bindings": 4079,
+      "expected_relations_accepted": 790,
+      "expected_relations_missing_reference": 3104,
+      "expected_relations_ambiguous_reference": 8,
+      "expected_relations_unresolved_msc": 177,
+      "expected_parameter_sets": 4403,
+      "expected_parameter_sets_eligible": 874,
+      "expected_parameter_evidence": 4403,
+      "expected_parameter_evidence_eligible": 874,
+      "expected_classification_evidence": 4079,
+      "expected_classification_evidence_eligible": 940,
+      "expected_orbital_solutions": 5099,
+      "expected_orbital_solutions_eligible": 1052
     }
   }
 }

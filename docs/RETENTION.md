@@ -845,18 +845,20 @@ this artifact, and removed as whole units after their reports were retained.
 `derived/evidence_lake_v2/selected_components/<build_id>/` contains immutable
 MSC component-scope and DEBCat evidence projections. Protect every artifact
 named by the E5 disposition ledger, its component policy and compiler hashes,
-the canonical reference build, E2 identity graph, both referenced E4 shards,
+the canonical reference build, E2 identity graph, all referenced E4 shards,
 ordered Parquet files, manifest, independent audit, and clean-reproduction
 report. Never prune a DuckDB inspection database or individual Parquet member
 from a retained artifact.
 
-Artifact `40f3215ac0fed37a9ece1533` is the protected first checkpoint. It passes
-independent audit and clean reproduction with identical hashes for all ten
+Artifact `1dddf975f24d9bba9590d046` is the protected checkpoint. It passes
+independent audit and clean reproduction with identical hashes for all fifteen
 ordered Parquet files. Earlier artifacts `58f4c58cf2fff4d18e7a32c4` and
 `78b28bd541f82c49cd0ff5b7` are unreferenced experiments: the first lacked the
 exact DEBCat source-native quantity-authority keys, while the second preceded a
 rerun-report fix. Artifact `434206631ac5f0037d610529` fixed that report path but
-did not yet gate the identity-graph diagnostic totals recorded by the artifact.
+did not yet gate the identity-graph diagnostic totals, while
+`40f3215ac0fed37a9ece1533` predates the SB9 projection, and
+`778c2f2defc91b9e230fd368` predates the required v2 artifact-schema declaration.
 They may be considered by a future dry-run only after all current/reference/
 process and report protections pass; this documentation is not deletion
 authorization.

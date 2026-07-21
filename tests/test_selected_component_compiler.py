@@ -76,11 +76,11 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         );
         INSERT INTO relation_claim_evidence VALUES
           ('m-r1','m-s1','msc_component','00001+0001:A','msc_component','00001+0001:B',
-           'binary','pair','positive','test','ref','{}'),
+           'binary','pair','positive','test','ref','{"Comment":"SB9_1"}'),
           ('m-self','m-self-source','msc_component','00001+0001:A','msc_component','00001+0001:A',
-           'binary','pair','positive','test','ref','{}'),
+           'binary','pair','positive','test','ref','{"Comment":"SB9_3"}'),
           ('m-missing','m-missing-source','msc_component','99999+9999:A','msc_component','99999+9999:B',
-           'binary','pair','positive','test','ref','{}');
+           'binary','pair','positive','test','ref','{"Comment":"SB9_3"}');
         INSERT INTO orbital_solution_evidence VALUES
           ('m-o1','m-s1','{"P":"2.0","Punit":"d"}'),
           ('m-o2','m-self-source','{"P":"3.0","Punit":"d"}'),
@@ -139,6 +139,59 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         INSERT INTO photometry_extinction_evidence VALUES
           ('ph-accepted','d1'),
           ('ph-missing','d2');
+        """
+    )
+    con.close()
+
+    sb9_id = "sb9-test"
+    sb9_dir = state / "derived/evidence_lake_v2/scientific_evidence" / sb9_id
+    sb9_dir.mkdir(parents=True)
+    con = duckdb.connect(str(sb9_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_normalized VARCHAR
+        );
+        CREATE TABLE relation_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR
+        );
+        CREATE TABLE stellar_parameter_sets (
+          parameter_set_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_evidence (
+          evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+          component_scope VARCHAR, quantity_key VARCHAR
+        );
+        CREATE TABLE stellar_classification_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE orbital_solution_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, relation_claim_id VARCHAR
+        );
+        INSERT INTO relation_claim_evidence VALUES
+          ('sb-r1','sb-s1'),('sb-r2','sb-s2'),('sb-r3','sb-s3');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('sb-i1','sb-s1','sb9_sequence','1'),
+          ('sb-i2','sb-s2','sb9_sequence','2'),
+          ('sb-i3','sb-s3','sb9_sequence','3');
+        INSERT INTO stellar_parameter_sets VALUES
+          ('sb-ps1','sb-s1','primary'),
+          ('sb-ps2','sb-s1','secondary'),
+          ('sb-ps3','sb-s2','primary');
+        INSERT INTO stellar_parameter_evidence VALUES
+          ('sb-p1','sb-ps1','sb-s1','primary','sb9.apparent_magnitude'),
+          ('sb-p2','sb-ps2','sb-s1','secondary','sb9.apparent_magnitude'),
+          ('sb-p3','sb-ps3','sb-s2','primary','sb9.apparent_magnitude');
+        INSERT INTO stellar_classification_evidence VALUES
+          ('sb-c1','sb-s1','primary'),
+          ('sb-c2','sb-s1','secondary'),
+          ('sb-c3','sb-s2','primary');
+        INSERT INTO orbital_solution_evidence VALUES
+          ('sb-o1','sb-o-source1','sb-r1'),
+          ('sb-o2','sb-o-source2','sb-r1'),
+          ('sb-o3','sb-o-source3','sb-r2'),
+          ('sb-o4','sb-o-source4','sb-r3');
         """
     )
     con.close()
@@ -217,6 +270,32 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_orbital_solutions_eligible": 1,
                 },
             },
+            "sb9": {
+                "source_id": "multiplicity.sb9",
+                "release_id": "sb9-test-release",
+                "evidence_build_id": sb9_id,
+                "relation_binding_method": "test-exact-msc-sequence",
+                "reference_pattern": "SB9_([0-9]+)",
+                "parameter_authority": "test-sb9-parameter",
+                "classification_authority": "test-sb9-classification",
+                "orbit_authority": "test-sb9-orbit",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_relation_bindings": 3,
+                    "expected_relations_accepted": 1,
+                    "expected_relations_missing_reference": 1,
+                    "expected_relations_ambiguous_reference": 1,
+                    "expected_relations_unresolved_msc": 0,
+                    "expected_parameter_sets": 3,
+                    "expected_parameter_sets_eligible": 2,
+                    "expected_parameter_evidence": 3,
+                    "expected_parameter_evidence_eligible": 2,
+                    "expected_classification_evidence": 3,
+                    "expected_classification_evidence_eligible": 2,
+                    "expected_orbital_solutions": 4,
+                    "expected_orbital_solutions_eligible": 2,
+                },
+            },
         },
     )
 
@@ -263,6 +342,19 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     ).fetchone()[0] == 1
     assert con.execute(
         "SELECT count(*) FROM debcat_parameter_set_bindings WHERE component_scope IN ('primary','secondary') AND target_scope='msc_source_component' AND binding_status='accepted'"
+    ).fetchone()[0] == 2
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM sb9_relation_bindings GROUP BY 1"
+    ).fetchall()) == {
+        "accepted": 1,
+        "ambiguous_reference": 1,
+        "missing_reference": 1,
+    }
+    assert con.execute(
+        "SELECT count(*) FROM sb9_classification_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 2
+    assert con.execute(
+        "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 2
     con.close()
 

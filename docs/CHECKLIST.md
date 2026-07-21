@@ -1477,6 +1477,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   relation for primary/secondary physics, keep integrated photometry and
   metallicity system scoped, and pass independent audit plus deterministic
   reproduction
+- [x] E5 SB9 component/orbit projection: account all 4,079 relations through
+  exact MSC `SB9_<sequence>` references, accept only one reference with two
+  resolved endpoints, preserve missing/ambiguous/unresolved outcomes, and
+  project component magnitudes, classifications, and all linked orbit solutions
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

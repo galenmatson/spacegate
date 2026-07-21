@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.9",
+  "disposition_version": "2026-07-21.e5-source-dispositions.10",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -72,8 +72,8 @@
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-21.e5-component-scope.1",
-      "component_artifact_id": "40f3215ac0fed37a9ece1533",
+      "component_policy_version": "2026-07-21.e5-component-scope.2",
+      "component_artifact_id": "1dddf975f24d9bba9590d046",
       "reason": "All 374 DEBCat systems receive a priority-aware exact-name outcome. Component physics becomes eligible only through a unique canonical system, exact WDS anchor, and unique period-compatible accepted MSC relation; integrated photometry and metallicity remain system scoped. The projection creates no canonical star or containment edge."
     },
     "multiplicity.el_badry_2021_wide_binary": {
@@ -97,10 +97,12 @@
       "reason": "Combined pair designations remain identity evidence until both orbit endpoints and pair scope resolve uniquely."
     },
     "multiplicity.sb9": {
-      "disposition": "deferred_pending_identity_scope",
-      "owner": "E2/E5",
-      "blocks_e5": true,
-      "reason": "Primary/secondary classifications and orbital solutions require accepted component endpoint bindings rather than system-name matching."
+      "disposition": "selected_component_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "component_policy_version": "2026-07-21.e5-component-scope.2",
+      "component_artifact_id": "1dddf975f24d9bba9590d046",
+      "reason": "Every SB9 relation receives an exact MSC sequence-reference outcome. Component magnitudes, classifications, and spectroscopic orbit solutions become eligible only when exactly one MSC relation carries the sequence and both release-scoped endpoints resolve; missing, duplicate, and unresolved references remain explicit."
     },
     "multiplicity.sbx": {
       "disposition": "deferred_pending_identity_scope",

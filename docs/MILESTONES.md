@@ -2007,7 +2007,7 @@ Foundation checkpoint (July 21, 2026):
   endpoints, including 95,045 `R_chance_align < 0.1` high-confidence evidence
   rows and 3,043 shifted-sky negative controls. Independent audit and clean
   reproduction pass with identical Parquet hashes in about 15 seconds
-- component-scope artifact `40f3215ac0fed37a9ece1533` anchors 24,000 of
+- component-scope artifact `1dddf975f24d9bba9590d046` anchors 24,000 of
   31,347 release-scoped MSC component identities to 5,369 exact canonical WDS
   systems, retains 7,347 missing components and three invalid source
   self-relations, and creates no canonical star or containment assertion
@@ -2016,6 +2016,11 @@ Foundation checkpoint (July 21, 2026):
   parameter measurements, 32 classifications, 74 system-photometry rows, and
   20 periods as later global-selection inputs. Independent audit, clean fixture,
   and production reproduction pass in about 2.3 seconds per run
+- the same artifact accounts all 4,079 SB9 system relations through exact
+  `SB9_<sequence>` references in MSC: 790 bind uniquely with accepted endpoints,
+  3,104 have no reference, eight are ambiguous, and 177 reference unresolved
+  MSC relations. It exposes 874 component magnitudes, 940 classifications, and
+  1,052 spectroscopic-orbit solutions without name or coordinate fallback
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

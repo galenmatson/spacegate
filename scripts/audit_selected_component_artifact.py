@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v1"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v2"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -82,6 +82,13 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "eligible_classification_rows_without_target": "SELECT count(*) FROM debcat_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_photometry_rows_without_system": "SELECT count(*) FROM debcat_photometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_orbit_rows_without_relation": "SELECT count(*) FROM debcat_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_sb9_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM sb9_relation_bindings",
+        "duplicate_sb9_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM sb9_parameter_set_bindings",
+        "accepted_sb9_relations_without_targets": "SELECT count(*) FROM sb9_relation_bindings WHERE binding_status='accepted' AND (primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sb9_relations_with_targets": "SELECT count(*) FROM sb9_relation_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL)",
+        "eligible_sb9_parameters_without_target": "SELECT count(*) FROM sb9_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sb9_classifications_without_target": "SELECT count(*) FROM sb9_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sb9_orbits_without_relation": "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -140,6 +147,25 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     deb_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["debcat"]["acceptance"].items()}
     failures["debcat_acceptance_mismatch"] = int(deb_observed != deb_expected)
+
+    sb9_relations = dict(con.execute("SELECT binding_status,count(*) FROM sb9_relation_bindings GROUP BY 1").fetchall())
+    sb9_observed = {
+        "relation_bindings": sum(sb9_relations.values()),
+        "relations_accepted": sb9_relations.get("accepted", 0),
+        "relations_missing_reference": sb9_relations.get("missing_reference", 0),
+        "relations_ambiguous_reference": sb9_relations.get("ambiguous_reference", 0),
+        "relations_unresolved_msc": sb9_relations.get("unresolved_msc_relation", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_eligible": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM sb9_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("sb9_stellar_parameter_projection"),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM sb9_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("sb9_classification_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM sb9_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("sb9_orbital_solution_projection"),
+    }
+    sb9_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["sb9"]["acceptance"].items()}
+    failures["sb9_acceptance_mismatch"] = int(sb9_observed != sb9_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -149,6 +175,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "source_reports": [
             {"source_id": policy["msc"]["source_id"], "observed": msc_observed, "expected": msc_expected},
             {"source_id": policy["debcat"]["source_id"], "observed": deb_observed, "expected": deb_expected},
+            {"source_id": policy["sb9"]["source_id"], "observed": sb9_observed, "expected": sb9_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

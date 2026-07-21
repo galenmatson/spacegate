@@ -1341,8 +1341,18 @@ resolved systems lack a compatible relation. This makes 216 component/system
 parameter measurements, 32 component classifications, 74 system-integrated
 photometry rows, and 20 period solutions eligible for global quantity
 selection. Eligibility does not make them automatic winners. Artifact
-`40f3215ac0fed37a9ece1533` passes independent audit, clean fixture tests, and
+`1dddf975f24d9bba9590d046` passes independent audit, clean fixture tests, and
 two-pass deterministic reproduction in about 2.3 seconds per pass.
+
+Component-scope policy v2 adds SB9 through an even stronger source-native
+bridge. For each of 4,079 SB9 relations, it searches MSC relation comments for
+the exact `SB9_<sequence>` reference and accepts only one reference whose two
+MSC endpoints already resolve. This yields 790 accepted relations; 3,104 have
+no MSC reference, eight have duplicate references, and 177 point to an
+unresolved or invalid MSC relation. The accepted rows make 874 component
+apparent-magnitude measurements, 940 component spectral classifications, and
+1,052 spectroscopic-orbit solutions eligible for later authority selection.
+All rejected rows remain explicit, and no name or coordinate fallback exists.
 
 The system-binding audit also exposes an E2 diagnostic rather than hiding it:
 among the 5,369 canonical WDS matches, the current identity graph agrees on one
