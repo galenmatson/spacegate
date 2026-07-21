@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.2",
+  "disposition_version": "2026-07-21.e5-source-dispositions.3",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "deferred_pending_identity_scope",
@@ -79,12 +79,6 @@
       "owner": "E2/E5",
       "blocks_e5": true,
       "reason": "NSS fitted solutions lack inspectable component endpoints and need reviewed relation binding before orbit projection."
-    },
-    "gaia.dr3.variability": {
-      "disposition": "deferred_pending_quantity_policy",
-      "owner": "E5",
-      "blocks_e5": true,
-      "reason": "Heterogeneous coherent variability schemas require schema-aware quantity, classification, and applicability policies."
     },
     "identity.simbad": {
       "disposition": "deferred_pending_identity_scope",
@@ -171,10 +165,10 @@
       "reason": "TESS eclipsing-binary target, sector, status, and flag evidence needs host/component binding and relation-aware projection."
     },
     "ultracool.gaia_dr3_sample": {
-      "disposition": "deferred_pending_applicability_policy",
-      "owner": "E5",
-      "blocks_e5": true,
-      "reason": "Gaia ultracool sample measurements and membership context require applicability policy; sample membership alone cannot invent a classification."
+      "disposition": "evidence_only",
+      "owner": "E4/E6",
+      "blocks_e5": false,
+      "reason": "This source contains probability-bearing ultracool-sample membership context but no independent stellar parameter or classification measurement; membership remains inspectable evidence and cannot invent a selected spectral class."
     }
   }
 }

@@ -1317,6 +1317,29 @@ GiB free, below the 300-GiB new-source acquisition floor. E5 policy work may use
 the pinned release set and external scratch, but acquisition of another large
 release is gated.
 
+Policy batches now make that remaining E5 work measurable. Ledger
+`2026-07-21.e5-policy-batches.1` assigns all 24 blocking sources exactly once
+across seven dependency-ordered batches and records completed sources
+separately. A completed source must be present in the selection policy or have
+an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
+therefore retained as probability-bearing membership context, not treated as
+an independent measured spectral classification.
+
+Policy v7/compiler v8 supports multiple source-native coherent parameter-set
+kinds in one E4 table. Each quantity group names the kinds to which its field
+schema applies; duplicate checking, decisions, and facts use the same filter.
+Focused Gaia variability verification accounts all 592,197 eligible subjects:
+269,579 bind to current canonical stars and 322,618 remain explicit missing
+outcomes. It emits 523,658 decisions and 6,888,406 facts spanning rotation,
+G/BP/RP summary statistics, and explicit true/false variability-table
+membership. Two clean passes match logical hash
+`7c294d776d662b8af997ace9534620f4dced37cdcd42f20d6bbd286af7f19384`
+with zero kind leakage, duplicate object quantities, binding-lineage gaps,
+non-numeric numeric facts, or invalid Boolean values. Each pass takes about 27
+seconds; direct materialization accounts for 24.25 seconds and binding about 3
+seconds. This focused gate avoids another approximately 24-minute full compile
+until compatible policy changes are ready to batch.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

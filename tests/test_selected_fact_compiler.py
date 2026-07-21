@@ -192,6 +192,7 @@ def make_e4_artifact(
             CREATE TABLE coherent_parameter_set_schemas (schema_json JSON);
             CREATE TABLE stellar_source_parameter_sets (
               evidence_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR,
+              parameter_set_kind VARCHAR,
               values_json JSON, method VARCHAR, model VARCHAR, reference_raw VARCHAR,
               normalization_version VARCHAR, quality_json JSON
             );
@@ -199,7 +200,7 @@ def make_e4_artifact(
             INSERT INTO identifier_claim_evidence VALUES
               ('coherent-record', 'gaia_dr3_source_id', 'Gaia DR3 123', 'star', NULL);
             INSERT INTO stellar_source_parameter_sets VALUES
-              ('coherent-set', 'coherent-record', NULL, '[20.0,0.5,"VARIABLE"]',
+              ('coherent-set', 'coherent-record', NULL, 'astrometry', '[20.0,0.5,"VARIABLE"]',
                'coherent-method', NULL, 'coherent-ref', 'norm-v1', '{}');
             """
         )
@@ -586,6 +587,7 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
                     "quantity_groups": [
                         {
                             "group_key": "astrometry",
+                            "parameter_set_kinds": ["astrometry"],
                             "quantities": {
                                 "parallax": {
                                     "quantity_key": "parallax_mas",
@@ -904,11 +906,56 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     ]
 
 
+def test_coherent_direct_groups_filter_parameter_set_kind(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    manifest_path = (
+        state
+        / "derived/evidence_lake_v2/scientific_evidence_sets/release-set-test/manifest.json"
+    )
+    release = compiler.load_json(manifest_path)
+    member = next(
+        row
+        for row in release["members"]
+        if row["source_ids"] == ["source.coherent"]
+    )
+    database = state / member["artifact_path"] / member["database"]
+    con = duckdb.connect(str(database))
+    con.execute(
+        "INSERT INTO source_records VALUES ('unselected-record','other_table','{}'); "
+        "INSERT INTO identifier_claim_evidence VALUES "
+        "('unselected-record','gaia_dr3_source_id','Gaia DR3 123','star',NULL); "
+        "INSERT INTO stellar_source_parameter_sets VALUES "
+        "('unselected-set','unselected-record',NULL,'unselected_context',"
+        "'[999.0,99.0,\"WRONG\"]','coherent-method',NULL,'other-ref','norm-v1','{}')"
+    )
+    con.close()
+    member["database_bytes"] = database.stat().st_size
+    member["database_sha256"] = compiler.file_sha256(database)
+    write_json(manifest_path, release)
+
+    report = compiler.compile_selected_facts(
+        state_dir=state,
+        policy_path=policy_path,
+        temp_directory=tmp_path / "spill",
+        threads=1,
+        memory_limit="1GB",
+    )
+    artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
+    con = duckdb.connect(str(artifact / "selected_facts.duckdb"), read_only=True)
+    values = con.execute(
+        "SELECT quantity_key,value_raw FROM selected_facts "
+        "WHERE source_id='source.coherent' ORDER BY quantity_key"
+    ).fetchall()
+    con.close()
+    assert values == [("parallax_mas", "20.0"), ("variability_flag", "VARIABLE")]
+
+
 def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None:
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 9
+    assert len(policy["selection_sources"]) == 10
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",

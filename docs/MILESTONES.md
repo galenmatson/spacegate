@@ -1197,7 +1197,8 @@ July 17, 2026 catalog-wide follow-up:
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
-registered E3 acquisition completed July 20, 2026; E4 is in progress.
+registered E3 acquisition completed July 20, 2026; accepted E4 release set is
+pinned and E5 policy compilation is in progress.
 
 Goal:
 
@@ -2008,6 +2009,23 @@ Foundation checkpoint (July 21, 2026):
 - the refreshed storage audit reports 258.7 GiB free: adequate for measured E5
   builds with external spill, but below the 300-GiB acquisition floor, so the
   remaining policy batches must use already pinned sources
+- policy-batch ledger `2026-07-21.e5-policy-batches.1` assigns all 24 remaining
+  blockers once across seven dependency-ordered batches and separately records
+  resolved sources; the audit fails on missing, duplicate, unknown, or falsely
+  completed assignments
+- policy v7/compiler v8 generalizes coherent-array selection to heterogeneous
+  parameter-set schemas while requiring an explicit source-native kind for each
+  group; Gaia variability can therefore select rotation solutions and summary
+  records without reading same-position fields from the wrong schema
+- two-pass focused Gaia variability verification accounts 592,197 subjects as
+  269,579 accepted and 322,618 missing, then emits 523,658 decisions and
+  6,888,406 exact-lineage facts with zero kind, duplicate, numeric, Boolean, or
+  binding failures; both passes match logical hash
+  `7c294d776d662b8af997ace9534620f4dced37cdcd42f20d6bbd286af7f19384`
+- the focused compile takes about 27 seconds per pass, including 24.25 seconds
+  for direct selection and about 3 seconds for binding; compatible source
+  policies will use these measured focused gates before paying the full-build
+  cost
 
 Deliverables:
 

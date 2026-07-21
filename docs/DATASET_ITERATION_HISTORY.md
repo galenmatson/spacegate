@@ -2597,6 +2597,31 @@ Representative commits:
   compilation using external spill, but below the 300-GiB acquisition floor;
   no new large source release may be acquired in this state.
 
+### 87) E5 Policy Batches and Gaia Variability Selection
+
+- The source-disposition ledger now records ten selected sources, four
+  nonblocking evidence roles, and 24 remaining blockers. Gaia's ultracool
+  sample stays inspectable as probability-bearing membership context but has no
+  independent measured classification to select.
+- Policy-batch ledger `2026-07-21.e5-policy-batches.1` assigns every blocker
+  exactly once across seven dependency-ordered batches. Its machine audit also
+  requires completed sources to resolve to an active selection policy or an
+  explicit nonblocking disposition.
+- Policy v7/compiler v8 allows a coherent-array destination to contain multiple
+  schemas only when every quantity group names its applicable source-native
+  parameter-set kind. The same kind predicate governs duplicate checks,
+  decisions, and selected facts, preventing positional field leakage between
+  Gaia variability summaries and rotation-modulation solutions.
+- Two focused real-source compiles each account 592,197 Gaia DR3 variability
+  subjects as 269,579 accepted and 322,618 missing. They emit 523,658 decisions
+  and 6,888,406 facts with zero binding, duplicate, kind, numeric, or Boolean
+  failures and match logical hash
+  `7c294d776d662b8af997ace9534620f4dced37cdcd42f20d6bbd286af7f19384`.
+- The focused phases take about 3 seconds for identity binding and 24.25 seconds
+  for direct selection per pass. This source-level verification pattern lets E5
+  batch compatible policy work before incurring the measured 24-minute full
+  compiler and reproduction cycle.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

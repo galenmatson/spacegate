@@ -92,6 +92,15 @@ Evidence Lake v2 staging rule:
   disposition with ownership, blocker state, and reason. The compiler hashes
   this ledger and emits its audit status and blocker list; a disposition does
   not authorize selection or canonical projection.
+- Coherent-array sources may contain multiple source-native parameter-set kinds
+  with different schemas. E5 policy v7/compiler v8 requires each heterogeneous
+  quantity group to name its applicable `parameter_set_kinds`; eligibility,
+  duplicate detection, authority decisions, and selected facts apply the same
+  filter. Gaia DR3 variability summary rows and rotation-modulation solutions
+  consequently remain separate coherent contexts even though they share one E4
+  destination table. Source-native false membership flags are selected as
+  categorical negative context with null numeric values, not discarded or
+  converted into measurements.
 - Bailer-Jones distance selection preserves `gaia_edr3_source_id` separately
   from canonical `gaia_dr3`. Binding is permitted only by the policy-pinned,
   authoritative EDR3-to-DR3 source-list relationship and records that release

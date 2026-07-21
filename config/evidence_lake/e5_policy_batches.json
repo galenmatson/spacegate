@@ -1,0 +1,82 @@
+{
+  "schema_version": "spacegate.e5_policy_batches.v1",
+  "batch_version": "2026-07-21.e5-policy-batches.1",
+  "disposition_version": "2026-07-21.e5-source-dispositions.3",
+  "batches": [
+    {
+      "batch_id": "gaia_scalar_and_variability",
+      "status": "in_progress",
+      "output_contract": "selected_facts_and_variability_projection",
+      "depends_on": [],
+      "sources": [
+        "gaia.dr3.astrophysical_parameters_supp"
+      ],
+      "completed_sources": [
+        "gaia.dr3.variability",
+        "ultracool.gaia_dr3_sample"
+      ]
+    },
+    {
+      "batch_id": "variable_star_classification",
+      "status": "planned",
+      "output_contract": "selected_classification_and_variability_projection",
+      "depends_on": ["gaia_scalar_and_variability"],
+      "sources": ["classification.gcvs", "classification.vsx"]
+    },
+    {
+      "batch_id": "compact_objects",
+      "status": "planned",
+      "output_contract": "compact_object_projection",
+      "depends_on": ["identity_and_naming"],
+      "sources": ["compact.atnf", "compact.mcgill_magnetar"]
+    },
+    {
+      "batch_id": "identity_and_naming",
+      "status": "planned",
+      "output_contract": "identity_alias_and_classification_projection",
+      "depends_on": [],
+      "sources": ["identity.simbad", "naming.iau_wgsn"]
+    },
+    {
+      "batch_id": "multiplicity_relations_and_orbits",
+      "status": "planned",
+      "output_contract": "relation_endpoint_and_orbit_projection",
+      "depends_on": ["identity_and_naming"],
+      "sources": [
+        "gaia.dr3.non_single_star",
+        "multiplicity.debcat",
+        "multiplicity.el_badry_2021_wide_binary",
+        "multiplicity.msc",
+        "multiplicity.orb6",
+        "multiplicity.sb9",
+        "multiplicity.sbx",
+        "multiplicity.wds",
+        "tess.villanova_eb"
+      ]
+    },
+    {
+      "batch_id": "planet_lifecycle",
+      "status": "planned",
+      "output_contract": "planet_evidence_and_lifecycle_projection",
+      "depends_on": ["identity_and_naming"],
+      "sources": [
+        "exoplanet_lifecycle.exoplanet_eu",
+        "exoplanet_lifecycle.hwc",
+        "exoplanet_lifecycle.open_exoplanet_catalogue",
+        "tess.identity_and_candidate_evidence"
+      ]
+    },
+    {
+      "batch_id": "cluster_extended_and_solar",
+      "status": "planned",
+      "output_contract": "cluster_extended_object_and_epoch_orbit_projections",
+      "depends_on": ["identity_and_naming"],
+      "sources": [
+        "clusters.hunt_reffert_2024",
+        "extended.green_snr",
+        "extended.openngc_and_nebulae",
+        "solar_system.jpl_horizons_authority"
+      ]
+    }
+  ]
+}

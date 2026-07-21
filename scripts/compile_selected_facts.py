@@ -439,6 +439,15 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 raise ValueError(f"missing or duplicate quantity group: {key}")
             seen_groups.add(key)
             authorities = group.get("authorities") or []
+            parameter_set_kinds = group.get("parameter_set_kinds")
+            if parameter_set_kinds is not None and (
+                storage != "coherent_array"
+                or not isinstance(parameter_set_kinds, list)
+                or not parameter_set_kinds
+                or any(not str(value).strip() for value in parameter_set_kinds)
+                or len(parameter_set_kinds) != len(set(parameter_set_kinds))
+            ):
+                raise ValueError(f"invalid coherent parameter-set kinds: {key}")
             ranks = [int(item["rank"]) for item in authorities]
             if not authorities or any(rank <= 0 for rank in ranks):
                 raise ValueError(f"quantity group has no positive authority rules: {key}")
@@ -693,10 +702,7 @@ def coherent_field_specs(
     for (schema_raw,) in rows:
         schema = json.loads(schema_raw)
         fields = {str(field["name"]): field for field in schema.get("fields") or []}
-        missing = sorted(requested - set(fields))
-        if missing:
-            raise ValueError(f"coherent schema missing requested fields: {source['source_id']}:{missing}")
-        for field_name in requested:
+        for field_name in requested & set(fields):
             projection = {
                 "position": int(fields[field_name]["position"]),
                 "datatype": str(fields[field_name].get("datatype") or ""),
@@ -709,7 +715,21 @@ def coherent_field_specs(
                     f"{source['source_id']}:{field_name}:{previous}:{projection}"
                 )
             resolved[field_name] = projection
+    missing = sorted(requested - set(resolved))
+    if missing:
+        raise ValueError(
+            f"coherent source schemas lack requested fields: "
+            f"{source['source_id']}:{missing}"
+        )
     return resolved
+
+
+def parameter_set_kind_condition(group: dict[str, Any], set_alias: str) -> str:
+    kinds = group.get("parameter_set_kinds")
+    if not kinds:
+        return "TRUE"
+    values = ",".join(sql_literal(str(value)) for value in kinds)
+    return f"{set_alias}.parameter_set_kind IN ({values})"
 
 
 def prepare_applicability_context(
@@ -991,11 +1011,17 @@ def create_binding(
         values_field = sql_identifier(str(source.get("values_field") or "values_json"))
         set_id_field = sql_identifier(str(source.get("set_id_field") or "evidence_id"))
         specs = coherent_field_specs(con, source=source, source_alias=source_alias)
-        present = " OR ".join(
-            f"json_extract(ps.{values_field}, '$[{specs[name]['position']}]') IS NOT NULL"
-            for group in source["quantity_groups"]
-            for name in group["quantities"]
-        )
+        present_groups: list[str] = []
+        for group in source["quantity_groups"]:
+            group_present = " OR ".join(
+                f"json_extract(ps.{values_field}, '$[{specs[name]['position']}]') IS NOT NULL"
+                for name in group["quantities"]
+            )
+            present_groups.append(
+                f"(({parameter_set_kind_condition(group, 'ps')}) "
+                f"AND ({group_present}))"
+            )
+        present = " OR ".join(present_groups)
         component_value = (
             f"ps.{sql_identifier(str(component_field))}" if component_field else "NULL::VARCHAR"
         )
@@ -1717,18 +1743,35 @@ def insert_coherent_direct(
     release = sql_literal(release_id)
     evidence_build = sql_literal(member["build_id"])
 
+    configured_kinds = {
+        str(kind)
+        for group in source["quantity_groups"]
+        for kind in group.get("parameter_set_kinds") or []
+    }
+    if configured_kinds:
+        kind_values = ",".join(sql_literal(value) for value in sorted(configured_kinds))
+        duplicate_expression = (
+            "SELECT COALESCE(SUM(n - 1), 0) FROM ("
+            "SELECT COUNT(*) n "
+            f"FROM {source_alias}.{set_table} ps "
+            "JOIN evidence_object_bindings b "
+            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            "AND b.source_record_id=ps.source_record_id "
+            "AND b.binding_status='accepted' "
+            f"WHERE ps.parameter_set_kind IN ({kind_values}) "
+            "GROUP BY b.stable_object_key, ps.parameter_set_kind HAVING COUNT(*) > 1)"
+        )
+    else:
+        duplicate_expression = (
+            "SELECT COUNT(*) - COUNT(DISTINCT b.stable_object_key) "
+            f"FROM {source_alias}.{set_table} ps "
+            "JOIN evidence_object_bindings b "
+            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            "AND b.source_record_id=ps.source_record_id "
+            "AND b.binding_status='accepted'"
+        )
     duplicate_sets = int(
-        con.execute(
-            f"""
-            SELECT COUNT(*) - COUNT(DISTINCT b.stable_object_key)
-            FROM {source_alias}.{set_table} ps
-            JOIN evidence_object_bindings b
-              ON b.source_id={source_id}
-             AND b.binding_subject_kind='source_record'
-             AND b.source_record_id=ps.source_record_id
-             AND b.binding_status='accepted'
-            """
-        ).fetchone()[0]
+        con.execute(duplicate_expression).fetchone()[0]
     )
     if duplicate_sets:
         raise ValueError(
@@ -1741,6 +1784,7 @@ def insert_coherent_direct(
     for group in source["quantity_groups"]:
         rule = group["authorities"][0]
         condition = authority_condition(rule, "sr", "ps")
+        kind_condition = parameter_set_kind_condition(group, "ps")
         selection_quality_score = quality_score_sql(
             rule, source_alias="sr", set_alias="ps"
         )
@@ -1782,6 +1826,7 @@ def insert_coherent_direct(
                         uncertainty_lower,
                         uncertainty_upper,
                         bound_semantics,
+                        kind_condition,
                     ]
                 ) + ")"
             )
@@ -1803,7 +1848,8 @@ def insert_coherent_direct(
             "JOIN evidence_object_bindings b "
             f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
             "AND b.source_record_id=ps.source_record_id "
-            f"AND b.binding_status='accepted' WHERE {condition}"
+            f"AND b.binding_status='accepted' "
+            f"WHERE ({condition}) AND ({kind_condition})"
         )
     con.execute(
         "INSERT INTO parameter_set_selection_decisions " + " UNION ALL ".join(decision_selects)
@@ -1838,13 +1884,14 @@ def insert_coherent_direct(
         CROSS JOIN LATERAL (
           VALUES {','.join(value_rows)}
         ) v(quantity_group, quantity_key, value_raw, normalized_value,
-            normalized_unit, uncertainty_lower, uncertainty_upper, bound_semantics)
+            normalized_unit, uncertainty_lower, uncertainty_upper, bound_semantics,
+            applicable_parameter_set_kind)
         JOIN parameter_set_selection_decisions d
           ON d.object_type=b.object_type
          AND d.stable_object_key=b.stable_object_key
          AND d.quantity_group=v.quantity_group
          AND d.selected_parameter_set_id=ps.{set_id_field}
-        WHERE v.value_raw IS NOT NULL
+        WHERE v.applicable_parameter_set_kind AND v.value_raw IS NOT NULL
         """
     )
 

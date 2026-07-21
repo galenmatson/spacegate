@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.6",
-  "compiler_version": "selected_fact_compiler_v7",
+  "policy_version": "2026-07-21.e5-selection.7",
+  "compiler_version": "selected_fact_compiler_v8",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -601,6 +601,101 @@
               "rank": 20,
               "method": "ultracoolsheet_youth_compilation",
               "reason": "UltracoolSheet youth evidence retained as source-native categorical evidence"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "gaia.dr3.variability",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "storage": "coherent_array",
+      "selection_mode": "authoritative_direct",
+      "parameter_set_table": "variability_activity_rotation_parameter_sets",
+      "schema_table": "coherent_parameter_set_schemas",
+      "set_id_field": "evidence_id",
+      "values_field": "values_json",
+      "minimum_eligible_records": 500000,
+      "minimum_accepted_bindings": 250000,
+      "minimum_selected_facts": 1000000,
+      "expected_binding_outcomes": {
+        "accepted": 269579,
+        "missing": 322618
+      },
+      "expected_selected_facts": 6888406,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_rotation_modulation",
+          "parameter_set_kinds": ["gaia_dr3_rotation_modulation_solution"],
+          "quantities": {
+            "best_rotation_period": {"quantity_key": "rotation_period_days", "unit": "d", "uncertainty_field": "best_rotation_period_error"},
+            "max_activity_index_g": {"quantity_key": "gaia_g_activity_index_mag", "unit": "mag", "uncertainty_field": "max_activity_index_g_error"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_rotation_modulation_pipeline",
+              "reason": "Gaia DR3 rotation-modulation solution"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_variability_summary",
+          "parameter_set_kinds": ["gaia_dr3_variability_summary"],
+          "quantities": {
+            "range_mag_g_fov": {"quantity_key": "gaia_g_variability_range_mag", "unit": "mag"},
+            "std_dev_mag_g_fov": {"quantity_key": "gaia_g_variability_stddev_mag", "unit": "mag"},
+            "mad_mag_g_fov": {"quantity_key": "gaia_g_variability_mad_mag", "unit": "mag"},
+            "iqr_mag_g_fov": {"quantity_key": "gaia_g_variability_iqr_mag", "unit": "mag"},
+            "stetson_mag_g_fov": {"quantity_key": "gaia_g_variability_stetson_index"},
+            "range_mag_bp": {"quantity_key": "gaia_bp_variability_range_mag", "unit": "mag"},
+            "std_dev_mag_bp": {"quantity_key": "gaia_bp_variability_stddev_mag", "unit": "mag"},
+            "mad_mag_bp": {"quantity_key": "gaia_bp_variability_mad_mag", "unit": "mag"},
+            "iqr_mag_bp": {"quantity_key": "gaia_bp_variability_iqr_mag", "unit": "mag"},
+            "stetson_mag_bp": {"quantity_key": "gaia_bp_variability_stetson_index"},
+            "range_mag_rp": {"quantity_key": "gaia_rp_variability_range_mag", "unit": "mag"},
+            "std_dev_mag_rp": {"quantity_key": "gaia_rp_variability_stddev_mag", "unit": "mag"},
+            "mad_mag_rp": {"quantity_key": "gaia_rp_variability_mad_mag", "unit": "mag"},
+            "iqr_mag_rp": {"quantity_key": "gaia_rp_variability_iqr_mag", "unit": "mag"},
+            "stetson_mag_rp": {"quantity_key": "gaia_rp_variability_stetson_index"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_variability_summary_pipeline",
+              "reason": "Gaia DR3 source-native variability summary"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_variability_classification_membership",
+          "parameter_set_kinds": ["gaia_dr3_variability_summary"],
+          "quantities": {
+            "in_vari_classification_result": {"quantity_key": "gaia_variability_classified", "numeric": false},
+            "in_vari_rrlyrae": {"quantity_key": "gaia_variability_rr_lyrae_member", "numeric": false},
+            "in_vari_cepheid": {"quantity_key": "gaia_variability_cepheid_member", "numeric": false},
+            "in_vari_planetary_transit": {"quantity_key": "gaia_variability_planetary_transit_member", "numeric": false},
+            "in_vari_short_timescale": {"quantity_key": "gaia_variability_short_timescale_member", "numeric": false},
+            "in_vari_long_period_variable": {"quantity_key": "gaia_variability_long_period_member", "numeric": false},
+            "in_vari_eclipsing_binary": {"quantity_key": "gaia_variability_eclipsing_binary_member", "numeric": false},
+            "in_vari_rotation_modulation": {"quantity_key": "gaia_variability_rotation_modulation_member", "numeric": false},
+            "in_vari_ms_oscillator": {"quantity_key": "gaia_variability_ms_oscillator_member", "numeric": false},
+            "in_vari_agn": {"quantity_key": "gaia_variability_agn_member", "numeric": false},
+            "in_vari_microlensing": {"quantity_key": "gaia_variability_microlensing_member", "numeric": false},
+            "in_vari_compact_companion": {"quantity_key": "gaia_variability_compact_companion_member", "numeric": false}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_variability_summary_pipeline",
+              "reason": "Gaia DR3 variability table membership flags; false remains explicit negative context"
             }
           ]
         }

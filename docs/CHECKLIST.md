@@ -1449,6 +1449,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   selection, derivation, integrity, export, hash, and promotion phase; publish a
   machine-readable timing report and optimize measured bottlenecks before the
   required clean reproduction
+- [x] E5 policy-batch accounting: assign every remaining blocking source to one
+  dependency-ordered implementation batch, distinguish resolved sources from
+  active blockers, and fail on duplicate, missing, or falsely completed work
+- [x] E5 Gaia variability checkpoint: select source-native rotation,
+  variability-statistic, and classification-membership evidence from its
+  matching parameter-set kind; account all 592,197 subjects and pass two-pass
+  focused verification before another full selected-fact build
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence
