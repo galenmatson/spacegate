@@ -15,6 +15,7 @@ import duckdb
 from compile_scientific_evidence import (
     DEFAULT_STATE,
     EVIDENCE_REFERENCE_TABLES,
+    audit_key_integrity,
     load_json,
     sql_string,
     write_json,
@@ -419,6 +420,17 @@ def main() -> int:
         con.execute(f"set memory_limit={sql_string(str(args.memory_limit))}")
         con.execute(f"set threads={max(1, args.threads)}")
         report = audit_evidence(con)
+        key_integrity = audit_key_integrity(con, fail_on_duplicates=False)
+        report["key_integrity"] = key_integrity
+        report["checks"]["duplicate_unique_key_groups"] = key_integrity[
+            "duplicate_groups"
+        ]
+        report["checks"]["duplicate_unique_key_excess_rows"] = key_integrity[
+            "duplicate_excess_rows"
+        ]
+        report["status"] = (
+            "pass" if not any(report["checks"].values()) else "fail"
+        )
     finally:
         if "con" in locals():
             con.close()

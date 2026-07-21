@@ -1316,6 +1316,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   account all 354 fields while preserving four GSP-Phot library alternatives,
   GSP-Spec ANN, and spectroscopic FLAME without winner selection; complete the
   immutable build, source-specific/generic audits, and clean reproduction
+- [x] E4 immutable analytical-storage guard: replace retained DuckDB PK/unique
+  ART indexes with explicit binding deduplication plus exact compiler and
+  independent-verifier key audits; preserve logical hashes in same-row A/B and
+  record measured storage reduction before further Gaia-scale materialization
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

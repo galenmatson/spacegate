@@ -66,6 +66,45 @@ DOMAIN_TABLES = {
     "observation_product_lineage",
 }
 
+TABLE_UNIQUE_KEYS = {
+    "evidence_build": [("build_id",)],
+    "evidence_sources": [("source_id", "release_id")],
+    "source_records": [
+        ("source_record_id",),
+        ("source_id", "release_id", "source_table", "source_row_sha256"),
+    ],
+    "source_field_dispositions": [
+        ("source_id", "release_id", "source_table", "source_field")
+    ],
+    "object_binding_outcomes": [("binding_outcome_id",)],
+    "identifier_claim_evidence": [("evidence_id",)],
+    "identifier_normalization_rejections": [("rejection_id",)],
+    "stellar_parameter_sets": [("parameter_set_id",)],
+    "stellar_parameter_evidence": [("evidence_id",)],
+    "stellar_classification_evidence": [("evidence_id",)],
+    "astrometry_distance_evidence": [("evidence_id",)],
+    "astrometry_distance_evidence_bundles": [("bundle_id",)],
+    "photometry_extinction_evidence": [("evidence_id",)],
+    "spectra_product_index": [("evidence_id",)],
+    "variability_activity_rotation_evidence": [("evidence_id",)],
+    "relation_claim_evidence": [("evidence_id",)],
+    "orbital_solution_evidence": [("evidence_id",)],
+    "cluster_evidence": [("evidence_id",)],
+    "cluster_membership_evidence": [("evidence_id",)],
+    "planet_parameter_sets": [("parameter_set_id",)],
+    "planet_parameter_evidence": [("evidence_id",)],
+    "planet_lifecycle_evidence": [("evidence_id",)],
+    "transit_observation_evidence": [("evidence_id",)],
+    "radial_velocity_evidence": [("evidence_id",)],
+    "compact_object_evidence": [("evidence_id",)],
+    "extended_object_evidence": [("evidence_id",)],
+    "citations": [("citation_id",)],
+    "evidence_citations": [
+        ("evidence_table", "evidence_id", "citation_id", "citation_role")
+    ],
+    "observation_product_lineage": [("evidence_id",)],
+}
+
 EVIDENCE_REFERENCE_TABLES = {
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
@@ -1249,7 +1288,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(
         """
         create table evidence_build (
-          build_id varchar primary key,
+          build_id varchar not null,
           contract_version varchar not null,
           compiler_version varchar not null,
           input_fingerprint varchar not null,
@@ -1263,11 +1302,10 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           raw_snapshot_id varchar not null,
           raw_content_sha256 varchar not null,
           typed_snapshot_id varchar not null,
-          typed_content_sha256 varchar not null,
-          primary key (source_id, release_id)
+          typed_content_sha256 varchar not null
         );
         create table source_records (
-          source_record_id varchar primary key,
+          source_record_id varchar not null,
           source_id varchar not null,
           release_id varchar not null,
           source_table varchar not null,
@@ -1280,8 +1318,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           typed_snapshot_id varchar not null,
           raw_artifact_sha256 varchar not null,
           typed_table_sha256 varchar not null,
-          retrieved_at timestamp,
-          unique (source_id, release_id, source_table, source_row_sha256)
+          retrieved_at timestamp
         );
         create table source_field_dispositions (
           source_id varchar not null,
@@ -1297,11 +1334,10 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           destination_table varchar not null,
           mapping_status varchar not null,
           reason varchar not null,
-          adapter_version varchar not null,
-          primary key (source_id, release_id, source_table, source_field)
+          adapter_version varchar not null
         );
         create table object_binding_outcomes (
-          binding_outcome_id varchar primary key,
+          binding_outcome_id varchar not null,
           source_record_id varchar not null,
           binding_status varchar not null,
           binding_scope varchar not null,
@@ -1314,7 +1350,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           provenance_json json not null
         );
         create table identifier_claim_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           namespace varchar not null,
           identifier_raw varchar not null,
@@ -1325,7 +1361,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table identifier_normalization_rejections (
-          rejection_id varchar primary key,
+          rejection_id varchar not null,
           source_record_id varchar not null,
           source_field varchar not null,
           requested_namespace varchar not null,
@@ -1334,7 +1370,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           reason varchar not null
         );
         create table stellar_parameter_sets (
-          parameter_set_id varchar primary key,
+          parameter_set_id varchar not null,
           source_record_id varchar not null,
           component_scope varchar,
           method varchar,
@@ -1345,7 +1381,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table stellar_parameter_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           parameter_set_id varchar not null,
           source_record_id varchar not null,
           component_scope varchar,
@@ -1364,7 +1400,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table stellar_classification_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           component_scope varchar,
           classification_scheme varchar not null,
@@ -1377,7 +1413,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table astrometry_distance_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           quantity_key varchar not null,
           value_raw varchar,
@@ -1396,7 +1432,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table astrometry_distance_evidence_bundles (
-          bundle_id varchar primary key,
+          bundle_id varchar not null,
           source_record_id varchar not null,
           bundle_semantics varchar not null,
           measurements struct(
@@ -1419,7 +1455,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           )[] not null
         );
         create table photometry_extinction_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           quantity_key varchar not null,
           bandpass varchar,
@@ -1437,7 +1473,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table spectra_product_index (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           survey varchar not null,
           product_key varchar not null,
@@ -1448,7 +1484,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table variability_activity_rotation_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           evidence_kind varchar not null,
           quantity_key varchar,
@@ -1465,7 +1501,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table relation_claim_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           left_identity_namespace varchar not null,
           left_identity_raw varchar not null,
@@ -1489,7 +1525,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table orbital_solution_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           relation_claim_id varchar,
           solution_key varchar not null,
@@ -1503,7 +1539,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table cluster_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           cluster_identity_raw varchar not null,
           parameter_set_raw json,
@@ -1514,7 +1550,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table cluster_membership_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           cluster_identity_raw varchar not null,
           member_identity_raw varchar not null,
@@ -1524,7 +1560,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table planet_parameter_sets (
-          parameter_set_id varchar primary key,
+          parameter_set_id varchar not null,
           source_record_id varchar not null,
           parameter_set_kind varchar not null,
           method varchar,
@@ -1535,7 +1571,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table planet_parameter_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           parameter_set_id varchar not null,
           source_record_id varchar not null,
           quantity_key varchar not null,
@@ -1553,7 +1589,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table planet_lifecycle_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           source_identifier_raw varchar not null,
           disposition_raw varchar not null,
@@ -1565,7 +1601,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json json
         );
         create table transit_observation_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           signal_identifier_raw varchar,
           quantity_key varchar not null,
@@ -1584,7 +1620,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table radial_velocity_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           observation_identifier_raw varchar,
           quantity_key varchar not null,
@@ -1603,7 +1639,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table compact_object_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           compact_kind varchar not null,
           parameter_set_key varchar,
@@ -1615,7 +1651,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table extended_object_evidence (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           extended_kind varchar not null,
           geometry_raw json,
@@ -1628,7 +1664,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           normalization_version varchar
         );
         create table citations (
-          citation_id varchar primary key,
+          citation_id varchar not null,
           source_id varchar not null,
           source_reference_key varchar,
           citation_text_raw varchar not null,
@@ -1642,11 +1678,10 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           evidence_table varchar not null,
           evidence_id varchar not null,
           citation_id varchar not null,
-          citation_role varchar not null,
-          primary key (evidence_table, evidence_id, citation_id, citation_role)
+          citation_role varchar not null
         );
         create table observation_product_lineage (
-          evidence_id varchar primary key,
+          evidence_id varchar not null,
           source_record_id varchar not null,
           product_kind varchar not null,
           product_key varchar not null,
@@ -4907,10 +4942,12 @@ def materialize_unresolved_binding_outcomes(
     for binding_scope_query in binding_scope_queries:
         con.execute(
             f"""
-            insert or ignore into object_binding_outcomes
-            select
+            insert into object_binding_outcomes
+            with candidates as (
+              select distinct
               sha256('binding|unresolved|' || s.source_record_id || '|'
-                || s.binding_scope || '|' || coalesce(s.component_scope, '')),
+                || s.binding_scope || '|' || coalesce(s.component_scope, ''))
+                binding_outcome_id,
               s.source_record_id,
               'unresolved',
               s.binding_scope,
@@ -4926,8 +4963,14 @@ def materialize_unresolved_binding_outcomes(
                 'source_table', r.source_table,
                 'source_row_sha256', r.source_row_sha256
               )
-            from ({binding_scope_query}) s
-            join source_records r using (source_record_id)
+              from ({binding_scope_query}) s
+              join source_records r using (source_record_id)
+            )
+            select * from candidates c
+            where not exists (
+              select 1 from object_binding_outcomes existing
+              where existing.binding_outcome_id=c.binding_outcome_id
+            )
             """,
             [source_id, release_id, source_table],
         )
@@ -5663,6 +5706,57 @@ def database_block_report(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
     }
 
 
+def audit_key_integrity(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    fail_on_duplicates: bool = True,
+) -> dict[str, Any]:
+    tables = set(user_tables(con))
+    if tables != set(TABLE_UNIQUE_KEYS):
+        raise ValueError(
+            "key-integrity contract does not cover the schema: "
+            f"missing={sorted(tables - set(TABLE_UNIQUE_KEYS))} "
+            f"stale={sorted(set(TABLE_UNIQUE_KEYS) - tables)}"
+        )
+    checks: list[dict[str, Any]] = []
+    for table_name in sorted(TABLE_UNIQUE_KEYS):
+        for key_fields in TABLE_UNIQUE_KEYS[table_name]:
+            fields = ", ".join(sql_identifier(field) for field in key_fields)
+            duplicate_groups, duplicate_excess = con.execute(
+                f"""
+                with duplicate_keys as (
+                  select {fields}, count(*) duplicate_count
+                  from {sql_identifier(table_name)}
+                  group by {fields}
+                  having count(*) > 1
+                )
+                select count(*), coalesce(sum(duplicate_count - 1), 0)
+                from duplicate_keys
+                """
+            ).fetchone()
+            checks.append(
+                {
+                    "table": table_name,
+                    "key_fields": list(key_fields),
+                    "duplicate_groups": int(duplicate_groups),
+                    "duplicate_excess_rows": int(duplicate_excess),
+                }
+            )
+    duplicate_groups = sum(row["duplicate_groups"] for row in checks)
+    duplicate_excess_rows = sum(row["duplicate_excess_rows"] for row in checks)
+    report = {
+        "policy": "immutable_append_then_exact_key_audit_v1",
+        "runtime_unique_indexes": False,
+        "checks": checks,
+        "duplicate_groups": duplicate_groups,
+        "duplicate_excess_rows": duplicate_excess_rows,
+        "status": "pass" if not duplicate_groups else "fail",
+    }
+    if duplicate_groups and fail_on_duplicates:
+        raise ValueError(f"scientific evidence key-integrity audit failed: {report}")
+    return report
+
+
 def compile_evidence(
     *,
     state_dir: Path,
@@ -5900,6 +5994,7 @@ def compile_evidence(
             ),
         }
         pending_fields = mapping_counts.get("declared_pending", 0)
+        key_integrity = audit_key_integrity(con)
         build_status = "pass" if not pending_fields else "in_progress"
         con.execute(
             "insert into evidence_build values (?, ?, ?, ?, ?, ?)",
@@ -5952,6 +6047,7 @@ def compile_evidence(
         "lifecycle_claim_counts": lifecycle_claim_counts,
         "relation_claim_counts": relation_claim_counts,
         "citation_summary": citation_summary,
+        "key_integrity": key_integrity,
         "logical_content_sha256": logical_content_sha256,
         "scientific_content_sha256": scientific_content_sha256,
         "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
@@ -5959,6 +6055,8 @@ def compile_evidence(
             "memory_limit": MATERIALIZATION_MEMORY_LIMIT,
             "threads": 1,
             "preserve_insertion_order": False,
+            "runtime_unique_indexes": False,
+            "key_integrity_policy": key_integrity["policy"],
             "astrometry_citation_link_bucket_count": CITATION_LINK_BUCKET_COUNT,
             "citation_link_bucket_count": CITATION_LINK_BUCKET_COUNT,
             "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)

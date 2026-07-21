@@ -684,6 +684,17 @@ sudo scripts/normalize_state_permissions.sh --apply
   reclaiming about 93.46 GiB. The refreshed E0 audit reports 445.1 GiB free, no
   alerts, and `acquisition_ready=true`; the 57.7-GB legacy scratch pool remains
   intact for a separate report-preserving retention decision.
+- Gaia supplementary AP attempts v72 and v73 each ended before manifest
+  promotion: v72 received a keyboard interrupt after its tmux window became the
+  attached client, and detached v73 was intentionally stopped once main-AP
+  block accounting proved retained uniqueness-index amplification should be
+  removed before another large compile. Zero-age fail-closed dry runs proved
+  one closed, manifestless, unreferenced staging tree each. Exact hashes
+  `444bb02ec5702d9c84db491bfcd4a47338516f634c5317cc569cd2d529934675`
+  and `4bc6ae94b04dd1346e62fc32579d90c3f35c4030081f805f4c39b028974d134f`
+  authorized whole-tree retirement of 1,129,861,120 and 1,131,433,984 bytes.
+  The raw/typed supplementary release, accepted artifacts, published builds,
+  rollback generations, and retained reports were not candidates.
 
 ## Extended-Object Catalog Artifacts
 

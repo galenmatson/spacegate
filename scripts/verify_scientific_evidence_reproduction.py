@@ -47,6 +47,7 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         "lifecycle_claim_counts": report["lifecycle_claim_counts"],
         "relation_claim_counts": report["relation_claim_counts"],
         "citation_summary": report["citation_summary"],
+        "key_integrity": report.get("key_integrity"),
         "logical_content_sha256": report["logical_content_sha256"],
         "scientific_content_sha256": report.get("scientific_content_sha256"),
         "logical_hash_algorithm": report["logical_hash_algorithm"],

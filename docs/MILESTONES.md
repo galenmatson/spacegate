@@ -1745,6 +1745,13 @@ Current status (July 19, 2026, in progress):
   schema, source-interval, and real-row smoke gates pass; the full immutable
   build, source audit, generic artifact audit, and clean reproduction remain the
   next E4 checkpoint
+- compiler/contract v71/v72 replaces retained runtime uniqueness indexes with
+  exact pre-promotion and independent key-integrity audits for every immutable
+  evidence table. A representative same-row A/B has identical logical hashes,
+  zero duplicate keys, and 41.1% lower storage; main-AP block accounting shows
+  retained ART indexes consumed most of the 167-GiB artifact beyond its roughly
+  58-GiB table allocation. Full Gaia supplementary materialization will use the
+  audited indexless contract before additional large source families land
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

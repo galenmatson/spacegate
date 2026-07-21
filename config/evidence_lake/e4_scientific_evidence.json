@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-21.e4-foundation.71",
-  "compiler_version": "scientific_evidence_compiler_v70",
+  "contract_version": "2026-07-21.e4-foundation.72",
+  "compiler_version": "scientific_evidence_compiler_v71",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",

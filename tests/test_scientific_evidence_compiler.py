@@ -980,6 +980,10 @@ def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
     with duckdb.connect() as con:
         compiler.create_schema(con)
         tables = set(compiler.user_tables(con))
+        runtime_unique_constraints = con.execute(
+            "select count(*) from duckdb_constraints() where "
+            "constraint_type in ('PRIMARY KEY','UNIQUE')"
+        ).fetchone()[0]
     assert compiler.DOMAIN_TABLES <= tables
     assert {
         "evidence_build",
@@ -989,6 +993,31 @@ def test_scientific_evidence_schema_has_bounded_domain_tables() -> None:
         "object_binding_outcomes",
         "identifier_normalization_rejections",
     } <= tables
+    assert tables == set(compiler.TABLE_UNIQUE_KEYS)
+    assert runtime_unique_constraints == 0
+
+
+def test_immutable_key_integrity_audit_detects_duplicate_contract_keys() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        passed = compiler.audit_key_integrity(con)
+        con.execute(
+            "insert into evidence_build values "
+            "('duplicate','contract','compiler','input','pass',timestamp '2026-07-21'),"
+            "('duplicate','contract','compiler','input','pass',timestamp '2026-07-21')"
+        )
+        failed = compiler.audit_key_integrity(con, fail_on_duplicates=False)
+        try:
+            compiler.audit_key_integrity(con)
+        except ValueError as error:
+            assert "key-integrity audit failed" in str(error)
+        else:
+            raise AssertionError("duplicate immutable keys passed integrity audit")
+    assert passed["status"] == "pass"
+    assert passed["runtime_unique_indexes"] is False
+    assert failed["status"] == "fail"
+    assert failed["duplicate_groups"] == 1
+    assert failed["duplicate_excess_rows"] == 1
 
 
 def test_unresolved_binding_materialization_deduplicates_scopes_without_union() -> None:
@@ -1330,6 +1359,10 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
             "with_confidence_statistic": 0,
         },
         "citation_summary": {"citations": 1, "evidence_links": 1},
+        "key_integrity": {
+            "policy": "immutable_append_then_exact_key_audit_v1",
+            "status": "pass",
+        },
         "logical_content_sha256": "logical",
         "scientific_content_sha256": "scientific",
         "logical_hash_algorithm": "sha256_bucketed_multiset_v1",

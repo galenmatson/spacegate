@@ -908,6 +908,19 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   finds no reversed bounds plus two preserved hard-envelope FLAME luminosity
   intervals whose central estimate does not bracket. Full immutable
   materialization and reproduction remain pending.
+- Compiler/contract v71/v72 removes retained DuckDB primary-key and unique ART
+  indexes from immutable analytical evidence tables. Those indexes enforced
+  transient write-time uniqueness but occupied most of the accepted main AP
+  artifact: table storage accounts for roughly 58 GiB of its 167 GiB database,
+  with retained constraint indexes accounting for most of the remainder. The
+  compiler now constructs deterministic namespaced keys, explicitly
+  deduplicates unresolved bindings, and runs an exact fail-closed uniqueness
+  audit over every table key plus the source-record natural key before atomic
+  promotion. The independent artifact verifier repeats that audit. A same-row
+  supplementary-AP smoke A/B preserves every logical table hash, reports zero
+  duplicate keys, and reduces the database from 8,925,184 to 5,255,168 bytes
+  (41.1%). This changes storage and integrity enforcement, not scientific
+  content.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

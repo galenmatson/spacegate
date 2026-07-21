@@ -1986,6 +1986,34 @@ Representative commits:
   outside the published endpoints; they remain source-native reported anomalies.
   Full immutable materialization and clean reproduction are pending.
 
+### 66) Immutable Evidence Key Audits Replace Runtime Indexes
+
+- Table-level storage inspection of accepted main-AP checkpoint
+  `393b08fa1268bbd42bb40225` found roughly 58 GiB of allocated table blocks in a
+  167-GiB DuckDB file. The remainder is dominated by automatically retained ART
+  indexes from primary-key and unique constraints on tens of millions of
+  immutable SHA-keyed rows. Carrying that amplification into the Gaia source
+  backbone and E6 shadow build would exceed Photon's practical retention budget.
+- Compiler/contract v71/v72 keeps `NOT NULL` schema shape constraints but does
+  not retain mutable-runtime uniqueness indexes. Unresolved binding
+  deduplication is now explicit. Before hashing or atomic promotion, an exact
+  key audit checks every table's deterministic ID/composite key and the
+  `(source, release, table, row hash)` source-record natural key. Any duplicate
+  fails the build; the independent artifact verifier repeats the audit.
+- A representative supplementary-AP same-row A/B preserved every logical table
+  hash and reported no duplicate key while reducing the database from 8,925,184
+  to 5,255,168 bytes (41.1%). The change is execution/storage-only and does not
+  weaken promoted-artifact integrity.
+- The first supplementary run was exposed in the attached tmux client and was
+  interrupted before promotion. Exact candidate hash
+  `444bb02ec5702d9c84db491bfcd4a47338516f634c5317cc569cd2d529934675`
+  authorized retirement of its sole closed 1,129,861,120-byte staging tree. A
+  detached retry was intentionally stopped after the storage amplification was
+  confirmed; exact candidate hash
+  `4bc6ae94b04dd1346e62fc32579d90c3f35c4030081f805f4c39b028974d134f`
+  authorized retirement of its sole closed 1,131,433,984-byte staging tree. No
+  raw, typed, accepted, served, rollback, or report artifact was selected.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
