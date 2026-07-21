@@ -1756,9 +1756,8 @@ Current status (July 19, 2026, in progress):
   audited indexless contract before additional large source families land
 - the E4 source-scope ledger accounts all 44 registry releases without silently
   treating identity-only, superseded, disabled, or transitional inputs as
-  scientific adapters. Thirty-two adapters now exist; the three remaining
-  blockers are Gaia source and separately scoped natural/artificial JPL
-  Horizons evidence
+  scientific adapters. Thirty-four adapters now exist; Gaia source is the only
+  remaining blocker
 - VSX release `rolling_snapshot_20260721` is checked into the registry with all
   three official artifacts. Build `d9780b76333132c0a05098b7` accounts
   11,135,737 source records and all 29 fields; it materializes 29,456,421
@@ -1799,8 +1798,15 @@ Current status (July 19, 2026, in progress):
   snapshots `1905bbe6c368e5f6a321194a` / `677018070eec1039a43e2652`
   and typed snapshots `c8652fd839feaa7b59104ad3` /
   `b9e3f2cced96b8f2b071b7ea`; raw/typed accounting, source audits, and clean
-  reproduction all pass. Checked-in registry cutover and E4 domain
-  materialization remain pending
+  reproduction all pass
+- registry/contract v16/v75 cuts both Horizons releases over as separate E4
+  adapters. Build `236a7b7822c52fef8b903d58` accounts 142 source records and
+  all 67 fields, preserving 71 exact responses, 71 linked orbit/trajectory
+  solutions, 71 center relations, 36 coherent physical parameter sets, 73
+  citations, and 178 evidence links. Operator seed identities remain distinct
+  from parsed JPL target identities, and only JPL identities form relation
+  endpoints. Generic/source audits and clean reproduction pass logical hash
+  `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,

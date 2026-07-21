@@ -716,6 +716,15 @@ publication. The mutable legacy CSV paths beside them are compatibility
 projections and may be replaced atomically by the collector, but their
 referenced immutable source snapshot must remain.
 
+The accepted combined JPL E4 checkpoint `236a7b7822c52fef8b903d58`, its exact
+compiler/source/generic-audit/clean-reproduction reports, and both referenced
+raw and typed snapshots are protected E4/E5 inputs. A failed manifestless v76
+staging tree was retired whole only after v77 passed those gates: reviewed
+candidate hash
+`989a230ebb4219d6decb901f16ac155d6f5051454d6b6f80f35e59c228c6b573`
+authorized removal of 1,851,392 allocated bytes. No accepted artifact or source
+snapshot was a candidate.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

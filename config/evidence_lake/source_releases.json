@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-21.15",
+  "registry_version": "2026-07-21.16",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -865,26 +865,32 @@
       "citation_url": "https://ssd.jpl.nasa.gov/horizons/",
       "license": {"name": "NASA/JPL data-use policy", "url": "https://www.jpl.nasa.gov/jpl-image-use-policy"},
       "cadence": "operator-pinned epoch",
-      "identity_namespaces": ["jpl_horizons_target"],
+      "identity_namespaces": ["jpl_horizons_target", "spacegate_operator_seed_target_key", "spacegate_operator_seed_name"],
       "frame_epoch": "solution-specific",
       "retrieval": {"kind": "api", "implementation": "scripts/fetch_sol_authority.py"},
-      "manifest_entries": [{"manifest": "sol_authority_manifest.json", "source_name": "sol_system_objects"}],
+      "manifest_entries": [
+        {"manifest": "sol_authority_manifest.json", "source_name": "sol_system_objects"},
+        {"manifest": "sol_authority_manifest.json", "source_name": "sol_authority_horizons_responses"}
+      ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
     {
       "source_id": "solar_system.jpl_horizons_artificial",
-      "release_id": "horizons_s4_2026_06_30",
+      "release_id": "horizons_s4_2026_07_21",
       "state": "active",
       "authority_roles": {"identity": "jpl_target", "multiplicity": "trajectory_solution"},
       "publisher": "NASA JPL Solar System Dynamics",
       "citation_url": "https://ssd.jpl.nasa.gov/horizons/",
       "license": {"name": "NASA/JPL data-use policy", "url": "https://www.jpl.nasa.gov/jpl-image-use-policy"},
       "cadence": "operator-pinned epoch",
-      "identity_namespaces": ["jpl_horizons_target"],
+      "identity_namespaces": ["jpl_horizons_target", "spacegate_operator_seed_target_key", "spacegate_operator_seed_name"],
       "frame_epoch": "solution-specific",
       "retrieval": {"kind": "api", "implementation": "scripts/fetch_sol_artificial.py"},
-      "manifest_entries": [{"manifest": "sol_artificial_manifest.json", "source_name": "sol_artificial_objects"}],
+      "manifest_entries": [
+        {"manifest": "sol_artificial_manifest.json", "source_name": "sol_artificial_objects"},
+        {"manifest": "sol_artificial_manifest.json", "source_name": "sol_artificial_horizons_responses"}
+      ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },

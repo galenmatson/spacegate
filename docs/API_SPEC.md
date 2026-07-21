@@ -33,6 +33,11 @@ search or detail responses merely because E4 preserved them. Schema-backed
 values and identity claims must pass E5 selection and E6 scientific A/B review
 before any public API field or endpoint is introduced.
 
+The natural/artificial JPL Horizons E4 checkpoint follows the same rule. Its
+exact response products, orbit solutions, physical parameter sets, and
+source-scoped center relations are compiler evidence only; it does not change
+the served Sol hierarchy, simulation payload, or public object count.
+
 ## Common Types
 
 ### Provenance

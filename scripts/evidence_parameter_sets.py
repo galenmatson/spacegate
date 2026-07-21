@@ -209,8 +209,22 @@ def materialize_coherent_parameter_set(
         vector_rules,
         expected_count=config.get("expected_masked_vector_count"),
     )
+    metadata_overrides = {
+        str(field): dict(metadata)
+        for field, metadata in (config.get("field_metadata") or {}).items()
+    }
+    unknown_metadata_fields = sorted(set(metadata_overrides) - set(value_fields))
+    if unknown_metadata_fields:
+        raise ValueError(
+            "coherent parameter-set metadata references fields outside its "
+            f"destination: {unknown_metadata_fields}"
+        )
     metadata_by_field = {
-        str(field["column_name"]): field for field in destination_fields
+        str(field["column_name"]): {
+            **field,
+            **metadata_overrides.get(str(field["column_name"]), {}),
+        }
+        for field in destination_fields
     }
     schema_id, schema_json = build_parameter_schema(
         source_id=source_id,

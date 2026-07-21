@@ -605,7 +605,13 @@ syntax-derived `center_target_command`; later relation binding must prefer that
 source identifier over the operator seed's human-readable parent name.
 The production-shaped Evidence Lake preview types both the parsed table and
 response index for all 60 natural targets and passes raw/typed accounting,
-source-response integrity, and clean reproduction.
+source-response integrity, and clean reproduction. The checked-in E4 adapter
+uses parsed Horizons target/center commands as JPL-scoped identities, retains
+reviewed operator keys/names in separate seed namespaces, and materializes each
+exact response as observation-product lineage. Combined natural/artificial E4
+build `236a7b7822c52fef8b903d58` passes source, artifact, and clean-reproduction
+gates at logical hash
+`c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
@@ -633,7 +639,9 @@ freshness windows remain applicability evidence; an expired trajectory is not
 silently treated as a current orbit merely because its catalog snapshot still
 falls within the broader feed refresh window.
 The corresponding 11-target preview passes the same gates independently from
-the natural-object source.
+the natural-object source. Its E4 trajectory relations use only parsed JPL
+target and center commands; human-readable operator parent names remain source
+context and cannot create a relation endpoint.
 
 ## 3) Gaia DR3 astrophysical classifier probabilities
 

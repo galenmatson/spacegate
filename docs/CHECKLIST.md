@@ -1326,8 +1326,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 source-scope accounting: classify all 44 registered releases as an E4
   adapter or an explicit E2/E3/E6 boundary disposition; fail on unaccounted,
   stale, conflicting, or unregistered entries
-- [ ] E4 remaining registered adapter tail: materialize Gaia source, natural
-  JPL Horizons, and separately scoped artificial JPL Horizons evidence
+- [ ] E4 remaining registered adapter tail: materialize Gaia source; the
+  separately scoped natural and artificial JPL Horizons adapters now pass
+  immutable-build, source-audit, generic-artifact, and clean-reproduction gates
 - [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
@@ -1358,7 +1359,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Run a production-shaped JPL Evidence Lake preview with both parsed and
   response-index artifacts; pass natural/artificial raw accounting, typed
   cooking, source audits, and clean deterministic reproduction independently
-- [ ] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
+- [x] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
   stale artificial trajectory tail, register both response-index artifacts,
   type and materialize scoped object/relation/orbit evidence, and keep operator
   seed claims distinct from values parsed from Horizons responses

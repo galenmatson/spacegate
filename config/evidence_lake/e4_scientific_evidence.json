@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-21.e4-foundation.74",
-  "compiler_version": "scientific_evidence_compiler_v73",
+  "contract_version": "2026-07-21.e4-foundation.75",
+  "compiler_version": "scientific_evidence_compiler_v74",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1506,6 +1506,46 @@
       {"pattern": "^(gaia_g_mean_mag|gaia_bp_mean_mag|gaia_rp_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Gaia photometry remains in E1; release-native Gaia owns competing E4 evidence"},
       {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST medium-resolution observation, band, coadd, SNR, fiber, moon, epoch, and reduction context retained source-natively"}
     ],
+    "jpl_horizons_objects": [
+      {
+        "pattern": "^(source_pk|object_name|horizons_command|center_target_command)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "reviewed operator target keys/names and source-published Horizons target/center commands remain distinct identity claims"
+      },
+      {
+        "pattern": "^(center_code|epoch_tdb_jd|eccentricity|inclination_deg|semi_major_axis_au|orbital_period_days|horizons_query_url|horizons_response_path|horizons_response_sha256|retrieved_at)$",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "source-parsed osculating elements and exact Horizons response/query lineage"
+      },
+      {
+        "pattern": "^(radius_km|mass_kg)$",
+        "disposition": "domain",
+        "destination": "solar_system_object_parameter_sets",
+        "reason": "source-parsed physical parameters with contract-declared units"
+      },
+      {
+        "pattern": "^source_row_hash$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "collector projection hash is redundant with E4 source-row and immutable raw/typed checksums"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "reviewed operator inclusion/classification/parent/freshness context and seed lineage remain labeled separately from Horizons response values"
+      }
+    ],
+    "jpl_horizons_response_index": [
+      {
+        "pattern": ".*",
+        "disposition": "lineage",
+        "destination": "observation_product_lineage",
+        "reason": "one immutable exact Horizons API response product with query, checksum, byte, target, center, and retrieval lineage"
+      }
+    ],
     "vsx_catalog": [
       {
         "pattern": "^(OID|Name)$",
@@ -2159,6 +2199,304 @@
           "source_citation_links": [
             {"identifier_claim_field": "proper_name", "reference_key_field": "reference", "citation_role": "iau_official_name_reference", "excluded_reference_values": ["--"], "required": true}
           ]
+        }
+      }
+    },
+    "solar_system.jpl_horizons_authority": {
+      "adapter_version": "jpl_horizons_natural_scientific_evidence_v1",
+      "table_order": [
+        "sol_authority_horizons_responses",
+        "sol_system_objects"
+      ],
+      "tables": {
+        "sol_authority_horizons_responses": {
+          "logical_key_fields": ["source_pk"],
+          "object_scope": "natural_solar_system_horizons_response",
+          "field_profile": "jpl_horizons_response_index",
+          "configured_observation_products": [
+            {
+              "locator_field": "response_path",
+              "locator_kind": "immutable_raw_snapshot_relative_path",
+              "checksum_field": "response_sha256",
+              "checksum_algorithm": "sha256",
+              "bytes_field": "response_bytes",
+              "product_kind": "jpl_horizons_api_response",
+              "product_key_prefix": "jpl-horizons-response:",
+              "retrieval_policy": "local_immutable_raw_snapshot",
+              "processing_level": "raw_api_response",
+              "quality_fields": [
+                "source_pk",
+                "object_name",
+                "horizons_command",
+                "center_code",
+                "query_url",
+                "query_parameters_json",
+                "retrieved_at"
+              ]
+            }
+          ]
+        },
+        "sol_system_objects": {
+          "logical_key_fields": ["source_pk"],
+          "object_scope": "reviewed_natural_solar_system_target_and_horizons_solution",
+          "field_profile": "jpl_horizons_objects",
+          "identifier_claims": {
+            "source_pk": {
+              "namespace": "spacegate_operator_seed_target_key",
+              "claim_scope": "reviewed_operator_seed_target",
+              "component_scope": "natural_solar_system_target"
+            },
+            "object_name": {
+              "namespace": "spacegate_operator_seed_name",
+              "claim_scope": "reviewed_operator_seed_target",
+              "component_scope": "natural_solar_system_target"
+            },
+            "horizons_command": {
+              "namespace": "jpl_horizons_target",
+              "claim_scope": "natural_solar_system_target",
+              "component_scope": "orbit_target"
+            },
+            "center_target_command": {
+              "namespace": "jpl_horizons_target",
+              "claim_scope": "orbit_center_target",
+              "component_scope": "orbit_center"
+            }
+          },
+          "relation_claim": {
+            "left_identifier_field": "horizons_command",
+            "left_identifier_namespace": "jpl_horizons_target",
+            "left_component_scope": "orbit_target",
+            "right_identifier_field": "center_target_command",
+            "right_identifier_namespace": "jpl_horizons_target",
+            "right_component_scope": "orbit_center",
+            "relation_kind": "jpl_horizons_orbit_center",
+            "relation_scope": "natural_solar_system_solution",
+            "evidence_polarity": "positive",
+            "method": "jpl_horizons_source_center_expression",
+            "reference_raw": "https://ssd.jpl.nasa.gov/horizons/",
+            "epoch_field": "epoch_tdb_jd",
+            "quality_fields": ["center_code", "horizons_response_sha256"]
+          },
+          "orbital_solution": {
+            "solution_key_fields": [
+              "source_pk",
+              "horizons_command",
+              "center_target_command",
+              "epoch_tdb_jd"
+            ],
+            "parameter_fields": [
+              "eccentricity",
+              "inclination_deg",
+              "semi_major_axis_au",
+              "orbital_period_days"
+            ],
+            "parameter_metadata": {
+              "eccentricity": {
+                "unit": "dimensionless",
+                "description": "Osculating orbital eccentricity"
+              },
+              "inclination_deg": {
+                "unit": "deg",
+                "description": "Inclination to the query reference plane"
+              },
+              "semi_major_axis_au": {
+                "unit": "au",
+                "description": "Signed osculating semimajor axis; negative is valid for hyperbolic trajectories"
+              },
+              "orbital_period_days": {
+                "unit": "d",
+                "description": "Osculating orbital period when defined"
+              }
+            },
+            "quality_fields": [
+              "center_code",
+              "horizons_response_path",
+              "horizons_response_sha256",
+              "retrieved_at"
+            ],
+            "epoch_field": "epoch_tdb_jd",
+            "frame": "ICRF with ecliptic reference plane; TDB epoch; AU-D output units",
+            "model": "JPL Horizons osculating elements",
+            "reference_field": "horizons_query_url",
+            "relation_link": {
+              "source_table": "sol_system_objects",
+              "key_fields": {"source_pk": "source_pk"},
+              "required": true
+            },
+            "sql_predicate": "eccentricity is not null and inclination_deg is not null and semi_major_axis_au is not null",
+            "method": "jpl_horizons_elements_api",
+            "normalization_version": "jpl_horizons_au_d_icrf_ecliptic_v1"
+          },
+          "coherent_parameter_set": {
+            "destination": "solar_system_object_parameter_sets",
+            "parameter_set_kind": "jpl_horizons_physical_parameters",
+            "component_scope": "natural_solar_system_target",
+            "expected_masked_vector_count": 0,
+            "sql_predicate": "radius_km is not null or mass_kg is not null",
+            "quality_fields": ["horizons_response_sha256"],
+            "reference_field": "horizons_query_url",
+            "method": "jpl_horizons_elements_api",
+            "normalization_version": "jpl_horizons_source_native_v1",
+            "field_metadata": {
+              "radius_km": {
+                "unit": "km",
+                "description": "Source-published mean radius"
+              },
+              "mass_kg": {
+                "unit": "kg",
+                "description": "Source-published mass"
+              }
+            }
+          }
+        }
+      }
+    },
+    "solar_system.jpl_horizons_artificial": {
+      "adapter_version": "jpl_horizons_artificial_scientific_evidence_v1",
+      "table_order": [
+        "sol_artificial_horizons_responses",
+        "sol_artificial_objects"
+      ],
+      "tables": {
+        "sol_artificial_horizons_responses": {
+          "logical_key_fields": ["source_pk"],
+          "object_scope": "artificial_object_horizons_response",
+          "field_profile": "jpl_horizons_response_index",
+          "configured_observation_products": [
+            {
+              "locator_field": "response_path",
+              "locator_kind": "immutable_raw_snapshot_relative_path",
+              "checksum_field": "response_sha256",
+              "checksum_algorithm": "sha256",
+              "bytes_field": "response_bytes",
+              "product_kind": "jpl_horizons_api_response",
+              "product_key_prefix": "jpl-horizons-response:",
+              "retrieval_policy": "local_immutable_raw_snapshot",
+              "processing_level": "raw_api_response",
+              "quality_fields": [
+                "source_pk",
+                "object_name",
+                "horizons_command",
+                "center_code",
+                "query_url",
+                "query_parameters_json",
+                "retrieved_at"
+              ]
+            }
+          ]
+        },
+        "sol_artificial_objects": {
+          "logical_key_fields": ["source_pk"],
+          "object_scope": "reviewed_artificial_target_and_horizons_trajectory",
+          "field_profile": "jpl_horizons_objects",
+          "identifier_claims": {
+            "source_pk": {
+              "namespace": "spacegate_operator_seed_target_key",
+              "claim_scope": "reviewed_operator_seed_target",
+              "component_scope": "artificial_object_target"
+            },
+            "object_name": {
+              "namespace": "spacegate_operator_seed_name",
+              "claim_scope": "reviewed_operator_seed_target",
+              "component_scope": "artificial_object_target"
+            },
+            "horizons_command": {
+              "namespace": "jpl_horizons_target",
+              "claim_scope": "artificial_object_target",
+              "component_scope": "trajectory_target"
+            },
+            "center_target_command": {
+              "namespace": "jpl_horizons_target",
+              "claim_scope": "orbit_center_target",
+              "component_scope": "trajectory_center"
+            }
+          },
+          "relation_claim": {
+            "left_identifier_field": "horizons_command",
+            "left_identifier_namespace": "jpl_horizons_target",
+            "left_component_scope": "trajectory_target",
+            "right_identifier_field": "center_target_command",
+            "right_identifier_namespace": "jpl_horizons_target",
+            "right_component_scope": "trajectory_center",
+            "relation_kind": "jpl_horizons_trajectory_center",
+            "relation_scope": "artificial_object_trajectory",
+            "evidence_polarity": "positive",
+            "method": "jpl_horizons_source_center_expression",
+            "reference_raw": "https://ssd.jpl.nasa.gov/horizons/",
+            "epoch_field": "epoch_tdb_jd",
+            "quality_fields": ["center_code", "horizons_response_sha256"]
+          },
+          "orbital_solution": {
+            "solution_key_fields": [
+              "source_pk",
+              "horizons_command",
+              "center_target_command",
+              "epoch_tdb_jd"
+            ],
+            "parameter_fields": [
+              "eccentricity",
+              "inclination_deg",
+              "semi_major_axis_au",
+              "orbital_period_days"
+            ],
+            "parameter_metadata": {
+              "eccentricity": {
+                "unit": "dimensionless",
+                "description": "Osculating trajectory eccentricity"
+              },
+              "inclination_deg": {
+                "unit": "deg",
+                "description": "Inclination to the query reference plane"
+              },
+              "semi_major_axis_au": {
+                "unit": "au",
+                "description": "Signed osculating semimajor axis; negative is valid for hyperbolic trajectories"
+              },
+              "orbital_period_days": {
+                "unit": "d",
+                "description": "Osculating orbital period when defined"
+              }
+            },
+            "quality_fields": [
+              "center_code",
+              "horizons_response_path",
+              "horizons_response_sha256",
+              "retrieved_at"
+            ],
+            "epoch_field": "epoch_tdb_jd",
+            "frame": "ICRF with ecliptic reference plane; TDB epoch; AU-D output units",
+            "model": "JPL Horizons osculating elements",
+            "reference_field": "horizons_query_url",
+            "relation_link": {
+              "source_table": "sol_artificial_objects",
+              "key_fields": {"source_pk": "source_pk"},
+              "required": true
+            },
+            "sql_predicate": "eccentricity is not null and inclination_deg is not null and semi_major_axis_au is not null",
+            "method": "jpl_horizons_elements_api",
+            "normalization_version": "jpl_horizons_au_d_icrf_ecliptic_v1"
+          },
+          "coherent_parameter_set": {
+            "destination": "solar_system_object_parameter_sets",
+            "parameter_set_kind": "jpl_horizons_physical_parameters",
+            "component_scope": "artificial_object_target",
+            "expected_masked_vector_count": 0,
+            "sql_predicate": "radius_km is not null or mass_kg is not null",
+            "quality_fields": ["horizons_response_sha256"],
+            "reference_field": "horizons_query_url",
+            "method": "jpl_horizons_elements_api",
+            "normalization_version": "jpl_horizons_source_native_v1",
+            "field_metadata": {
+              "radius_km": {
+                "unit": "km",
+                "description": "Source-published mean radius"
+              },
+              "mass_kg": {
+                "unit": "kg",
+                "description": "Source-published mass"
+              }
+            }
+          }
         }
       }
     },

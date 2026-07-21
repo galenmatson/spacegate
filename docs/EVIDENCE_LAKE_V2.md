@@ -927,14 +927,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   (41.1%). This changes storage and integrity enforcement, not scientific
   content.
 - `config/evidence_lake/e4_source_scope.json` now accounts every one of the 44
-  registered source releases at the E4 boundary. Thirty-two have scientific-
+  registered source releases at the E4 boundary. Thirty-four have scientific-
   evidence adapters; official DR2/DR3 neighbourhood products remain E2-only
   identity edges; disabled lossy projections and transitional AT-HYG remain E6
   stability/identity references; and legacy Cantat-Gaudin DR2 cluster evidence
   is retained source-native while Hunt/Reffert is the active E4 cluster
   authority. No registered source is unaccounted. The machine audit remains
-  `in_progress` on three real adapter requirements: Gaia source, natural JPL
-  Horizons, and artificial JPL Horizons.
+  `in_progress` on one real adapter requirement: Gaia source.
 - The prior two-artifact VSX object table has a machine-readable pre-adapter
   audit. It
   accounts all 10,304,568 rows, verifies unique source OIDs, valid coordinates,
@@ -1029,8 +1028,20 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `1905bbe6c368e5f6a321194a` / `c8652fd839feaa7b59104ad3` and artificial
   snapshots `677018070eec1039a43e2652` / `b9e3f2cced96b8f2b071b7ea` pass
   raw/typed verification, independent source audits, and clean typed
-  reproduction with scratch removal. Checked-in registry cutover and both E4
-  domain adapters remain pending until the active Gaia build reproduces.
+  reproduction with scratch removal.
+- Registry/contract v16/v75 cuts both Horizons releases over as separate E4
+  adapters in immutable build `236a7b7822c52fef8b903d58`. It accounts 142
+  source records and all 67 fields as 65 materialized plus two explicit
+  exclusions. The build contains 284 identity claims, 71 exact raw-response
+  products, 71 linked orbit/trajectory solutions, 71 source relations, 36
+  coherent physical parameter sets, 73 citations, and 178 exact evidence links.
+  Operator seed keys and names remain in their own namespaces; only parsed JPL
+  target and center commands enter `jpl_horizons_target` or relation endpoints.
+  Source and generic artifact audits pass with zero normalization, scope,
+  product-integrity, relation, orbit-metadata, schema, or field-accounting
+  defects. Clean reproduction matches logical hash
+  `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`
+  and removes its scratch tree. No source relation is canonical containment.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

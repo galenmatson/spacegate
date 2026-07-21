@@ -384,6 +384,32 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"{prefix} cannot define both reference_field and reference_raw"
                     )
+                field_metadata = coherent_set.get("field_metadata")
+                if field_metadata is not None:
+                    if not isinstance(field_metadata, dict):
+                        errors.append(f"{prefix}.field_metadata must be an object")
+                    else:
+                        allowed_metadata = {
+                            "datatype",
+                            "unit",
+                            "ucd",
+                            "description",
+                        }
+                        for field, metadata in field_metadata.items():
+                            field_prefix = f"{prefix}.field_metadata.{field}"
+                            if not str(field).strip() or not isinstance(metadata, dict):
+                                errors.append(
+                                    f"{field_prefix} must be a non-empty field object"
+                                )
+                                continue
+                            unknown_metadata = sorted(
+                                set(metadata) - allowed_metadata
+                            )
+                            if unknown_metadata:
+                                errors.append(
+                                    f"{field_prefix} contains unsupported keys: "
+                                    f"{unknown_metadata}"
+                                )
                 expected_vectors = coherent_set.get("expected_masked_vector_count")
                 if expected_vectors is not None and (
                     isinstance(expected_vectors, bool)
@@ -676,6 +702,27 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = orbital_solution.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+                parameter_metadata = orbital_solution.get("parameter_metadata")
+                if parameter_metadata is not None:
+                    if not isinstance(parameter_metadata, dict):
+                        errors.append(f"{prefix}.parameter_metadata must be an object")
+                    else:
+                        allowed_metadata = {"unit", "description", "semantics"}
+                        for field, metadata in parameter_metadata.items():
+                            field_prefix = f"{prefix}.parameter_metadata.{field}"
+                            if not str(field).strip() or not isinstance(metadata, dict):
+                                errors.append(
+                                    f"{field_prefix} must be a non-empty field object"
+                                )
+                                continue
+                            unknown_metadata = sorted(
+                                set(metadata) - allowed_metadata
+                            )
+                            if unknown_metadata:
+                                errors.append(
+                                    f"{field_prefix} contains unsupported keys: "
+                                    f"{unknown_metadata}"
+                                )
                 relation_link = orbital_solution.get("relation_link")
                 if relation_link:
                     for field in ("source_table", "key_fields"):
@@ -3321,7 +3368,10 @@ def materialize_configured_photometry(
         ]
         for quality_field in quality_fields:
             quality_members.extend(
-                (sql_string(quality_field), sql_identifier(quality_field))
+                (
+                    sql_string(quality_field),
+                    qualified_sql_identifier(quality_field, "source_row"),
+                )
             )
         quality = "json_object(" + ", ".join(quality_members) + ")"
         predicate = configured_measurement_predicate(field, measurement)
@@ -3878,7 +3928,10 @@ def materialize_configured_observation_products(
         ]
         for quality_field in quality_fields:
             quality_members.extend(
-                (sql_string(quality_field), sql_identifier(quality_field))
+                (
+                    sql_string(quality_field),
+                    qualified_sql_identifier(quality_field, "source_row"),
+                )
             )
         con.execute(
             f"""
@@ -3902,6 +3955,26 @@ def materialize_configured_observation_products(
             """
         )
     return consumed
+
+
+def configured_observation_product_fields(
+    table_contract: dict[str, Any],
+) -> set[str]:
+    fields: set[str] = set()
+    for product in table_contract.get("configured_observation_products") or []:
+        fields.add(str(product["locator_field"]))
+        fields.update(
+            str(value)
+            for value in (
+                product.get("checksum_field"),
+                product.get("bytes_field"),
+                product.get("observation_epoch_field"),
+                product.get("processing_level_field"),
+            )
+            if value
+        )
+        fields.update(str(value) for value in product.get("quality_fields") or [])
+    return fields
 
 
 def materialize_relation_claims(
@@ -4086,7 +4159,23 @@ def materialize_orbital_solutions(
         )
     solution_key = f"cast({logical_key_expression(key_fields, 'source_row')} as varchar)"
     parameters = logical_key_expression(parameter_fields, "source_row")
-    quality = logical_key_expression(quality_fields, "source_row")
+    source_quality = logical_key_expression(quality_fields, "source_row")
+    parameter_metadata = orbital_solution.get("parameter_metadata") or {}
+    unknown_metadata_fields = sorted(set(parameter_metadata) - set(parameter_fields))
+    if unknown_metadata_fields:
+        raise ValueError(
+            "orbital parameter metadata references fields outside its "
+            f"parameter set: {unknown_metadata_fields}"
+        )
+    quality = (
+        "json_object('source_quality', "
+        + source_quality
+        + ", 'parameter_metadata', "
+        + sql_string(json.dumps(parameter_metadata, sort_keys=True))
+        + "::json)"
+        if parameter_metadata
+        else source_quality
+    )
     epoch = text_expression(orbital_solution.get("epoch_field"))
     frame = (
         text_expression(orbital_solution.get("frame_field"))
@@ -5495,9 +5584,16 @@ def materialize_source(
                 available_fields=set(columns),
             )
         )
-        observation_product_fields = fields_by_destination.get(
-            "observation_product_lineage"
-        ) or []
+        configured_product_fields = configured_observation_product_fields(
+            table_contract
+        )
+        observation_product_fields = [
+            field
+            for field in (
+                fields_by_destination.get("observation_product_lineage") or []
+            )
+            if str(field["column_name"]) not in configured_product_fields
+        ]
         if observation_product_fields:
             materialized_fields.update(
                 materialize_observation_products(

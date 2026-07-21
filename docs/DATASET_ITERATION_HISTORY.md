@@ -2221,6 +2221,35 @@ Representative commits:
   dispositions; the remaining blockers are Gaia source and the two separately
   scoped JPL Horizons sources.
 
+### 73) JPL Horizons Exact-Response E4 Cutover
+
+- Registry v16 selects the current natural and artificial snapshots with both
+  parsed-object and exact-response-index artifacts. Scientific-evidence
+  contract v75 uses separate adapters and release scopes while sharing typed
+  relation, orbit, physical-parameter, and product-lineage contracts.
+- The identity boundary is explicit. `source_pk` and `object_name` are reviewed
+  operator seed claims; `horizons_command` and `center_target_command` are JPL
+  claims. Only the JPL namespace may identify orbit/trajectory endpoints, so an
+  operator-written parent name cannot manufacture a source relation.
+- Immutable build `236a7b7822c52fef8b903d58` accounts all 142 source records
+  and 67 fields, materializing 284 identity claims, 71 exact raw-response
+  products, 71 linked orbital solutions, 71 center relations, 36 coherent
+  physical parameter sets, 73 citations, and 178 evidence/citation links. The
+  two excluded fields remain source-native and explicitly accounted.
+- Generic and JPL-specific audits pass with exact response path/checksum/byte
+  integrity, valid hyperbolic semantics, explicit km/kg/d/au/deg units, zero
+  namespace leakage, and zero canonical promotion. Clean reproduction matches
+  logical hash
+  `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`.
+  Source-scope version 4 now accounts 34 adapters and 10 explicit boundary
+  dispositions; Gaia source is the only remaining E4 adapter blocker.
+- The first v76 combined compile failed before promotion because a configured
+  product quality field was not table-qualified. Compiler v74 qualifies those
+  fields generally. After the accepted build reproduced, fail-closed retention
+  dry-run/apply hash
+  `989a230ebb4219d6decb901f16ac155d6f5051454d6b6f80f35e59c228c6b573`
+  retired only the 1,851,392-byte manifestless staging tree.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

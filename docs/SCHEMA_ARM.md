@@ -65,6 +65,15 @@ Evidence Lake v2 staging rule:
   numeric arrays, preserving a null whole vector separately from null masked
   elements. Artifact verification requires schema/domain agreement and exact
   value/schema arity.
+- JPL Horizons natural and artificial sources use the same E4 domain contract
+  without merging their release scopes. Exact response bodies are represented
+  by `observation_product_lineage`; parsed elements are coherent
+  `orbital_solution_evidence` linked to `relation_claim_evidence`; published
+  radius/mass values are coherent solar-system physical parameter sets. Source
+  relations bind only parsed `jpl_horizons_target` commands. Reviewed operator
+  seed keys/names retain distinct namespaces and cannot create containment or
+  orbit-center relations. Build `236a7b7822c52fef8b903d58` is an internal E4
+  checkpoint, not a promoted ARM or canonical Sol hierarchy.
 - Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5` validates the
   bounded citation and identity contracts at scale. Its 32-bucket astrometry-
   citation expansion preserves the same exhaustive evidence relation under a

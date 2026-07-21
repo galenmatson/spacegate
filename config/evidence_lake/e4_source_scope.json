@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e4_source_scope.v1",
-  "scope_version": "2026-07-21.e4-source-scope.3",
+  "scope_version": "2026-07-21.e4-source-scope.4",
   "explicit_dispositions": {
     "gaia.dr3.gaia_source": {
       "disposition": "scientific_evidence_adapter_pending",
@@ -55,18 +55,6 @@
       "owner": "E3",
       "blocks_e4": false,
       "reason": "Legacy DR2 membership evidence remains source-native and inspectable; the current Gaia DR3 Hunt/Reffert physical and membership release is the active E4 cluster authority."
-    },
-    "solar_system.jpl_horizons_authority": {
-      "disposition": "scientific_evidence_adapter_pending",
-      "owner": "E4",
-      "blocks_e4": true,
-      "reason": "Reviewed natural Solar System identity and orbit evidence still require typed relation/orbit materialization and citation lineage."
-    },
-    "solar_system.jpl_horizons_artificial": {
-      "disposition": "scientific_evidence_adapter_pending",
-      "owner": "E4",
-      "blocks_e4": true,
-      "reason": "Artificial-object trajectories must remain separately scoped from natural canonical inventory while retaining source orbit lineage."
     },
     "transitional.athyg": {
       "disposition": "transitional_identity_reference_only",

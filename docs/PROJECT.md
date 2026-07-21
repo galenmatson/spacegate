@@ -990,10 +990,10 @@ Notes:
 1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
    resolve only material production regressions while the scientific rebuild
    proceeds in parallel.
-2. Continue M8.3c Evidence Lake v2 through E3 foundational acquisition under
-   the completed registry, immutable source-native lake, and release-scoped
-   identity/scope graph contracts.
-3. Build the E4 typed evidence tables and E5 versioned selection/derivation
+2. Complete M8.3c-E4's final Gaia-source adapter under the completed registry,
+   immutable source-native lake, release-scoped identity/scope graph, and 34
+   verified source-adapter contracts.
+3. Build the E5 versioned selection/derivation
    compiler. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B
    scientific diff before promotion or deployment.
 4. Build the Concept Tag Foundation after the evidence contract is stable so

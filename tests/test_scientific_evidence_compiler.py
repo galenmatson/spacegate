@@ -425,6 +425,77 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
             ]
 
 
+def test_coherent_parameter_set_applies_contract_field_metadata(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "solar.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            "copy (select 'target-1' source_pk, '123.5' radius_km) "
+            "to ? (format parquet)",
+            [str(parquet)],
+        )
+        row_hash = con.execute(
+            "select sha256(to_json(source_row)) from read_parquet(?) source_row",
+            [str(parquet)],
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record-1', 'solar.test', 'r1', 'objects', 'solar_object', "
+            "'{}', '{}', ?, 1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-21 00:00:00')",
+            [row_hash],
+        )
+        compiler.materialize_coherent_parameter_set(
+            con,
+            source_id="solar.test",
+            release_id="r1",
+            source_table="objects",
+            path=parquet,
+            destination_fields=[
+                {"column_name": "radius_km", "datatype": "VARCHAR"}
+            ],
+            available_fields={"source_pk", "radius_km"},
+            config={
+                "destination": "solar_system_object_parameter_sets",
+                "parameter_set_kind": "source_physical_parameters",
+                "expected_masked_vector_count": 0,
+                "method": "source_solution",
+                "normalization_version": "source_native_v1",
+                "field_metadata": {
+                    "radius_km": {
+                        "unit": "km",
+                        "description": "Source-published mean radius",
+                    }
+                },
+            },
+        )
+        schema = json.loads(
+            con.execute(
+                "select schema_json from coherent_parameter_set_schemas"
+            ).fetchone()[0]
+        )
+        values = json.loads(
+            con.execute(
+                "select values_json from solar_system_object_parameter_sets"
+            ).fetchone()[0]
+        )
+    assert schema["fields"] == [
+        {
+            "datatype": "VARCHAR",
+            "description": "Source-published mean radius",
+            "encoding": "source_native_typed_scalar_v1",
+            "name": "radius_km",
+            "position": 0,
+            "source_column_name": "radius_km",
+            "ucd": None,
+            "unit": "km",
+        }
+    ]
+    assert values == ["123.5"]
+
+
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
     contract = compiler.load_json(CONTRACT_PATH)
     adapter = contract["source_adapters"]["compact.atnf"]
@@ -2095,6 +2166,13 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
                     "reference_code",
                 ],
                 "parameter_fields": ["period_raw", "epoch_raw"],
+                "parameter_metadata": {
+                    "period_raw": {"unit": "d"},
+                    "epoch_raw": {
+                        "unit": "Julian year",
+                        "semantics": "source orbit epoch",
+                    },
+                },
                 "quality_fields": ["grade_raw"],
                 "epoch_field": "epoch_raw",
                 "frame": "ICRS J2016.0",
@@ -2135,7 +2213,16 @@ def test_orbital_solution_preserves_one_coherent_source_parameter_set(
     }
     assert json.loads(row[2]) == {"period_raw": "290.0", "epoch_raw": "1884.54"}
     assert row[3:7] == ("1884.54", "ICRS J2016.0", "Orbital", "Zir2013d")
-    assert json.loads(row[7]) == {"grade_raw": "2"}
+    assert json.loads(row[7]) == {
+        "parameter_metadata": {
+            "epoch_raw": {
+                "semantics": "source orbit epoch",
+                "unit": "Julian year",
+            },
+            "period_raw": {"unit": "d"},
+        },
+        "source_quality": {"grade_raw": "2"},
+    }
 
 
 def test_orbital_solution_links_exactly_one_relation_by_source_logical_key(
@@ -2860,7 +2947,8 @@ def test_configured_observation_product_reuses_archive_identity_as_locator(
     parquet = tmp_path / "products.parquet"
     with duckdb.connect() as con:
         con.execute(
-            f"copy (select '000123' obsid, 60000 mjd, 42 snr) "
+            f"copy (select '000123' obsid, 60000 mjd, 42 snr, "
+            f"'2026-07-21T00:00:00Z' retrieved_at) "
             f"to '{parquet}' (format parquet)"
         )
         compiler.create_schema(con)
@@ -2888,17 +2976,18 @@ def test_configured_observation_product_reuses_archive_identity_as_locator(
                     "retrieval_policy": "on_demand",
                     "observation_epoch_field": "mjd",
                     "processing_level": "source_release",
-                    "quality_fields": ["snr"],
+                    "quality_fields": ["snr", "retrieved_at"],
                 }
             ],
-            available_fields={"obsid", "mjd", "snr"},
+            available_fields={"obsid", "mjd", "snr", "retrieved_at"},
         )
         row = con.execute(
             "select product_kind,product_key,product_locator,retrieval_policy,"
-            "observation_epoch_raw,processing_level,quality_json->>'$.snr' "
+            "observation_epoch_raw,processing_level,quality_json->>'$.snr',"
+            "quality_json->>'$.retrieved_at' "
             "from observation_product_lineage"
         ).fetchone()
-    assert consumed == {"obsid", "mjd", "snr"}
+    assert consumed == {"obsid", "mjd", "snr", "retrieved_at"}
     assert row == (
         "spectrum",
         "spectrum:000123",
@@ -2907,7 +2996,34 @@ def test_configured_observation_product_reuses_archive_identity_as_locator(
         "60000",
         "source_release",
         "42",
+        "2026-07-21T00:00:00Z",
     )
+
+
+def test_configured_observation_product_fields_prevent_generic_expansion() -> None:
+    fields = compiler.configured_observation_product_fields(
+        {
+            "configured_observation_products": [
+                {
+                    "locator_field": "response_path",
+                    "checksum_field": "response_sha256",
+                    "bytes_field": "response_bytes",
+                    "observation_epoch_field": "retrieved_at",
+                    "processing_level_field": "level",
+                    "quality_fields": ["query_url", "query_parameters_json"],
+                }
+            ]
+        }
+    )
+    assert fields == {
+        "response_path",
+        "response_sha256",
+        "response_bytes",
+        "retrieved_at",
+        "level",
+        "query_url",
+        "query_parameters_json",
+    }
 
 
 def test_planet_scalar_materialization_preserves_units_errors_bounds_and_reference(
