@@ -921,6 +921,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   duplicate keys, and reduces the database from 8,925,184 to 5,255,168 bytes
   (41.1%). This changes storage and integrity enforcement, not scientific
   content.
+- `config/evidence_lake/e4_source_scope.json` now accounts every one of the 44
+  registered source releases at the E4 boundary. Thirty have scientific-
+  evidence adapters; official DR2/DR3 neighbourhood products remain E2-only
+  identity edges; disabled lossy projections and transitional AT-HYG remain E6
+  stability/identity references; and legacy Cantat-Gaudin DR2 cluster evidence
+  is retained source-native while Hunt/Reffert is the active E4 cluster
+  authority. No registered source is unaccounted. The machine audit remains
+  `in_progress` on five real adapter requirements: Gaia source, Gaia
+  variability, VSX, natural JPL Horizons, and artificial JPL Horizons.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

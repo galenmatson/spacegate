@@ -1,0 +1,90 @@
+{
+  "schema_version": "spacegate.e4_source_scope.v1",
+  "scope_version": "2026-07-21.e4-source-scope.1",
+  "explicit_dispositions": {
+    "gaia.dr3.gaia_source": {
+      "disposition": "scientific_evidence_adapter_pending",
+      "owner": "E4",
+      "blocks_e4": true,
+      "reason": "Primary DR3 inventory, astrometric solution, photometry, radial velocity, quality, and product-availability evidence still require a structured E4 adapter."
+    },
+    "gaia.dr3.variability": {
+      "disposition": "scientific_evidence_adapter_pending",
+      "owner": "E4",
+      "blocks_e4": true,
+      "reason": "Variability summaries and masked rotation-modulation vectors still require coherent typed E4 parameter-set materialization."
+    },
+    "gaia.dr3.dr2_neighbourhood": {
+      "disposition": "identity_graph_only",
+      "owner": "E2",
+      "blocks_e4": false,
+      "reason": "Official forward DR2-to-DR3 neighbourhood rows are release-scoped identity edges compiled and verified by the E2 identity graph, not scientific parameter evidence."
+    },
+    "gaia.dr3.dr2_neighbourhood_reverse": {
+      "disposition": "identity_graph_only",
+      "owner": "E2",
+      "blocks_e4": false,
+      "reason": "Reverse-neighbourhood completeness rows audit the E2 release bridge and do not assert an additional scientific measurement."
+    },
+    "multiplicity.sbx_legacy_projection": {
+      "disposition": "served_stability_reference_only",
+      "owner": "E6",
+      "blocks_e4": false,
+      "reason": "Disabled lossy projection is retained only for served-build A/B comparison; complete SBX has the active E4 adapter."
+    },
+    "nasa_exoplanet_archive.planetary_systems_legacy_projection": {
+      "disposition": "served_stability_reference_only",
+      "owner": "E6",
+      "blocks_e4": false,
+      "reason": "Disabled field-limited projection is retained only for served-build A/B comparison; the complete NASA release has the active E4 adapter."
+    },
+    "gaia.dr3.gaia_source_legacy_projection": {
+      "disposition": "served_stability_reference_only",
+      "owner": "E6",
+      "blocks_e4": false,
+      "reason": "Disabled bounded projection is an E6 baseline only; the complete buffered Gaia release is the E4 input."
+    },
+    "gaia.dr3.astrophysical_parameters_legacy_projection": {
+      "disposition": "served_stability_reference_only",
+      "owner": "E6",
+      "blocks_e4": false,
+      "reason": "Disabled field-limited projection is an E6 baseline only; main and supplementary AP releases carry E4 evidence."
+    },
+    "gaia.dr3.non_single_star_legacy_projection": {
+      "disposition": "served_stability_reference_only",
+      "owner": "E6",
+      "blocks_e4": false,
+      "reason": "Disabled field-limited projection is an E6 baseline only; expanded NSS has the active E4 adapter."
+    },
+    "clusters.cantat_gaudin_2020": {
+      "disposition": "superseded_source_native_reference",
+      "owner": "E3",
+      "blocks_e4": false,
+      "reason": "Legacy DR2 membership evidence remains source-native and inspectable; the current Gaia DR3 Hunt/Reffert physical and membership release is the active E4 cluster authority."
+    },
+    "classification.vsx": {
+      "disposition": "scientific_evidence_adapter_pending",
+      "owner": "E4",
+      "blocks_e4": true,
+      "reason": "VSX variable designation, type, period, amplitude, coordinates, flags, and references remain an E4 adapter requirement complementary to GCVS and Gaia variability."
+    },
+    "solar_system.jpl_horizons_authority": {
+      "disposition": "scientific_evidence_adapter_pending",
+      "owner": "E4",
+      "blocks_e4": true,
+      "reason": "Reviewed natural Solar System identity and orbit evidence still require typed relation/orbit materialization and citation lineage."
+    },
+    "solar_system.jpl_horizons_artificial": {
+      "disposition": "scientific_evidence_adapter_pending",
+      "owner": "E4",
+      "blocks_e4": true,
+      "reason": "Artificial-object trajectories must remain separately scoped from natural canonical inventory while retaining source orbit lineage."
+    },
+    "transitional.athyg": {
+      "disposition": "transitional_identity_reference_only",
+      "owner": "E2/E6",
+      "blocks_e4": false,
+      "reason": "AT-HYG remains transitional alias/crosswalk and served-stability context; it is not a scientific measurement authority and does not receive an E4 parameter adapter."
+    }
+  }
+}

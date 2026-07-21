@@ -1752,6 +1752,11 @@ Current status (July 19, 2026, in progress):
   retained ART indexes consumed most of the 167-GiB artifact beyond its roughly
   58-GiB table allocation. Full Gaia supplementary materialization will use the
   audited indexless contract before additional large source families land
+- the E4 source-scope ledger accounts all 44 registry releases without silently
+  treating identity-only, superseded, disabled, or transitional inputs as
+  scientific adapters. Thirty adapters exist; five blocking adapter families
+  remain explicit: Gaia source, Gaia variability, VSX, and separate natural and
+  artificial JPL Horizons evidence
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

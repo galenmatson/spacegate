@@ -2014,6 +2014,22 @@ Representative commits:
   authorized retirement of its sole closed 1,131,433,984-byte staging tree. No
   raw, typed, accepted, served, rollback, or report artifact was selected.
 
+### 67) Registered E4 Source-Scope Ledger
+
+- `config/evidence_lake/e4_source_scope.json` and
+  `scripts/audit_e4_source_scope.py` make every registry entry explicit at the
+  scientific-evidence boundary. The first audit accounts all 44 sources: 30
+  active E4 adapters and 14 explicit boundary dispositions, with no stale,
+  conflicting, unregistered, or unaccounted entry.
+- Gaia DR2/DR3 neighbourhood products remain E2 release-identity evidence;
+  disabled lossy projections and transitional AT-HYG remain E6 stability or
+  identity references rather than scientific authorities; and source-native
+  Cantat-Gaudin DR2 cluster evidence is retained while Hunt/Reffert supplies the
+  active current E4 cluster authority.
+- The audit reports `in_progress` rather than a false pass while five adapter
+  requirements remain: Gaia source, Gaia variability/rotation, VSX, natural JPL
+  Horizons, and separately scoped artificial-object Horizons trajectories.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
