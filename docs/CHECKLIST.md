@@ -1354,6 +1354,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add the official VSX `refs.dat.gz` endpoint to reproducible catalog
   acquisition and document that its 2022-era OID coverage is a partial
   historical bibliography rather than complete coverage of the 2026 objects
+- [x] Extend the VSX audit through schema-driven bibliography typing: verify all
+  830,415 exact pairs, report 2,072 historical OID links absent from the current
+  object table, and preserve 54 noncanonical source reference strings
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

@@ -1768,6 +1768,9 @@ Current status (July 19, 2026, in progress):
   partial relation covering 586,530 OIDs through OID 683,950, not complete
   bibliography for the 10.3-million-row 2026 object table; uncovered rows must
   remain reported rather than receiving inferred citations
+- schema-driven scratch typing and the expanded VSX audit pass all 830,415
+  bibliography rows while retaining 2,072 historical missing-object bindings
+  and 54 noncanonical reference strings as explicit evidence
 - the shared Horizons snapshot writer closes the E1 raw-preservation gap in the
   natural and artificial JPL collectors: exact response bytes, query records,
   checksums, reviewed target seed, collector identity, and parsed projections

@@ -53,12 +53,18 @@ REQUIRED_OBJECT_FIELDS = {
     "Sp",
     "raw_row",
 }
+REQUIRED_BIBLIOGRAPHY_FIELDS = {
+    "source_line_number",
+    "OID",
+    "Bibcode",
+    "raw_row",
+}
 
 
 def query_row(
-    con: duckdb.DuckDBPyConnection, query: str, path: Path
+    con: duckdb.DuckDBPyConnection, query: str, *paths: Path
 ) -> dict[str, Any]:
-    result = con.execute(query, [str(path)])
+    result = con.execute(query, [str(path) for path in paths])
     columns = [str(row[0]) for row in result.description]
     return dict(zip(columns, result.fetchone(), strict=True))
 
@@ -213,6 +219,98 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
     bibliography_tables = sorted(
         name for name in tables if name in {"vsx_refs", "refs_dat", "vsx_references"}
     )
+    if bibliography_tables:
+        bibliography_name = bibliography_tables[0]
+        bibliography = tables[bibliography_name]
+        bibliography_fields = {
+            str(row["name"]) for row in bibliography.get("columns", [])
+        }
+        missing_bibliography_fields = sorted(
+            REQUIRED_BIBLIOGRAPHY_FIELDS - bibliography_fields
+        )
+        hard_checks["missing_required_bibliography_fields"] = (
+            missing_bibliography_fields
+        )
+        if not missing_bibliography_fields and "vsx_dat" in tables:
+            bibliography_path = typed_root / str(bibliography["parquet_path"])
+            object_path = typed_root / str(tables["vsx_dat"]["parquet_path"])
+            con = duckdb.connect()
+            try:
+                bibliography_summary = query_row(
+                    con,
+                    """
+                    select
+                      count(*)::bigint as row_count,
+                      count(*) filter (
+                        where nullif(trim(r.OID), '') is null
+                      )::bigint as missing_oid,
+                      count(*) filter (
+                        where try_cast(trim(r.OID) as bigint) is null
+                           or try_cast(trim(r.OID) as bigint) <= 0
+                      )::bigint as invalid_oid,
+                      count(*) filter (
+                        where nullif(trim(r.Bibcode), '') is null
+                      )::bigint as missing_reference,
+                      (count(*) - count(distinct trim(r.OID) || chr(31) ||
+                        trim(r.Bibcode)))::bigint as duplicate_pair_excess,
+                      count(distinct trim(r.OID))::bigint as distinct_oids,
+                      min(try_cast(trim(r.OID) as bigint))::bigint as minimum_oid,
+                      max(try_cast(trim(r.OID) as bigint))::bigint as maximum_oid,
+                      count(*) filter (where o.OID is null)::bigint
+                        as oid_not_in_current_object_table,
+                      count(*) filter (
+                        where length(trim(r.Bibcode)) = 19
+                      )::bigint as ads_length_reference_rows,
+                      count(*) filter (
+                        where length(trim(r.Bibcode)) <> 19
+                      )::bigint as noncanonical_reference_rows
+                    from read_parquet(?) r
+                    left join read_parquet(?) o on trim(o.OID) = trim(r.OID)
+                    """,
+                    bibliography_path,
+                    object_path,
+                )
+                maximum_references = int(
+                    con.execute(
+                        "select coalesce(max(reference_count), 0) from ("
+                        "select count(*) reference_count from read_parquet(?) "
+                        "group by trim(OID))",
+                        [str(bibliography_path)],
+                    ).fetchone()[0]
+                )
+            finally:
+                con.close()
+            expected_rows = int(bibliography["row_count"])
+            hard_checks.update(
+                {
+                    "bibliography_manifest_row_count_delta": int(
+                        bibliography_summary["row_count"]
+                    )
+                    - expected_rows,
+                    "bibliography_missing_oid": int(
+                        bibliography_summary["missing_oid"]
+                    ),
+                    "bibliography_invalid_oid": int(
+                        bibliography_summary["invalid_oid"]
+                    ),
+                    "bibliography_missing_reference": int(
+                        bibliography_summary["missing_reference"]
+                    ),
+                    "bibliography_duplicate_pair_excess": int(
+                        bibliography_summary["duplicate_pair_excess"]
+                    ),
+                }
+            )
+            summaries["bibliography"] = {
+                **bibliography_summary,
+                "maximum_references_per_oid": maximum_references,
+                "coverage_semantics": (
+                    "historical_partial_relation; absent links are not negative evidence"
+                ),
+                "reference_semantics": (
+                    "source string preserved; ADS parsing only when structurally valid"
+                ),
+            }
     incomplete_checks = {
         "missing_source_bibliography_table": not bibliography_tables,
     }

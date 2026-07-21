@@ -2057,6 +2057,12 @@ Representative commits:
   or malformed rows, no duplicated pairs, and a maximum OID of 683,950. The
   server reports a 2022 modification date, so this remains a labeled historical
   partial bibliography alongside the 2026 rolling object table.
+- The expanded audit passes a schema-driven scratch typing of that exact file:
+  all 830,415 rows and 586,530 OIDs remain unique and valid, with at most 12
+  references per OID. It reports rather than hides 2,072 historical OID links
+  absent from the current object table and 54 source reference strings that are
+  not canonical 19-character ADS bibcodes. These become explicit missing
+  bindings and raw citation text, not fabricated object links or failed rows.
 
 ### 69) Immutable Horizons Response Acquisition
 

@@ -946,6 +946,10 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   available CDS artifact is a clean but historical partial relation (830,415
   unique OID/bibcode links, 586,530 OIDs, maximum OID 683,950, server-modified
   in 2022), so coverage gaps against the 2026 object table will remain explicit.
+  Schema-driven scratch typing and the expanded audit pass every row and exact
+  pair. The report retains 2,072 OID links absent from the current object table
+  and 54 noncanonical reference strings as missing-binding/raw-reference
+  evidence rather than discarding or guessing them.
 - The source-native Gaia DR3 backbone now passes its independent pre-adapter
   audit. Its 31,987,126-row hard-parallax branch and 189,145-row uncertainty
   supplement have identical complete 152-field schemas, unique and disjoint
