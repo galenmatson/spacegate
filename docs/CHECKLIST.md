@@ -1330,6 +1330,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   queries, checksums, reviewed target seed, collector identity, and parsed CSV
   in immutable atomic snapshots; pass isolated artificial-source raw/typed
   accounting and response-integrity smoke verification
+- [x] Add a source-specific JPL Horizons audit covering one-to-one projection/
+  response identity, query and seed lineage, contained response paths, exact
+  checksums and byte counts, and valid hyperbolic trajectory semantics
 - [ ] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
   stale artificial trajectory tail, register both response-index artifacts,
   type and materialize scoped object/relation/orbit evidence, and keep operator

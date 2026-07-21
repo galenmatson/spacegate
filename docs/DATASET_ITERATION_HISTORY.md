@@ -2069,6 +2069,13 @@ Representative commits:
   seed metadata files; typed snapshot `122af4b07d09f9c9d81f6a28` contains two
   11-row tables and passes the raw/typed verifier with zero response checksum or
   size mismatches. Photon registry and active raw state were not changed.
+- `scripts/audit_jpl_horizons_typed_source.py` adds the source-specific E4 gate.
+  It requires a one-to-one binding between each parsed projection and response
+  index row, verifies response paths remain inside the immutable raw artifact,
+  recomputes every response checksum and byte count, and checks query, target,
+  center, retrieval, and operator-seed lineage. The scratch artificial snapshot
+  passes all checks. Negative semimajor axes remain valid evidence for
+  hyperbolic escape trajectories rather than being rejected as invalid orbits.
 
 ## Recurrent Defect Classes and Mitigations
 

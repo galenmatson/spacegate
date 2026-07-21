@@ -948,7 +948,9 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   sizes, retrieval time, reviewed operator-target seed and collector checksum,
   plus the parsed CSV projection. The mutable legacy CSV remains only an atomic
   compatibility projection. An 11-target artificial-object scratch run passed
-  raw/typed artifact accounting and per-response checksum verification. Photon
+  raw/typed artifact accounting and the source-specific projection/response
+  audit: one-to-one identity and query lineage, path containment, exact response
+  hashes and byte counts, and valid hyperbolic trajectory conventions. Photon
   registry cutover, natural-source collection, current artificial refresh, and
   both E4 adapters remain pending until the active Gaia build reproduces.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
