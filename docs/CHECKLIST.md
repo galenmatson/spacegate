@@ -1330,6 +1330,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
   report product-index and radial-velocity coverage
+- [x] Make the Gaia variability source audit reproducible: validate all 592,197
+  rows and 52 masked vector fields, distinguishing whole-vector absence from
+  valid element masks and recording the coherent parameter-set decision
 - [x] E1 JPL collector foundation: preserve exact Horizons response bodies,
   queries, checksums, reviewed target seed, collector identity, and parsed CSV
   in immutable atomic snapshots; pass isolated artificial-source raw/typed

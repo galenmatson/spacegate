@@ -952,6 +952,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   XP-continuous product indexes, 548,038 epoch-photometry indexes, and 206,781
   RVS product indexes for E4 materialization. Signed `*_over_error` ratios remain
   distinct from nonnegative uncertainty magnitudes.
+- The Gaia variability pre-adapter audit is now reproducible from a checked-in
+  script. It passes 592,197 rows and all 52 rotation-vector fields with zero
+  source-ID, schema, token, length, period-error, or false-alarm-probability
+  defect. Its 99 wholly absent vectors remain distinct from 2,533,499 valid
+  `--` element masks. E4 will preserve variability summaries and rotation
+  solutions as coherent per-source parameter sets rather than independent
+  scalar selections.
 - JPL Horizons collection now has a shared immutable snapshot writer. It keeps
   byte-identical API response bodies, exact query parameters/URLs, checksums,
   sizes, retrieval time, reviewed operator-target seed and collector checksum,

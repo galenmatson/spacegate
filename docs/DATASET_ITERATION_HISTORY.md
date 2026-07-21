@@ -2096,6 +2096,23 @@ Representative commits:
   magnitudes. Their negative values are valid source evidence and are excluded
   from the audit's nonnegative-error rule.
 
+### 71) Reproducible Gaia Variability Vector Audit
+
+- The earlier Gaia variability source report lacked a checked-in generator.
+  `scripts/audit_gaia_variability_typed_source.py` now reproduces its full
+  592,197-row, 268-field-occurrence audit across the hard and uncertainty
+  branches and verifies row counts, source identities, release solution,
+  schema parity, periods, errors, and false-alarm probabilities.
+- All 52 rotation-vector fields are parsed with source-native whitespace and
+  newline handling. Their lengths match `num_segments` or `num_outliers` with
+  zero malformed tokens. The report distinguishes 99 wholly absent vectors
+  from 2,533,499 valid `--` masked elements; E4 will translate only those mask
+  positions to typed nulls while E1 retains every exact source string.
+- The representation remains one coherent variability-summary parameter set
+  per source and one coherent rotation-modulation parameter set per source.
+  Independent scalar expansion would lose vector covariance and materially
+  amplify the evidence artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
