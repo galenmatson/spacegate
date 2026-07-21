@@ -2250,6 +2250,85 @@ Representative commits:
   `989a230ebb4219d6decb901f16ac155d6f5051454d6b6f80f35e59c228c6b573`
   retired only the 1,851,392-byte manifestless staging tree.
 
+### 74) Gaia DR3 Source Evidence Cutover
+
+- Scientific-evidence compiler/contract v75/v76 adds the general
+  `stellar_source_parameter_sets` destination for compact, coherent survey
+  source solutions. It stores one ordered typed value vector per source row and
+  one reusable schema per release table instead of expanding 32 million rows
+  into independent scalar facts. Schema fields retain scientific-domain
+  annotations so downstream policy can select astrometry, photometry, radial
+  velocity, classification/membership, and observation-product availability
+  without losing source-solution context.
+- Immutable build `ab7f7e6bc211bee146885987` accounts the complete buffered
+  Gaia DR3 source release: 31,987,126 hard-envelope rows and 189,145 disjoint
+  uncertainty-supplement rows. It materializes 32,176,271 release-scoped Gaia
+  identities, unresolved star-scope outcomes, coherent source solutions, and
+  citation links, with two 125-field schemas and all 304 field occurrences
+  accounted as 254 materialized plus 50 reviewed exclusions.
+- Copied GSP-Phot fields stay lossless in E1 but do not become a redundant E4
+  model set because the richer Gaia AP release owns that evidence. The source
+  audit independently verifies 2,929,216 radial-velocity rows, 5,778,039
+  XP-continuous indexes, 548,038 epoch-photometry indexes, and 206,781 RVS
+  indexes. Generic and source-specific audits pass logical hash
+  `1863f8da12380f845983339213a28ee7c4a0af5313bc9fee586f05e1a435a962`;
+  clean reproduction matches with no differing sections and removes its scratch
+  tree.
+- At that checkpoint source-scope version 5 accounted 35 scientific adapters
+  and nine explicit E2/E3/E6 boundary dispositions across 44 registered
+  releases. The exoplanet-lifecycle catalogs remained a separate E4 acquisition
+  and reconciliation obligation rather than being silently treated as covered
+  by the old lossy cooker; sections 75-76 record its later completion.
+
+### 75) Exoplanet Lifecycle Source Recovery
+
+- The lifecycle supplement registers Exoplanet.eu, OEC, and HWC as three
+  independent release-scoped sources instead of feeding their heterogeneous
+  records through the legacy merged overlay cooker. Each source now has an
+  immutable raw snapshot, a source-native typed snapshot, exact field/row
+  accounting, and a clean raw-to-typed reproduction report.
+- OEC exposed a reusable identity defect during compiler review: local XML node
+  paths repeat across archive members. The first diagnostic grouped those paths
+  alone and collapsed thousands of distinct objects into 28 parameter sets.
+  The accepted parser and E4 adapter use archive member plus local node path for
+  every object, parameter, identity, and relation endpoint. A regression test
+  requires identical local paths in different members to remain distinct.
+- Compiler/contract v77/v78 adds an exhaustive source-native parameter routing
+  ledger and normalizes lifecycle polarity without selecting a canonical
+  winner. OEC contributes 5,287 confirmed, 3,844 candidate, 100 controversial,
+  12 retracted negative, and 10 other ambiguous lifecycle assertions, plus
+  9,252 planet parameter sets, 7,182 stellar parameter sets, 219 binary orbits,
+  16,750 relations, and 127 product links. Every one of its 160,582 parameter
+  rows has a typed destination or reviewed disposition.
+- Exoplanet.eu contributes 8,261 positive confirmed assertions. HWC contributes
+  5,599 habitability feature rows and deliberately contributes no lifecycle
+  evidence; its ranking cannot confirm a planet. Final E4 builds
+  `0a4d68cf938de29a229946a5`, `c2bfe4c2ea04107e81e0de20`, and
+  `e94a2f86a3410bdf371ef9ef` pass source-specific, generic artifact, and clean
+  reproduction gates without promoting inventory or changing canonical counts.
+
+### 76) McGill Bibliography Completion and E4 Scope Closure
+
+- McGill release `snapshot_20260721_with_bibliography` adds the exact publisher
+  HTML, reference URLs, CDS ReadMe, and 215-row CDS reference table to the
+  existing 31-row catalog. The dedicated bundle cook retains data and section
+  rows, repeated object-level resource links, exact link text/URL/kind/bibcode,
+  and a one-to-one index of 97 unique external reference codes.
+- E4 build `99c17afd7461a9a6972a9348` retains the existing 139 coherent magnetar
+  parameter contexts, links 208 current-object bibliography claims, and
+  materializes all 215 CDS references. Four historical shorthand codes
+  (`cdt+82`, `cwd+97`, `fmc+99`, `wkv+99b`) remain explicitly unresolved. The
+  compiler does not infer an ADS record or manufacture a URL. Source, artifact,
+  and clean-reproduction audits pass.
+- Registry version 18 now accounts 47 sources, 148 active manifest entries,
+  four retained superseded artifacts, and 6,209 machine-enumerated fields at
+  baseline fingerprint
+  `153280e2e3331e06541da100205f36c589a641d9b1ff0b8578a14246dcaa03b6`.
+  Source-scope version 7 accounts 38 scientific adapters and nine explicit
+  E2/E3/E6 boundary dispositions with no blocker, stale disposition, conflict,
+  or unregistered adapter. This closes adapter coverage; it does not promote
+  evidence or authorize public selection before E5/E6.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_http_sources.v1",
-  "program_version": "2026-07-19.e3-http.2",
+  "program_version": "2026-07-21.e3-http.4",
   "manifest_name": "evidence_lake_e3_http_manifest.json",
   "products": [
     {
@@ -143,6 +143,73 @@
       "url": "https://www.lamost.org/dr11/v2.0/medcas/catdl?name=dr11_v2.0_MRS_stellar.fits.gz",
       "filename": "dr11_v2.0_MRS_stellar.fits.gz",
       "expected_bytes": 581361999
+    },
+    {
+      "source_name": "exoplanet_eu_catalog_20260721",
+      "source_id": "exoplanet_lifecycle.exoplanet_eu",
+      "release_id": "rolling_snapshot_20260721",
+      "url": "https://www.exoplanet.eu/catalog/csv/",
+      "filename": "exoplanet_eu_catalog_20260721.csv",
+      "expected_bytes": 3631638,
+      "expected_rows": 8261,
+      "expected_checksum": "sha256:dcf407819fc55c9e288179834073aa03b24271f637dfb503dae01064eee2f824"
+    },
+    {
+      "source_name": "open_exoplanet_catalogue_18fb506ab3a4",
+      "source_id": "exoplanet_lifecycle.open_exoplanet_catalogue",
+      "release_id": "git_18fb506ab3a4bb857b453486993bab797a33c5c0",
+      "url": "https://codeload.github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/tar.gz/18fb506ab3a4bb857b453486993bab797a33c5c0",
+      "filename": "open_exoplanet_catalogue_18fb506ab3a4.tar.gz",
+      "expected_bytes": 1785347,
+      "expected_checksum": "sha256:3685495a7cbf61203a090e5eda67019bb7a92f75e7be714cc5f73114477d5f5c"
+    },
+    {
+      "source_name": "hwc_catalog_20260721",
+      "source_id": "exoplanet_lifecycle.hwc",
+      "release_id": "snapshot_20260721_upstream_20240320",
+      "url": "https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv",
+      "filename": "hwc_catalog_20260721.csv",
+      "expected_bytes": 6702897,
+      "expected_rows": 5599,
+      "expected_checksum": "sha256:cc8a68b0181e87ab00ddae9d7cedb6ead10a43cbaa43fb5fdb349af8aaf20e3a"
+    },
+    {
+      "source_name": "mcgill_magnetar_catalog_20260721",
+      "source_id": "compact.mcgill_magnetar",
+      "release_id": "snapshot_20260721_with_bibliography",
+      "url": "https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv",
+      "filename": "TabO1.csv",
+      "expected_bytes": 7296,
+      "expected_rows": 31,
+      "expected_checksum": "sha256:cb89a085a4e49b6a5130f1fda59d4d616b6e8384fa2b2d9de594b69a41fd60f6"
+    },
+    {
+      "source_name": "mcgill_magnetar_main_html_20260721",
+      "source_id": "compact.mcgill_magnetar",
+      "release_id": "snapshot_20260721_with_bibliography",
+      "url": "https://www.physics.mcgill.ca/~pulsar/magnetar/main.html",
+      "filename": "main.html",
+      "expected_bytes": 41641,
+      "expected_checksum": "sha256:e8e3cbfea530ade1d06d050917c0a03fd979f45e1b00157d01acfb68915f2f7e"
+    },
+    {
+      "source_name": "mcgill_magnetar_cds_readme",
+      "source_id": "compact.mcgill_magnetar",
+      "release_id": "snapshot_20260721_with_bibliography",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/212/6/ReadMe",
+      "filename": "ReadMe",
+      "expected_bytes": 15851,
+      "expected_checksum": "sha256:2dfc32e75e465f269717fb8d79cbe7cc436ee0ad0ca1b6565104509e080f369f"
+    },
+    {
+      "source_name": "mcgill_magnetar_cds_references",
+      "source_id": "compact.mcgill_magnetar",
+      "release_id": "snapshot_20260721_with_bibliography",
+      "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/212/6/refs.dat",
+      "filename": "refs.dat",
+      "expected_bytes": 8335,
+      "expected_rows": 258,
+      "expected_checksum": "sha256:1f710d08b385b1b5d5c9d55c10ce500da9127c7e5f3d37c2e3638a2c4b0e13cc"
     }
   ]
 }

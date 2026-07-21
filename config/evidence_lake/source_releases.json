@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-21.16",
+  "registry_version": "2026-07-21.18",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -71,6 +71,13 @@
       "sha256": "4b58ecec0057637c6a685f3e5e3d2bc5a8a7990093a51c3efae024d7fe7401bd",
       "replaced_by": "simbad_gaia_uncertainty_identifier_supplement_v1",
       "reason": "retained immutable hard-envelope pilot lineage"
+    },
+    {
+      "manifest": "magnetar_manifest.json",
+      "source_name": "TabO1",
+      "sha256": "cb89a085a4e49b6a5130f1fda59d4d616b6e8384fa2b2d9de594b69a41fd60f6",
+      "replaced_by": "mcgill_magnetar_catalog_20260721",
+      "reason": "retained immutable pre-Evidence-Lake magnetar CSV lineage; identical bytes are now part of the complete pinned bibliography bundle"
     }
   ],
   "sources": [
@@ -289,6 +296,54 @@
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_kepler_dr25_tce_v2"},
         {"manifest": "evidence_lake_e3_manifest.json", "source_name": "nasa_transit_detection_reference_v2"}
       ],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "exoplanet_lifecycle.exoplanet_eu",
+      "release_id": "rolling_snapshot_20260721",
+      "state": "active_expansion_pending",
+      "authority_roles": {"identity": "supplemental_planet_and_host_names", "planet_inventory": "supplemental_lifecycle_observation", "planet_parameters": "supplemental_source_parameter_set"},
+      "publisher": "Observatoire de Paris / exoplanet.eu",
+      "citation_url": "https://www.exoplanet.eu/",
+      "license": {"name": "Creative Commons Attribution 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
+      "cadence": "rolling; Spacegate pins exact snapshots",
+      "identity_namespaces": ["exoplanet_eu_planet_name", "exoplanet_eu_host_name"],
+      "frame_epoch": "source-column specific",
+      "retrieval": {"kind": "content_addressed_http_csv", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "exoplanet_eu_catalog_20260721"}],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "exoplanet_lifecycle.open_exoplanet_catalogue",
+      "release_id": "git_18fb506ab3a4bb857b453486993bab797a33c5c0",
+      "state": "active_expansion_pending",
+      "authority_roles": {"identity": "supplemental_object_names", "planet_inventory": "candidate_controversial_retracted_and_confirmed_lifecycle", "planet_parameters": "supplemental_source_parameter_set", "multiplicity": "source_native_xml_containment_claim"},
+      "publisher": "Open Exoplanet Catalogue",
+      "citation_url": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue",
+      "license": {"name": "MIT License", "url": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/blob/18fb506ab3a4bb857b453486993bab797a33c5c0/README.md#license"},
+      "cadence": "git commit; Spacegate pins exact commit archives",
+      "identity_namespaces": ["oec_object_name", "oec_structural_node"],
+      "frame_epoch": "source-column specific",
+      "retrieval": {"kind": "content_addressed_git_commit_archive", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "open_exoplanet_catalogue_18fb506ab3a4"}],
+      "storage_class": "internal_durable",
+      "schema_policy": {"kind": "documented_xml_archive", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "exoplanet_lifecycle.hwc",
+      "release_id": "snapshot_20260721_upstream_20240320",
+      "state": "active_expansion_pending",
+      "authority_roles": {"identity": "supplemental_planet_and_host_names", "planet_parameters": "derived_habitability_and_taxonomy_comparison"},
+      "publisher": "Planetary Habitability Laboratory, University of Puerto Rico at Arecibo",
+      "citation_url": "https://www.hpcf.upr.edu/~abel/phl/hwc/",
+      "license": {"name": "Source terms", "url": "https://www.hpcf.upr.edu/~abel/phl/hwc/"},
+      "cadence": "upstream snapshot dated 2024-03-20; Spacegate pins exact bytes",
+      "identity_namespaces": ["hwc_planet_name", "hwc_host_name"],
+      "frame_epoch": "source-column specific",
+      "retrieval": {"kind": "content_addressed_http_csv", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "hwc_catalog_20260721"}],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
     },
@@ -721,7 +776,7 @@
     },
     {
       "source_id": "compact.mcgill_magnetar",
-      "release_id": "rolling_snapshot_20260709",
+      "release_id": "snapshot_20260721_with_bibliography",
       "state": "active_expansion_pending",
       "authority_roles": {"inventory": "magnetar_catalog", "classification": "magnetar_type", "stellar_parameters": "spin_and_activity"},
       "publisher": "McGill Pulsar Group",
@@ -730,10 +785,15 @@
       "cadence": "rolling; Spacegate pins snapshots",
       "identity_namespaces": ["magnetar_name"],
       "frame_epoch": "source-column specific",
-      "retrieval": {"kind": "csv", "implementation": "scripts/catalogs.sh"},
-      "manifest_entries": [{"manifest": "magnetar_manifest.json", "source_name": "TabO1"}],
+      "retrieval": {"kind": "content_addressed_http_bundle", "implementation": "scripts/evidence_http_acquire.py"},
+      "manifest_entries": [
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "mcgill_magnetar_catalog_20260721"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "mcgill_magnetar_main_html_20260721"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "mcgill_magnetar_cds_readme"},
+        {"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "mcgill_magnetar_cds_references"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {"kind": "mixed_tabular_snapshot", "drift": "fail_until_reviewed", "default_disposition": "preserve", "document_artifacts": ["mcgill_magnetar_main_html_20260721", "mcgill_magnetar_cds_readme"], "readme_bindings": {"mcgill_magnetar_cds_references": "mcgill_magnetar_cds_readme"}}
     },
     {
       "source_id": "compact.gaia_edr3_white_dwarf",

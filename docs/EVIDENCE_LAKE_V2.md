@@ -1,20 +1,21 @@
 # Spacegate Evidence Lake v2
 
 Status: active main quest. E0-E2 completed July 18, 2026; registered E3
-acquisition completed July 20, 2026; E4 typed scientific materialization is in
+acquisition completed July 20, 2026 and received the reviewed lifecycle/McGill
+bibliography supplement on July 21; E4 typed scientific materialization is in
 progress.
 
 E0 checkpoint:
 
-- `config/evidence_lake/source_releases.json` registers 44 active,
+- `config/evidence_lake/source_releases.json` registers 47 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
-- `config/evidence_lake/schema_baseline.json` pins 139 active manifest entries,
-  5,962 machine-enumerated fields, and exact format contracts for source formats
-  whose schemas live in official source documents. Three superseded SIMBAD
-  pilot entries remain immutable but are separately checksum-declared rather
-  than treated as active. The reviewed baseline fingerprint is
-  `7e862068e7e4a18516e84bfc3a7d2e2dbb7dd0e4d780d1b62708869a33aa9752`.
+- `config/evidence_lake/schema_baseline.json` pins 148 active manifest entries,
+  6,209 machine-enumerated fields, and exact format contracts for source formats
+  whose schemas live in official source documents. Four superseded artifacts
+  remain immutable but are separately checksum-declared rather than treated as
+  active. The reviewed baseline fingerprint is
+  `153280e2e3331e06541da100205f36c589a641d9b1ff0b8578a14246dcaa03b6`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
@@ -356,6 +357,19 @@ E3 acquisition checkpoint (completed July 20, 2026):
   regular output aliases while retaining the exact upstream-to-output mapping.
   This preserves VizieR names such as `CMDCl2.5` without weakening response-
   schema validation or misclassifying aliased fields as omissions.
+- The reviewed lifecycle supplement pins Exoplanet.eu, the complete Open
+  Exoplanet Catalogue archive at commit
+  `18fb506ab3a4bb857b453486993bab797a33c5c0`, and HWC without reusing the
+  legacy merged cooker. E1 preserves Exoplanet.eu and HWC rows independently;
+  the OEC archive cook preserves 7,047 member documents, 23,785 scoped object
+  nodes, 59,876 names, 160,582 parameters, and 16,750 relation claims. Raw-to-
+  typed clean reproduction passes for all three releases.
+- McGill release `snapshot_20260721_with_bibliography` adds the byte-pinned
+  publisher HTML, its exact reference links, CDS ReadMe, and 215-row CDS
+  bibliography beside the 31-row catalog. The typed bundle retains 97 unique
+  external reference-code URLs and all repeated object-level links. Four
+  historical shorthand codes remain unresolved explicitly; no citation URL or
+  bibliographic identity is inferred.
 
 ### E4. Typed Scientific Evidence
 
@@ -380,7 +394,7 @@ flags, and raw-to-normalized lineage.
 
 E4 compiler checkpoint (July 19, 2026, in progress):
 
-- `config/evidence_lake/e4_scientific_evidence.json` defines 23 bounded domain
+- `config/evidence_lake/e4_scientific_evidence.json` defines 26 bounded domain
   tables, controlled binding/mapping states, and data-driven source adapters.
   This is not a universal EAV store: each scientific family has its own typed
   contract and controlled quantity vocabulary.
@@ -765,14 +779,12 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   139 parameter sets: 26 timing, 26 X-ray, 25 distance, 31 position, and 31
   source context.
 - McGill's seven trailing `#`/`##` source footnote markers remain in raw names
-  but are removed from normalized `magnetar_name` identity. Its timing, X-ray,
-  distance, association, and position reference families remain exact source
-  codes, producing 96 distinct records and 128 evidence links. The publisher's
-  expanded bibliography is not in the pinned `TabO1.csv`; acquiring and
-  validating it remains an explicit follow-up rather than inventing citation
-  text. The 6,041,600-byte artifact has logical hash
-  `9d95e4669d24ff8c0db396f253436d96be42a81c9f390d0cd2b9883cf93f2979`;
-  clean reproduction and independent audit pass.
+  but are removed from normalized `magnetar_name` identity. Updated build
+  `99c17afd7461a9a6972a9348` keeps 139 coherent parameter contexts, resolves 97
+  exact external reference codes from the publisher HTML, materializes 208
+  current-object bibliography links and 215 CDS references, and preserves four
+  unresolved shorthand codes (`cdt+82`, `cwd+97`, `fmc+99`, `wkv+99b`) without
+  manufacturing URLs. Source, artifact, and clean reproduction audits pass.
 - Compiler v27 makes relation endpoint component scopes explicit rather than
   assuming every catalog uses `left`/`right`. It also supports required,
   ambiguity-failing orbital links to a relation in another source table through
@@ -927,13 +939,14 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   (41.1%). This changes storage and integrity enforcement, not scientific
   content.
 - `config/evidence_lake/e4_source_scope.json` now accounts every one of the 44
-  registered source releases at the E4 boundary. Thirty-four have scientific-
+  registered source releases at the E4 boundary. Thirty-five have scientific-
   evidence adapters; official DR2/DR3 neighbourhood products remain E2-only
   identity edges; disabled lossy projections and transitional AT-HYG remain E6
   stability/identity references; and legacy Cantat-Gaudin DR2 cluster evidence
   is retained source-native while Hunt/Reffert is the active E4 cluster
-  authority. No registered source is unaccounted. The machine audit remains
-  `in_progress` on one real adapter requirement: Gaia source.
+  authority. No registered source is unaccounted and the machine audit has no
+  registered adapter blocker. The separately unregistered supplemental
+  lifecycle sources remain an explicit E4 reconciliation task.
 - The prior two-artifact VSX object table has a machine-readable pre-adapter
   audit. It
   accounts all 10,304,568 rows, verifies unique source OIDs, valid coordinates,
@@ -992,6 +1005,20 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   The copied GSP-Phot projection defers to the richer release-native AP source.
   Signed `*_over_error` ratios remain distinct from nonnegative uncertainty
   magnitudes.
+- Compiler/contract v75/v76 materializes that backbone as immutable build
+  `ab7f7e6bc211bee146885987`. All 32,176,271 hard-envelope and disjoint
+  uncertainty-supplement rows become one release-scoped Gaia DR3 identity,
+  unresolved star-scope outcome, coherent source solution, and exact citation
+  link per source row. Two ordered schemas retain 125 fields without repeating
+  field metadata per row: 65 astrometric, 24 photometric, 22 radial-velocity,
+  8 classification/membership, and 6 observation-product fields. All 304 field
+  occurrences are accounted as 254 materialized and 50 explicit exclusions;
+  the 23 copied GSP-Phot columns per table remain in E1 and defer to the richer
+  AP evidence rather than competing as a second solution. Source and generic
+  artifact audits pass logical hash
+  `1863f8da12380f845983339213a28ee7c4a0af5313bc9fee586f05e1a435a962`.
+  Clean scratch reproduction matches that hash with no differing sections and
+  removes its scratch tree, completing the source checkpoint.
 - The Gaia variability source audit is reproducible from a checked-in
   script. It passes 592,197 rows and all 52 rotation-vector fields with zero
   source-ID, schema, token, length, period-error, or false-alarm-probability
@@ -1042,6 +1069,20 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   defects. Clean reproduction matches logical hash
   `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`
   and removes its scratch tree. No source relation is canonical containment.
+- Compiler/contract v77/v78 gives Exoplanet.eu, OEC, and HWC independent E4
+  adapters. Exoplanet.eu contributes 8,261 positive confirmed assertions. OEC
+  contributes 5,287 confirmed, 3,844 candidate, 100 controversial, 12 negative
+  retracted, and 10 other explicitly ambiguous lifecycle rows, plus 9,252
+  planet parameter sets, 7,182 stellar parameter sets, 219 binary orbits,
+  16,750 relations, and 127 product links. Composite OEC identity includes the
+  archive member and local XML node path, preventing identical paths in
+  different member files from collapsing. HWC contributes 5,599 habitability
+  feature rows and zero lifecycle assertions. All three source artifacts pass
+  source-specific, generic, and clean-reproduction gates.
+- The E4 scope ledger now accounts all 47 registered releases as 38 scientific
+  adapters and nine explicit E2/E3/E6 boundary dispositions. It reports no
+  blocker, stale disposition, conflict, or unregistered adapter. This is
+  adapter completeness, not permission to select public winners before E5.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

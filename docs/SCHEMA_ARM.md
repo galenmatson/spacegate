@@ -57,6 +57,11 @@ Evidence Lake v2 staging rule:
   in E1 typed storage and explicit field accounting but are not redundantly
   copied into E4 source context merely because their bookkeeping destination is
   `source_records`.
+- `source_native_parameter_dispositions` is the exhaustive routing ledger for
+  source-native parameter stores such as OEC. Every configured object-kind and
+  parameter-name pair records its typed scientific destination or an explicit
+  exclusion; aggregate row counts must equal the E1 parameter table exactly.
+  This bounded EAV input does not become a universal ARM EAV schema.
 - Coherent high-dimensional source solutions use a normalized two-table
   contract: `coherent_parameter_set_schemas` stores one ordered field schema,
   while the domain parameter-set table stores positional typed values and exact
@@ -65,6 +70,22 @@ Evidence Lake v2 staging rule:
   numeric arrays, preserving a null whole vector separately from null masked
   elements. Artifact verification requires schema/domain agreement and exact
   value/schema arity.
+- Gaia DR3 source rows use `stellar_source_parameter_sets`, separate from the
+  narrower selected or model-specific `stellar_parameter_sets`. Each source
+  row retains one coherent 125-value solution plus an ordered schema whose
+  fields carry explicit scientific-domain annotations. This prevents a
+  32-million-row scalar expansion and preserves the covariance context of the
+  Gaia source solution; it does not select public facts or copy those rows into
+  ARM. Build `ab7f7e6bc211bee146885987` remains an internal E4 artifact until
+  E5 selection and E6 shadow review pass.
+- Exoplanet lifecycle adapters remain independent source scopes. OEC source
+  object keys combine archive member with local XML node path, and relation
+  endpoints use the same composite identity. Its confirmed, candidate,
+  controversial, and retracted states populate lifecycle evidence with
+  positive, candidate, ambiguous, and negative polarity respectively. HWC
+  populates habitability feature evidence only and cannot create a confirmation
+  or canonical planet. Exoplanet.eu confirmations remain corroborating source
+  assertions, not a replacement for NASA authority.
 - JPL Horizons natural and artificial sources use the same E4 domain contract
   without merging their release scopes. Exact response bodies are represented
   by `observation_product_lineage`; parsed elements are coherent

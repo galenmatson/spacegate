@@ -11,9 +11,11 @@ import re
 import shutil
 import tarfile
 import tempfile
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable, TextIO
+from urllib.parse import unquote, urljoin
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -369,6 +371,246 @@ def parse_html_tables(path: Path) -> list[dict[str, Any]]:
     return parser.tables
 
 
+class McGillMagnetarTableParser(HTMLParser):
+    """Preserve current McGill table cells and their scoped link resources."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.table_count = 0
+        self.rows: list[dict[str, Any]] = []
+        self._in_table = False
+        self._cells: list[dict[str, Any]] | None = None
+        self._cell: dict[str, Any] | None = None
+        self._anchor: dict[str, Any] | None = None
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        attributes = {key: value for key, value in attrs if value is not None}
+        if tag == "table":
+            self.table_count += 1
+            self._in_table = True
+        elif tag == "tr" and self._in_table and self._cells is None:
+            self._cells = []
+        elif tag in {"th", "td"} and self._cells is not None and self._cell is None:
+            self._cell = {"kind": tag, "text": [], "resources": []}
+        elif tag == "a" and self._cell is not None and self._anchor is None:
+            self._anchor = {"attributes": attributes, "text": []}
+
+    def handle_data(self, data: str) -> None:
+        if self._cell is not None:
+            self._cell["text"].append(data)
+        if self._anchor is not None:
+            self._anchor["text"].append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._anchor is not None:
+            self._anchor["text"] = " ".join(
+                "".join(self._anchor["text"]).split()
+            ) or None
+            assert self._cell is not None
+            self._cell["resources"].append(self._anchor)
+            self._anchor = None
+        elif tag in {"th", "td"} and self._cell is not None:
+            self._cell["text"] = " ".join(
+                "".join(self._cell["text"]).split()
+            ) or None
+            assert self._cells is not None
+            self._cells.append(self._cell)
+            self._cell = None
+        elif tag == "tr" and self._cells is not None:
+            if self._cells and all(cell["kind"] == "td" for cell in self._cells):
+                self.rows.append({"cells": self._cells})
+            self._cells = None
+        elif tag == "table":
+            self._in_table = False
+
+
+def mcgill_resource_kind(href: str) -> str:
+    lowered = href.lower()
+    if "/abs/" in lowered:
+        return "ads_bibliography"
+    if "gcn" in lowered:
+        return "gcn_circular"
+    if "astronomerstelegram" in lowered:
+        return "astronomers_telegram"
+    if href.startswith("#"):
+        return "internal_navigation"
+    if not re.match(r"^[a-z]+://", href, flags=re.IGNORECASE):
+        return "companion_page"
+    return "external_resource"
+
+
+def mcgill_bibcode(href: str) -> str | None:
+    match = re.search(r"/abs/([^?#/]+)", unquote(href), flags=re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def write_mcgill_magnetar_html_parquet(
+    path: Path,
+    *,
+    rows_output: Path,
+    links_output: Path,
+    references_output: Path,
+    base_url: str,
+) -> dict[str, int]:
+    parser = McGillMagnetarTableParser()
+    with open_text(path) as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), ""):
+            parser.feed(chunk)
+    parser.close()
+    if parser.table_count != 1:
+        raise ValueError(f"expected one McGill magnetar table, found {parser.table_count}")
+    expected_cells = 17
+    for row_number, row in enumerate(parser.rows, start=1):
+        if len(row["cells"]) not in {1, expected_cells}:
+            raise ValueError(
+                f"McGill row {row_number} has {len(row['cells'])} cells; "
+                f"expected one section cell or {expected_cells} data cells"
+            )
+
+    row_schema = pa.schema(
+        [
+            pa.field("source_row_number", pa.int64()),
+            pa.field("row_kind", pa.string()),
+            pa.field("magnetar_name_raw", pa.string()),
+            pa.field("cells_json", pa.string()),
+            pa.field("resources_json", pa.string()),
+        ]
+    )
+    link_schema = pa.schema(
+        [
+            pa.field("source_row_number", pa.int64()),
+            pa.field("magnetar_name_raw", pa.string()),
+            pa.field("source_cell_index", pa.int32()),
+            pa.field("cell_text_raw", pa.string()),
+            pa.field("resource_index", pa.int32()),
+            pa.field("reference_code_raw", pa.string()),
+            pa.field("href_raw", pa.string()),
+            pa.field("href_absolute", pa.string()),
+            pa.field("resource_kind", pa.string()),
+            pa.field("bibcode_raw", pa.string()),
+            pa.field("attributes_json", pa.string()),
+        ]
+    )
+    reference_schema = pa.schema(
+        [
+            pa.field("reference_code_raw", pa.string()),
+            pa.field("href_absolute", pa.string()),
+            pa.field("resource_kind", pa.string()),
+            pa.field("bibcode_raw", pa.string()),
+            pa.field("occurrence_count", pa.int64()),
+        ]
+    )
+
+    def row_records() -> Iterable[dict[str, Any]]:
+        for row_number, row in enumerate(parser.rows, start=1):
+            cells = row["cells"]
+            resources = [
+                {"cell_index": index, "resources": cell["resources"]}
+                for index, cell in enumerate(cells)
+                if cell["resources"]
+            ]
+            yield {
+                "source_row_number": row_number,
+                "row_kind": "data" if len(cells) == expected_cells else "section",
+                "magnetar_name_raw": (
+                    cells[0]["text"] if len(cells) == expected_cells else None
+                ),
+                "cells_json": json.dumps(
+                    [cell["text"] for cell in cells],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
+                "resources_json": json.dumps(
+                    resources, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ),
+            }
+
+    def link_records() -> Iterable[dict[str, Any]]:
+        for row_number, row in enumerate(parser.rows, start=1):
+            cells = row["cells"]
+            if len(cells) != expected_cells:
+                continue
+            for cell_index, cell in enumerate(cells):
+                for resource_index, resource in enumerate(cell["resources"]):
+                    href = str(resource["attributes"].get("href") or "").strip()
+                    if not href:
+                        continue
+                    reference_code = str(resource.get("text") or "").strip()
+                    if reference_code.startswith("[") and reference_code.endswith("]"):
+                        reference_code = reference_code[1:-1].strip()
+                    yield {
+                        "source_row_number": row_number,
+                        "magnetar_name_raw": cells[0]["text"],
+                        "source_cell_index": cell_index,
+                        "cell_text_raw": cell["text"],
+                        "resource_index": resource_index,
+                        "reference_code_raw": reference_code or None,
+                        "href_raw": href,
+                        "href_absolute": urljoin(base_url, href),
+                        "resource_kind": mcgill_resource_kind(href),
+                        "bibcode_raw": mcgill_bibcode(href),
+                        "attributes_json": json.dumps(
+                            resource["attributes"],
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                    }
+
+    links = list(link_records())
+    external_kinds = {"ads_bibliography", "gcn_circular", "astronomers_telegram"}
+    reference_counts: dict[tuple[str, str, str, str | None], int] = {}
+    hrefs_by_code: dict[str, set[str]] = {}
+    for link in links:
+        if link["resource_kind"] not in external_kinds:
+            continue
+        code = str(link["reference_code_raw"] or "").strip()
+        if not code:
+            raise ValueError("external McGill bibliography link lacks a reference code")
+        href = str(link["href_absolute"])
+        hrefs_by_code.setdefault(code, set()).add(href)
+        key = (code, href, str(link["resource_kind"]), link["bibcode_raw"])
+        reference_counts[key] = reference_counts.get(key, 0) + 1
+    ambiguous_codes = sorted(
+        code for code, hrefs in hrefs_by_code.items() if len(hrefs) != 1
+    )
+    if ambiguous_codes:
+        raise ValueError(f"ambiguous McGill reference-code links: {ambiguous_codes}")
+
+    row_count = write_record_batches(row_records(), row_schema, rows_output)
+    link_count = write_record_batches(links, link_schema, links_output)
+    reference_count = write_record_batches(
+        (
+            {
+                "reference_code_raw": code,
+                "href_absolute": href,
+                "resource_kind": resource_kind,
+                "bibcode_raw": bibcode,
+                "occurrence_count": count,
+            }
+            for (code, href, resource_kind, bibcode), count in sorted(
+                reference_counts.items()
+            )
+        ),
+        reference_schema,
+        references_output,
+    )
+    return {
+        "source_table_count": parser.table_count,
+        "source_data_row_count": sum(
+            len(row["cells"]) == expected_cells for row in parser.rows
+        ),
+        "source_section_row_count": sum(
+            len(row["cells"]) == 1 for row in parser.rows
+        ),
+        "typed_row_count": row_count,
+        "typed_link_count": link_count,
+        "typed_external_reference_count": reference_count,
+    }
+
+
 def write_html_table_parquet(
     path: Path,
     output: Path,
@@ -534,6 +776,209 @@ def write_archive_member_index_parquet(
 
     row_count = write_record_batches(rows(), schema, output)
     return {"row_count": row_count, "member_count": len(members)}
+
+
+OEC_OBJECT_TAGS = {"system", "star", "binary", "planet", "satellite", "asteroid"}
+
+
+def write_oec_archive_parquet(
+    archive: tarfile.TarFile,
+    *,
+    objects_output: Path,
+    names_output: Path,
+    parameters_output: Path,
+    relations_output: Path,
+) -> dict[str, int]:
+    """Preserve the OEC XML graph without promoting names into identity."""
+
+    object_schema = pa.schema(
+        [
+            pa.field("source_member", pa.string()),
+            pa.field("source_node_path", pa.string()),
+            pa.field("parent_node_path", pa.string()),
+            pa.field("object_kind", pa.string()),
+            pa.field("primary_name_raw", pa.string()),
+            pa.field("list_disposition_raw", pa.string()),
+            pa.field("attributes_json", pa.string()),
+        ]
+    )
+    name_schema = pa.schema(
+        [
+            pa.field("source_member", pa.string()),
+            pa.field("source_node_path", pa.string()),
+            pa.field("object_kind", pa.string()),
+            pa.field("name_occurrence", pa.int32()),
+            pa.field("name_raw", pa.string()),
+        ]
+    )
+    parameter_schema = pa.schema(
+        [
+            pa.field("source_member", pa.string()),
+            pa.field("source_node_path", pa.string()),
+            pa.field("object_kind", pa.string()),
+            pa.field("parameter_name", pa.string()),
+            pa.field("parameter_occurrence", pa.int32()),
+            pa.field("value_raw", pa.string()),
+            pa.field("attributes_json", pa.string()),
+        ]
+    )
+    relation_schema = pa.schema(
+        [
+            pa.field("source_member", pa.string()),
+            pa.field("parent_node_path", pa.string()),
+            pa.field("parent_object_kind", pa.string()),
+            pa.field("parent_primary_name_raw", pa.string()),
+            pa.field("child_node_path", pa.string()),
+            pa.field("child_object_kind", pa.string()),
+            pa.field("child_primary_name_raw", pa.string()),
+            pa.field("child_occurrence", pa.int32()),
+            pa.field("relation_kind", pa.string()),
+        ]
+    )
+    object_rows: list[dict[str, Any]] = []
+    name_rows: list[dict[str, Any]] = []
+    parameter_rows: list[dict[str, Any]] = []
+    relation_rows: list[dict[str, Any]] = []
+    xml_members = 0
+
+    def direct_text(element: ET.Element, tag: str) -> str | None:
+        child = next((row for row in element if row.tag == tag), None)
+        if child is None:
+            return None
+        return (child.text or "").strip() or None
+
+    def visit(
+        element: ET.Element,
+        *,
+        member_name: str,
+        node_path: str,
+        parent_path: str | None,
+        parent_kind: str | None,
+        parent_name: str | None,
+        child_occurrence: int,
+    ) -> None:
+        object_kind = str(element.tag)
+        names = [
+            (child.text or "").strip()
+            for child in element
+            if child.tag == "name" and (child.text or "").strip()
+        ]
+        primary_name = names[0] if names else None
+        object_rows.append(
+            {
+                "source_member": member_name,
+                "source_node_path": node_path,
+                "parent_node_path": parent_path,
+                "object_kind": object_kind,
+                "primary_name_raw": primary_name,
+                "list_disposition_raw": direct_text(element, "list"),
+                "attributes_json": json.dumps(
+                    element.attrib,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            }
+        )
+        for occurrence, name in enumerate(names, start=1):
+            name_rows.append(
+                {
+                    "source_member": member_name,
+                    "source_node_path": node_path,
+                    "object_kind": object_kind,
+                    "name_occurrence": occurrence,
+                    "name_raw": name,
+                }
+            )
+        if parent_path is not None:
+            relation_rows.append(
+                {
+                    "source_member": member_name,
+                    "parent_node_path": parent_path,
+                    "parent_object_kind": parent_kind,
+                    "parent_primary_name_raw": parent_name,
+                    "child_node_path": node_path,
+                    "child_object_kind": object_kind,
+                    "child_primary_name_raw": primary_name,
+                    "child_occurrence": child_occurrence,
+                    "relation_kind": f"contains_{object_kind}",
+                }
+            )
+        parameter_occurrences: dict[str, int] = {}
+        object_occurrences: dict[str, int] = {}
+        for child in element:
+            if child.tag == "name":
+                continue
+            if child.tag in OEC_OBJECT_TAGS:
+                object_occurrences[child.tag] = object_occurrences.get(child.tag, 0) + 1
+                occurrence = object_occurrences[child.tag]
+                visit(
+                    child,
+                    member_name=member_name,
+                    node_path=f"{node_path}/{child.tag}[{occurrence}]",
+                    parent_path=node_path,
+                    parent_kind=object_kind,
+                    parent_name=primary_name,
+                    child_occurrence=occurrence,
+                )
+                continue
+            if list(child):
+                raise ValueError(
+                    f"unsupported non-object OEC container {child.tag!r} in {member_name}"
+                )
+            parameter_occurrences[child.tag] = parameter_occurrences.get(child.tag, 0) + 1
+            parameter_rows.append(
+                {
+                    "source_member": member_name,
+                    "source_node_path": node_path,
+                    "object_kind": object_kind,
+                    "parameter_name": str(child.tag),
+                    "parameter_occurrence": parameter_occurrences[child.tag],
+                    "value_raw": (child.text or "").strip() or None,
+                    "attributes_json": json.dumps(
+                        child.attrib,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                }
+            )
+
+    for member in safe_tar_members(archive):
+        if not member.name.endswith(".xml") or not (
+            "/systems/" in member.name or "/systems_kepler/" in member.name
+        ):
+            continue
+        xml_members += 1
+        root = ET.fromstring(tar_member_bytes(archive, member.name))
+        if root.tag != "system":
+            raise ValueError(f"unexpected OEC root {root.tag!r}: {member.name}")
+        visit(
+            root,
+            member_name=member.name,
+            node_path="/system[1]",
+            parent_path=None,
+            parent_kind=None,
+            parent_name=None,
+            child_occurrence=1,
+        )
+
+    counts = {
+        "xml_member_count": xml_members,
+        "object_row_count": write_record_batches(object_rows, object_schema, objects_output),
+        "name_row_count": write_record_batches(name_rows, name_schema, names_output),
+        "parameter_row_count": write_record_batches(
+            parameter_rows, parameter_schema, parameters_output
+        ),
+        "relation_row_count": write_record_batches(
+            relation_rows, relation_schema, relations_output
+        ),
+    }
+    if counts["xml_member_count"] != sum(
+        row["object_kind"] == "system" for row in object_rows
+    ):
+        raise ValueError("OEC system/member accounting mismatch")
+    return counts
 
 
 def fixed_width_text_rows(

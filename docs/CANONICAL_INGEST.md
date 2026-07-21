@@ -10,12 +10,14 @@ budgets, and the acquisition free-space floor. Set
 `SPACEGATE_EVIDENCE_REGISTRY_GATE=0` only for isolated legacy diagnosis; it is
 not an accepted production build configuration.
 
-E1 source-native Parquet and the E2 release-scoped identity/scope graph now
-reproduce deterministically. They remain unserved compiler inputs: the current
-canonical build path stays operational until E4/E5 compile typed evidence and
-selected facts, and E6 passes the shadow scientific A/B review. The preflight,
-typed-lake, and E2 graph contracts do not promote registry metadata, source
-relations, or release crossmatches into CORE by themselves.
+E1 source-native Parquet, the E2 release-scoped identity/scope graph, and the 38
+registered E4 scientific adapters now have explicit compiler contracts. They
+remain unserved compiler inputs: the current canonical build path stays
+operational until the combined E4 artifact and E5 selected facts are complete
+and E6 passes the shadow scientific A/B review. The preflight,
+typed-lake, identity graph, and E4 evidence contracts do not promote registry
+metadata, source relations, release crossmatches, or coherent Gaia source
+solutions into CORE by themselves.
 
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 

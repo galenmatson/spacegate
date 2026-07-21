@@ -17,17 +17,15 @@ def test_checked_in_e4_source_scope_accounts_every_registered_source() -> None:
         json.loads(scope_audit.DEFAULT_CONTRACT.read_text()),
         json.loads(scope_audit.DEFAULT_SCOPE.read_text()),
     )
-    assert report["status"] == "in_progress"
-    assert report["summaries"]["registered_sources"] == 44
-    assert report["summaries"]["e4_adapters"] == 34
-    assert report["summaries"]["explicit_boundary_dispositions"] == 10
+    assert report["status"] == "pass"
+    assert report["summaries"]["registered_sources"] == 47
+    assert report["summaries"]["e4_adapters"] == 38
+    assert report["summaries"]["explicit_boundary_dispositions"] == 9
     assert report["checks"]["unaccounted_sources"] == []
     assert report["checks"]["adapter_disposition_conflicts"] == []
     assert report["checks"]["stale_explicit_dispositions"] == []
     assert report["checks"]["unregistered_adapters"] == []
-    assert report["checks"]["blocking_sources"] == [
-        "gaia.dr3.gaia_source",
-    ]
+    assert report["checks"]["blocking_sources"] == []
 
 
 def test_e4_source_scope_fails_unaccounted_and_conflicting_sources() -> None:

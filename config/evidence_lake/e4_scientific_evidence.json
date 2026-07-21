@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-21.e4-foundation.75",
-  "compiler_version": "scientific_evidence_compiler_v74",
+  "schema_version": "spacegate.scientific_evidence_contract.v5",
+  "contract_version": "2026-07-21.e4-foundation.78",
+  "compiler_version": "scientific_evidence_compiler_v77",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -100,6 +100,7 @@
   },
   "domain_tables": [
     "identifier_claim_evidence",
+    "stellar_source_parameter_sets",
     "stellar_parameter_sets",
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
@@ -126,6 +127,81 @@
     "observation_product_lineage"
   ],
   "field_profiles": {
+    "gaia_source_coherent_solution": [
+      {
+        "pattern": "^source_id$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "authoritative Gaia DR3 release-scoped source identity"
+      },
+      {
+        "pattern": "^solution_id$",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "Gaia processing-solution lineage retained with the coherent source solution"
+      },
+      {
+        "pattern": "^designation$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "deterministic textual repetition of the authoritative source_id remains preserved in E1"
+      },
+      {
+        "pattern": "^random_index$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "Gaia archive sampling index is preserved in E1 but is not scientific evidence"
+      },
+      {
+        "pattern": "^(ag|azero|distance|ebpminrp|logg|mh|teff)_gspphot(_lower|_upper)?$|^(has_mcmc_gspphot|libname_gspphot)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "copied GSP-Phot projection remains preserved in E1; the richer release-native AP tables own this model evidence in E4"
+      },
+      {
+        "pattern": "^(l|b|ecl_lon|ecl_lat|ref_epoch|pm|ruwe|duplicated_source|ra|dec|parallax|pmra|pmdec|ra_.*|dec_.*|parallax_.*|pmra_.*|pmdec_.*|astrometric_.*|nu_eff_.*|pseudocolour.*|visibility_.*|matched_.*|new_matched_.*|ipd_.*|scan_direction_.*)$",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "scientific_domain": "astrometry",
+        "reason": "Gaia source astrometric solution and quality fields retained inside one coherent release-native solution"
+      },
+      {
+        "pattern": "^(bp_rp|bp_g|g_rp|phot_(?!variable_flag$).*)$",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "scientific_domain": "photometry",
+        "reason": "Gaia source photometric solution and quality fields retained inside one coherent release-native solution"
+      },
+      {
+        "pattern": "^(radial_velocity.*|rv_.*|vbroad.*|grvs_.*|rvs_.*)$",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "scientific_domain": "radial_velocity",
+        "reason": "Gaia source radial-velocity and broadening solution fields retained inside one coherent release-native solution"
+      },
+      {
+        "pattern": "^(phot_variable_flag|in_qso_candidates|in_galaxy_candidates|non_single_star|in_andromeda_survey|classprob_.*)$",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "scientific_domain": "classification_and_membership",
+        "reason": "Gaia source classification probabilities and published membership flags retained inside one coherent release-native solution"
+      },
+      {
+        "pattern": "^has_.*$",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "scientific_domain": "observation_product_availability",
+        "reason": "Gaia source product-availability flags retained inside one coherent release-native solution"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "stellar_source_parameter_sets",
+        "mapping_status": "declared_pending",
+        "scientific_domain": "unclassified",
+        "reason": "fail closed when a future Gaia source field lacks a reviewed scientific-domain assignment"
+      }
+    ],
     "nasa_planet_archive": [
       {
         "pattern": "^(pl_name|pl_letter|hostname|hd_name|hip_name|tic_id|gaia_dr2_id|gaia_dr3_id|epic_candname|epic_hostname|k2_name)$",
@@ -601,6 +677,20 @@
         "destination": "compact_object_evidence",
         "reason": "coherent source-native timing, X-ray, distance, position, association, band, and activity parameter context"
       }
+    ],
+    "mcgill_html_rows": [
+      {"pattern": "^magnetar_name_raw$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "current HTML-table magnetar identity"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "exact row kind, ordered cell values, and scoped HTML resources"}
+    ],
+    "mcgill_html_reference_links": [
+      {"pattern": "^magnetar_name_raw$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "magnetar identity scoped to the exact linked source row"},
+      {"pattern": ".*", "disposition": "lineage", "destination": "source_records", "reason": "reference code, cell scope, URL, resource kind, bibcode, and HTML-attribute lineage"}
+    ],
+    "mcgill_html_reference_index": [
+      {"pattern": ".*", "disposition": "lineage", "destination": "citations", "reason": "one-to-one current McGill shorthand-code to direct bibliography URL"}
+    ],
+    "mcgill_cds_citations": [
+      {"pattern": ".*", "disposition": "lineage", "destination": "citations", "reason": "CDS-published McGill catalogue bibliography row and fixed-width lineage"}
     ],
     "sb9_systems": [
       {
@@ -1665,9 +1755,201 @@
         "mapping_status": "declared_pending",
         "reason": "unrecognized distance-catalog field retained pending schema review"
       }
+    ],
+    "exoplanet_eu_catalog": [
+      {"pattern": "^(name|star_name)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "source-scoped planet or host identity"},
+      {"pattern": "^planet_status$", "disposition": "domain", "destination": "planet_lifecycle_evidence", "reason": "source planet lifecycle assertion"},
+      {"pattern": "^star_sp_type$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "host-star spectral classification"},
+      {"pattern": "^mag_[vijhk]$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "host-system photometry"},
+      {"pattern": "^(ra|dec|star_distance.*)$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "host position or distance evidence"},
+      {"pattern": "^star_(metallicity|mass|radius|age|teff|magnetic_field)(|_error_min|_error_max)$", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "host-star source parameter-set evidence"},
+      {"pattern": "^(mass|mass_sini|radius|orbital_period|semi_major_axis|eccentricity|inclination|angular_distance|omega|tperi|tconj|tzero_tr|tzero_tr_sec|lambda_angle|impact_parameter|tzero_vr|k|temp_calculated|temp_measured|hot_point_lon|geometric_albedo|log_g)(|_error_min|_error_max)$", "disposition": "domain", "destination": "planet_parameter_evidence", "reason": "planet source parameter-set evidence"},
+      {"pattern": "^(discovered|updated|publication|detection_type|mass_measurement_type|radius_measurement_type|alternate_names|star_alternate_names|star_detected_disc|molecules)$", "disposition": "context", "destination": "source_records", "reason": "discovery, method, alias-list, or descriptive source context retained losslessly"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "mapping_status": "declared_pending", "reason": "unrecognized exoplanet.eu field retained pending schema review"}
+    ],
+    "hwc_catalog": [
+      {"pattern": "^(P_NAME|S_NAME|S_NAME_HD|S_NAME_HIP)$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "source-scoped planet or host identity"},
+      {"pattern": "^S_TYPE$", "disposition": "domain", "destination": "stellar_classification_evidence", "reason": "host-star spectral classification"},
+      {"pattern": "^S_MAG(|_ERROR_MIN|_ERROR_MAX)$", "disposition": "domain", "destination": "photometry_extinction_evidence", "reason": "host-system apparent magnitude"},
+      {"pattern": "^S_(RA|DEC|RA_STR|DEC_STR|RA_TXT|DEC_TXT|DISTANCE)(|_ERROR_MIN|_ERROR_MAX)$", "disposition": "domain", "destination": "astrometry_distance_evidence", "reason": "host position or distance evidence"},
+      {"pattern": "^S_(TEMPERATURE|MASS|RADIUS|METALLICITY|AGE|LOG_LUM|LOG_G|LUMINOSITY|HZ_.*|SNOW_LINE|ABIO_ZONE|TIDAL_LOCK)(|_ERROR_MIN|_ERROR_MAX|_LIMIT)$", "disposition": "domain", "destination": "stellar_parameter_evidence", "reason": "source or HWC-derived host-star parameter evidence"},
+      {"pattern": "^P_(MASS|RADIUS|PERIOD|SEMI_MAJOR_AXIS|ECCENTRICITY|INCLINATION|OMEGA)(|_ERROR_MIN|_ERROR_MAX|_LIMIT)$", "disposition": "domain", "destination": "planet_parameter_evidence", "reason": "upstream planet parameter evidence"},
+      {"pattern": "^P_(ESCAPE|POTENTIAL|GRAVITY|DENSITY|HILL_SPHERE|DISTANCE|PERIASTRON|APASTRON|DISTANCE_EFF|FLUX|FLUX_MIN|FLUX_MAX|TEMP_EQUIL|TEMP_EQUIL_MIN|TEMP_EQUIL_MAX|TEMP_SURF|TEMP_SURF_MIN|TEMP_SURF_MAX|TYPE|HABZONE_OPT|HABZONE_CON|TYPE_TEMP|HABITABLE|ESI)$", "disposition": "domain", "destination": "planet_parameter_evidence", "reason": "HWC-derived planet environment, taxonomy, or habitability evidence"},
+      {"pattern": "^(P_DETECTION|P_DISCOVERY_FACILITY|P_YEAR|P_UPDATE|P_MASS_ORIGIN|S_TYPE_TEMP|S_CONSTELLATION|S_CONSTELLATION_ABR|S_CONSTELLATION_ENG)$", "disposition": "context", "destination": "source_records", "reason": "discovery, method, taxonomy, or sky-context lineage"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "mapping_status": "declared_pending", "reason": "unrecognized HWC field retained pending schema review"}
+    ],
+    "oec_objects": [
+      {"pattern": "^primary_name_raw$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "source-native primary-name identity"},
+      {"pattern": "^list_disposition_raw$", "disposition": "domain", "destination": "planet_lifecycle_evidence", "reason": "OEC list membership and lifecycle assertion"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "source-native object structure and attributes"}
+    ],
+    "oec_names": [
+      {"pattern": "^name_raw$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "source-native scoped object name"},
+      {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "name order and object-scope lineage"}
+    ],
+    "oec_relations": [
+      {"pattern": "^(parent_primary_name_raw|child_primary_name_raw|relation_kind)$", "disposition": "context", "destination": "source_records", "reason": "human-readable endpoint and source relation labels retained with the exact relation row"},
+      {"pattern": ".*", "disposition": "domain", "destination": "relation_claim_evidence", "reason": "exact source-native XML containment claim"}
+    ],
+    "oec_parameters": [
+      {"pattern": ".*", "disposition": "domain", "destination": "source_records", "reason": "source-native EAV parameter routed exhaustively by object kind and parameter name"}
+    ],
+    "oec_archive_members": [
+      {"pattern": ".*", "disposition": "lineage", "destination": "source_records", "reason": "archive-member path, checksum, size, and parser disposition lineage"}
     ]
   },
   "source_adapters": {
+    "exoplanet_lifecycle.exoplanet_eu": {
+      "adapter_version": "exoplanet_eu_scientific_evidence_v1",
+      "tables": {
+        "exoplanet_eu_catalog_20260721": {
+          "logical_key_fields": ["name"],
+          "object_scope": "planet_and_host_source_parameter_set",
+          "field_profile": "exoplanet_eu_catalog",
+          "identifier_claims": {
+            "name": {"namespace": "exoplanet_eu_planet_name", "claim_scope": "planet"},
+            "star_name": {"namespace": "exoplanet_eu_host_name", "claim_scope": "host"}
+          },
+          "planet_parameter_set": {"kind": "exoplanet_eu_snapshot"},
+          "stellar_parameter_set": {"kind": "exoplanet_eu_host_snapshot"},
+          "scientific_quantity_namespace": "exoplanet_eu",
+          "scalar_normalization_version": "exoplanet_eu_source_native_v1",
+          "unit_overrides": {
+            "mass": "M_jup", "mass_sini": "M_jup", "radius": "R_jup",
+            "orbital_period": "d", "semi_major_axis": "AU", "eccentricity": "dimensionless",
+            "inclination": "deg", "angular_distance": "arcsec", "omega": "deg",
+            "tperi": "JD", "tconj": "JD", "tzero_tr": "JD", "tzero_tr_sec": "JD",
+            "lambda_angle": "deg", "impact_parameter": "dimensionless", "tzero_vr": "JD",
+            "k": "m s-1", "temp_calculated": "K", "temp_measured": "K",
+            "hot_point_lon": "deg", "geometric_albedo": "dimensionless", "log_g": "dex(cm s-2)",
+            "ra": "deg", "dec": "deg", "star_distance": "pc", "star_metallicity": "dex",
+            "star_mass": "M_sun", "star_radius": "R_sun", "star_age": "Gyr",
+            "star_teff": "K", "mag_v": "mag", "mag_i": "mag", "mag_j": "mag",
+            "mag_h": "mag", "mag_k": "mag"
+          },
+          "lifecycle_claims": [
+            {"claim_role": "exoplanet_eu_catalog_status", "identifier_field": "name", "disposition_field": "planet_status", "effective_field": "updated", "reference_field": "publication", "context_fields": ["discovered", "detection_type"]}
+          ]
+        }
+      }
+    },
+    "exoplanet_lifecycle.hwc": {
+      "adapter_version": "hwc_scientific_evidence_v1",
+      "tables": {
+        "hwc_catalog_20260721": {
+          "logical_key_fields": ["P_NAME"],
+          "object_scope": "planet_and_host_derived_comparison_set",
+          "field_profile": "hwc_catalog",
+          "identifier_claims": {
+            "P_NAME": {"namespace": "hwc_planet_name", "claim_scope": "planet"},
+            "S_NAME": {"namespace": "hwc_host_name", "claim_scope": "host"},
+            "S_NAME_HD": {"namespace": "hd_designation", "claim_scope": "host"},
+            "S_NAME_HIP": {"namespace": "hip_designation", "claim_scope": "host"}
+          },
+          "planet_parameter_set": {"kind": "hwc_derived_planet_snapshot"},
+          "stellar_parameter_set": {"kind": "hwc_host_and_hz_snapshot"},
+          "scientific_quantity_namespace": "hwc",
+          "scalar_normalization_version": "hwc_source_native_v1",
+          "unit_overrides": {
+            "P_MASS": "M_earth", "P_RADIUS": "R_earth", "P_PERIOD": "d",
+            "P_SEMI_MAJOR_AXIS": "AU", "P_ECCENTRICITY": "dimensionless",
+            "P_INCLINATION": "deg", "P_OMEGA": "deg", "P_ESCAPE": "v_earth",
+            "P_POTENTIAL": "potential_earth", "P_GRAVITY": "g_earth", "P_DENSITY": "rho_earth",
+            "P_HILL_SPHERE": "AU", "P_DISTANCE": "AU", "P_PERIASTRON": "AU",
+            "P_APASTRON": "AU", "P_DISTANCE_EFF": "AU", "P_FLUX": "S_earth",
+            "P_FLUX_MIN": "S_earth", "P_FLUX_MAX": "S_earth", "P_TEMP_EQUIL": "K",
+            "P_TEMP_EQUIL_MIN": "K", "P_TEMP_EQUIL_MAX": "K", "P_TEMP_SURF": "K",
+            "P_TEMP_SURF_MIN": "K", "P_TEMP_SURF_MAX": "K", "P_ESI": "dimensionless",
+            "S_RA": "deg", "S_DEC": "deg", "S_MAG": "mag", "S_DISTANCE": "pc",
+            "S_TEMPERATURE": "K", "S_MASS": "M_sun", "S_RADIUS": "R_sun",
+            "S_METALLICITY": "dex", "S_AGE": "Gyr", "S_LOG_LUM": "dex(L_sun)",
+            "S_LOG_G": "dex(cm s-2)", "S_LUMINOSITY": "L_sun",
+            "S_HZ_OPT_MIN": "AU", "S_HZ_OPT_MAX": "AU", "S_HZ_CON_MIN": "AU",
+            "S_HZ_CON_MAX": "AU", "S_HZ_CON0_MIN": "AU", "S_HZ_CON0_MAX": "AU",
+            "S_HZ_CON1_MIN": "AU", "S_HZ_CON1_MAX": "AU", "S_SNOW_LINE": "AU",
+            "S_ABIO_ZONE": "AU", "S_TIDAL_LOCK": "AU"
+          }
+        }
+      }
+    },
+    "exoplanet_lifecycle.open_exoplanet_catalogue": {
+      "adapter_version": "oec_scientific_evidence_v1",
+      "table_order": ["oec_archive_members", "oec_objects", "oec_names", "oec_relations", "oec_parameters"],
+      "tables": {
+        "oec_archive_members": {"raw_artifact_name": "open_exoplanet_catalogue_18fb506ab3a4", "logical_key_fields": ["member_name"], "object_scope": "source_archive_member", "field_profile": "oec_archive_members"},
+        "oec_objects": {
+          "raw_artifact_name": "open_exoplanet_catalogue_18fb506ab3a4", "logical_key_fields": ["source_member", "source_node_path"], "object_scope": "source_catalog_object", "field_profile": "oec_objects",
+          "identifier_claims": {
+            "primary_name_raw": {"namespace": "oec_object_name", "claim_scope": "source_catalog_object"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["source_member", "source_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object"}
+          ],
+          "lifecycle_claims": [
+            {"claim_role": "oec_list_membership", "identifier_field": "primary_name_raw", "disposition_field": "list_disposition_raw", "context_fields": ["object_kind", "source_member", "source_node_path"]}
+          ]
+        },
+        "oec_names": {
+          "raw_artifact_name": "open_exoplanet_catalogue_18fb506ab3a4", "logical_key_fields": ["source_member", "source_node_path", "name_occurrence"], "object_scope": "source_catalog_object_name", "field_profile": "oec_names",
+          "identifier_claims": {
+            "name_raw": {"namespace": "oec_object_name", "claim_scope": "source_catalog_object"}
+          },
+          "composite_identifier_claims": [
+            {"fields": ["source_member", "source_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object"}
+          ]
+        },
+        "oec_relations": {
+          "raw_artifact_name": "open_exoplanet_catalogue_18fb506ab3a4", "logical_key_fields": ["source_member", "parent_node_path", "child_node_path"], "object_scope": "source_containment_claim", "field_profile": "oec_relations",
+          "relation_identifier_prefix_field": "source_member",
+          "composite_identifier_claims": [
+            {"fields": ["source_member", "parent_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "parent_source_object"},
+            {"fields": ["source_member", "child_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "planet_source_object", "sql_predicate": "relation_kind='contains_planet'"},
+            {"fields": ["source_member", "child_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "star_source_object", "sql_predicate": "relation_kind='contains_star'"},
+            {"fields": ["source_member", "child_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "binary_source_object", "sql_predicate": "relation_kind='contains_binary'"},
+            {"fields": ["source_member", "child_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "asteroid_source_object", "sql_predicate": "relation_kind='contains_asteroid'"},
+            {"fields": ["source_member", "child_node_path"], "delimiter": "|", "namespace": "oec_structural_node", "claim_scope": "source_catalog_object", "component_scope": "satellite_source_object", "sql_predicate": "relation_kind='contains_satellite'"}
+          ],
+          "relation_claims": [
+            {"evidence_key": "contains_planet", "left_identifier_field": "parent_node_path", "left_identifier_namespace": "oec_structural_node", "left_component_scope": "parent_source_object", "right_identifier_field": "child_node_path", "right_identifier_namespace": "oec_structural_node", "right_component_scope": "planet_source_object", "relation_kind": "source_contains_planet", "relation_scope": "oec_xml_nesting", "evidence_polarity": "candidate", "method": "oec_source_native_xml_containment", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue", "quality_fields": ["source_member", "parent_object_kind", "child_object_kind", "child_occurrence"], "sql_predicate": "relation_kind='contains_planet'"},
+            {"evidence_key": "contains_star", "left_identifier_field": "parent_node_path", "left_identifier_namespace": "oec_structural_node", "left_component_scope": "parent_source_object", "right_identifier_field": "child_node_path", "right_identifier_namespace": "oec_structural_node", "right_component_scope": "star_source_object", "relation_kind": "source_contains_star", "relation_scope": "oec_xml_nesting", "evidence_polarity": "candidate", "method": "oec_source_native_xml_containment", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue", "quality_fields": ["source_member", "parent_object_kind", "child_object_kind", "child_occurrence"], "sql_predicate": "relation_kind='contains_star'"},
+            {"evidence_key": "contains_binary", "left_identifier_field": "parent_node_path", "left_identifier_namespace": "oec_structural_node", "left_component_scope": "parent_source_object", "right_identifier_field": "child_node_path", "right_identifier_namespace": "oec_structural_node", "right_component_scope": "binary_source_object", "relation_kind": "source_contains_binary", "relation_scope": "oec_xml_nesting", "evidence_polarity": "candidate", "method": "oec_source_native_xml_containment", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue", "quality_fields": ["source_member", "parent_object_kind", "child_object_kind", "child_occurrence"], "sql_predicate": "relation_kind='contains_binary'"},
+            {"evidence_key": "contains_asteroid", "left_identifier_field": "parent_node_path", "left_identifier_namespace": "oec_structural_node", "left_component_scope": "parent_source_object", "right_identifier_field": "child_node_path", "right_identifier_namespace": "oec_structural_node", "right_component_scope": "asteroid_source_object", "relation_kind": "source_contains_asteroid", "relation_scope": "oec_xml_nesting", "evidence_polarity": "candidate", "method": "oec_source_native_xml_containment", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue", "quality_fields": ["source_member", "parent_object_kind", "child_object_kind", "child_occurrence"], "sql_predicate": "relation_kind='contains_asteroid'"},
+            {"evidence_key": "contains_satellite", "left_identifier_field": "parent_node_path", "left_identifier_namespace": "oec_structural_node", "left_component_scope": "parent_source_object", "right_identifier_field": "child_node_path", "right_identifier_namespace": "oec_structural_node", "right_component_scope": "satellite_source_object", "relation_kind": "source_contains_satellite", "relation_scope": "oec_xml_nesting", "evidence_polarity": "candidate", "method": "oec_source_native_xml_containment", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue", "quality_fields": ["source_member", "parent_object_kind", "child_object_kind", "child_occurrence"], "sql_predicate": "relation_kind='contains_satellite'"}
+          ]
+        },
+        "oec_parameters": {
+          "raw_artifact_name": "open_exoplanet_catalogue_18fb506ab3a4", "logical_key_fields": ["source_member", "source_node_path", "parameter_name", "parameter_occurrence"], "object_scope": "source_catalog_object_parameter", "field_profile": "oec_parameters",
+          "source_native_eav_parameters": {
+            "object_kind_field": "object_kind", "object_key_fields": ["source_member", "source_node_path"], "object_key_delimiter": "|", "parameter_name_field": "parameter_name", "occurrence_field": "parameter_occurrence", "value_field": "value_raw", "attributes_field": "attributes_json",
+            "quantity_namespace": "open_exoplanet_catalogue", "parameter_set_kind": "oec_source_object_snapshot", "method": "oec_source_native_xml", "normalization_version": "oec_source_native_v1", "reference_raw": "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/tree/18fb506ab3a4bb857b453486993bab797a33c5c0",
+            "default_units": {
+              "planet.mass": "M_jup", "planet.radius": "R_jup", "planet.period": "d", "planet.semimajoraxis": "AU", "planet.temperature": "K", "planet.eccentricity": "dimensionless", "planet.inclination": "deg", "planet.periastron": "deg", "planet.ascendingnode": "deg", "planet.meananomaly": "deg", "planet.longitude": "deg", "planet.spinorbitalignment": "deg", "planet.positionangle": "deg", "planet.impactparameter": "dimensionless", "planet.tilt": "deg", "planet.age": "Gyr", "planet.separation": "AU",
+              "star.mass": "M_sun", "star.radius": "R_sun", "star.temperature": "K", "star.metallicity": "dex", "star.age": "Gyr",
+              "system.distance": "pc", "binary.period": "d", "binary.semimajoraxis": "AU", "binary.eccentricity": "dimensionless", "binary.inclination": "deg", "binary.periastron": "deg", "binary.ascendingnode": "deg", "binary.meananomaly": "deg", "binary.longitude": "deg", "binary.positionangle": "deg"
+            },
+            "routes": [
+              {"object_kinds": ["planet"], "parameter_names": ["period", "radius", "istransiting", "semimajoraxis", "transittime", "temperature", "mass", "eccentricity", "inclination", "periastron", "periastrontime", "separation", "ascendingnode", "meananomaly", "longitude", "spectraltype", "spinorbitalignment", "positionangle", "impactparameter", "tilt", "maximumrvtime", "metallicity", "age"], "destination": "planet_parameter_evidence", "parameter_set_kind": "oec_planet_snapshot", "reason": "planet physical, orbital, transit, or classification parameter"},
+              {"object_kinds": ["planet"], "parameter_names": ["magH", "magJ", "magK", "magI"], "destination": "photometry_extinction_evidence", "reason": "planet photometry"},
+              {"object_kinds": ["planet"], "parameter_names": ["image"], "destination": "observation_product_lineage", "reason": "on-demand planet image product link"},
+              {"object_kinds": ["planet"], "parameter_names": ["list", "description", "lastupdate", "discoveryyear", "discoverymethod", "new", "imagedescription"], "destination": "source_records", "reason": "lifecycle, discovery, or descriptive context retained on the source record"},
+              {"object_kinds": ["star"], "parameter_names": ["radius", "temperature", "mass", "metallicity", "age"], "destination": "stellar_parameter_evidence", "parameter_set_kind": "oec_star_snapshot", "reason": "stellar physical parameter"},
+              {"object_kinds": ["star"], "parameter_names": ["spectraltype"], "destination": "stellar_classification_evidence", "reason": "stellar spectral classification"},
+              {"object_kinds": ["star"], "parameter_names": ["magK", "magJ", "magH", "magV", "magB", "magI", "magR", "magU"], "destination": "photometry_extinction_evidence", "reason": "stellar photometry"},
+              {"object_kinds": ["star"], "parameter_names": ["discoveryyear"], "destination": "source_records", "reason": "stellar discovery context"},
+              {"object_kinds": ["system"], "parameter_names": ["rightascension", "declination", "distance"], "destination": "astrometry_distance_evidence", "reason": "system position or distance evidence"},
+              {"object_kinds": ["system"], "parameter_names": ["magK", "magJ", "magH"], "destination": "photometry_extinction_evidence", "reason": "system photometry"},
+              {"object_kinds": ["system"], "parameter_names": ["spectraltype"], "destination": "stellar_classification_evidence", "reason": "source system-level spectral classification retained without component promotion"},
+              {"object_kinds": ["system"], "parameter_names": ["videolink"], "destination": "observation_product_lineage", "reason": "on-demand system video product link"},
+              {"object_kinds": ["system"], "parameter_names": ["constellation"], "destination": "source_records", "reason": "sky-region context"},
+              {"object_kinds": ["binary"], "parameter_names": ["separation", "positionangle", "period", "semimajoraxis", "eccentricity", "inclination", "periastron", "periastrontime", "ascendingnode", "transittime", "meananomaly", "longitude"], "destination": "orbital_solution_evidence", "reason": "binary source-native orbital or relative-position solution"},
+              {"object_kinds": ["binary"], "parameter_names": ["magJ", "magH", "magK", "magB", "magV", "magR", "magI"], "destination": "photometry_extinction_evidence", "reason": "binary or unresolved-subsystem photometry"},
+              {"object_kinds": ["satellite"], "parameter_names": ["eccentricity", "mass", "ascendingnode", "periastron", "period", "semimajoraxis", "radius", "longitude", "inclination", "tilt"], "destination": "source_records", "reason": "Solar System satellite context retained without promotion into exoplanet evidence"},
+              {"object_kinds": ["asteroid"], "parameter_names": ["period", "semimajoraxis", "description", "mass", "ascendingnode", "inclination", "periastron", "longitude", "radius", "eccentricity"], "destination": "source_records", "reason": "Solar System asteroid context retained without promotion into exoplanet evidence"}
+            ]
+          }
+        }
+      }
+    },
     "spectroscopy.galah_dr4": {
       "adapter_version": "galah_dr4_scientific_evidence_v1",
       "tables": {
@@ -2891,6 +3173,38 @@
         },
         "simbad_gaia_envelope_bibliography_supplement_v1": {
           "table_contract_ref": "simbad_nearby_bibliography_links_v1"
+        }
+      }
+    },
+    "gaia.dr3.gaia_source": {
+      "adapter_version": "gaia_dr3_source_scientific_evidence_v1",
+      "tables": {
+        "gaia_dr3_source_envelope_v2": {
+          "logical_key_fields": ["source_id"],
+          "object_scope": "star",
+          "field_profile": "gaia_source_coherent_solution",
+          "identifier_claims": {
+            "source_id": {
+              "namespace": "gaia_dr3_source_id",
+              "claim_scope": "star",
+              "normalization": "unsigned_integer_decimal_v1"
+            }
+          },
+          "coherent_parameter_set": {
+            "destination": "stellar_source_parameter_sets",
+            "parameter_set_kind": "gaia_dr3_source_solution",
+            "component_scope": "gaia_source",
+            "epoch_field": "ref_epoch",
+            "expected_masked_vector_count": 0,
+            "quality_fields": ["solution_id"],
+            "method": "gaia_dr3_source_pipeline",
+            "model": "gaia_dr3_source_solution",
+            "reference_raw": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html",
+            "normalization_version": "gaia_dr3_source_native_coherent_v1"
+          }
+        },
+        "gaia_dr3_source_uncertain_distance_supplement_v1": {
+          "table_contract_ref": "gaia_dr3_source_envelope_v2"
         }
       }
     },
@@ -4304,9 +4618,11 @@
       }
     },
     "compact.mcgill_magnetar": {
-      "adapter_version": "mcgill_magnetar_scientific_evidence_v1",
+      "adapter_version": "mcgill_magnetar_scientific_evidence_v2",
+      "table_order": ["mcgill_magnetar_catalog", "mcgill_html_rows", "mcgill_html_reference_index", "mcgill_html_reference_links", "mcgill_main_html_document", "mcgill_cds_readme", "mcgill_cds_references"],
       "tables": {
-        "TabO1": {
+        "mcgill_magnetar_catalog": {
+          "raw_artifact_name": "mcgill_magnetar_catalog_20260721",
           "logical_key_fields": ["Name"],
           "object_scope": "compact_object",
           "field_profile": "mcgill_magnetar_parameters",
@@ -4377,6 +4693,67 @@
               "normalization_version": "mcgill_source_native_lexical_v1"
             }
           ]
+        },
+        "mcgill_html_rows": {
+          "raw_artifact_name": "mcgill_magnetar_main_html_20260721",
+          "logical_key_fields": ["source_row_number"],
+          "object_scope": "compact_object_source_table_row",
+          "field_profile": "mcgill_html_rows",
+          "identifier_claims": {
+            "magnetar_name_raw": {"namespace": "magnetar_name", "claim_scope": "compact_object", "normalization": "strip_trailing_hash_footnote_v1"}
+          }
+        },
+        "mcgill_html_reference_index": {
+          "raw_artifact_name": "mcgill_magnetar_main_html_20260721",
+          "logical_key_fields": ["reference_code_raw"],
+          "object_scope": "source_reference",
+          "field_profile": "mcgill_html_reference_index",
+          "citation_catalog": {
+            "reference_key_field": "reference_code_raw",
+            "citation_text_field": "href_absolute",
+            "citation_url_field": "href_absolute",
+            "bibcode_field": "bibcode_raw",
+            "context_fields": ["resource_kind", "occurrence_count"],
+            "bibcode_pattern": "^(?:18|19|20)[0-9]{2}.{15}$"
+          }
+        },
+        "mcgill_html_reference_links": {
+          "raw_artifact_name": "mcgill_magnetar_main_html_20260721",
+          "logical_key_fields": ["source_row_number", "source_cell_index", "resource_index"],
+          "object_scope": "compact_object_bibliography_link",
+          "field_profile": "mcgill_html_reference_links",
+          "row_selection": {"policy_id": "mcgill_external_bibliography_links_v1", "sql_predicate": "resource_kind in ('ads_bibliography','gcn_circular','astronomers_telegram')", "reason": "materialize only direct ADS, ATel, and GCN bibliography resources; retain internal navigation and companion-page links in E1"},
+          "identifier_claims": {
+            "magnetar_name_raw": {"namespace": "magnetar_name", "claim_scope": "compact_object", "normalization": "strip_trailing_hash_footnote_v1"}
+          },
+          "source_citation_links": [
+            {"identifier_claim_field": "magnetar_name_raw", "reference_key_field": "reference_code_raw", "citation_role": "mcgill_current_object_bibliography", "required": true}
+          ]
+        },
+        "mcgill_main_html_document": {
+          "raw_artifact_name": "mcgill_magnetar_main_html_20260721",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "source_method_document"
+        },
+        "mcgill_cds_readme": {
+          "raw_artifact_name": "mcgill_magnetar_cds_readme",
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "source_method_document"
+        },
+        "mcgill_cds_references": {
+          "raw_artifact_name": "mcgill_magnetar_cds_references",
+          "logical_key_fields": ["Ref"],
+          "object_scope": "source_reference",
+          "field_profile": "mcgill_cds_citations",
+          "citation_catalog": {
+            "reference_key_field": "Ref",
+            "citation_text_field": "Aut",
+            "bibcode_field": "BibCode",
+            "context_fields": ["source_line_number", "raw_row"],
+            "bibcode_pattern": "^(?:18|19|20)[0-9]{2}.{15}$"
+          }
         }
       }
     },

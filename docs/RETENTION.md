@@ -725,6 +725,42 @@ candidate hash
 authorized removal of 1,851,392 allocated bytes. No accepted artifact or source
 snapshot was a candidate.
 
+## Gaia Source Evidence Checkpoint
+
+The accepted pre-ARM Gaia source artifact
+`derived/evidence_lake_v2/scientific_evidence/ab7f7e6bc211bee146885987`, its
+compiler/source/generic-audit reports, and the two referenced Gaia raw and typed
+snapshots are protected E4/E5 inputs. It contains all 32,176,271 buffered Gaia
+DR3 source rows and is not disposable merely because a later combined shadow
+build will consume it. Three tiny manifestless staging trees from interrupted
+contract-review attempts may be considered only through an exact-candidate
+retention dry run after the clean reproduction gate passes; no accepted source,
+artifact, report, served build, or rollback build may enter that candidate set.
+The clean reproduction subsequently passed with no differing sections. Exact
+candidate-set dry-run/apply hash
+`63e4e34a26031102104091eee6cd09e7741cff926fe48fb404d4db3414a048b6`
+retired only those three manifestless trees and reclaimed 110,592 allocated
+bytes; the accepted Gaia artifact and all referenced inputs remain protected.
+
+## Lifecycle and McGill Evidence Checkpoints
+
+The accepted lifecycle E1 snapshots and E4 artifacts are protected E4/E5
+inputs: Exoplanet.eu raw/typed `2c25fa68ee57066e723c9117` /
+`4c8e4bbb3563dfe07f7a7f2e`, OEC raw/typed
+`6fa12fc3a8296ed95450a935` / `967f39cfa4db28c8e7657e97`, HWC raw/typed
+`a5c45a4623051bb163a5794a` / `544dc3d33d7cca5a64726cdf`, and E4 builds
+`0a4d68cf938de29a229946a5`, `c2bfe4c2ea04107e81e0de20`, and
+`e94a2f86a3410bdf371ef9ef`. Their acquisition, verification, audit, and clean-
+reproduction reports are also protected.
+
+McGill raw/typed snapshots `352900b60aa93716b8d75e16` /
+`1340b932003999c157d4910b`, E4 build `99c17afd7461a9a6972a9348`, and the pinned
+catalog, publisher HTML, CDS ReadMe, and CDS bibliography are protected until
+the combined E4 artifact and E5 selection lineage supersede them reproducibly.
+Earlier McGill or lifecycle diagnostics are not deletion candidates merely
+because a later adapter exists; retire only specifically enumerated,
+unreferenced artifacts through the exact-candidate dry-run/apply workflow.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

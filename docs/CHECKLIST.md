@@ -1272,9 +1272,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spin-down, X-ray, distance, position, association, band, and activity fields
   as separate coherent parameter contexts; retain raw footnoted names and
   reference families, and pass clean reproduction/artifact audit
-- [ ] E3/E4 McGill bibliography follow-up: pin and type the publisher's full
-  reference-key bibliography, then validate source codes before creating
-  resolved citation metadata
+- [x] E3/E4 McGill bibliography follow-up: pin and type the publisher HTML,
+  exact reference links, CDS ReadMe, and 215-row reference table; resolve 97
+  external codes without inventing URLs, retain four unresolved historical
+  shorthand codes explicitly, and pass source/artifact/reproduction gates
 - [x] E4 SB9 checkpoint: preserve the complete ReadMe/system/alias/orbit release,
   explicit primary/secondary relation endpoints, scoped component spectra and
   magnitudes, release-correct Gaia aliases, coherent ADS-linked orbit solutions,
@@ -1323,17 +1324,31 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   ART indexes with explicit binding deduplication plus exact compiler and
   independent-verifier key audits; preserve logical hashes in same-row A/B and
   record measured storage reduction before further Gaia-scale materialization
-- [x] E4 source-scope accounting: classify all 44 registered releases as an E4
+- [x] E4 source-scope accounting: classify all 47 registered releases as an E4
   adapter or an explicit E2/E3/E6 boundary disposition; fail on unaccounted,
-  stale, conflicting, or unregistered entries
-- [ ] E4 remaining registered adapter tail: materialize Gaia source; the
-  separately scoped natural and artificial JPL Horizons adapters now pass
-  immutable-build, source-audit, generic-artifact, and clean-reproduction gates
+  stale, conflicting, or unregistered entries; the current ledger has 38
+  scientific adapters, nine boundary dispositions, and no blocker
+- [x] E4 remaining registered adapter tail: materialize Gaia source and the
+  separately scoped natural and artificial JPL Horizons adapters; all pass
+  immutable-build, source-audit, and generic-artifact gates, and Horizons also
+  passes clean reproduction
 - [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
   report product-index and radial-velocity coverage and exhaustively assign all
   source columns to adapter roles with no unclassified tail
+- [x] E4 Gaia source checkpoint: immutable build
+  `ab7f7e6bc211bee146885987` materializes all 32,176,271 rows as coherent
+  release-native source solutions, accounts 304 field occurrences with zero
+  pending fields, and passes source/generic artifact audits; the independent
+  clean reproduction matches logical hash
+  `1863f8da12380f845983339213a28ee7c4a0af5313bc9fee586f05e1a435a962`
+- [x] E1/E4 exoplanet-lifecycle source recovery: pin and independently type
+  Exoplanet.eu, the Open Exoplanet Catalogue archive, and HWC; preserve OEC
+  archive-member object scope, aliases, parameters, relations, candidates,
+  controversial cases, retractions, limit semantics, and product links; keep
+  HWC habitability features out of lifecycle evidence and canonical counts;
+  pass typed/source/artifact/clean-reproduction gates
 - [x] Make the Gaia variability source audit reproducible: validate all 592,197
   rows and 52 masked vector fields, distinguishing whole-vector absence from
   valid element masks, exhaustively partition every source column by role, and
@@ -1393,7 +1408,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   quality and bibliography lineage, and release-scoped EDR3 identity; pass
   bounded generic/source audits and exact clean logical-hash reproduction with
   zero pending fields or redundant excluded context
-- [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
+- [x] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,
   SNR flux, and TESS EB sector/flag/Tmag evidence

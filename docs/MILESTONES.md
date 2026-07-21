@@ -1754,10 +1754,33 @@ Current status (July 19, 2026, in progress):
   retained ART indexes consumed most of the 167-GiB artifact beyond its roughly
   58-GiB table allocation. Full Gaia supplementary materialization will use the
   audited indexless contract before additional large source families land
-- the E4 source-scope ledger accounts all 44 registry releases without silently
+- the E4 source-scope ledger accounts all 47 registry releases without silently
   treating identity-only, superseded, disabled, or transitional inputs as
-  scientific adapters. Thirty-four adapters now exist; Gaia source is the only
-  remaining blocker
+  scientific adapters. Thirty-eight scientific adapters and nine explicit
+  boundary dispositions now exist; the registered-source audit has no adapter
+  blocker, stale disposition, conflict, or unregistered adapter
+- Gaia source build `ab7f7e6bc211bee146885987` materializes all 32,176,271
+  hard-envelope and uncertainty-supplement rows as release-scoped Gaia DR3
+  identities and compact coherent source solutions. Its two ordered schemas
+  retain 125 scientific fields divided into astrometry, photometry, radial
+  velocity, classification/membership, and observation-product availability;
+  23 copied GSP-Phot fields defer to the richer AP release, with all exclusions
+  explicit. Source and generic artifact audits pass logical hash
+  `1863f8da12380f845983339213a28ee7c4a0af5313bc9fee586f05e1a435a962`;
+  clean reproduction matches with no differing sections and removes its USB
+  scratch tree
+- Exoplanet.eu, OEC, and HWC are now release-pinned, independently typed, and
+  independently materialized rather than routed through the legacy merged
+  lifecycle cooker. OEC preserves archive-member object scope, 160,582
+  exhaustively routed parameters, 16,750 relations, confirmed/candidate/
+  controversial/retracted evidence, limits, and product links. HWC contributes
+  habitability features but zero lifecycle assertions. All three pass source,
+  artifact, and clean-reproduction gates without changing canonical counts
+- McGill build `99c17afd7461a9a6972a9348` completes its bibliography follow-up:
+  publisher HTML and CDS references are byte-pinned, 97 exact external codes
+  and 215 CDS references are preserved, and four unresolved historical codes
+  remain explicit with no fabricated URL. Source, artifact, and clean
+  reproduction audits pass
 - VSX release `rolling_snapshot_20260721` is checked into the registry with all
   three official artifacts. Build `d9780b76333132c0a05098b7` accounts
   11,135,737 source records and all 29 fields; it materializes 29,456,421

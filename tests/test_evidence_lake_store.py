@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tarfile
 import sys
 from pathlib import Path
 
@@ -17,6 +18,10 @@ from evidence_lake_store import (  # noqa: E402
     verify_snapshot,
     write_delimited_parquet,
     write_mast_json_parquet,
+)
+from evidence_lake_native import (  # noqa: E402
+    write_mcgill_magnetar_html_parquet,
+    write_oec_archive_parquet,
 )
 
 
@@ -393,3 +398,106 @@ def test_generic_fits_cook_ignores_acquisition_metadata_wrapper(tmp_path: Path) 
         "source_id2",
         "chance_alignment",
     ]
+
+
+def test_oec_archive_preserves_object_graph_names_parameters_and_disposition(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "oec"
+    systems = source / "release" / "systems"
+    systems.mkdir(parents=True)
+    (systems / "Example.xml").write_text(
+        "<system><name>Example</name><distance errorminus=\"1\">10</distance>"
+        "<star><name>Example A</name><name>HD 1</name>"
+        "<planet><name>Example b</name><list>Controversial</list>"
+        "<mass errorplus=\"0.2\">1.5</mass></planet></star></system>",
+        encoding="utf-8",
+    )
+    archive_path = tmp_path / "oec.tar.gz"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        archive.add(source / "release", arcname="release")
+    outputs = {
+        name: tmp_path / f"{name}.parquet"
+        for name in ("objects", "names", "parameters", "relations")
+    }
+    with tarfile.open(archive_path, "r:gz") as archive:
+        counts = write_oec_archive_parquet(
+            archive,
+            objects_output=outputs["objects"],
+            names_output=outputs["names"],
+            parameters_output=outputs["parameters"],
+            relations_output=outputs["relations"],
+        )
+    assert counts == {
+        "xml_member_count": 1,
+        "object_row_count": 3,
+        "name_row_count": 4,
+        "parameter_row_count": 3,
+        "relation_row_count": 2,
+    }
+    with duckdb.connect() as con:
+        assert con.execute(
+            "select object_kind,primary_name_raw,list_disposition_raw "
+            f"from read_parquet('{outputs['objects']}') order by source_node_path"
+        ).fetchall() == [
+            ("system", "Example", None),
+            ("star", "Example A", None),
+            ("planet", "Example b", "Controversial"),
+        ]
+        assert con.execute(
+            "select parameter_name,value_raw,attributes_json "
+            f"from read_parquet('{outputs['parameters']}') order by parameter_name"
+        ).fetchall() == [
+            ("distance", "10", '{"errorminus":"1"}'),
+            ("list", "Controversial", "{}"),
+            ("mass", "1.5", '{"errorplus":"0.2"}'),
+        ]
+
+
+def test_mcgill_html_preserves_rows_and_deduplicates_reference_codes(
+    tmp_path: Path,
+) -> None:
+    cells = ["Magnetar A"] + ["..."] * 16
+    cells[1] = (
+        '1.23 <a href="http://adsabs.harvard.edu/abs/2020ApJ...123...45A">'
+        "[abc+20]</a>"
+    )
+    cells[2] = (
+        '4.56 <a href="http://adsabs.harvard.edu/abs/2020ApJ...123...45A">'
+        "[abc+20]</a>"
+    )
+    html = tmp_path / "main.html"
+    html.write_text(
+        "<html><table><tr><th>Name</th></tr>"
+        + "<tr>"
+        + "".join(f"<td>{value}</td>" for value in cells)
+        + "</tr><tr><td colspan='17'>section</td></tr></table></html>",
+        encoding="utf-8",
+    )
+    rows = tmp_path / "rows.parquet"
+    links = tmp_path / "links.parquet"
+    references = tmp_path / "references.parquet"
+    report = write_mcgill_magnetar_html_parquet(
+        html,
+        rows_output=rows,
+        links_output=links,
+        references_output=references,
+        base_url="https://example.test/main.html",
+    )
+    assert report == {
+        "source_table_count": 1,
+        "source_data_row_count": 1,
+        "source_section_row_count": 1,
+        "typed_row_count": 2,
+        "typed_link_count": 2,
+        "typed_external_reference_count": 1,
+    }
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select row_kind,magnetar_name_raw from read_parquet('{rows}') "
+            "order by source_row_number"
+        ).fetchall() == [("data", "Magnetar A"), ("section", None)]
+        assert con.execute(
+            f"select reference_code_raw,bibcode_raw,occurrence_count "
+            f"from read_parquet('{references}')"
+        ).fetchall() == [("abc+20", "2020ApJ...123...45A", 2)]

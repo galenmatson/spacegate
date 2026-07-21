@@ -46,6 +46,8 @@ from evidence_lake_native import (
     write_fixed_width_text_parquet,
     write_green_snr_parquet,
     write_html_table_parquet,
+    write_mcgill_magnetar_html_parquet,
+    write_oec_archive_parquet,
     write_text_lines_parquet,
     write_tokenized_parquet,
     write_votable_files_parquet,
@@ -85,6 +87,8 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "compact.atnf": "evidence_typed_cook_atnf_v2",
     "compact.gaia_edr3_white_dwarf": "evidence_typed_cook_fits_v1",
     "extended.green_snr": "evidence_typed_cook_green_snr_v2",
+    "exoplanet_lifecycle.open_exoplanet_catalogue": "evidence_typed_cook_oec_xml_v1",
+    "compact.mcgill_magnetar": "evidence_typed_cook_mcgill_bundle_v4",
 }
 TABULAR_SUFFIXES = (".csv", ".csv.gz")
 VOTABLE_SUFFIXES = (".vot", ".vot.gz", ".votable", ".votable.gz")
@@ -1068,6 +1072,148 @@ def cook_multi_hdu_fits(
     return reports
 
 
+def cook_mcgill_magnetar_bundle(
+    raw_manifest: dict[str, Any],
+    raw_snapshot_dir: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]]:
+    artifacts = {
+        str(artifact["source_name"]): artifact
+        for artifact in raw_manifest["artifacts"]
+    }
+    expected = {
+        "mcgill_magnetar_catalog_20260721",
+        "mcgill_magnetar_main_html_20260721",
+        "mcgill_magnetar_cds_readme",
+        "mcgill_magnetar_cds_references",
+    }
+    if set(artifacts) != expected:
+        raise ValueError(
+            "McGill bundle artifact drift: "
+            f"missing={sorted(expected - set(artifacts))} "
+            f"extra={sorted(set(artifacts) - expected)}"
+        )
+    paths = {
+        name: single_artifact_file(raw_snapshot_dir, artifact)
+        for name, artifact in artifacts.items()
+    }
+    reports: list[dict[str, Any]] = []
+
+    catalog_output = table_dir / "mcgill_magnetar_catalog.parquet"
+    catalog_fields = write_delimited_parquet(
+        [paths["mcgill_magnetar_catalog_20260721"]], catalog_output, con
+    )
+    reports.append(
+        source_native_report(
+            source_name="mcgill_magnetar_catalog",
+            parser="duckdb_read_csv_explicit_lexical_shape_checked_v4",
+            typing_status="source_schema_lexical",
+            raw_tree_sha256=artifacts["mcgill_magnetar_catalog_20260721"][
+                "tree_sha256"
+            ],
+            output=catalog_output,
+            con=con,
+            details={"source_schema": [{"name": field} for field in catalog_fields]},
+        )
+    )
+
+    html_path = paths["mcgill_magnetar_main_html_20260721"]
+    html_rows_output = table_dir / "mcgill_html_rows.parquet"
+    html_links_output = table_dir / "mcgill_html_reference_links.parquet"
+    html_references_output = table_dir / "mcgill_html_reference_index.parquet"
+    html_report = write_mcgill_magnetar_html_parquet(
+        html_path,
+        rows_output=html_rows_output,
+        links_output=html_links_output,
+        references_output=html_references_output,
+        base_url="https://www.physics.mcgill.ca/~pulsar/magnetar/main.html",
+    )
+    for source_name, output in (
+        ("mcgill_html_rows", html_rows_output),
+        ("mcgill_html_reference_links", html_links_output),
+        ("mcgill_html_reference_index", html_references_output),
+    ):
+        reports.append(
+            source_native_report(
+                source_name=source_name,
+                parser="mcgill_html_table_resources_source_native_v1",
+                typing_status="source_schema_lexical_resources_preserved",
+                raw_tree_sha256=artifacts[
+                    "mcgill_magnetar_main_html_20260721"
+                ]["tree_sha256"],
+                output=output,
+                con=con,
+                details={"source_row_accounting": html_report},
+            )
+        )
+    html_document_output = table_dir / "mcgill_main_html_document.parquet"
+    html_document_report = write_document_lines_parquet(
+        html_path, html_document_output
+    )
+    reports.append(
+        source_native_report(
+            source_name="mcgill_main_html_document",
+            parser="source_document_lines_v1",
+            typing_status="source_schema_document",
+            raw_tree_sha256=artifacts["mcgill_magnetar_main_html_20260721"][
+                "tree_sha256"
+            ],
+            output=html_document_output,
+            con=con,
+            details={"source_row_accounting": html_document_report},
+        )
+    )
+
+    readme_path = paths["mcgill_magnetar_cds_readme"]
+    readme_output = table_dir / "mcgill_cds_readme.parquet"
+    readme_report = write_document_lines_parquet(readme_path, readme_output)
+    reports.append(
+        source_native_report(
+            source_name="mcgill_cds_readme",
+            parser="source_document_lines_v1",
+            typing_status="source_schema_document",
+            raw_tree_sha256=artifacts["mcgill_magnetar_cds_readme"]["tree_sha256"],
+            output=readme_output,
+            con=con,
+            details={"source_row_accounting": readme_report},
+        )
+    )
+
+    references_path = paths["mcgill_magnetar_cds_references"]
+    schema_section, reference_fields = resolve_cds_table(
+        references_path, parse_cds_readme(readme_path)
+    )
+    references_output = table_dir / "mcgill_cds_references.parquet"
+    references_report = write_fixed_width_parquet(
+        references_path, reference_fields, references_output
+    )
+    reports.append(
+        source_native_report(
+            source_name="mcgill_cds_references",
+            parser="documented_fixed_width_lexical_v1",
+            typing_status="source_schema_lexical",
+            raw_tree_sha256=artifacts["mcgill_magnetar_cds_references"][
+                "tree_sha256"
+            ],
+            output=references_output,
+            con=con,
+            details={
+                "schema_document_source_name": "mcgill_magnetar_cds_readme",
+                "schema_document_sha256": artifacts[
+                    "mcgill_magnetar_cds_readme"
+                ]["tree_sha256"],
+                "schema_section": schema_section,
+                "source_schema": reference_fields,
+                "source_row_accounting": references_report[
+                    "source_row_accounting"
+                ],
+            },
+        )
+    )
+    return reports
+
+
 def cook_special_source(
     source: dict[str, Any],
     raw_manifest: dict[str, Any],
@@ -1084,8 +1230,14 @@ def cook_special_source(
         "compact.gaia_edr3_white_dwarf",
         "extended.green_snr",
         "spectroscopy.apogee_dr17",
+        "exoplanet_lifecycle.open_exoplanet_catalogue",
+        "compact.mcgill_magnetar",
     }:
         return None
+    if source_id == "compact.mcgill_magnetar":
+        return cook_mcgill_magnetar_bundle(
+            raw_manifest, raw_snapshot_dir, table_dir, con
+        )
     if len(raw_manifest["artifacts"]) != 1:
         raise ValueError(f"special source expects one raw artifact: {source_id}")
     artifact = raw_manifest["artifacts"][0]
@@ -1097,6 +1249,57 @@ def cook_special_source(
         return cook_atnf_archive(artifact, path, table_dir, con)
     if source_id == "spectroscopy.apogee_dr17":
         return cook_multi_hdu_fits(source, artifact, path, table_dir, con)
+    if source_id == "exoplanet_lifecycle.open_exoplanet_catalogue":
+        outputs = {
+            "oec_objects": table_dir / "oec_objects.parquet",
+            "oec_names": table_dir / "oec_names.parquet",
+            "oec_parameters": table_dir / "oec_parameters.parquet",
+            "oec_relations": table_dir / "oec_relations.parquet",
+        }
+        with tarfile.open(path, "r:gz") as archive:
+            dispositions = {
+                member.name: (
+                    "typed_xml_data"
+                    if member.name.endswith(".xml")
+                    else "source_document_or_code"
+                )
+                for member in safe_tar_members(archive)
+            }
+            index_output = table_dir / "oec_archive_members.parquet"
+            index_result = write_archive_member_index_parquet(
+                archive, index_output, dispositions=dispositions
+            )
+            parse_result = write_oec_archive_parquet(
+                archive,
+                objects_output=outputs["oec_objects"],
+                names_output=outputs["oec_names"],
+                parameters_output=outputs["oec_parameters"],
+                relations_output=outputs["oec_relations"],
+            )
+        reports = [
+            source_native_report(
+                source_name="oec_archive_members",
+                parser="validated_tar_member_index_v1",
+                typing_status="archive_member_index",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=index_output,
+                con=con,
+                details={"source_row_accounting": index_result},
+            )
+        ]
+        for source_name, output in outputs.items():
+            reports.append(
+                source_native_report(
+                    source_name=source_name,
+                    parser="oec_xml_graph_source_native_v1",
+                    typing_status="source_schema_lexical_attributes_preserved",
+                    raw_tree_sha256=artifact["tree_sha256"],
+                    output=output,
+                    con=con,
+                    details={"source_row_accounting": parse_result},
+                )
+            )
+        return reports
     if source_id == "multiplicity.orb6":
         output = table_dir / "orb6_orbits.parquet"
         result = write_tokenized_parquet(

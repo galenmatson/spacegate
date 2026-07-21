@@ -248,7 +248,9 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         "coherent_parameter_sets_without_matching_schema": scalar_count(
             con,
             "with parameter_sets as ("
-            "select 'variability_activity_rotation_parameter_sets' destination, "
+            "select 'stellar_source_parameter_sets' destination, "
+            "parameter_schema_id from stellar_source_parameter_sets "
+            "union all select 'variability_activity_rotation_parameter_sets', "
             "parameter_schema_id from variability_activity_rotation_parameter_sets "
             "union all select 'solar_system_object_parameter_sets', "
             "parameter_schema_id from solar_system_object_parameter_sets) "
@@ -260,6 +262,8 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             con,
             "with parameter_sets as ("
             "select parameter_schema_id,values_json "
+            "from stellar_source_parameter_sets "
+            "union all select parameter_schema_id,values_json "
             "from variability_activity_rotation_parameter_sets "
             "union all select parameter_schema_id,values_json "
             "from solar_system_object_parameter_sets) "

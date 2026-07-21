@@ -44,6 +44,7 @@ CITATION_LINK_BUCKET_COUNT = 32
 
 DOMAIN_TABLES = {
     "identifier_claim_evidence",
+    "stellar_source_parameter_sets",
     "stellar_parameter_sets",
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
@@ -84,6 +85,10 @@ TABLE_UNIQUE_KEYS = {
     "object_binding_outcomes": [("binding_outcome_id",)],
     "identifier_claim_evidence": [("evidence_id",)],
     "identifier_normalization_rejections": [("rejection_id",)],
+    "source_native_parameter_dispositions": [
+        ("source_id", "release_id", "source_table", "object_kind", "parameter_name")
+    ],
+    "stellar_source_parameter_sets": [("evidence_id",)],
     "stellar_parameter_sets": [("parameter_set_id",)],
     "stellar_parameter_evidence": [("evidence_id",)],
     "stellar_classification_evidence": [("evidence_id",)],
@@ -113,6 +118,7 @@ TABLE_UNIQUE_KEYS = {
 }
 
 EVIDENCE_REFERENCE_TABLES = {
+    "stellar_source_parameter_sets",
     "stellar_parameter_evidence",
     "stellar_classification_evidence",
     "astrometry_distance_evidence",
@@ -292,7 +298,7 @@ def validate_relation_claim_contract(
 
 def validate_contract(contract: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v3":
+    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v5":
         errors.append("unsupported scientific evidence contract")
     if set(contract.get("domain_tables") or []) != DOMAIN_TABLES:
         errors.append("domain_tables must exactly match the compiler contract")
@@ -333,6 +339,12 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
             destination = str(rule.get("destination") or "")
             if destination not in DOMAIN_TABLES | {"source_records"}:
                 errors.append(f"invalid destination {profile_name}[{index}]: {destination}")
+            if rule.get("scientific_domain") is not None and not str(
+                rule.get("scientific_domain")
+            ).strip():
+                errors.append(
+                    f"empty scientific domain {profile_name}[{index}]"
+                )
             if not rule.get("reason"):
                 errors.append(f"missing reason {profile_name}[{index}]")
         if re.fullmatch(str(rules[-1].get("pattern") or ""), "unmatched_field") is None:
@@ -372,6 +384,7 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     if not str(coherent_set.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
                 if coherent_set.get("destination") not in {
+                    "stellar_source_parameter_sets",
                     "variability_activity_rotation_parameter_sets",
                     "solar_system_object_parameter_sets",
                 }:
@@ -1193,13 +1206,15 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"{source_id}.{table_name} compact-object kinds must be unique"
                 )
+            table_identifier_claims = dict(identifier_claims)
+            table_identifier_claims.update(table.get("identifier_claims") or {})
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
                 if not claim.get("claim_role"):
                     errors.append(f"{prefix} lacks claim_role")
                 if not claim.get("identifier_field"):
                     errors.append(f"{prefix} lacks identifier_field")
-                elif claim["identifier_field"] not in identifier_claims:
+                elif claim["identifier_field"] not in table_identifier_claims:
                     errors.append(f"{prefix} identifier lacks a namespace")
                 disposition_sources = sum(
                     bool(claim.get(field))
@@ -1212,6 +1227,44 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 for field in claim.get("context_fields") or []:
                     if not str(field).strip():
                         errors.append(f"{prefix} contains an empty context field")
+            eav = table.get("source_native_eav_parameters")
+            if eav:
+                prefix = f"{source_id}.{table_name}.source_native_eav_parameters"
+                required = {
+                    "object_kind_field",
+                    "parameter_name_field",
+                    "occurrence_field",
+                    "value_field",
+                    "attributes_field",
+                    "quantity_namespace",
+                    "parameter_set_kind",
+                    "method",
+                    "normalization_version",
+                    "routes",
+                }
+                missing = sorted(required - set(eav))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                for field in required - {"routes"}:
+                    if not str(eav.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                if not eav.get("routes"):
+                    errors.append(f"{prefix}.routes must be non-empty")
+                object_key_sources = sum(
+                    bool(eav.get(field))
+                    for field in ("object_key_field", "object_key_fields")
+                )
+                if object_key_sources != 1:
+                    errors.append(
+                        f"{prefix} requires exactly one object key field source"
+                    )
+                for index, route in enumerate(eav.get("routes") or []):
+                    route_prefix = f"{prefix}.routes[{index}]"
+                    if route.get("destination") not in SOURCE_NATIVE_EAV_DESTINATIONS:
+                        errors.append(f"{route_prefix} has invalid destination")
+                    for field in ("object_kinds", "parameter_names", "reason"):
+                        if not route.get(field):
+                            errors.append(f"{route_prefix}.{field} must be non-empty")
     if mapping_statuses != {"materialized", "declared_pending", "excluded"}:
         errors.append("mapping_statuses do not match the compiler contract")
     return errors
@@ -1476,6 +1529,30 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           identifier_raw varchar not null,
           normalization varchar not null,
           reason varchar not null
+        );
+        create table source_native_parameter_dispositions (
+          source_id varchar not null,
+          release_id varchar not null,
+          source_table varchar not null,
+          object_kind varchar not null,
+          parameter_name varchar not null,
+          destination varchar not null,
+          row_count bigint not null,
+          disposition_reason varchar not null
+        );
+        create table stellar_source_parameter_sets (
+          evidence_id varchar not null,
+          parameter_schema_id varchar not null,
+          source_record_id varchar not null,
+          component_scope varchar,
+          parameter_set_kind varchar not null,
+          values_json json not null,
+          epoch_raw varchar,
+          method varchar not null,
+          model varchar,
+          reference_raw varchar,
+          quality_json json not null,
+          normalization_version varchar not null
         );
         create table stellar_parameter_sets (
           parameter_set_id varchar not null,
@@ -2087,14 +2164,18 @@ def normalized_disposition_expression(value: str) -> str:
         when 'CP' then 'CONFIRMED'
         when 'KP' then 'CONFIRMED'
         when 'CONFIRMED' then 'CONFIRMED'
+        when 'CONFIRMED PLANETS' then 'CONFIRMED'
         when 'KNOWN PLANET' then 'CONFIRMED'
         when 'PC' then 'CANDIDATE'
         when 'APC' then 'CANDIDATE'
         when 'CANDIDATE' then 'CANDIDATE'
+        when 'KEPLER OBJECTS OF INTEREST' then 'CANDIDATE'
         when 'FP' then 'FALSE_POSITIVE'
         when 'FALSE POSITIVE' then 'FALSE_POSITIVE'
         when 'FA' then 'FALSE_ALARM'
         when 'FALSE ALARM' then 'FALSE_ALARM'
+        when 'RETRACTED PLANET CANDIDATE' then 'RETRACTED'
+        when 'CONTROVERSIAL' then 'CONTROVERSIAL'
         else replace({normalized}, ' ', '_')
       end
     """
@@ -2108,6 +2189,7 @@ def lifecycle_polarity_expression(value: str) -> str:
         when 'FALSE_POSITIVE' then 'negative'
         when 'FALSE_ALARM' then 'negative'
         when 'REFUTED' then 'negative'
+        when 'RETRACTED' then 'negative'
         else 'ambiguous'
       end
     """
@@ -2392,8 +2474,17 @@ AUXILIARY_SUFFIXES = (
 
 
 def split_auxiliary_field(field: str) -> tuple[str, str] | None:
+    lowered = field.lower()
+    source_native_suffixes = (
+        ("_error_min", "error_lower"),
+        ("_error_max", "error_upper"),
+        ("_limit", "limit"),
+    )
+    for suffix, role in source_native_suffixes:
+        if lowered.endswith(suffix) and len(field) > len(suffix):
+            return field[: -len(suffix)], role
     for suffix, role in AUXILIARY_SUFFIXES:
-        if field.endswith(suffix) and len(field) > len(suffix):
+        if lowered.endswith(suffix) and len(field) > len(suffix):
             return field[: -len(suffix)], role
     return None
 
@@ -2531,8 +2622,12 @@ def scalar_reference_field(
     return table_contract.get("system_reference_field")
 
 
-def source_quantity_key(base_field: str) -> str:
-    return f"nasa_exoplanet_archive.{base_field}"
+def source_quantity_key(base_field: str, table_contract: dict[str, Any]) -> str:
+    namespace = str(
+        table_contract.get("scientific_quantity_namespace")
+        or "nasa_exoplanet_archive"
+    ).rstrip(".")
+    return f"{namespace}.{base_field}"
 
 
 def photometry_bandpass(base_field: str) -> str | None:
@@ -2640,7 +2735,7 @@ def scalar_select_branch(
         scalar_reference_field(destination, auxiliary, table_contract)
     )
     quality = scalar_quality_expression(base, auxiliary, metadata)
-    quantity = source_quantity_key(base)
+    quantity = source_quantity_key(base, table_contract)
     evidence_id = (
         f"sha256({sql_string('scalar|' + destination + '|' + base + '|')} "
         "|| r.source_record_id)"
@@ -2654,7 +2749,9 @@ def scalar_select_branch(
        and r.source_row_sha256=sha256(to_json(source_row))
       where nullif({raw_value}, '') is not null
     """
-    normalization = sql_string("nasa_unit_alias_v1")
+    normalization = sql_string(
+        str(table_contract.get("scalar_normalization_version") or "nasa_unit_alias_v1")
+    )
     if destination in {"stellar_parameter_evidence", "planet_parameter_evidence"}:
         parameter_set_id, _kind = parameter_set_id_expression(
             destination, table_contract
@@ -2759,6 +2856,370 @@ def materialize_scalar_evidence(
     for group in groups:
         consumed.update(group["auxiliary"].values())
     return consumed
+
+
+SOURCE_NATIVE_EAV_DESTINATIONS = {
+    "planet_parameter_evidence",
+    "stellar_parameter_evidence",
+    "stellar_classification_evidence",
+    "photometry_extinction_evidence",
+    "astrometry_distance_evidence",
+    "orbital_solution_evidence",
+    "observation_product_lineage",
+    "source_records",
+}
+
+
+def source_native_eav_route_predicate(
+    object_kind_field: str,
+    parameter_name_field: str,
+    route: dict[str, Any],
+) -> str:
+    kinds = [str(value) for value in route.get("object_kinds") or []]
+    names = [str(value) for value in route.get("parameter_names") or []]
+    if not kinds or not names:
+        raise ValueError("source-native EAV routes require object kinds and parameters")
+    return (
+        f"cast({sql_identifier(object_kind_field)} as varchar) in "
+        f"({', '.join(sql_string(value) for value in kinds)}) and "
+        f"cast({sql_identifier(parameter_name_field)} as varchar) in "
+        f"({', '.join(sql_string(value) for value in names)})"
+    )
+
+
+def source_native_eav_attribute(attributes_field: str, key: str) -> str:
+    return (
+        "json_extract_string(try_cast("
+        f"{sql_identifier(attributes_field)} as json), {sql_string('$.' + key)})"
+    )
+
+
+def source_native_eav_unit_expression(
+    config: dict[str, Any],
+    *,
+    object_kind_field: str,
+    parameter_name_field: str,
+    attributes_field: str,
+) -> str:
+    source_unit = source_native_eav_attribute(attributes_field, "unit")
+    defaults = dict(config.get("default_units") or {})
+    branches = []
+    for key, unit in sorted(defaults.items()):
+        kind, separator, parameter = str(key).partition(".")
+        if not separator or not kind or not parameter:
+            raise ValueError(f"invalid source-native EAV unit key: {key}")
+        branches.append(
+            "when cast("
+            + sql_identifier(object_kind_field)
+            + " as varchar)="
+            + sql_string(kind)
+            + " and cast("
+            + sql_identifier(parameter_name_field)
+            + " as varchar)="
+            + sql_string(parameter)
+            + " then "
+            + sql_string(str(unit))
+        )
+    default_unit = "case " + " ".join(branches) + " else null end"
+    return f"coalesce(nullif({source_unit}, ''), {default_unit})"
+
+
+def source_native_eav_normalized_unit_expression(
+    unit_expression: str, unit_normalizations: dict[str, str]
+) -> str:
+    branches = " ".join(
+        f"when {sql_string(source)} then {sql_string(target)}"
+        for source, target in sorted(unit_normalizations.items())
+    )
+    return f"case {unit_expression} {branches} else {unit_expression} end"
+
+
+def materialize_source_native_eav_parameters(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path | str,
+    config: dict[str, Any],
+    available_fields: set[str],
+    unit_normalizations: dict[str, str],
+) -> set[str]:
+    field_keys = {
+        "object_kind_field",
+        "parameter_name_field",
+        "occurrence_field",
+        "value_field",
+        "attributes_field",
+    }
+    fields = {key: str(config.get(key) or "") for key in field_keys}
+    missing_config = sorted(key for key, value in fields.items() if not value)
+    if missing_config:
+        raise ValueError(f"source-native EAV config lacks fields: {missing_config}")
+    missing_fields = sorted(set(fields.values()) - available_fields)
+    if missing_fields:
+        raise ValueError(f"source-native EAV fields missing from {table_name}: {missing_fields}")
+    object_key, object_key_fields = configured_text_expression(
+        config,
+        key="object_key",
+        available_fields=available_fields,
+    )
+    routes = list(config.get("routes") or [])
+    if not routes:
+        raise ValueError(f"source-native EAV config has no routes: {table_name}")
+    route_by_pair: dict[tuple[str, str], dict[str, Any]] = {}
+    for index, route in enumerate(routes):
+        destination = str(route.get("destination") or "")
+        if destination not in SOURCE_NATIVE_EAV_DESTINATIONS:
+            raise ValueError(
+                f"source-native EAV route {index} has invalid destination: {destination}"
+            )
+        if not str(route.get("reason") or "").strip():
+            raise ValueError(f"source-native EAV route {index} lacks a reason")
+        for kind in route.get("object_kinds") or []:
+            for parameter in route.get("parameter_names") or []:
+                pair = (str(kind), str(parameter))
+                if pair in route_by_pair:
+                    raise ValueError(f"duplicate source-native EAV route: {pair}")
+                route_by_pair[pair] = route
+    object_kind_field = fields["object_kind_field"]
+    parameter_name_field = fields["parameter_name_field"]
+    occurrence_field = fields["occurrence_field"]
+    value_field = fields["value_field"]
+    attributes_field = fields["attributes_field"]
+    source_pairs = {
+        (str(kind), str(parameter)): int(count)
+        for kind, parameter, count in con.execute(
+            f"select cast({sql_identifier(object_kind_field)} as varchar), "
+            f"cast({sql_identifier(parameter_name_field)} as varchar), count(*) "
+            f"from {source_relation(path)} group by all"
+        ).fetchall()
+    }
+    missing_routes = sorted(set(source_pairs) - set(route_by_pair))
+    unused_routes = sorted(set(route_by_pair) - set(source_pairs))
+    if missing_routes or unused_routes:
+        raise ValueError(
+            "source-native EAV route coverage mismatch: "
+            f"missing={missing_routes} unused={unused_routes}"
+        )
+    con.executemany(
+        "insert into source_native_parameter_dispositions values (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                source_id,
+                release_id,
+                table_name,
+                kind,
+                parameter,
+                str(route_by_pair[(kind, parameter)]["destination"]),
+                count,
+                str(route_by_pair[(kind, parameter)]["reason"]),
+            )
+            for (kind, parameter), count in sorted(source_pairs.items())
+        ],
+    )
+    method = str(config["method"])
+    normalization = str(config["normalization_version"])
+    reference = nullable_sql_string(config.get("reference_raw"))
+    object_kind = text_expression(object_kind_field)
+    parameter_name = text_expression(parameter_name_field)
+    occurrence = text_expression(occurrence_field)
+    value_raw = text_expression(value_field)
+    attrs_raw = text_expression(attributes_field)
+    error_lower = source_native_eav_attribute(attributes_field, "errorminus")
+    error_upper = source_native_eav_attribute(attributes_field, "errorplus")
+    lower_limit = source_native_eav_attribute(attributes_field, "lowerlimit")
+    upper_limit = source_native_eav_attribute(attributes_field, "upperlimit")
+    unit = source_native_eav_unit_expression(
+        config,
+        object_kind_field=object_kind_field,
+        parameter_name_field=parameter_name_field,
+        attributes_field=attributes_field,
+    )
+    normalized_unit = source_native_eav_normalized_unit_expression(
+        unit, unit_normalizations
+    )
+    bound = (
+        f"case when nullif({lower_limit}, '') is not null and "
+        f"nullif({upper_limit}, '') is not null then 'interval_limit' "
+        f"when nullif({lower_limit}, '') is not null then 'lower_limit' "
+        f"when nullif({upper_limit}, '') is not null then 'upper_limit' "
+        "else 'measurement' end"
+    )
+    quality = (
+        "json_object('source_object_kind', "
+        + object_kind
+        + ", 'source_object_key', "
+        + object_key
+        + ", 'parameter_occurrence', "
+        + occurrence
+        + ", 'source_attributes', try_cast("
+        + sql_identifier(attributes_field)
+        + " as json), 'lower_limit_raw', "
+        + lower_limit
+        + ", 'upper_limit_raw', "
+        + upper_limit
+        + ")"
+    )
+    common_join = f"""
+      from {source_relation(path)} source_row
+      join source_records r
+        on r.source_id={sql_string(source_id)}
+       and r.release_id={sql_string(release_id)}
+       and r.source_table={sql_string(table_name)}
+       and r.source_row_sha256=sha256(to_json(source_row))
+    """
+    quantity_namespace = str(config["quantity_namespace"]).rstrip(".")
+    scalar_destinations = {
+        "planet_parameter_evidence",
+        "stellar_parameter_evidence",
+        "stellar_classification_evidence",
+        "photometry_extinction_evidence",
+        "astrometry_distance_evidence",
+        "observation_product_lineage",
+    }
+    for route_index, route in enumerate(routes):
+        destination = str(route["destination"])
+        if destination not in scalar_destinations:
+            continue
+        predicate = source_native_eav_route_predicate(
+            object_kind_field, parameter_name_field, route
+        )
+        quantity = f"{quantity_namespace}." + "' || " + parameter_name + " || '"
+        evidence_id = (
+            f"sha256({sql_string('source-native-eav|' + destination + '|')} || "
+            f"r.source_record_id)"
+        )
+        if destination in {"planet_parameter_evidence", "stellar_parameter_evidence"}:
+            set_kind = str(route.get("parameter_set_kind") or config["parameter_set_kind"])
+            parameter_set_id = (
+                f"sha256({sql_string('source-native-eav-set|' + source_id + '|' + release_id + '|' + destination + '|' + set_kind + '|')} "
+                f"|| {object_key})"
+            )
+            component = f"{object_key}, " if destination == "stellar_parameter_evidence" else ""
+            con.execute(
+                f"""
+                insert into {sql_identifier(destination)}
+                select {evidence_id}, {parameter_set_id}, r.source_record_id, {component}
+                  {sql_string(quantity_namespace + '.')} || {parameter_name}, {value_raw},
+                  {unit}, try_cast(nullif({value_raw}, '') as double), {normalized_unit},
+                  abs(try_cast({error_lower} as double)), abs(try_cast({error_upper} as double)),
+                  {bound}, {sql_string(method)}, null, {reference}, {quality},
+                  {sql_string(normalization)}
+                {common_join}
+                where {predicate}
+                  and (nullif({value_raw}, '') is not null
+                       or nullif({lower_limit}, '') is not null
+                       or nullif({upper_limit}, '') is not null)
+                """
+            )
+            set_table = (
+                "planet_parameter_sets"
+                if destination == "planet_parameter_evidence"
+                else "stellar_parameter_sets"
+            )
+            set_scope = (
+                f"{object_key}, "
+                if set_table == "stellar_parameter_sets"
+                else f"{sql_string(set_kind)}, "
+            )
+            con.execute(
+                f"""
+                insert into {sql_identifier(set_table)}
+                select distinct {parameter_set_id}, min(r.source_record_id), {set_scope}
+                  {sql_string(method)}, null, {reference}, null, null,
+                  json_object('parameter_set_kind', {sql_string(set_kind)},
+                              'source_object_key', {object_key})
+                {common_join}
+                where {predicate}
+                group by {', '.join(sql_identifier(field) for field in sorted(object_key_fields))}
+                """
+            )
+        elif destination == "stellar_classification_evidence":
+            con.execute(
+                f"""
+                insert into stellar_classification_evidence
+                select {evidence_id}, r.source_record_id, {object_key}, 'spectral_type',
+                  {value_raw}, {sql_string(method)}, null, null, null, {reference}, {quality}
+                {common_join}
+                where {predicate} and nullif({value_raw}, '') is not null
+                """
+            )
+        elif destination == "photometry_extinction_evidence":
+            bandpass = (
+                "upper(regexp_extract("
+                + parameter_name
+                + ", '^mag(.+)$', 1))"
+            )
+            con.execute(
+                f"""
+                insert into photometry_extinction_evidence
+                select {evidence_id}, r.source_record_id, 'magnitude', {bandpass}, {value_raw},
+                  coalesce({unit}, 'mag'), try_cast(nullif({value_raw}, '') as double),
+                  coalesce({normalized_unit}, 'mag'), abs(try_cast({error_lower} as double)),
+                  abs(try_cast({error_upper} as double)), {bound}, null, null, {reference},
+                  {quality}, {sql_string(normalization)}
+                {common_join}
+                where {predicate} and nullif({value_raw}, '') is not null
+                """
+            )
+        elif destination == "astrometry_distance_evidence":
+            frame = "'ICRS'" if set(route.get("parameter_names") or []) & {"rightascension", "declination"} else "null::varchar"
+            con.execute(
+                f"""
+                insert into astrometry_distance_evidence
+                select {evidence_id}, r.source_record_id,
+                  {sql_string(quantity_namespace + '.')} || {parameter_name}, {value_raw}, {unit},
+                  try_cast(nullif({value_raw}, '') as double), {normalized_unit},
+                  abs(try_cast({error_lower} as double)), abs(try_cast({error_upper} as double)),
+                  {bound}, {frame}, null, {sql_string(method)}, null, {reference},
+                  {quality}, {sql_string(normalization)}
+                {common_join}
+                where {predicate} and nullif({value_raw}, '') is not null
+                """
+            )
+        elif destination == "observation_product_lineage":
+            con.execute(
+                f"""
+                insert into observation_product_lineage
+                select {evidence_id}, r.source_record_id, {parameter_name},
+                  {object_key} || '|' || {parameter_name} || '|' || {occurrence},
+                  {value_raw}, 'on_demand', null, null, null, null, {quality}
+                {common_join}
+                where {predicate} and nullif({value_raw}, '') is not null
+                """
+            )
+    orbit_routes = [
+        route for route in routes if route["destination"] == "orbital_solution_evidence"
+    ]
+    if orbit_routes:
+        predicates = [
+            source_native_eav_route_predicate(
+                object_kind_field, parameter_name_field, route
+            )
+            for route in orbit_routes
+        ]
+        orbit_predicate = " or ".join(f"({value})" for value in predicates)
+        con.execute(
+            f"""
+            insert into orbital_solution_evidence
+            select sha256({sql_string('source-native-eav-orbit|' + source_id + '|' + release_id + '|')} || {object_key}),
+              min(r.source_record_id), null, {object_key},
+              to_json(list(struct_pack(parameter_name := {parameter_name},
+                                       parameter_occurrence := {occurrence},
+                                       value_raw := {value_raw},
+                                       attributes_json := try_cast({attrs_raw} as json))
+                           order by {parameter_name}, {occurrence})),
+              null, null, {sql_string(method)}, null, {reference},
+              json_object('source_object_kind', any_value({object_kind}),
+                          'source_object_key', {object_key}),
+              {sql_string(normalization)}
+            {common_join}
+            where {orbit_predicate}
+            group by {', '.join(sql_identifier(field) for field in sorted(object_key_fields))}
+            """
+        )
+    return set(fields.values()) | object_key_fields
 
 
 def materialize_parameter_sets(
@@ -5423,10 +5884,31 @@ def materialize_source(
                 available_fields=set(columns),
             )
         )
+        eav_parameters = table_contract.get("source_native_eav_parameters")
+        if eav_parameters:
+            materialized_fields.update(
+                materialize_source_native_eav_parameters(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=evidence_path,
+                    config=eav_parameters,
+                    available_fields=set(columns),
+                    unit_normalizations=contract["unit_normalizations"],
+                )
+            )
         fields_by_destination: dict[str, list[dict[str, Any]]] = {}
         for field, rule, _rule_index in classified_fields:
             if rule["disposition"] != "exclude":
-                fields_by_destination.setdefault(rule["destination"], []).append(field)
+                destination_field = dict(field)
+                if rule.get("scientific_domain"):
+                    destination_field["scientific_domain"] = str(
+                        rule["scientific_domain"]
+                    )
+                fields_by_destination.setdefault(rule["destination"], []).append(
+                    destination_field
+                )
         scoped_stellar_fields = configured_scoped_stellar_fields(table_contract)
         configured_domain_fields = configured_domain_measurement_fields(
             list(table_contract.get("configured_domain_measurements") or [])
@@ -5466,6 +5948,7 @@ def materialize_source(
                 )
         coherent_set = table_contract.get("coherent_parameter_set")
         coherent_destinations = {
+            "stellar_source_parameter_sets",
             "variability_activity_rotation_parameter_sets",
             "solar_system_object_parameter_sets",
         }
@@ -5631,6 +6114,24 @@ def materialize_source(
             else []
         )
         for relation_contract in relation_contracts:
+            relation_contract = dict(relation_contract)
+            relation_prefix_field = table_contract.get(
+                "relation_identifier_prefix_field"
+            )
+            if relation_prefix_field:
+                for side in ("left", "right"):
+                    scalar_key = f"{side}_identifier_field"
+                    fields_key = f"{side}_identifier_fields"
+                    if relation_contract.get(fields_key):
+                        raise ValueError(
+                            "relation identifier prefix cannot be combined with "
+                            f"{fields_key}"
+                        )
+                    relation_contract[fields_key] = [
+                        str(relation_prefix_field),
+                        str(relation_contract.pop(scalar_key)),
+                    ]
+                    relation_contract[f"{side}_identifier_delimiter"] = "|"
             materialized_fields.update(
                 materialize_relation_claims(
                     con,
@@ -6214,6 +6715,30 @@ def compile_evidence(
                 ).fetchall()
             },
         }
+        source_native_parameter_dispositions = {
+            "pair_count": int(
+                con.execute(
+                    "select count(*) from source_native_parameter_dispositions"
+                ).fetchone()[0]
+            ),
+            "row_count": int(
+                con.execute(
+                    "select coalesce(sum(row_count), 0) "
+                    "from source_native_parameter_dispositions"
+                ).fetchone()[0]
+            ),
+            "by_destination": {
+                str(destination): {
+                    "parameter_pairs": int(pair_count),
+                    "rows": int(row_count),
+                }
+                for destination, pair_count, row_count in con.execute(
+                    "select destination, count(*), sum(row_count) "
+                    "from source_native_parameter_dispositions "
+                    "group by destination order by destination"
+                ).fetchall()
+            },
+        }
         relation_claim_counts = {
             "by_kind_and_polarity": {
                 str(kind): {
@@ -6295,6 +6820,7 @@ def compile_evidence(
         "identifier_normalization_rejections": identifier_normalization_rejections,
         "binding_outcome_counts_by_status_and_scope": binding_outcome_counts,
         "lifecycle_claim_counts": lifecycle_claim_counts,
+        "source_native_parameter_dispositions": source_native_parameter_dispositions,
         "relation_claim_counts": relation_claim_counts,
         "citation_summary": citation_summary,
         "key_integrity": key_integrity,

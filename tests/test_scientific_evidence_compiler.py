@@ -38,7 +38,20 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "el_badry_wide_binary_catalog",
     }
     magnetar_adapter = contract["source_adapters"]["compact.mcgill_magnetar"]
-    assert len(magnetar_adapter["tables"]["TabO1"]["compact_object_parameter_sets"]) == 5
+    assert len(
+        magnetar_adapter["tables"]["mcgill_magnetar_catalog"][
+            "compact_object_parameter_sets"
+        ]
+    ) == 5
+    assert set(magnetar_adapter["tables"]) == {
+        "mcgill_magnetar_catalog",
+        "mcgill_html_rows",
+        "mcgill_html_reference_index",
+        "mcgill_html_reference_links",
+        "mcgill_main_html_document",
+        "mcgill_cds_readme",
+        "mcgill_cds_references",
+    }
     assert set(contract["source_adapters"]["multiplicity.sb9"]["tables"]) == {
         "sb9_readme",
         "sb9_main",
@@ -115,6 +128,28 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "variability_activity_rotation_parameter_sets"
     )
     assert rotation_set["expected_masked_vector_count"] == 52
+    gaia_source = contract["source_adapters"]["gaia.dr3.gaia_source"]
+    assert set(gaia_source["tables"]) == {
+        "gaia_dr3_source_envelope_v2",
+        "gaia_dr3_source_uncertain_distance_supplement_v1",
+    }
+    gaia_source_set = gaia_source["tables"]["gaia_dr3_source_envelope_v2"][
+        "coherent_parameter_set"
+    ]
+    assert gaia_source_set["destination"] == "stellar_source_parameter_sets"
+    assert gaia_source_set["epoch_field"] == "ref_epoch"
+    assert gaia_source["tables"][
+        "gaia_dr3_source_uncertain_distance_supplement_v1"
+    ]["table_contract_ref"] == "gaia_dr3_source_envelope_v2"
+    oec = contract["source_adapters"][
+        "exoplanet_lifecycle.open_exoplanet_catalogue"
+    ]
+    assert oec["tables"]["oec_parameters"]["source_native_eav_parameters"][
+        "object_key_fields"
+    ] == ["source_member", "source_node_path"]
+    assert oec["tables"]["oec_relations"][
+        "relation_identifier_prefix_field"
+    ] == "source_member"
     external = contract["source_adapters"]["gaia.dr3.external_crossmatches"]
     assert len(external["tables"]) == 10
     for table_name, table in external["tables"].items():
@@ -454,7 +489,11 @@ def test_coherent_parameter_set_applies_contract_field_metadata(
             source_table="objects",
             path=parquet,
             destination_fields=[
-                {"column_name": "radius_km", "datatype": "VARCHAR"}
+                {
+                    "column_name": "radius_km",
+                    "datatype": "VARCHAR",
+                    "scientific_domain": "physical_properties",
+                }
             ],
             available_fields={"source_pk", "radius_km"},
             config={
@@ -488,12 +527,90 @@ def test_coherent_parameter_set_applies_contract_field_metadata(
             "encoding": "source_native_typed_scalar_v1",
             "name": "radius_km",
             "position": 0,
+            "scientific_domain": "physical_properties",
             "source_column_name": "radius_km",
             "ucd": None,
             "unit": "km",
         }
     ]
     assert values == ["123.5"]
+
+
+def test_source_native_eav_keys_include_archive_member(tmp_path: Path) -> None:
+    parquet = tmp_path / "oec_parameters.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            "copy (select * from (values "
+            "('systems/a.xml', 'system[0]/star[0]/planet[0]', 'planet', 'mass', 0, '1.0', '{}'), "
+            "('systems/b.xml', 'system[0]/star[0]/planet[0]', 'planet', 'mass', 0, '2.0', '{}')) "
+            "as t(source_member, source_node_path, object_kind, parameter_name, "
+            "parameter_occurrence, value_raw, attributes_json)) "
+            "to ? (format parquet)",
+            [str(parquet)],
+        )
+        rows = con.execute(
+            "select sha256(to_json(source_row)) from read_parquet(?) source_row",
+            [str(parquet)],
+        ).fetchall()
+        compiler.create_schema(con)
+        for index, (row_hash,) in enumerate(rows):
+            con.execute(
+                "insert into source_records values "
+                "(?, 'oec.test', 'r1', 'oec_parameters', "
+                "'source_catalog_object_parameter', '{}', '{}', ?, ?, "
+                "'raw', 'typed', 'raw-tree', 'typed-table', "
+                "timestamp '2026-07-21 00:00:00')",
+                [f"record-{index}", row_hash, index + 1],
+            )
+        compiler.materialize_source_native_eav_parameters(
+            con,
+            source_id="oec.test",
+            release_id="r1",
+            table_name="oec_parameters",
+            path=parquet,
+            available_fields={
+                "source_member",
+                "source_node_path",
+                "object_kind",
+                "parameter_name",
+                "parameter_occurrence",
+                "value_raw",
+                "attributes_json",
+            },
+            unit_normalizations={"M_jup": "M_jup"},
+            config={
+                "object_kind_field": "object_kind",
+                "object_key_fields": ["source_member", "source_node_path"],
+                "object_key_delimiter": "|",
+                "parameter_name_field": "parameter_name",
+                "occurrence_field": "parameter_occurrence",
+                "value_field": "value_raw",
+                "attributes_field": "attributes_json",
+                "quantity_namespace": "oec",
+                "parameter_set_kind": "oec_planet_snapshot",
+                "method": "source_xml",
+                "normalization_version": "source_native_v1",
+                "default_units": {"planet.mass": "M_jup"},
+                "routes": [
+                    {
+                        "object_kinds": ["planet"],
+                        "parameter_names": ["mass"],
+                        "destination": "planet_parameter_evidence",
+                        "reason": "planet mass",
+                    }
+                ],
+            },
+        )
+        parameter_sets = con.execute(
+            "select parameter_set_id, quality_json->>'source_object_key' "
+            "from planet_parameter_sets order by 2"
+        ).fetchall()
+    assert len(parameter_sets) == 2
+    assert parameter_sets[0][0] != parameter_sets[1][0]
+    assert [row[1] for row in parameter_sets] == [
+        "systems/a.xml|system[0]/star[0]/planet[0]",
+        "systems/b.xml|system[0]/star[0]/planet[0]",
+    ]
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:

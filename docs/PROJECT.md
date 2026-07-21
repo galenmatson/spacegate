@@ -990,9 +990,12 @@ Notes:
 1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
    resolve only material production regressions while the scientific rebuild
    proceeds in parallel.
-2. Complete M8.3c-E4's final Gaia-source adapter under the completed registry,
-   immutable source-native lake, release-scoped identity/scope graph, and 34
-   verified source-adapter contracts.
+2. Build M8.3c-E4's combined evidence artifact now that every source adapter
+   independently reproduces. All 47 registered releases are accounted by 38
+   scientific adapters plus nine explicit E2/E3/E6 boundary dispositions. The
+   lifecycle and McGill bibliography follow-ups pass source, artifact, and clean
+   reproduction gates; all E4 artifacts remain unserved pre-ARM inputs until
+   E5/E6.
 3. Build the E5 versioned selection/derivation
    compiler. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B
    scientific diff before promotion or deployment.

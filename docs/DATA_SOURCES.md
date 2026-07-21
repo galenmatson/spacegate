@@ -413,6 +413,13 @@ Interpretation note:
 
 Evidence Lake E4 source checkpoints:
 
+- Gaia DR3 source `ab7f7e6bc211bee146885987`: all 32,176,271 buffered
+  source rows, 32,176,271 release-scoped identifiers, and one compact coherent
+  source solution per row. The two 125-field schemas preserve astrometry,
+  photometry, radial velocity, classification/membership, and product
+  availability; copied GSP-Phot projections remain E1-preserved exclusions in
+  favor of the richer AP tables. Source and generic artifact audits pass, while
+  clean-state reproduction remains in progress
 - WDS and CDS WDS-Gaia `ad98d4e369c5a0addc6477a0`: all 157,476 WDS
   summary/method rows, 140,416 positional-match rows, and 43 field occurrences;
   WDS-qualified pair identities, bounded relative-astrometry measurements,
@@ -452,10 +459,13 @@ Evidence Lake E4 source checkpoints:
   91,858 parameter/glitch contexts, 97,424 identifier claims, 1,210 full source
   references, and 84,388 exact citation links; unmatched lexical reference
   tokens remain source-native evidence rather than placeholder bibliography
-- McGill Magnetar Catalogue `c599c951590451ace4248934`: all 31 rows/47 fields,
-  31 normalized/raw magnetar identities, and 139 separate timing, X-ray,
-  distance, position, and source-context parameter sets; 96 source reference
-  codes are retained, while full bibliography acquisition remains pending
+- McGill Magnetar Catalogue `99c17afd7461a9a6972a9348`: all 31 catalog rows
+  and 139 separate timing, X-ray, distance, position, and source-context
+  parameter sets, now joined only through exact source codes to the pinned
+  publisher HTML and CDS bibliography. The release retains 97 exact external
+  reference-code URLs, 208 current-object bibliography links, and all 215 CDS
+  references; four historical shorthand codes remain explicitly unresolved
+  rather than receiving guessed citations
 - SB9 `72663823963198c8fcbbe569`: all 30,153 ReadMe/system/alias/orbit rows and
   62 table-column occurrences; 4,079 primary/secondary binary claims, 5,099
   linked orbit solutions, 4,079 component spectra, 4,403 component magnitudes,
@@ -468,9 +478,19 @@ Evidence Lake E4 source checkpoints:
 
 ### Exoplanet Lifecycle Notes
 
-- `exoplanet.eu`: status overlay source; currently observed as predominantly/entirely confirmed in recent snapshots.
-- `HWC`: habitability reference and supplemental planet evidence; used as non-canonical feature support.
-- `OEC`: alias/crosswalk source for lifecycle matching; improves match coverage by resolving naming drift across catalogs.
+- `exoplanet.eu`: independently pinned and typed status evidence; the current
+  release contributes 8,261 positive confirmed assertions and no candidate or
+  negative lifecycle rows. It does not supersede NASA authority.
+- `HWC`: independently pinned habitability feature evidence. Its 5,599 rows
+  include 29 conservative and 41 optimistic habitable flags, but the E4 adapter
+  emits zero lifecycle assertions and cannot confirm a planet.
+- `OEC`: independently pinned at Git commit
+  `18fb506ab3a4bb857b453486993bab797a33c5c0`. Its archive-member plus local XML
+  node path is the source object identity. E4 preserves 5,287 confirmed, 3,844
+  candidate, 100 controversial, 12 retracted negative, and 10 other ambiguous
+  lifecycle rows alongside 160,582 fully accounted parameters and 16,750
+  relations. It improves alias/crosswalk coverage but cannot alter canonical
+  planet counts before E5/E6 review.
 - `EMAC TT9`: removed from active ingest pipeline because current endpoint is a resource page without deterministic bulk candidate rows.
 
 ### 2026 Source-Refresh Watchlist

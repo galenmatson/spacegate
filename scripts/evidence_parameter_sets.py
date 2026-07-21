@@ -104,6 +104,8 @@ def build_parameter_schema(
             "description": source.get("description"),
             "encoding": "source_native_typed_scalar_v1",
         }
+        if source.get("scientific_domain"):
+            row["scientific_domain"] = source["scientific_domain"]
         if field in vectors:
             vector = vectors[field]
             if vector.get("value_type", "double") != "double":
