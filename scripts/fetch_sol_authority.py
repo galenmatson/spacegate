@@ -13,6 +13,8 @@ from pathlib import Path
 
 from horizons_snapshot import (
     ResponseCapture,
+    SOL_AUTHORITY_RESPONSE_SOURCE_NAME,
+    SOL_AUTHORITY_TABLE_SOURCE_NAME,
     center_target_command,
     seed_sha256,
     write_horizons_snapshot,
@@ -441,8 +443,8 @@ def main() -> int:
     snapshot_path, manifest_payload = write_horizons_snapshot(
         state_dir=state_dir,
         family="sol_authority",
-        table_source_name="sol_system_objects",
-        response_source_name="sol_authority_horizons_responses",
+        table_source_name=SOL_AUTHORITY_TABLE_SOURCE_NAME,
+        response_source_name=SOL_AUTHORITY_RESPONSE_SOURCE_NAME,
         parsed_filename="sol_system_objects.csv",
         legacy_relative_path=raw_rel,
         manifest_filename=manifest_path.name,

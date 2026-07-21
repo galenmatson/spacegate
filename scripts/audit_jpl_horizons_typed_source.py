@@ -22,6 +22,12 @@ from compile_scientific_evidence import (  # noqa: E402
     source_input,
     write_json,
 )
+from horizons_snapshot import (  # noqa: E402
+    SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME,
+    SOL_ARTIFICIAL_TABLE_SOURCE_NAME,
+    SOL_AUTHORITY_RESPONSE_SOURCE_NAME,
+    SOL_AUTHORITY_TABLE_SOURCE_NAME,
+)
 
 
 SOURCE_IDS = {
@@ -92,14 +98,14 @@ def audit(
     if source_id not in SOURCE_IDS:
         raise ValueError(f"unsupported JPL Horizons source: {source_id}")
     expected_parsed = (
-        "sol_system_objects"
+        SOL_AUTHORITY_TABLE_SOURCE_NAME
         if source_id.endswith("authority")
-        else "sol_artificial_objects"
+        else SOL_ARTIFICIAL_TABLE_SOURCE_NAME
     )
     expected_responses = (
-        "sol_authority_horizons_responses"
+        SOL_AUTHORITY_RESPONSE_SOURCE_NAME
         if source_id.endswith("authority")
-        else "sol_artificial_horizons_responses"
+        else SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME
     )
     tables = {str(row["source_name"]): row for row in typed_manifest["tables"]}
     missing_tables = sorted({expected_parsed, expected_responses} - set(tables))

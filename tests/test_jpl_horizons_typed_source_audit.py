@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import audit_jpl_horizons_typed_source as horizons_audit  # noqa: E402
+from horizons_snapshot import SOL_AUTHORITY_RESPONSE_SOURCE_NAME  # noqa: E402
 
 
 def write_parquet(path: Path, row: dict[str, str]) -> list[dict[str, str]]:
@@ -32,7 +33,7 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
     typed_root = tmp_path / "typed"
     raw_root = tmp_path / "raw"
     (typed_root / "tables").mkdir(parents=True)
-    response_root = raw_root / "artifacts" / "sol_authority_horizons_responses"
+    response_root = raw_root / "artifacts" / SOL_AUTHORITY_RESPONSE_SOURCE_NAME
     (response_root / "responses").mkdir(parents=True)
     response_bytes = b"JPL Horizons exact response\n"
     response_file = response_root / "responses" / "1_sun.txt"
@@ -75,7 +76,9 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
         "response_bytes": str(len(response_bytes)),
     }
     parsed_path = typed_root / "tables" / "sol_system_objects.parquet"
-    response_path = typed_root / "tables" / "sol_authority_horizons_responses.parquet"
+    response_path = (
+        typed_root / "tables" / f"{SOL_AUTHORITY_RESPONSE_SOURCE_NAME}.parquet"
+    )
     parsed_columns = write_parquet(parsed_path, parsed)
     response_columns = write_parquet(response_path, response)
     manifest = {
@@ -93,10 +96,10 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
                 "columns": parsed_columns,
             },
             {
-                "source_name": "sol_authority_horizons_responses",
+                "source_name": SOL_AUTHORITY_RESPONSE_SOURCE_NAME,
                 "status": "typed",
                 "row_count": 1,
-                "parquet_path": "tables/sol_authority_horizons_responses.parquet",
+                "parquet_path": f"tables/{SOL_AUTHORITY_RESPONSE_SOURCE_NAME}.parquet",
                 "columns": response_columns,
             },
         ],

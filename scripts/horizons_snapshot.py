@@ -16,6 +16,10 @@ from typing import Any
 
 
 SNAPSHOT_CONTRACT = "spacegate.horizons_raw_snapshot.v1"
+SOL_AUTHORITY_TABLE_SOURCE_NAME = "sol_system_objects"
+SOL_AUTHORITY_RESPONSE_SOURCE_NAME = "sol_authority_horizons_responses"
+SOL_ARTIFICIAL_TABLE_SOURCE_NAME = "sol_artificial_objects"
+SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME = "sol_artificial_horizons_responses"
 
 
 def sha256_bytes(payload: bytes) -> str:

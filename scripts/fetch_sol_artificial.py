@@ -14,6 +14,8 @@ from pathlib import Path
 
 from horizons_snapshot import (
     ResponseCapture,
+    SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME,
+    SOL_ARTIFICIAL_TABLE_SOURCE_NAME,
     center_target_command,
     seed_sha256,
     write_horizons_snapshot,
@@ -416,8 +418,8 @@ def main() -> int:
     snapshot_path, manifest_payload = write_horizons_snapshot(
         state_dir=state_dir,
         family="sol_artificial",
-        table_source_name="sol_artificial_objects",
-        response_source_name="sol_artificial_horizons_responses",
+        table_source_name=SOL_ARTIFICIAL_TABLE_SOURCE_NAME,
+        response_source_name=SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME,
         parsed_filename="sol_artificial_objects.csv",
         legacy_relative_path=raw_rel,
         manifest_filename=manifest_path.name,
