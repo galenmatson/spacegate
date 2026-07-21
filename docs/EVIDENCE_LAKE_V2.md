@@ -1322,6 +1322,35 @@ The next experiment targets direct fact encoding and the cost of retaining both
 the large DuckDB table and deterministic per-quantity Parquet projection, not
 another accepted-binding cache.
 
+Component-scope policy v1 adds a separate immutable multiplicity projection
+rather than forcing source-defined components into CORE identity. It resolves
+6,936 MSC WDS systems against the punctuation-preserving canonical WDS column:
+5,369 bind and 1,567 remain missing. The resulting 31,347 source component or
+subsystem identities include 24,000 system-anchored nodes and 7,347 explicit
+missing outcomes. Of 15,748 MSC relation claims, 12,052 have two endpoints in
+one canonical system, 3,693 retain unresolved endpoints, and three source rows
+with identical endpoints remain explicit invalid self-relation evidence. None
+becomes containment or a canonical star.
+
+DEBCat then uses the canonical search-term normalization and priority rather
+than a bespoke name table. Every one of 374 systems receives an outcome: 37
+resolve uniquely at the best exact priority and 337 are outside the canonical
+reference. A second reusable gate requires an exact WDS system and one accepted
+MSC day-period relation within `max(0.01 day, 1%)`; 20 binaries bind and 17
+resolved systems lack a compatible relation. This makes 216 component/system
+parameter measurements, 32 component classifications, 74 system-integrated
+photometry rows, and 20 period solutions eligible for global quantity
+selection. Eligibility does not make them automatic winners. Artifact
+`40f3215ac0fed37a9ece1533` passes independent audit, clean fixture tests, and
+two-pass deterministic reproduction in about 2.3 seconds per pass.
+
+The system-binding audit also exposes an E2 diagnostic rather than hiding it:
+among the 5,369 canonical WDS matches, the current identity graph agrees on one
+system for 4,706, is missing a raw WDS route for 612, and spans multiple
+pre-grouping system keys for 51. The compiler retains those counts but uses the
+canonical reference system's exact WDS grouping for this shadow projection.
+E6 must compare that disagreement before identity cutover.
+
 Three full-volume export experiments then tested that second cost without
 changing the selected-fact contents. Unordered one-pass Hive partitioning wrote
 all 17 Gaia partitions in 64.5 and 76.4 seconds instead of 97.7 seconds, but

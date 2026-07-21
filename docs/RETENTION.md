@@ -840,6 +840,27 @@ relation-projection Parquet hashes. Two immediately preceding local experiment
 trees that lacked final compiler-hash lineage were unreferenced, superseded by
 this artifact, and removed as whole units after their reports were retained.
 
+## E5 Selected-Component Artifacts
+
+`derived/evidence_lake_v2/selected_components/<build_id>/` contains immutable
+MSC component-scope and DEBCat evidence projections. Protect every artifact
+named by the E5 disposition ledger, its component policy and compiler hashes,
+the canonical reference build, E2 identity graph, both referenced E4 shards,
+ordered Parquet files, manifest, independent audit, and clean-reproduction
+report. Never prune a DuckDB inspection database or individual Parquet member
+from a retained artifact.
+
+Artifact `40f3215ac0fed37a9ece1533` is the protected first checkpoint. It passes
+independent audit and clean reproduction with identical hashes for all ten
+ordered Parquet files. Earlier artifacts `58f4c58cf2fff4d18e7a32c4` and
+`78b28bd541f82c49cd0ff5b7` are unreferenced experiments: the first lacked the
+exact DEBCat source-native quantity-authority keys, while the second preceded a
+rerun-report fix. Artifact `434206631ac5f0037d610529` fixed that report path but
+did not yet gate the identity-graph diagnostic totals recorded by the artifact.
+They may be considered by a future dry-run only after all current/reference/
+process and report protections pass; this documentation is not deletion
+authorization.
+
 The policy-v6/compiler-v6 diagnostic staging tree
 `.0a50fc1790001c87c8568bae.wczxlv1h` was stopped after scientific
 materialization when a pathological integrity anti-join consumed 2 hours 25

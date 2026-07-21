@@ -79,6 +79,19 @@ Evidence Lake v2 staging rule:
   negative evidence. Deterministic ordered Parquet files are the reproduction
   interface, and an independent audit checks hashes, endpoint accounting,
   polarity, thresholds, and the prohibition on fabricated probabilities.
+- E5 selected-component artifacts live at
+  `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/selected_components/<build_id>/`.
+  `msc_system_bindings` resolves punctuation-preserving WDS identifiers to the
+  canonical reference system while retaining release-graph disagreement as a
+  diagnostic. `msc_component_entities` gives source-defined component and
+  subsystem labels release-scoped keys without asserting that they are CORE
+  stars. `msc_relation_evidence_projection` retains both independently bound
+  endpoints and explicitly rejects source self-relations; it is evidence, not
+  hierarchy or containment. DEBCat system, relation, and parameter-set binding
+  tables require a unique best-priority exact name match and a unique
+  WDS/period-compatible MSC relation before component facts become eligible.
+  Integrated photometry and metallicity remain system scoped. The projection
+  is an E6 compiler input, not an independently served or canonical database.
 - `evidence_object_bindings` contains exactly one outcome per eligible evidence
   subject. `binding_subject_kind` and `binding_subject_id` distinguish an
   unscoped source record, classification evidence row, or scoped parameter set;

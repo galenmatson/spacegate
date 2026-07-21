@@ -2761,6 +2761,30 @@ Representative commits:
   orbit, or containment row. Independent audit and clean reproduction pass with
   identical ordered Parquet hashes.
 
+### 95) DEBCat Physics Requires a Relation, Not a Name Guess
+
+- Component-scope artifact `40f3215ac0fed37a9ece1533` materializes 6,936
+  exact WDS system outcomes, 31,347 release-scoped MSC component identities,
+  and all 15,748 MSC relations. It retains 7,347 missing component anchors and
+  classifies three identical-endpoint source rows as invalid self-relation
+  evidence. It creates no CORE object, hierarchy edge, or containment claim.
+- All 374 DEBCat systems pass through the canonical search-term normalization
+  and existing priority language. Thirty-seven have one best-priority system;
+  337 remain missing. Component binding then requires that system's exact WDS
+  identifier and one accepted MSC day-period relation within the general
+  `max(0.01 day, 1%)` neighborhood. Twenty bind, including six more than the
+  legacy CORE-seeded bridge; 17 named systems have no compatible relation.
+- The accepted projection exposes 216 stellar/system measurements, 32 spectral
+  classifications, 74 system-integrated photometry rows, and 20 relation-period
+  solutions as eligible selection inputs. Primary and secondary facts target
+  release-scoped MSC components; metallicity and photometry target the system.
+  Eligibility does not bypass cross-source authority selection.
+- The independent audit, clean fixture, and production reproduction match all
+  ten ordered Parquet hashes. The focused compiler takes about 2.3 seconds.
+  Canonical WDS binding also exposes 612 missing and 51 multi-system identity-
+  graph diagnostics for later E2/E6 reconciliation rather than silently using
+  those pre-grouping routes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

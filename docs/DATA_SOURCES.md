@@ -866,8 +866,14 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- component bindings remain unresolved until the release-scoped identity and
-  period/endpoint reconciliation policy accepts them
+- E5 component-scope artifact `40f3215ac0fed37a9ece1533` accounts all 374
+  systems through exact priority-aware name resolution. Twenty systems bind to
+  one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
+  outside the canonical reference and 17 resolved systems have no compatible
+  relation. The accepted projection makes 216 parameter measurements, 32
+  classifications, 74 system-integrated photometry rows, and 20 period
+  solutions eligible for later global selection. Eligibility does not make a
+  source value the selected public winner.
 
 Source endpoint:
 
@@ -913,8 +919,12 @@ Policy:
   signed zero, is unknown per the release ReadMe.
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
-  and clean-reproduction gates. All object bindings remain unresolved for E2
-  identity reconciliation and E5 selection.
+  and clean-reproduction gates. E5 component-scope artifact
+  `40f3215ac0fed37a9ece1533` now accounts 6,936 WDS systems, 31,347 source
+  component identities, and 15,748 relations. It anchors 24,000 components and
+  accepts 12,052 two-endpoint relation-evidence rows while retaining 7,347
+  missing components, 3,693 unresolved relations, and three invalid source
+  self-relations. Full MSC physics and orbit selection remains pending.
 
 Security/transport note:
 
