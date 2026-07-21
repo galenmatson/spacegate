@@ -1457,6 +1457,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   object/89.07-million-fact projection, independently audit it, reject the
   cache after candidate insertion regresses from 540.0 to 661.5 seconds, and
   retain machine-readable timing/resource evidence
+- [x] E5 deterministic-export experiments: measure one-pass partitioning,
+  reject its byte-nondeterministic fast mode and its spill-heavy ordered mode,
+  reject concurrent per-partition export after worse measured throughput, and
+  retain the existing stable sequential export pending a better design
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

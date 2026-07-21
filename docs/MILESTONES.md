@@ -1993,6 +1993,13 @@ Foundation checkpoint (July 21, 2026):
   540.0 to 661.5 seconds and binding rises from 44.0 to 48.0 seconds. The cache
   code is not retained; the next ranked experiment targets direct encoding and
   duplicate DuckDB/Parquet durability
+- deterministic-export experiments retain the current per-quantity writer:
+  unordered one-pass partitioning falls to 64.5-76.4 seconds but produces
+  different hashes across identical runs; globally ordered partitioning spills
+  73 GiB and exceeds 208 seconds before completing; four concurrent stable
+  writers complete only four partitions in 42.1 seconds at about 35.2 GiB RSS.
+  None is eligible for production, and direct Gaia fact encoding remains the
+  dominant optimization target
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

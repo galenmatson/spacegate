@@ -1322,6 +1322,21 @@ The next experiment targets direct fact encoding and the cost of retaining both
 the large DuckDB table and deterministic per-quantity Parquet projection, not
 another accepted-binding cache.
 
+Three full-volume export experiments then tested that second cost without
+changing the selected-fact contents. Unordered one-pass Hive partitioning wrote
+all 17 Gaia partitions in 64.5 and 76.4 seconds instead of 97.7 seconds, but
+identical inputs produced different partition hashes and byte totals. Adding a
+stable global order spilled about 73 GiB, consumed about 33 GiB RSS, and had
+written only 11 of 17 partitions after 208 seconds, so the run was stopped once
+it had already exceeded the sequential baseline. Four concurrent stable
+per-quantity writers completed only four partitions in 42.1 seconds, peaked at
+about 35.2 GiB RSS, and then exposed a shared DuckDB temporary-directory
+configuration conflict; even its pre-failure throughput was worse. These paths
+are rejected. The deterministic sequential writer remains authoritative until
+a Parquet-first or single-durable-representation design can preserve filenames,
+row order, exact lineage, and repeatable hashes while improving end-to-end wall
+time.
+
 Post-checkpoint retention reclaimed 169,680,891,904 allocated bytes from eleven
 explicit scratch diagnostics and three historical E5 artifacts that a current,
 schema-aware audit independently rejected for incomplete missing-binding outcome

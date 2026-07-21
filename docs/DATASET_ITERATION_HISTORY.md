@@ -2730,6 +2730,22 @@ Representative commits:
   next experiment toward direct fact encoding and duplicate DuckDB/Parquet
   durability instead of another accepted-binding cache.
 
+### 93) Fast Export Is Not Deterministic Export
+
+- A one-pass partitioned writer reduced the focused 17-partition Gaia export
+  from 97.7 seconds to 64.5 and 76.4 seconds, but identical runs produced
+  different Parquet hashes and byte totals. Its faster output is not a
+  reproducible scientific artifact.
+- A stable global order used about 33 GiB RSS, spilled about 73 GiB, and wrote
+  only 11 partitions after 208 seconds. Four concurrent stable writers peaked
+  near 35.2 GiB RSS and completed only four partitions in 42.1 seconds before a
+  shared temporary-directory conflict. Both had already demonstrated worse
+  throughput than the current sequential writer and were stopped or rejected.
+- No experimental writer entered production. The next performance work must
+  address the 540-second direct Gaia JSON-to-fact materialization or remove the
+  duplicate DuckDB/Parquet durability cost through an explicit artifact-contract
+  change; it must not weaken stable IDs, lineage, row order, or byte hashes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
