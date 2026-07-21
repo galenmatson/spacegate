@@ -59,6 +59,28 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             "ON d.output_selected_fact_id=f.selected_fact_id "
             "WHERE f.fact_status='derived' AND d.derivation_id IS NULL",
         )
+        checks["duplicate_binding_ids"] = scalar(
+            con,
+            "SELECT COUNT(*)-COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
+        )
+        checks["invalid_binding_statuses"] = scalar(
+            con,
+            "SELECT COUNT(*) FROM evidence_object_bindings "
+            "WHERE binding_status NOT IN ('accepted','missing','ambiguous')",
+        )
+        checks["accepted_bindings_without_targets"] = scalar(
+            con,
+            "SELECT COUNT(*) FROM evidence_object_bindings "
+            "WHERE binding_status='accepted' "
+            "AND (canonical_object_node_key IS NULL OR stable_object_key IS NULL)",
+        )
+        checks["unresolved_bindings_with_targets"] = scalar(
+            con,
+            "SELECT COUNT(*) FROM evidence_object_bindings "
+            "WHERE binding_status<>'accepted' "
+            "AND (canonical_object_node_key IS NOT NULL OR stable_object_key IS NOT NULL "
+            "OR system_stable_object_key IS NOT NULL)",
+        )
         for source in policy.get("selection_sources") or []:
             source_id = str(source["source_id"])
             row = con.execute(
@@ -77,6 +99,19 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             )
             checks[f"selected_fact_floor_{source_id}"] = int(
                 int(row[2]) < int(source.get("minimum_selected_facts") or 1)
+            )
+            outcomes = dict(
+                con.execute(
+                    "SELECT binding_status,COUNT(*) FROM evidence_object_bindings "
+                    "WHERE source_id=? GROUP BY 1",
+                    [source_id],
+                ).fetchall()
+            )
+            checks[f"binding_outcome_accounting_{source_id}"] = abs(
+                int(row[0]) - sum(int(value) for value in outcomes.values())
+            )
+            checks[f"accepted_binding_accounting_{source_id}"] = abs(
+                int(row[1]) - int(outcomes.get("accepted", 0))
             )
 
         fact_rows = dict(

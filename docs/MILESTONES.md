@@ -1918,6 +1918,19 @@ Foundation checkpoint (July 21, 2026):
   output row, and a clean `/mnt/space` reproduction matches logical hash
   `330614599768f062123305aece47c7965f0ff5114a7f9c293498869145e9327c`
   with no differing section and complete scratch removal
+- selected-fact checkpoint `bfe3e1da9ddc5257f79b6838` binds the registered
+  Bailer-Jones EDR3 distance envelope through an explicit authoritative
+  EDR3-to-DR3 release relationship, selecting 4,662,948 geometric and 4,344,950
+  photogeometric distance facts without treating other Gaia releases as
+  interchangeable
+- the compiler now records one accepted, missing, or ambiguous outcome for all
+  57,716,013 eligible binding attempts across the four selected sources; the
+  12,647,612 Bailer-Jones rows outside current canonical identity remain
+  inspectable and cannot emit selected facts
+- the current artifact contains 110,371,213 facts and 36,610,762 decisions;
+  independent artifact audit passes and clean reproduction matches logical hash
+  `372cf0c7abf642684b46b2bf6590f6f3fd275d9f328e3e0aac6f15119525fda6`
+  with complete 53-GB scratch removal
 - audited inventory `2026-07-21.e5-legacy-inventory.1` accounts 24 legacy
   science, empirical, projection, ranking, and presentation paths; all 28
   implementation bindings, 16 discovered versioned markers, four E5 successor

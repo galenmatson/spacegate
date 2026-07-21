@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.2",
-  "compiler_version": "selected_fact_compiler_v2",
+  "policy_version": "2026-07-21.e5-selection.3",
+  "compiler_version": "selected_fact_compiler_v3",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -89,6 +89,64 @@
               "rank": 10,
               "method": "gaia_dr3_source_pipeline",
               "reason": "Gaia DR3 source-native solution diagnostics and flags"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "distance.gaia_edr3_bailer_jones",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "authoritative_release_equivalence",
+        "claim_namespace": "gaia_edr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal",
+        "release_equivalence": {
+          "source_release": "gaia_edr3",
+          "canonical_release": "gaia_dr3",
+          "relationship": "identical_source_list_and_astrometry_carried_forward",
+          "source_list_identical": true,
+          "authority_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
+          "authority_statement": "Gaia DR3 contains the astrometry and broad-band photometry already published in EDR3; the EDR3 source list was carried forward into DR3. This equivalence is specific to EDR3-to-DR3 and does not authorize equality across other Gaia releases."
+        }
+      },
+      "storage": "measurement_bundle",
+      "selection_mode": "authoritative_direct",
+      "parameter_set_table": "astrometry_distance_evidence_bundles",
+      "bundle_table": "astrometry_distance_evidence_bundles",
+      "bundle_id_field": "bundle_id",
+      "measurements_field": "measurements",
+      "minimum_eligible_records": 17000000,
+      "minimum_accepted_bindings": 4660000,
+      "minimum_selected_facts": 9000000,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_geometric_distance",
+          "quantities": {
+            "geometric_distance_posterior_median": {
+              "quantity_key": "distance_geometric_pc"
+            }
+          },
+          "authorities": [
+            {
+              "rank": 20,
+              "reason": "Bailer-Jones EDR3 geometric posterior distance estimate; supplementary model evidence, not a replacement for source parallax"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_photogeometric_distance",
+          "quantities": {
+            "photogeometric_distance_posterior_median": {
+              "quantity_key": "distance_photogeometric_pc"
+            }
+          },
+          "authorities": [
+            {
+              "rank": 30,
+              "reason": "Bailer-Jones EDR3 photogeometric posterior distance estimate with color, magnitude, extinction, and selection priors"
             }
           ]
         }

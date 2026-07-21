@@ -167,6 +167,17 @@ audits with all checks at zero and logical hash
 clean reproduction matches with no differing sections and removes its USB
 scratch tree. v56 is accepted; v54 and v55 are not accepted checkpoints.
 
+E5 policy `2026-07-21.e5-selection.3` consumes accepted v56 through an explicit
+authoritative Gaia EDR3-to-DR3 release relationship, not generic source-ID
+equality. It binds 4,662,948 of the 17,310,560 bounded records to current stars
+and records the other 12,647,612 as missing from the current canonical
+population. The accepted rows select 4,662,948 geometric and 4,344,950
+photogeometric posterior estimates with exact endpoint, method, model,
+reference, evidence, bundle, and source-record lineage. The 1,203,650 current
+Gaia stars absent from this bounded source are not negative evidence; 1,200,620
+have parallax signal-to-noise below five and remain an explicit E6 population
+review rather than being silently dropped.
+
 Hunt-Reffert typed snapshot `cbfa7c6ec8c2e3bfbc226898` independently
 preserves 7,167 cluster rows/78 fields, 1,291,929 membership rows/66 fields,
 and 29,956 literature-crossmatch rows/17 fields. Its raw/typed verification and

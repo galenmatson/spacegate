@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,9 +38,13 @@ def make_identity_and_core(state: Path) -> tuple[str, str]:
           system_stable_object_key VARCHAR
         );
         INSERT INTO canonical_identifier_bindings VALUES
-          ('gaia_dr3', '123', 'star-node', 'star-key', 'system-key');
+          ('gaia_dr3', '123', 'star-node', 'star-key', 'system-key'),
+          ('gaia_dr3', '888', 'ambiguous-node-a', 'ambiguous-key-a', 'system-key-a'),
+          ('gaia_dr3', '888', 'ambiguous-node-b', 'ambiguous-key-b', 'system-key-b');
         INSERT INTO canonical_object_nodes VALUES
           ('star-node', 'star-key', 'system-key'),
+          ('ambiguous-node-a', 'ambiguous-key-a', 'system-key-a'),
+          ('ambiguous-node-b', 'ambiguous-key-b', 'system-key-b'),
           ('planet-node', 'planet-key', 'system-key');
         """
     )
@@ -113,6 +118,104 @@ def make_e4_artifact(
         con.execute(
             "INSERT INTO coherent_parameter_set_schemas VALUES (?::JSON)",
             [schema],
+        )
+    elif object_type == "bundle":
+        con.execute(
+            """
+            CREATE TABLE astrometry_distance_evidence_bundles (
+              bundle_id VARCHAR,
+              source_record_id VARCHAR,
+              bundle_semantics VARCHAR,
+              measurements STRUCT(
+                evidence_id VARCHAR, quantity_key VARCHAR, value_raw VARCHAR,
+                unit_raw VARCHAR, normalized_value DOUBLE, normalized_unit VARCHAR,
+                uncertainty_lower DOUBLE, uncertainty_upper DOUBLE,
+                bound_semantics VARCHAR, frame_raw VARCHAR, epoch_raw VARCHAR,
+                method VARCHAR, model VARCHAR, reference_raw VARCHAR,
+                quality_json JSON, normalization_version VARCHAR
+              )[]
+            );
+            INSERT INTO source_records VALUES
+              ('distance-record', 'distance_bundle', '{}'),
+              ('distance-missing', 'distance_bundle', '{}'),
+              ('distance-ambiguous', 'distance_bundle', '{}');
+            INSERT INTO identifier_claim_evidence VALUES
+              ('distance-record', 'gaia_edr3_source_id', 'Gaia EDR3 123'),
+              ('distance-missing', 'gaia_edr3_source_id', 'Gaia EDR3 999'),
+              ('distance-ambiguous', 'gaia_edr3_source_id', 'Gaia EDR3 888');
+            INSERT INTO astrometry_distance_evidence_bundles VALUES (
+              'distance-bundle', 'distance-record',
+              'storage_group_only_no_parameter_coherence',
+              [
+                struct_pack(
+                  evidence_id := 'distance-geo',
+                  quantity_key := 'geometric_distance_posterior_median',
+                  value_raw := '50.0', unit_raw := 'pc',
+                  normalized_value := 50.0, normalized_unit := 'pc',
+                  uncertainty_lower := 45.0, uncertainty_upper := 57.0,
+                  bound_semantics := 'posterior_16th_84th_percentile_interval_endpoints',
+                  frame_raw := NULL, epoch_raw := NULL,
+                  method := 'bayesian_parallax_distance_estimate',
+                  model := 'direction_dependent_geometric_galaxy_prior',
+                  reference_raw := '2021AJ....161..147B',
+                  quality_json := '{}'::JSON,
+                  normalization_version := 'distance-geo-v1'
+                ),
+                struct_pack(
+                  evidence_id := 'distance-photogeo',
+                  quantity_key := 'photogeometric_distance_posterior_median',
+                  value_raw := '49.0', unit_raw := 'pc',
+                  normalized_value := 49.0, normalized_unit := 'pc',
+                  uncertainty_lower := 46.0, uncertainty_upper := 53.0,
+                  bound_semantics := 'posterior_16th_84th_percentile_interval_endpoints',
+                  frame_raw := NULL, epoch_raw := NULL,
+                  method := 'bayesian_parallax_photometry_distance_estimate',
+                  model := 'direction_color_magnitude_extinction_selection_prior',
+                  reference_raw := '2021AJ....161..147B',
+                  quality_json := '{}'::JSON,
+                  normalization_version := 'distance-photogeo-v1'
+                )
+              ]
+            ), (
+              'distance-missing-bundle', 'distance-missing',
+              'storage_group_only_no_parameter_coherence',
+              [
+                struct_pack(
+                  evidence_id := 'distance-missing-geo',
+                  quantity_key := 'geometric_distance_posterior_median',
+                  value_raw := '400.0', unit_raw := 'pc',
+                  normalized_value := 400.0, normalized_unit := 'pc',
+                  uncertainty_lower := 300.0, uncertainty_upper := 500.0,
+                  bound_semantics := 'posterior_16th_84th_percentile_interval_endpoints',
+                  frame_raw := NULL, epoch_raw := NULL,
+                  method := 'bayesian_parallax_distance_estimate',
+                  model := 'direction_dependent_geometric_galaxy_prior',
+                  reference_raw := '2021AJ....161..147B',
+                  quality_json := '{}'::JSON,
+                  normalization_version := 'distance-geo-v1'
+                )
+              ]
+            ), (
+              'distance-ambiguous-bundle', 'distance-ambiguous',
+              'storage_group_only_no_parameter_coherence',
+              [
+                struct_pack(
+                  evidence_id := 'distance-ambiguous-geo',
+                  quantity_key := 'geometric_distance_posterior_median',
+                  value_raw := '60.0', unit_raw := 'pc',
+                  normalized_value := 60.0, normalized_unit := 'pc',
+                  uncertainty_lower := 55.0, uncertainty_upper := 65.0,
+                  bound_semantics := 'posterior_16th_84th_percentile_interval_endpoints',
+                  frame_raw := NULL, epoch_raw := NULL,
+                  method := 'bayesian_parallax_distance_estimate',
+                  model := 'direction_dependent_geometric_galaxy_prior',
+                  reference_raw := '2021AJ....161..147B',
+                  quality_json := '{}'::JSON,
+                  normalization_version := 'distance-geo-v1'
+                )
+              ]
+            );
+            """
         )
     elif object_type == "star":
         con.execute(
@@ -211,6 +314,13 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
         release_id="coherent-release",
         object_type="coherent",
     )
+    distance = make_e4_artifact(
+        state,
+        build_id="distance-test",
+        source_id="source.distance",
+        release_id="distance-release",
+        object_type="bundle",
+    )
     release_id = "release-set-test"
     release_sha = "a" * 64
     write_json(
@@ -219,7 +329,7 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             "release_set_id": release_id,
             "release_set_sha256": release_sha,
             "status": "pass",
-            "members": [gaia, nasa, coherent],
+            "members": [gaia, nasa, coherent, distance],
         },
     )
     policy = tmp_path / "policy.json"
@@ -265,6 +375,51 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
                                 {"rank": 10, "method": "coherent-method", "reason": "direct"}
                             ],
                         }
+                    ],
+                },
+                {
+                    "source_id": "source.distance",
+                    "object_type": "star",
+                    "binding_scope": "star",
+                    "binding": {
+                        "strategy": "authoritative_release_equivalence",
+                        "claim_namespace": "gaia_edr3_source_id",
+                        "canonical_namespace": "gaia_dr3",
+                        "normalization": "unsigned_decimal",
+                        "release_equivalence": {
+                            "source_release": "gaia_edr3",
+                            "canonical_release": "gaia_dr3",
+                            "relationship": "identical_source_list_and_astrometry_carried_forward",
+                            "source_list_identical": True,
+                            "authority_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
+                            "authority_statement": "fixture authoritative release relationship",
+                        },
+                    },
+                    "storage": "measurement_bundle",
+                    "selection_mode": "authoritative_direct",
+                    "parameter_set_table": "astrometry_distance_evidence_bundles",
+                    "bundle_table": "astrometry_distance_evidence_bundles",
+                    "bundle_id_field": "bundle_id",
+                    "measurements_field": "measurements",
+                    "quantity_groups": [
+                        {
+                            "group_key": "geometric_distance",
+                            "quantities": {
+                                "geometric_distance_posterior_median": {
+                                    "quantity_key": "distance_geometric_pc"
+                                }
+                            },
+                            "authorities": [{"rank": 20, "reason": "geometric"}],
+                        },
+                        {
+                            "group_key": "photogeometric_distance",
+                            "quantities": {
+                                "photogeometric_distance_posterior_median": {
+                                    "quantity_key": "distance_photogeometric_pc"
+                                }
+                            },
+                            "authorities": [{"rank": 30, "reason": "photogeometric"}],
+                        },
                     ],
                 },
                 {
@@ -356,12 +511,17 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     )
 
     assert report["status"] == "pass"
-    assert report["table_counts"]["selected_facts"] == 6
+    assert report["table_counts"]["selected_facts"] == 8
+    assert report["binding_outcomes"]["source.distance"] == {
+        "accepted": 1,
+        "ambiguous": 1,
+        "missing": 1,
+    }
     artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
     assert (artifact / "selected_facts__teff_k.parquet").is_file()
     assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
-    assert sum(report["partition_exports"]["selected_facts"].values()) == 6
-    assert sum(report["partition_exports"]["selection_decisions"].values()) == 4
+    assert sum(report["partition_exports"]["selected_facts"].values()) == 8
+    assert sum(report["partition_exports"]["selection_decisions"].values()) == 6
     audit = artifact_audit.audit_artifact(artifact, policy)
     assert audit["status"] == "pass"
     assert audit["failing_checks"] == {}
@@ -377,29 +537,77 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     supersedes = con.execute(
         "SELECT supersedes_json FROM selected_fact_derivations"
     ).fetchone()[0]
+    distance_bindings = con.execute(
+        "SELECT source_record_id, binding_status, binding_method, binding_reason, "
+        "stable_object_key FROM evidence_object_bindings "
+        "WHERE source_id='source.distance' ORDER BY source_record_id"
+    ).fetchall()
     con.close()
 
     assert ("teff_k", 5800.0, 5700.0, 5900.0, "source_selected") in facts
     assert ("orbital_period_days", 10.0, 9.8, 10.3, "source_selected") in facts
     assert ("parallax_mas", 20.0, 19.5, 20.5, "source_selected") in facts
+    assert ("distance_geometric_pc", 50.0, 45.0, 57.0, "source_selected") in facts
+    assert ("distance_photogeometric_pc", 49.0, 46.0, 53.0, "source_selected") in facts
     assert ("variability_flag", None, None, None, "source_selected") in facts
     assert any(row[0] == "luminosity_lsun" and row[4] == "derived" for row in facts)
     assert ("atmosphere", "hot-set", 10) in decisions
     assert ("orbit", "planet-default-set", 10) in decisions
     assert json.loads(supersedes) == ["old-path"]
+    assert distance_bindings == [
+        (
+            "distance-ambiguous",
+            "ambiguous",
+            "authoritative_release_equivalence:gaia_edr3->gaia_dr3",
+            "multiple current canonical targets",
+            None,
+        ),
+        (
+            "distance-missing",
+            "missing",
+            "authoritative_release_equivalence:gaia_edr3->gaia_dr3",
+            "no current canonical target",
+            None,
+        ),
+        (
+            "distance-record",
+            "accepted",
+            "authoritative_release_equivalence:gaia_edr3->gaia_dr3",
+            "authoritative identical release source list; unique current canonical target",
+            "star-key",
+        ),
+    ]
 
 
 def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None:
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 3
+    assert len(policy["selection_sources"]) == 4
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_release_equivalence_binding_requires_authoritative_contract(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    release_manifest = compiler.load_json(
+        state
+        / "derived/evidence_lake_v2/scientific_evidence_sets/release-set-test/manifest.json"
+    )
+    distance = next(
+        source for source in policy["selection_sources"]
+        if source["source_id"] == "source.distance"
+    )
+    del distance["binding"]["release_equivalence"]["source_list_identical"]
+
+    with pytest.raises(ValueError, match="lacks authoritative contract"):
+        compiler.validate_policy(policy, release_manifest)
 
 
 def test_reproduction_comparison_ignores_duckdb_bytes_but_not_parquet() -> None:

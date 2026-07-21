@@ -1170,6 +1170,34 @@ files because a prepared `COPY TO` path was not materialized; explicit
 partition existence and row-accounting gates now prevent such an artifact from
 passing. Neither diagnostic is an accepted input or rollback.
 
+Selected-fact build `bfe3e1da9ddc5257f79b6838` adds the supplementary
+Bailer-Jones EDR3 geometric and photogeometric distance estimates under policy
+`2026-07-21.e5-selection.3`. Its binding policy uses the authoritative,
+release-specific EDR3-to-DR3 source-list relationship; it does not make Gaia
+identifiers interchangeable across arbitrary releases. Of 17,310,560 bounded
+distance records, 4,662,948 bind uniquely to current Gaia DR3 stars and
+12,647,612 are explicitly recorded as missing from the current canonical
+population. The accepted bindings yield 4,662,948 geometric and 4,344,950
+photogeometric facts with exact posterior 16th/84th-percentile endpoints,
+method/model/reference lineage, and no duplicate object/quantity rows.
+
+The compiler now materializes one `accepted`, `missing`, or `ambiguous` outcome
+for every eligible record from every selected source, while only accepted
+bindings may emit selected facts. This produces 57,716,013 inspectable binding
+outcomes, 110,371,213 facts, and 36,610,762 decisions in the current artifact.
+The independent audit reports no status, target, lineage, authority, partition,
+or row-accounting failure. Clean reproduction matches logical hash
+`372cf0c7abf642684b46b2bf6590f6f3fd275d9f328e3e0aac6f15119525fda6`
+with no differing section and removes its 53 GB scratch artifact.
+
+The 1,203,650 canonical Gaia stars without a bounded Bailer-Jones record are
+not treated as identity failures or inferred negative evidence. Independent
+intersection accounting shows 1,200,620 have Gaia parallax signal-to-noise
+below five; their observed parallax placed them inside the stability reference,
+while the registered posterior-distance envelope did not select them. E6 must
+compare this population explicitly before any distance policy changes public
+membership or positions.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

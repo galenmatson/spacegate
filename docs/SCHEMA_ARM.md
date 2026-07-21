@@ -63,6 +63,18 @@ Evidence Lake v2 staging rule:
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
+- `evidence_object_bindings` contains exactly one outcome per eligible selected
+  source record. `accepted` requires a unique canonical object and stable key;
+  `missing` and `ambiguous` retain null canonical target fields and cannot emit
+  selected facts. Per-source outcome totals must equal eligible-record totals,
+  and accepted totals must equal `selection_source_accounting`.
+- Bailer-Jones distance selection preserves `gaia_edr3_source_id` separately
+  from canonical `gaia_dr3`. Binding is permitted only by the policy-pinned,
+  authoritative EDR3-to-DR3 source-list relationship and records that release
+  transition as its method. Geometric and photogeometric posterior medians are
+  supplementary calibrated model estimates, not replacements for Gaia source
+  parallax; their lower and upper values are exact 16th/84th-percentile
+  endpoints rather than symmetric errors.
 - Large selected-fact exports are deterministically partitioned by
   `quantity_key`; decision exports are partitioned by `quantity_group`. The
   artifact gate requires every expected partition and verifies its Parquet row

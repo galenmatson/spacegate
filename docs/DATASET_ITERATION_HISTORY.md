@@ -2407,7 +2407,7 @@ Representative commits:
   coverage and partition failures. Exact-hash retention candidate
   `7e53eabad6412f57b767c20dee777fd6da57f14c5e57728e2114c8019118d17e`
   removed those two artifacts and reclaimed 34,929,528,832 allocated bytes.
-  Accepted build `e8cb1529df6dbcc7c5baadee` remains current; complete builds
+  At this checkpoint build `e8cb1529df6dbcc7c5baadee` became current; complete builds
   `5c84220e408e8fea5f4da218` and `237158e09fce993f1b033414` remain available as
   rollback/reference checkpoints.
 
@@ -2433,6 +2433,33 @@ Representative commits:
   classifications. Its 12,248 mass-only assumed classifications, 8,299
   assumed leaf values, and 337,357 leaves lacking exact classification evidence
   are now explicit E6 fallback-reduction metrics rather than hidden UI behavior.
+
+### 81) E5 Distance Selection and Exhaustive Binding Outcomes
+
+- Policy `2026-07-21.e5-selection.3` adds the accepted Bailer-Jones EDR3
+  distance bundles without collapsing the EDR3 and DR3 namespaces. The binding
+  contract records the authoritative, release-specific EDR3-to-DR3 source-list
+  relationship and cannot be reused as generic cross-release numeric equality.
+- An initial 5.8-million binding floor failed before promotion at 4,662,948.
+  Independent intersection accounting found 5,866,598 current Gaia DR3
+  identifiers, 1,203,650 without a row in the bounded Bailer-Jones envelope,
+  and 1,200,620 of that tail with Gaia parallax signal-to-noise below five. A
+  second provisional fact floor exposed the source-native count: 4,662,948
+  geometric plus 4,344,950 photogeometric estimates. The checked-in floors are
+  below these measured pinned counts, not weakened around an unexplained loss.
+- The compiler now records an explicit accepted, missing, or ambiguous outcome
+  for every eligible record from every selected source. Unresolved outcomes
+  carry no canonical target and cannot emit facts; independent verification
+  reconciles per-source outcome totals to eligible and accepted accounting.
+- Accepted build `bfe3e1da9ddc5257f79b6838` contains 57,716,013 binding
+  outcomes, 110,371,213 selected facts, 36,610,762 decisions, and 65,204
+  derivations. Its distance facts retain exact evidence/bundle/source lineage,
+  posterior endpoint semantics, methods, models, and citation.
+- Independent artifact audit passes every identity, target/status, lineage,
+  authority, duplicate, partition, and row-accounting gate. Clean-state rebuild
+  matches logical hash
+  `372cf0c7abf642684b46b2bf6590f6f3fd275d9f328e3e0aac6f15119525fda6`
+  with no differing section and removes its 53-GB scratch tree.
 
 ## Recurrent Defect Classes and Mitigations
 

@@ -1426,6 +1426,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   photometry, radial-velocity, and diagnostic fields for current stars; enforce
   per-source coverage floors, partition existence/row accounting, and clean
   logical-hash reproduction
+- [x] E5 distance projection and binding accountability: select bounded
+  Bailer-Jones geometric/photogeometric posterior estimates through an explicit
+  EDR3-to-DR3 release contract; preserve exact interval semantics and record an
+  accepted, missing, or ambiguous outcome for every eligible source record
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

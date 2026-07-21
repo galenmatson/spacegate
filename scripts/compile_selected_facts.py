@@ -110,23 +110,48 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
         source_id = str(source.get("source_id") or "")
         if source_id not in members:
             raise ValueError(f"selection source absent from E4 release set: {source_id}")
-        sql_identifier(str(source["parameter_set_table"]))
         storage = str(source.get("storage") or "eav")
-        if storage not in {"eav", "coherent_array"}:
+        if storage not in {"eav", "coherent_array", "measurement_bundle"}:
             raise ValueError(f"unsupported selection storage: {source_id}:{storage}")
+        sql_identifier(str(source["parameter_set_table"]))
         if storage == "eav":
             sql_identifier(str(source["parameter_evidence_table"]))
-        else:
+        elif storage == "coherent_array":
             sql_identifier(str(source["schema_table"]))
             sql_identifier(str(source.get("values_field") or "values_json"))
+        else:
+            sql_identifier(str(source["bundle_table"]))
+            sql_identifier(str(source.get("bundle_id_field") or "bundle_id"))
+            sql_identifier(str(source.get("measurements_field") or "measurements"))
         selection_mode = str(source.get("selection_mode") or "ranked_candidates")
         if selection_mode not in {"ranked_candidates", "authoritative_direct"}:
             raise ValueError(f"unsupported selection mode: {source_id}:{selection_mode}")
-        if selection_mode == "authoritative_direct" and storage != "coherent_array":
-            raise ValueError(f"authoritative-direct selection requires coherent arrays: {source_id}")
+        if selection_mode == "authoritative_direct" and storage not in {
+            "coherent_array", "measurement_bundle"
+        }:
+            raise ValueError(
+                f"authoritative-direct selection requires coherent arrays or measurement bundles: {source_id}"
+            )
         binding = source.get("binding") or {}
-        if binding.get("strategy") not in {"canonical_identifier", "canonical_unique_name"}:
+        if binding.get("strategy") not in {
+            "canonical_identifier", "canonical_unique_name",
+            "authoritative_release_equivalence",
+        }:
             raise ValueError(f"unsupported selection binding strategy: {binding.get('strategy')}")
+        if binding.get("strategy") == "authoritative_release_equivalence":
+            equivalence = binding.get("release_equivalence") or {}
+            required = {
+                "source_release", "canonical_release", "relationship",
+                "authority_url", "authority_statement",
+            }
+            if not required.issubset(equivalence) or equivalence.get("source_list_identical") is not True:
+                raise ValueError(
+                    f"release-equivalence binding lacks authoritative contract: {source_id}"
+                )
+            if binding.get("claim_namespace") == binding.get("canonical_namespace"):
+                raise ValueError(
+                    f"release-equivalence binding must preserve distinct namespaces: {source_id}"
+                )
         source_quantities: set[str] = set()
         for group in source.get("quantity_groups") or []:
             group_key = str(group.get("group_key") or "")
@@ -146,8 +171,8 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 source_quantities.add(source_quantity)
                 if isinstance(selected_spec, dict):
                     selected_quantity = str(selected_spec.get("quantity_key") or "")
-                    if storage != "coherent_array" or not selected_quantity:
-                        raise ValueError(f"invalid coherent quantity mapping: {source_id}:{source_quantity}")
+                    if storage not in {"coherent_array", "measurement_bundle"} or not selected_quantity:
+                        raise ValueError(f"invalid structured quantity mapping: {source_id}:{source_quantity}")
                 elif not str(selected_spec):
                     raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
 
@@ -381,11 +406,12 @@ def create_binding(
     source_id = str(source["source_id"])
     object_type = str(source["object_type"])
     binding = source["binding"]
+    storage = str(source.get("storage") or "eav")
     set_table = sql_identifier(str(source["parameter_set_table"]))
     component_filter = ""
     if source.get("component_scope_field"):
         component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
-    if str(source.get("storage") or "eav") == "coherent_array":
+    if storage == "coherent_array":
         values_field = sql_identifier(str(source.get("values_field") or "values_json"))
         specs = coherent_field_specs(con, source=source, source_alias=source_alias)
         present = " OR ".join(
@@ -399,6 +425,26 @@ def create_binding(
             SELECT DISTINCT ps.source_record_id
             FROM {source_alias}.{set_table} ps
             WHERE ({present}) {component_filter}
+            """
+        )
+    elif storage == "measurement_bundle":
+        bundle_table = sql_identifier(str(source["bundle_table"]))
+        measurements_field = sql_identifier(str(source.get("measurements_field") or "measurements"))
+        source_quantities = sorted(
+            str(quantity)
+            for group in source["quantity_groups"]
+            for quantity in group["quantities"]
+        )
+        quantity_list = ",".join(sql_literal(value) for value in source_quantities)
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
+            SELECT DISTINCT bundle.source_record_id
+            FROM {source_alias}.{bundle_table} bundle
+            CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement)
+            WHERE nested.measurement.quantity_key IN ({quantity_list})
+              AND (nested.measurement.normalized_value IS NOT NULL
+                   OR NULLIF(TRIM(nested.measurement.value_raw), '') IS NOT NULL)
             """
         )
     else:
@@ -419,15 +465,23 @@ def create_binding(
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
     claim_namespace = sql_literal(binding["claim_namespace"])
-    if strategy == "canonical_identifier":
+    if strategy in {"canonical_identifier", "authoritative_release_equivalence"}:
         normalization = binding.get("normalization")
         if normalization != "unsigned_decimal":
             raise ValueError(f"unsupported canonical identifier normalization: {normalization}")
         normalized = "regexp_extract(ic.identifier_normalized, '([0-9]+)$', 1)"
         canonical_namespace = sql_literal(binding["canonical_namespace"])
+        if strategy == "authoritative_release_equivalence":
+            equivalence = binding["release_equivalence"]
+            binding_method = (
+                "authoritative_release_equivalence:"
+                f"{equivalence['source_release']}->{equivalence['canonical_release']}"
+            )
+        else:
+            binding_method = "canonical_identifier_graph"
         candidate_sql = f"""
           SELECT e.source_record_id, b.object_node_key, b.stable_object_key,
-                 b.system_stable_object_key, 'canonical_identifier_graph' AS binding_method
+                 b.system_stable_object_key, {sql_literal(binding_method)} AS binding_method
           FROM eligible_{source_alias} e
           JOIN {source_alias}.identifier_claim_evidence ic
             ON ic.source_record_id = e.source_record_id AND ic.namespace = {claim_namespace}
@@ -455,6 +509,21 @@ def create_binding(
           JOIN identity.canonical_object_nodes o ON o.stable_object_key = n.stable_object_key
         """
     con.execute(f"CREATE OR REPLACE TEMP TABLE binding_candidates_{source_alias} AS {candidate_sql}")
+    if strategy == "authoritative_release_equivalence":
+        configured_method = (
+            "authoritative_release_equivalence:"
+            f"{binding['release_equivalence']['source_release']}"
+            f"->{binding['release_equivalence']['canonical_release']}"
+        )
+        accepted_reason = (
+            "authoritative identical release source list; unique current canonical target"
+        )
+    elif strategy == "canonical_identifier":
+        configured_method = "canonical_identifier_graph"
+        accepted_reason = "unique current canonical target"
+    else:
+        configured_method = "canonical_unique_name"
+        accepted_reason = "unique normalized current canonical name"
     con.execute(
         f"""
         INSERT INTO evidence_object_bindings
@@ -468,17 +537,33 @@ def create_binding(
           FROM binding_candidates_{source_alias}
           GROUP BY source_record_id
         )
-        SELECT sha256(concat_ws('|', {sql_literal(source_id)}, source_record_id, {sql_literal(object_type)})),
+        SELECT sha256(concat_ws('|', {sql_literal(source_id)}, e.source_record_id,
+                                    {sql_literal(object_type)})),
                {sql_literal(source_id)}, {sql_literal(release_id)}, {sql_literal(member['build_id'])},
-               source_record_id, {sql_literal(source['binding_scope'])}, {sql_literal(object_type)},
-               object_node_key, stable_object_key, system_stable_object_key,
-               'accepted', binding_method, 'unique current canonical target'
-        FROM resolved WHERE target_count = 1
+               e.source_record_id, {sql_literal(source['binding_scope'])},
+               {sql_literal(object_type)},
+               CASE WHEN r.target_count = 1 THEN r.object_node_key END,
+               CASE WHEN r.target_count = 1 THEN r.stable_object_key END,
+               CASE WHEN r.target_count = 1 THEN r.system_stable_object_key END,
+               CASE
+                 WHEN r.target_count = 1 THEN 'accepted'
+                 WHEN r.target_count > 1 THEN 'ambiguous'
+                 ELSE 'missing'
+               END,
+               COALESCE(r.binding_method, {sql_literal(configured_method)}),
+               CASE
+                 WHEN r.target_count = 1 THEN {sql_literal(accepted_reason)}
+                 WHEN r.target_count > 1 THEN 'multiple current canonical targets'
+                 ELSE 'no current canonical target'
+               END
+        FROM eligible_{source_alias} e
+        LEFT JOIN resolved r USING (source_record_id)
         """
     )
     accepted = int(
         con.execute(
-            "SELECT COUNT(*) FROM evidence_object_bindings WHERE source_id = ?",
+            "SELECT COUNT(*) FROM evidence_object_bindings "
+            "WHERE source_id = ? AND binding_status = 'accepted'",
             [source_id],
         ).fetchone()[0]
     )
@@ -493,6 +578,15 @@ def insert_candidates(
     member: dict[str, Any],
     release_id: str,
 ) -> None:
+    if str(source.get("storage") or "eav") == "measurement_bundle":
+        insert_measurement_bundle_direct(
+            con,
+            source=source,
+            source_alias=source_alias,
+            member=member,
+            release_id=release_id,
+        )
+        return
     if str(source.get("selection_mode") or "ranked_candidates") == "authoritative_direct":
         insert_coherent_direct(
             con,
@@ -552,6 +646,154 @@ def insert_candidates(
                method, model, reference_raw, authority_rank, authority_reason,
                normalization_version, quality_json
         FROM candidates WHERE authority_rank IS NOT NULL
+        """
+    )
+
+
+def insert_measurement_bundle_direct(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    if str(source.get("selection_mode") or "") != "authoritative_direct":
+        raise ValueError(f"measurement bundles require authoritative-direct selection: {source['source_id']}")
+    table_name = str(source["bundle_table"])
+    bundle_table = sql_identifier(table_name)
+    bundle_id_field = sql_identifier(str(source.get("bundle_id_field") or "bundle_id"))
+    measurements_field = sql_identifier(str(source.get("measurements_field") or "measurements"))
+    source_id = sql_literal(source["source_id"])
+    release = sql_literal(release_id)
+    evidence_build = sql_literal(member["build_id"])
+    policy_version = sql_literal(source["_policy_version"])
+
+    duplicate_sets = int(
+        con.execute(
+            f"""
+            SELECT COALESCE(SUM(n-1), 0) FROM (
+              SELECT b.stable_object_key, COUNT(*) n
+              FROM {source_alias}.{bundle_table} bundle
+              JOIN evidence_object_bindings b
+                ON b.source_id={source_id}
+               AND b.source_record_id=bundle.source_record_id
+               AND b.binding_status='accepted'
+              GROUP BY b.stable_object_key HAVING COUNT(*) > 1
+            )
+            """
+        ).fetchone()[0]
+    )
+    if duplicate_sets:
+        raise ValueError(
+            f"measurement-bundle source has duplicate object bundles: {source['source_id']}:{duplicate_sets}"
+        )
+
+    quantity_rows: list[str] = []
+    decision_selects: list[str] = []
+    for group in source["quantity_groups"]:
+        rule = group["authorities"][0]
+        unsupported_rule_fields = set(rule) - {"rank", "reason"}
+        if unsupported_rule_fields:
+            raise ValueError(
+                f"measurement-bundle direct authority must be unconditional: "
+                f"{source['source_id']}:{group['group_key']}:{sorted(unsupported_rule_fields)}"
+            )
+        group_key = sql_literal(group["group_key"])
+        source_quantities = [str(value) for value in group["quantities"]]
+        quantity_list = ",".join(sql_literal(value) for value in source_quantities)
+        decision_selects.append(
+            "SELECT "
+            f"sha256(concat_ws('|', b.object_type, b.stable_object_key, {group_key}, "
+            f"bundle.{bundle_id_field}, {policy_version})), "
+            "b.object_type, b.stable_object_key, b.system_stable_object_key, "
+            f"{group_key}, bundle.{bundle_id_field}, bundle.source_record_id, "
+            f"{source_id}, {release}, {evidence_build}, {int(rule['rank'])}, "
+            f"{sql_literal(rule['reason'])}, "
+            "COUNT(DISTINCT nested.measurement.quantity_key)::INTEGER, "
+            "COUNT(DISTINCT CASE WHEN nested.measurement.uncertainty_lower IS NOT NULL "
+            "OR nested.measurement.uncertainty_upper IS NOT NULL "
+            "THEN nested.measurement.quantity_key END)::INTEGER, "
+            f"1, NULL, NULL, {policy_version} "
+            f"FROM {source_alias}.{bundle_table} bundle "
+            "JOIN evidence_object_bindings b "
+            f"ON b.source_id={source_id} AND b.source_record_id=bundle.source_record_id "
+            "AND b.binding_status='accepted' "
+            f"CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement) "
+            f"WHERE nested.measurement.quantity_key IN ({quantity_list}) "
+            "AND (nested.measurement.normalized_value IS NOT NULL "
+            "OR NULLIF(TRIM(nested.measurement.value_raw), '') IS NOT NULL) "
+            "GROUP BY b.object_type, b.stable_object_key, b.system_stable_object_key, "
+            f"bundle.{bundle_id_field}, bundle.source_record_id"
+        )
+        for source_quantity, selected_spec in group["quantities"].items():
+            if not isinstance(selected_spec, dict):
+                selected_spec = {"quantity_key": str(selected_spec)}
+            quantity_rows.append(
+                "(" + ",".join(
+                    [
+                        sql_literal(source_quantity),
+                        sql_literal(selected_spec["quantity_key"]),
+                        sql_literal(group["group_key"]),
+                    ]
+                ) + ")"
+            )
+    con.execute(
+        "INSERT INTO parameter_set_selection_decisions " + " UNION ALL ".join(decision_selects)
+    )
+    con.execute(
+        f"""
+        INSERT INTO selected_facts
+        WITH quantities(source_quantity, selected_quantity, quantity_group) AS (
+          VALUES {','.join(quantity_rows)}
+        )
+        SELECT sha256(concat_ws('|', b.object_type, b.stable_object_key,
+                                q.selected_quantity, nested.measurement.evidence_id,
+                                {policy_version})),
+               b.object_type, b.stable_object_key, b.system_stable_object_key,
+               q.quantity_group, q.selected_quantity,
+               nested.measurement.value_raw,
+               nested.measurement.normalized_value,
+               nested.measurement.normalized_unit,
+               CASE
+                 WHEN lower(coalesce(nested.measurement.bound_semantics, '')) LIKE '%endpoint%'
+                   THEN nested.measurement.uncertainty_lower
+                 WHEN nested.measurement.normalized_value IS NOT NULL
+                  AND nested.measurement.uncertainty_lower IS NOT NULL
+                   THEN nested.measurement.normalized_value
+                        - abs(nested.measurement.uncertainty_lower)
+               END,
+               CASE
+                 WHEN lower(coalesce(nested.measurement.bound_semantics, '')) LIKE '%endpoint%'
+                   THEN nested.measurement.uncertainty_upper
+                 WHEN nested.measurement.normalized_value IS NOT NULL
+                  AND nested.measurement.uncertainty_upper IS NOT NULL
+                   THEN nested.measurement.normalized_value
+                        + abs(nested.measurement.uncertainty_upper)
+               END,
+               nested.measurement.bound_semantics,
+               'source_selected', {evidence_build}, {sql_literal(table_name)},
+               nested.measurement.evidence_id, bundle.{bundle_id_field},
+               bundle.source_record_id, {source_id}, {release},
+               nested.measurement.method, nested.measurement.model,
+               nested.measurement.reference_raw,
+               d.decision_id, d.authority_rank, d.authority_reason,
+               {policy_version}, nested.measurement.normalization_version,
+               nested.measurement.quality_json
+        FROM {source_alias}.{bundle_table} bundle
+        JOIN evidence_object_bindings b
+          ON b.source_id={source_id}
+         AND b.source_record_id=bundle.source_record_id
+         AND b.binding_status='accepted'
+        CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement)
+        JOIN quantities q ON q.source_quantity=nested.measurement.quantity_key
+        JOIN parameter_set_selection_decisions d
+          ON d.object_type=b.object_type
+         AND d.stable_object_key=b.stable_object_key
+         AND d.quantity_group=q.quantity_group
+         AND d.selected_parameter_set_id=bundle.{bundle_id_field}
+        WHERE nested.measurement.normalized_value IS NOT NULL
+           OR NULLIF(TRIM(nested.measurement.value_raw), '') IS NOT NULL
         """
     )
 
@@ -944,6 +1186,9 @@ def derive_stellar_luminosity(
 def verify_keys(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_binding_ids": "SELECT COUNT(*) - COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
+        "invalid_binding_statuses": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status NOT IN ('accepted', 'missing', 'ambiguous')",
+        "accepted_bindings_without_targets": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status='accepted' AND (canonical_object_node_key IS NULL OR stable_object_key IS NULL)",
+        "unresolved_bindings_with_targets": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status<>'accepted' AND (canonical_object_node_key IS NOT NULL OR stable_object_key IS NOT NULL OR system_stable_object_key IS NOT NULL)",
         "duplicate_decision_ids": "SELECT COUNT(*) - COUNT(DISTINCT decision_id) FROM parameter_set_selection_decisions",
         "duplicate_selected_fact_ids": "SELECT COUNT(*) - COUNT(DISTINCT selected_fact_id) FROM selected_facts",
         "duplicate_object_quantities": "SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT COUNT(*) n FROM selected_facts GROUP BY object_type, stable_object_key, quantity_key HAVING COUNT(*) > 1)",
@@ -1146,6 +1391,14 @@ def compile_selected_facts(
         )
         con.execute("CHECKPOINT")
         counts = table_counts(con)
+        binding_outcomes: dict[str, dict[str, int]] = {}
+        for source_id, binding_status, row_count in con.execute(
+            "SELECT source_id, binding_status, COUNT(*) "
+            "FROM evidence_object_bindings GROUP BY 1,2 ORDER BY 1,2"
+        ).fetchall():
+            binding_outcomes.setdefault(str(source_id), {})[str(binding_status)] = int(
+                row_count
+            )
         fact_exports: dict[str, int] = {}
         decision_exports: dict[str, int] = {}
         for quantity_key, row_count in con.execute(
@@ -1231,6 +1484,7 @@ def compile_selected_facts(
         "identity_graph_id": policy["identity_graph_id"],
         "canonical_reference_build_id": policy["canonical_reference_build_id"],
         "table_counts": counts,
+        "binding_outcomes": binding_outcomes,
         "integrity_checks": checks,
         "logical_content_sha256": logical_sha,
         "partition_exports": {
