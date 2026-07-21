@@ -974,8 +974,12 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   raw/typed artifact accounting and the source-specific projection/response
   audit: one-to-one identity and query lineage, path containment, exact response
   hashes and byte counts, and valid hyperbolic trajectory conventions. Photon
-  registry cutover, natural-source collection, current artificial refresh, and
-  both E4 adapters remain pending until the active Gaia build reproduces.
+  now has current immutable natural/artificial collector snapshots with the same
+  60/11 target inventories. A machine delta report isolates two revised
+  same-epoch natural solutions (Neptune and Triton) and expected changes in all
+  11 epoch-advanced artificial trajectories. Registry cutover, Evidence Lake
+  typing, and both E4 adapters remain pending until the active Gaia build
+  reproduces.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

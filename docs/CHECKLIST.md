@@ -1341,6 +1341,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add a source-specific JPL Horizons audit covering one-to-one projection/
   response identity, query and seed lineage, contained response paths, exact
   checksums and byte counts, and valid hyperbolic trajectory semantics
+- [x] Acquire current exact-response Horizons snapshots for all 60 natural and
+  11 artificial targets; emit machine deltas separating same-epoch JPL solution
+  revisions from expected artificial-trajectory epoch changes
 - [ ] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
   stale artificial trajectory tail, register both response-index artifacts,
   type and materialize scoped object/relation/orbit evidence, and keep operator

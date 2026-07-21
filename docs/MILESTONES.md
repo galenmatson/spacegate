@@ -1777,6 +1777,10 @@ Current status (July 19, 2026, in progress):
   are immutable and atomically manifested. An isolated 11-target artificial
   run passes two-artifact raw/typed accounting and all response checksum/size
   checks; Photon registry cutover and E4 materialization remain pending
+- current immutable Horizons acquisition preserves the same 60 natural and 11
+  artificial target identities. Machine deltas isolate Neptune/Triton
+  same-epoch solution revisions and expected changes across all 11 current
+  artificial trajectories; registry typing/cutover remains pending
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,

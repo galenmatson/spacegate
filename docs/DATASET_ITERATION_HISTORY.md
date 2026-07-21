@@ -2088,6 +2088,15 @@ Representative commits:
   center, retrieval, and operator-seed lineage. The scratch artificial snapshot
   passes all checks. Negative semimajor axes remain valid evidence for
   hyperbolic escape trajectories rather than being rejected as invalid orbits.
+- Current acquisition produced natural snapshot `9e5d0b21cf6e9ad0685a8c1f`
+  at the stable 2016-01-01 epoch and artificial snapshot
+  `80d4cd347293efc5b2d7438b` at 2026-07-21. Both preserve every exact response
+  and the same 60/11 target identities as their predecessors.
+- `scripts/report_horizons_snapshot_delta.py` separates scientific changes from
+  retrieval/query/hash lineage. At the unchanged natural epoch, only Neptune
+  and Triton have revised orbital values from current JPL solutions. All 11
+  artificial trajectories change under the newer epoch as expected. Both
+  reports pass with no added, removed, blank, or duplicate source keys.
 
 ### 70) Gaia DR3 Backbone Envelope Audit
 
