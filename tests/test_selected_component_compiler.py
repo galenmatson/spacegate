@@ -196,6 +196,58 @@ def make_fixture(state: Path, policy_path: Path) -> None:
     )
     con.close()
 
+    orb6_id = "orb6-test"
+    orb6_dir = state / "derived/evidence_lake_v2/scientific_evidence" / orb6_id
+    orb6_dir.mkdir(parents=True)
+    con = duckdb.connect(str(orb6_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_raw VARCHAR
+        );
+        CREATE TABLE orbital_solution_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR
+        );
+        INSERT INTO identifier_claim_evidence VALUES
+          ('o-w1','o1','wds_id','00001+0001'),
+          ('o-d1','o1','wds_discoverer_designation','TST   1AB'),
+          ('o-w2','o2','wds_id','00001+0001'),
+          ('o-d2','o2','wds_discoverer_designation','TST   2Aa1,2'),
+          ('o-w3','o3','wds_id','00001+0001'),
+          ('o-d3','o3','wds_discoverer_designation','TST   3');
+        INSERT INTO orbital_solution_evidence VALUES
+          ('o-orbit1','o1'),('o-orbit2','o2'),('o-orbit3','o3');
+        """
+    )
+    con.close()
+
+    wds_id = "wds-test"
+    wds_dir = state / "derived/evidence_lake_v2/scientific_evidence" / wds_id
+    wds_dir.mkdir(parents=True)
+    con = duckdb.connect(str(wds_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE source_records (
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          source_table VARCHAR, source_context_json JSON
+        );
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_raw VARCHAR
+        );
+        INSERT INTO source_records VALUES
+          ('w1','multiplicity.wds','wds-test-release','wdsweb_summ2','{"components":"AB"}'),
+          ('w2','multiplicity.wds','wds-test-release','wdsweb_summ2','{"components":"Aa1,2"}');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('w-w1','w1','wds_id','00001+0001'),
+          ('w-d1','w1','wds_discoverer_designation','TST   1'),
+          ('w-w2','w2','wds_id','00001+0001'),
+          ('w-d2','w2','wds_discoverer_designation','TST   2');
+        """
+    )
+    con.close()
+
     write_json(
         policy_path,
         {
@@ -296,6 +348,29 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_orbital_solutions_eligible": 2,
                 },
             },
+            "orb6": {
+                "source_id": "multiplicity.orb6",
+                "release_id": "orb6-test-release",
+                "evidence_build_id": orb6_id,
+                "wds_source_id": "multiplicity.wds",
+                "wds_release_id": "wds-test-release",
+                "wds_evidence_build_id": wds_id,
+                "wds_source_table": "wdsweb_summ2",
+                "relation_binding_method": "test-exact-orb6-wds-msc-pair",
+                "orbit_authority": "test-orb6-orbit",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_relation_bindings": 3,
+                    "expected_relations_accepted": 1,
+                    "expected_relations_missing_wds_pair": 1,
+                    "expected_relations_ambiguous_wds_pair": 0,
+                    "expected_relations_unparsed_wds_pair": 0,
+                    "expected_relations_missing_msc_relation": 1,
+                    "expected_relations_ambiguous_msc_relation": 0,
+                    "expected_orbital_solutions": 3,
+                    "expected_orbital_solutions_eligible": 1,
+                },
+            },
         },
     )
 
@@ -356,6 +431,19 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     assert con.execute(
         "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 2
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM orb6_relation_bindings GROUP BY 1"
+    ).fetchall()) == {
+        "accepted": 1,
+        "missing_msc_relation": 1,
+        "missing_wds_pair": 1,
+    }
+    assert con.execute(
+        "SELECT secondary_component_label FROM orb6_relation_bindings WHERE source_record_id='o2'"
+    ).fetchone()[0] == "Aa2"
+    assert con.execute(
+        "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 1
     con.close()
 
     audited = artifact_audit.audit(artifact=Path(first["artifact_path"]), policy_path=policy)

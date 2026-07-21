@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-21.e5-component-scope.2",
-  "compiler_version": "selected_component_evidence_compiler_v2",
+  "policy_version": "2026-07-21.e5-component-scope.3",
+  "compiler_version": "selected_component_evidence_compiler_v3",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -99,6 +99,31 @@
       "expected_classification_evidence_eligible": 940,
       "expected_orbital_solutions": 5099,
       "expected_orbital_solutions_eligible": 1052
+    }
+  },
+  "orb6": {
+    "source_id": "multiplicity.orb6",
+    "release_id": "rolling_snapshot",
+    "evidence_build_id": "fcbb6466bea0a7798ae8d2ed",
+    "wds_source_id": "multiplicity.wds",
+    "wds_release_id": "rolling_snapshot",
+    "wds_evidence_build_id": "ad98d4e369c5a0addc6477a0",
+    "wds_source_table": "wdsweb_summ2",
+    "relation_binding_method": "exact_wds_system_and_constructed_discoverer_pair_to_unique_accepted_msc_relation",
+    "relation_binding_semantics": "Match the punctuation-preserving ORB6 WDS identifier and combined discoverer/pair designation to exactly one WDS summary row. Parse the WDS source-native component field using its documented ordinary A/B, simple pair, composite separator, and abbreviated numbered-pair forms, then require exactly one accepted MSC relation with the same WDS-qualified endpoints. Do not fall back to a system-level orbit or infer canonical containment.",
+    "blank_component_semantics": "WDS documents the component field as present when an object has more than two components; a blank field therefore denotes the ordinary A/B pair.",
+    "orbit_authority": "orb6_published_visual_orbit_solution",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_relation_bindings": 4051,
+      "expected_relations_accepted": 1159,
+      "expected_relations_missing_wds_pair": 646,
+      "expected_relations_ambiguous_wds_pair": 0,
+      "expected_relations_unparsed_wds_pair": 0,
+      "expected_relations_missing_msc_relation": 2246,
+      "expected_relations_ambiguous_msc_relation": 0,
+      "expected_orbital_solutions": 4051,
+      "expected_orbital_solutions_eligible": 1159
     }
   }
 }

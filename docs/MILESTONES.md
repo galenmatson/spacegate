@@ -2007,7 +2007,7 @@ Foundation checkpoint (July 21, 2026):
   endpoints, including 95,045 `R_chance_align < 0.1` high-confidence evidence
   rows and 3,043 shifted-sky negative controls. Independent audit and clean
   reproduction pass with identical Parquet hashes in about 15 seconds
-- component-scope artifact `1dddf975f24d9bba9590d046` anchors 24,000 of
+- component-scope artifact `6def85dff374034cfe125b6b` anchors 24,000 of
   31,347 release-scoped MSC component identities to 5,369 exact canonical WDS
   systems, retains 7,347 missing components and three invalid source
   self-relations, and creates no canonical star or containment assertion
@@ -2021,6 +2021,12 @@ Foundation checkpoint (July 21, 2026):
   3,104 have no reference, eight are ambiguous, and 177 reference unresolved
   MSC relations. It exposes 874 component magnitudes, 940 classifications, and
   1,052 spectroscopic-orbit solutions without name or coordinate fallback
+- ORB6 now accounts all 4,051 visual-orbit rows through one exact WDS summary
+  pair and one accepted WDS-qualified MSC endpoint relation. It admits 1,159
+  solutions, retains 646 missing WDS pairs and 2,246 missing MSC relations, and
+  removes the legacy unique-system-edge shortcut from the E5 path. Independent
+  audit and byte-identical reproduction pass across seventeen ordered Parquet
+  files in about 3 seconds
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

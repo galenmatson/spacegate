@@ -1481,6 +1481,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   exact MSC `SB9_<sequence>` references, accept only one reference with two
   resolved endpoints, preserve missing/ambiguous/unresolved outcomes, and
   project component magnitudes, classifications, and all linked orbit solutions
+- [x] E5 ORB6 component/orbit projection: account all 4,051 visual-orbit rows,
+  resolve combined discoverer/pair designations through one exact WDS row and
+  one WDS-qualified accepted MSC relation, retain every unresolved tail, reject
+  system-level edge fallback, and pass independent audit plus deterministic
+  reproduction
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

@@ -1354,6 +1354,19 @@ apparent-magnitude measurements, 940 component spectral classifications, and
 1,052 spectroscopic-orbit solutions eligible for later authority selection.
 All rejected rows remain explicit, and no name or coordinate fallback exists.
 
+Component-scope policy v3 adds ORB6 without repeating the legacy system-level
+unique-edge shortcut. Each of 4,051 visual-orbit rows must first match its exact
+punctuation-preserving WDS identifier and combined discoverer/pair designation
+to one WDS summary row. The WDS component field is then parsed according to the
+source contract: blank means the ordinary A/B pair, simple two-symbol pairs are
+split, comma or hyphen denotes explicit endpoints, and the catalog's bounded
+`Aa1,2` form expands to `Aa1,Aa2`. The resulting WDS-qualified endpoints must
+match exactly one accepted MSC relation. This admits 1,159 orbit solutions;
+646 lack the exact WDS pair and 2,246 lack an accepted MSC endpoint relation.
+Artifact `6def85dff374034cfe125b6b` preserves every outcome, passes independent
+audit and byte-identical reproduction across seventeen ordered Parquet files,
+and creates no canonical object, containment, hierarchy, or system-level orbit.
+
 The system-binding audit also exposes an E2 diagnostic rather than hiding it:
 among the 5,369 canonical WDS matches, the current identity graph agrees on one
 system for 4,706, is missing a raw WDS route for 612, and spans multiple
@@ -1385,13 +1398,15 @@ GiB free, below the 300-GiB new-source acquisition floor. E5 policy work may use
 the pinned release set and external scratch, but acquisition of another large
 release is gated.
 
-Policy batches now make that remaining E5 work measurable. Ledger
-`2026-07-21.e5-policy-batches.1` assigns all 24 blocking sources exactly once
+Policy batches now make that remaining E5 work measurable. The initial ledger
+assigned all 24 blocking sources exactly once
 across seven dependency-ordered batches and records completed sources
 separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
+Ledger `2026-07-21.e5-policy-batches.9` records 13 completed sources and 13
+remaining blockers after the ORB6 checkpoint.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

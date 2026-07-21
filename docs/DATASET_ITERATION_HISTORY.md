@@ -2802,6 +2802,26 @@ Representative commits:
 - Artifact `1dddf975f24d9bba9590d046` passes the independent audit, clean fixture,
   and byte-identical production reproduction in about 2.6 seconds per pass.
 
+### 97) ORB6 Resolves Pairs Before It Resolves Orbits
+
+- Component policy v3 removes the legacy requirement that an ORB6 system have
+  one pre-existing binary edge. Instead, every visual-orbit row must match the
+  exact WDS identifier plus the punctuation-preserving combined discoverer and
+  component designation to one WDS summary record.
+- The WDS field contract drives endpoint parsing: blank component scope is the
+  ordinary A/B pair, simple pairs split into their two symbols, comma and hyphen
+  forms preserve explicit subsystem endpoints, and the catalog's five-character
+  shorthand such as `Aa1,2` expands to `Aa1,Aa2`. No system name, coordinate,
+  named object, or unique-edge fallback participates.
+- Of 4,051 ORB6 rows, 1,159 resolve to one accepted WDS-qualified MSC relation,
+  646 lack the exact current WDS pair, and 2,246 lack an accepted MSC endpoint
+  relation. Every source row and rejection reason remains inspectable.
+- Artifact `6def85dff374034cfe125b6b` projects the 1,159 accepted published visual
+  orbits as eligible evidence without creating canonical objects, containment,
+  hierarchy, or system-level orbit rows. Independent audit, clean fixture, and
+  byte-identical production reproduction pass across seventeen ordered Parquet
+  files in about 3 seconds per pass.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

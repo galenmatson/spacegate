@@ -833,14 +833,17 @@ Role:
 
 - orbit-quality support evidence for multiplicity confidence
 
-Current limitation:
+Evidence Lake status:
 
-- 4,051 rows are cooked, but only 56 normalize in the served build because the
-  current rule requires an already-existing unique binary edge
+- the legacy served build normalizes only 56 rows through a unique binary-edge
+  shortcut; Evidence Lake does not reuse that unsafe system-level rule
 - Evidence Lake E4 checkpoint `fcbb6466bea0a7798ae8d2ed` now preserves all
   4,051 source rows and 37 fields as coherent visual-orbit evidence with
-  WDS/discoverer/ADS/HD/HIP claims. Canonical endpoint reconciliation remains
-  pending; combined pair designations are not parsed or promoted in E4.
+  WDS/discoverer/ADS/HD/HIP claims. E5 artifact
+  `6def85dff374034cfe125b6b` accounts every row through exact WDS combined-pair
+  matching and WDS-qualified MSC endpoints. It makes 1,159 solutions eligible,
+  retains 646 missing WDS pairs and 2,246 missing MSC relations, and promotes no
+  canonical containment or hierarchy.
 
 Source endpoint:
 
@@ -866,7 +869,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `1dddf975f24d9bba9590d046` accounts all 374
+- E5 component-scope artifact `6def85dff374034cfe125b6b` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -920,7 +923,7 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `1dddf975f24d9bba9590d046` now accounts 6,936 WDS systems, 31,347 source
+  `6def85dff374034cfe125b6b` now accounts 6,936 WDS systems, 31,347 source
   component identities, and 15,748 relations. It anchors 24,000 components and
   accepts 12,052 two-endpoint relation-evidence rows while retaining 7,347
   missing components, 3,693 unresolved relations, and three invalid source
@@ -1178,7 +1181,7 @@ SB9 policy:
   back to name-only or coordinate-only component assignment
 - DEBCat component evidence uses a separate unique canonical-system + period
   match and the same endpoint-existence gates
-- E5 artifact `1dddf975f24d9bba9590d046` applies the SB9 rule to all 4,079
+- E5 artifact `6def85dff374034cfe125b6b` applies the SB9 rule to all 4,079
   catalog relations. It accepts 790 unique references with two resolved MSC
   endpoints, retains 3,104 missing references, eight ambiguous references, and
   177 unresolved referenced relations, and makes 874 component magnitudes, 940

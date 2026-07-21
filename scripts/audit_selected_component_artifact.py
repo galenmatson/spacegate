@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v2"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v3"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -89,6 +89,10 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "eligible_sb9_parameters_without_target": "SELECT count(*) FROM sb9_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_sb9_classifications_without_target": "SELECT count(*) FROM sb9_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_sb9_orbits_without_relation": "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_orb6_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM orb6_relation_bindings",
+        "accepted_orb6_relations_without_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status='accepted' AND (wds_source_record_id IS NULL OR msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_orb6_relations_with_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "eligible_orb6_orbits_without_relation": "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -166,6 +170,21 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     sb9_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["sb9"]["acceptance"].items()}
     failures["sb9_acceptance_mismatch"] = int(sb9_observed != sb9_expected)
+
+    orb6_relations = dict(con.execute("SELECT binding_status,count(*) FROM orb6_relation_bindings GROUP BY 1").fetchall())
+    orb6_observed = {
+        "relation_bindings": sum(orb6_relations.values()),
+        "relations_accepted": orb6_relations.get("accepted", 0),
+        "relations_missing_wds_pair": orb6_relations.get("missing_wds_pair", 0),
+        "relations_ambiguous_wds_pair": orb6_relations.get("ambiguous_wds_pair", 0),
+        "relations_unparsed_wds_pair": orb6_relations.get("unparsed_wds_pair", 0),
+        "relations_missing_msc_relation": orb6_relations.get("missing_msc_relation", 0),
+        "relations_ambiguous_msc_relation": orb6_relations.get("ambiguous_msc_relation", 0),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM orb6_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("orb6_orbital_solution_projection"),
+    }
+    orb6_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["orb6"]["acceptance"].items()}
+    failures["orb6_acceptance_mismatch"] = int(orb6_observed != orb6_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -176,6 +195,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
             {"source_id": policy["msc"]["source_id"], "observed": msc_observed, "expected": msc_expected},
             {"source_id": policy["debcat"]["source_id"], "observed": deb_observed, "expected": deb_expected},
             {"source_id": policy["sb9"]["source_id"], "observed": sb9_observed, "expected": sb9_expected},
+            {"source_id": policy["orb6"]["source_id"], "observed": orb6_observed, "expected": orb6_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

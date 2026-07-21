@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.10",
+  "disposition_version": "2026-07-21.e5-source-dispositions.11",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -72,8 +72,8 @@
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-21.e5-component-scope.2",
-      "component_artifact_id": "1dddf975f24d9bba9590d046",
+      "component_policy_version": "2026-07-21.e5-component-scope.3",
+      "component_artifact_id": "6def85dff374034cfe125b6b",
       "reason": "All 374 DEBCat systems receive a priority-aware exact-name outcome. Component physics becomes eligible only through a unique canonical system, exact WDS anchor, and unique period-compatible accepted MSC relation; integrated photometry and metallicity remain system scoped. The projection creates no canonical star or containment edge."
     },
     "multiplicity.el_badry_2021_wide_binary": {
@@ -91,17 +91,19 @@
       "reason": "MSC component classifications, physics, hierarchy, and orbits require reusable component-label and endpoint reconciliation."
     },
     "multiplicity.orb6": {
-      "disposition": "deferred_pending_identity_scope",
-      "owner": "E2/E5",
-      "blocks_e5": true,
-      "reason": "Combined pair designations remain identity evidence until both orbit endpoints and pair scope resolve uniquely."
+      "disposition": "selected_component_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "component_policy_version": "2026-07-21.e5-component-scope.3",
+      "component_artifact_id": "6def85dff374034cfe125b6b",
+      "reason": "Every ORB6 visual-orbit row receives an exact WDS-pair and MSC-endpoint outcome. Published solutions become eligible only when the punctuation-preserving WDS identifier plus combined discoverer/pair designation resolves to one WDS row and the documented component notation resolves to one accepted MSC relation. No system-level orbit fallback or containment is created."
     },
     "multiplicity.sb9": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-21.e5-component-scope.2",
-      "component_artifact_id": "1dddf975f24d9bba9590d046",
+      "component_policy_version": "2026-07-21.e5-component-scope.3",
+      "component_artifact_id": "6def85dff374034cfe125b6b",
       "reason": "Every SB9 relation receives an exact MSC sequence-reference outcome. Component magnitudes, classifications, and spectroscopic orbit solutions become eligible only when exactly one MSC relation carries the sequence and both release-scoped endpoints resolve; missing, duplicate, and unresolved references remain explicit."
     },
     "multiplicity.sbx": {

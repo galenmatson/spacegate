@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile release-scoped MSC and DEBCat component evidence projections."""
+"""Compile release-scoped multiplicity component evidence projections."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat", "sb9"):
+    for source_name in ("msc", "debcat", "sb9", "orb6"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -155,6 +155,22 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           target_key VARCHAR, canonical_system_stable_object_key VARCHAR,
           relation_binding_id VARCHAR, binding_status VARCHAR,
           binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE orb6_relation_bindings (
+          relation_binding_id VARCHAR, source_record_id VARCHAR,
+          orb6_orbit_evidence_id VARCHAR, orb6_wds_identifier_evidence_id VARCHAR,
+          orb6_discoverer_identifier_evidence_id VARCHAR,
+          source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
+          wds_id_raw VARCHAR, orb6_discoverer_pair_raw VARCHAR,
+          wds_pair_candidate_count BIGINT, wds_source_record_id VARCHAR,
+          wds_discoverer_raw VARCHAR, wds_components_raw VARCHAR,
+          primary_component_label VARCHAR, secondary_component_label VARCHAR,
+          component_parse_method VARCHAR, msc_relation_candidate_count BIGINT,
+          msc_projected_relation_id VARCHAR, msc_relation_evidence_id VARCHAR,
+          primary_source_component_key VARCHAR, secondary_source_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR,
+          binding_status VARCHAR, binding_method VARCHAR, binding_reason VARCHAR,
+          policy_version VARCHAR
         );
         """
     )
@@ -717,6 +733,230 @@ def compile_sb9(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_orb6(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    wds_source_id = sql_literal(source["wds_source_id"])
+    wds_release_id = sql_literal(source["wds_release_id"])
+    wds_source_table = sql_literal(source["wds_source_table"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["relation_binding_method"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE orb6_relation_subjects AS
+        WITH identifiers AS (
+          SELECT source_record_id,
+                 min(evidence_id) FILTER(WHERE namespace='wds_id')
+                   orb6_wds_identifier_evidence_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_id') wds_id_raw,
+                 min(evidence_id) FILTER(WHERE namespace='wds_discoverer_designation')
+                   orb6_discoverer_identifier_evidence_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_discoverer_designation')
+                   orb6_discoverer_pair_raw
+          FROM orb6.identifier_claim_evidence
+          GROUP BY source_record_id
+        )
+        SELECT o.source_record_id,o.evidence_id orb6_orbit_evidence_id,
+               i.orb6_wds_identifier_evidence_id,i.wds_id_raw,
+               i.orb6_discoverer_identifier_evidence_id,i.orb6_discoverer_pair_raw
+        FROM orb6.orbital_solution_evidence o
+        JOIN identifiers i USING(source_record_id);
+
+        CREATE TEMP TABLE wds_pair_subjects AS
+        WITH identifiers AS (
+          SELECT source_record_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_id') wds_id_raw,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_discoverer_designation')
+                   wds_discoverer_raw
+          FROM wds.identifier_claim_evidence
+          GROUP BY source_record_id
+        )
+        SELECT s.source_record_id wds_source_record_id,i.wds_id_raw,i.wds_discoverer_raw,
+               json_extract_string(s.source_context_json,'$.components') wds_components_raw,
+               concat(i.wds_discoverer_raw,
+                      coalesce(json_extract_string(s.source_context_json,'$.components'),''))
+                 constructed_discoverer_pair_raw
+        FROM wds.source_records s
+        JOIN identifiers i USING(source_record_id)
+        WHERE s.source_id={wds_source_id} AND s.release_id={wds_release_id}
+          AND s.source_table={wds_source_table};
+
+        CREATE TEMP TABLE orb6_wds_pair_candidates AS
+        SELECT s.*,
+               count(w.wds_source_record_id) wds_pair_candidate_count,
+               min(w.wds_source_record_id) wds_source_record_id,
+               min(w.wds_discoverer_raw) wds_discoverer_raw,
+               min(w.wds_components_raw) wds_components_raw
+        FROM orb6_relation_subjects s
+        LEFT JOIN wds_pair_subjects w
+          ON w.wds_id_raw=s.wds_id_raw
+         AND w.constructed_discoverer_pair_raw=s.orb6_discoverer_pair_raw
+        GROUP BY ALL;
+
+        CREATE TEMP TABLE orb6_parsed_wds_pairs AS
+        SELECT *,
+          CASE
+            WHEN wds_pair_candidate_count<>1 THEN NULL
+            WHEN wds_components_raw IS NULL OR trim(wds_components_raw)='' THEN 'A'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN split_part(trim(wds_components_raw),',',1)
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN split_part(trim(wds_components_raw),',',1)
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN split_part(trim(wds_components_raw),'-',1)
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]{{2}}')
+              THEN substr(trim(wds_components_raw),1,1)
+          END primary_component_label,
+          CASE
+            WHEN wds_pair_candidate_count<>1 THEN NULL
+            WHEN wds_components_raw IS NULL OR trim(wds_components_raw)='' THEN 'B'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN concat(regexp_extract(trim(wds_components_raw),'^([A-Za-z]+)',1),
+                          split_part(trim(wds_components_raw),',',2))
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN split_part(trim(wds_components_raw),',',2)
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN split_part(trim(wds_components_raw),'-',2)
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]{{2}}')
+              THEN substr(trim(wds_components_raw),2,1)
+          END secondary_component_label,
+          CASE
+            WHEN wds_pair_candidate_count<>1 THEN NULL
+            WHEN wds_components_raw IS NULL OR trim(wds_components_raw)=''
+              THEN 'documented_ordinary_pair_ab'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN 'wds_abbreviated_numbered_pair'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN 'wds_comma_separated_pair'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN 'wds_hyphen_separated_pair'
+            WHEN regexp_full_match(trim(wds_components_raw),'[A-Za-z]{{2}}')
+              THEN 'wds_simple_two_symbol_pair'
+            ELSE 'unparsed'
+          END component_parse_method
+        FROM orb6_wds_pair_candidates;
+
+        CREATE TEMP TABLE orb6_msc_pair_candidates AS
+        SELECT m.projected_relation_id,m.relation_evidence_id,
+               m.left_source_component_key,m.right_source_component_key,
+               m.canonical_system_stable_object_key,ms.wds_id_raw,
+               l.component_label_raw left_component_label,
+               r.component_label_raw right_component_label
+        FROM msc_relation_evidence_projection m
+        JOIN msc_component_entities l ON l.component_entity_id=m.left_component_entity_id
+        JOIN msc_component_entities r ON r.component_entity_id=m.right_component_entity_id
+        JOIN msc_system_bindings ms
+          ON ms.canonical_system_stable_object_key=m.canonical_system_stable_object_key
+        WHERE m.projection_status='accepted_relation_evidence';
+
+        CREATE TEMP TABLE orb6_msc_relation_candidates AS
+        SELECT s.*,
+               count(m.projected_relation_id) msc_relation_candidate_count,
+               min(m.projected_relation_id) msc_projected_relation_id,
+               min(m.relation_evidence_id) msc_relation_evidence_id,
+               min(CASE WHEN lower(m.left_component_label)=lower(s.primary_component_label)
+                        THEN m.left_source_component_key ELSE m.right_source_component_key END)
+                 primary_source_component_key,
+               min(CASE WHEN lower(m.left_component_label)=lower(s.secondary_component_label)
+                        THEN m.left_source_component_key ELSE m.right_source_component_key END)
+                 secondary_source_component_key,
+               min(m.canonical_system_stable_object_key) canonical_system_stable_object_key
+        FROM orb6_parsed_wds_pairs s
+        LEFT JOIN orb6_msc_pair_candidates m
+          ON m.wds_id_raw=s.wds_id_raw
+         AND least(lower(m.left_component_label),lower(m.right_component_label))=
+             least(lower(s.primary_component_label),lower(s.secondary_component_label))
+         AND greatest(lower(m.left_component_label),lower(m.right_component_label))=
+             greatest(lower(s.primary_component_label),lower(s.secondary_component_label))
+        GROUP BY ALL;
+
+        INSERT INTO orb6_relation_bindings
+        SELECT sha256(concat_ws('|',{source_id},source_record_id,'relation',{policy_sql})),
+               source_record_id,orb6_orbit_evidence_id,
+               orb6_wds_identifier_evidence_id,orb6_discoverer_identifier_evidence_id,
+               {source_id},{release_id},{evidence_build_id},wds_id_raw,
+               orb6_discoverer_pair_raw,wds_pair_candidate_count,
+               CASE WHEN wds_pair_candidate_count=1 THEN wds_source_record_id END,
+               CASE WHEN wds_pair_candidate_count=1 THEN wds_discoverer_raw END,
+               CASE WHEN wds_pair_candidate_count=1 THEN wds_components_raw END,
+               primary_component_label,secondary_component_label,component_parse_method,
+               msc_relation_candidate_count,
+               CASE WHEN wds_pair_candidate_count=1 AND component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN msc_projected_relation_id END,
+               CASE WHEN wds_pair_candidate_count=1 AND component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN msc_relation_evidence_id END,
+               CASE WHEN wds_pair_candidate_count=1 AND component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN primary_source_component_key END,
+               CASE WHEN wds_pair_candidate_count=1 AND component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN secondary_source_component_key END,
+               CASE WHEN wds_pair_candidate_count=1 AND component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN canonical_system_stable_object_key END,
+               CASE WHEN wds_pair_candidate_count=0 THEN 'missing_wds_pair'
+                    WHEN wds_pair_candidate_count>1 THEN 'ambiguous_wds_pair'
+                    WHEN component_parse_method='unparsed' THEN 'unparsed_wds_pair'
+                    WHEN msc_relation_candidate_count=0 THEN 'missing_msc_relation'
+                    WHEN msc_relation_candidate_count>1 THEN 'ambiguous_msc_relation'
+                    ELSE 'accepted' END,
+               {method},
+               CASE WHEN wds_pair_candidate_count=0
+                      THEN 'no WDS row has the exact WDS identifier and constructed discoverer/pair designation'
+                    WHEN wds_pair_candidate_count>1
+                      THEN 'multiple WDS rows have the exact WDS identifier and constructed discoverer/pair designation'
+                    WHEN component_parse_method='unparsed'
+                      THEN 'the source-native WDS component pair is outside the documented parser contract'
+                    WHEN msc_relation_candidate_count=0
+                      THEN 'no accepted MSC relation has the exact WDS-qualified component endpoints'
+                    WHEN msc_relation_candidate_count>1
+                      THEN 'multiple accepted MSC relations have the exact WDS-qualified component endpoints'
+                    ELSE 'one exact WDS pair and one accepted MSC relation identify both release-scoped endpoints' END,
+               {policy_sql}
+        FROM orb6_msc_relation_candidates;
+
+        CREATE TABLE orb6_orbital_solution_projection AS
+        SELECT o.*,r.relation_binding_id,r.wds_source_record_id,
+               r.msc_projected_relation_id,r.msc_relation_evidence_id,
+               r.primary_source_component_key,r.secondary_source_component_key,
+               r.canonical_system_stable_object_key,
+               {sql_literal(source['orbit_authority'])} authority_role,
+               CASE WHEN r.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               r.binding_reason projection_reason,{policy_sql} policy_version
+        FROM orb6.orbital_solution_evidence o
+        JOIN orb6_relation_bindings r
+          ON r.orb6_orbit_evidence_id=o.evidence_id;
+        """
+    )
+
+    relation_counts = dict(con.execute(
+        "SELECT binding_status,count(*) FROM orb6_relation_bindings GROUP BY 1"
+    ).fetchall())
+    observed = {
+        "relation_bindings": sum(relation_counts.values()),
+        "relations_accepted": relation_counts.get("accepted", 0),
+        "relations_missing_wds_pair": relation_counts.get("missing_wds_pair", 0),
+        "relations_ambiguous_wds_pair": relation_counts.get("ambiguous_wds_pair", 0),
+        "relations_unparsed_wds_pair": relation_counts.get("unparsed_wds_pair", 0),
+        "relations_missing_msc_relation": relation_counts.get("missing_msc_relation", 0),
+        "relations_ambiguous_msc_relation": relation_counts.get("ambiguous_msc_relation", 0),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM orb6_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": int(con.execute(
+            "SELECT count(*) FROM orb6_orbital_solution_projection "
+            "WHERE projection_status='eligible_for_quantity_selection'"
+        ).fetchone()[0]),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"ORB6 acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -744,6 +984,10 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "eligible_sb9_parameters_without_targets": "SELECT count(*) FROM sb9_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_sb9_classifications_without_targets": "SELECT count(*) FROM sb9_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_sb9_orbits_without_relations": "SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_orb6_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM orb6_relation_bindings",
+        "accepted_orb6_relations_without_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status='accepted' AND (wds_source_record_id IS NULL OR msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_orb6_relations_with_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "eligible_orb6_orbits_without_relations": "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -770,8 +1014,8 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         raise FileNotFoundError(f"missing component compiler input: {[str(p) for p in required if not p.is_file()]}")
     identity_report_sha = sha256_file(identity_report)
     source_build_ids = [
-        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9")
-    ]
+        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9", "orb6")
+    ] + [policy["orb6"]["wds_evidence_build_id"]]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
         "compiler_sha256": compiler_sha,
@@ -794,8 +1038,14 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         con.execute(f"ATTACH {sql_literal(identity_db)} AS identity (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(core_db)} AS core (READ_ONLY)")
         evidence_root = state / "derived/evidence_lake_v2/scientific_evidence"
-        for alias, name in (("msc", "msc"), ("debcat", "debcat"), ("sb9", "sb9")):
-            source_db = evidence_root / policy[name]["evidence_build_id"] / "scientific_evidence.duckdb"
+        for alias, build_id_key, name in (
+            ("msc", "evidence_build_id", "msc"),
+            ("debcat", "evidence_build_id", "debcat"),
+            ("sb9", "evidence_build_id", "sb9"),
+            ("orb6", "evidence_build_id", "orb6"),
+            ("wds", "wds_evidence_build_id", "orb6"),
+        ):
+            source_db = evidence_root / policy[name][build_id_key] / "scientific_evidence.duckdb"
             if not source_db.is_file():
                 raise FileNotFoundError(f"missing E4 source artifact: {source_db}")
             con.execute(f"ATTACH {sql_literal(source_db)} AS {alias} (READ_ONLY)")
@@ -804,6 +1054,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             compile_msc(con, source=policy["msc"], policy_version=policy["policy_version"]),
             compile_debcat(con, source=policy["debcat"], policy_version=policy["policy_version"]),
             compile_sb9(con, source=policy["sb9"], policy_version=policy["policy_version"]),
+            compile_orb6(con, source=policy["orb6"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -829,6 +1080,8 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("sb9_stellar_parameter_projection", "evidence_id"),
             ("sb9_classification_projection", "evidence_id"),
             ("sb9_orbital_solution_projection", "evidence_id"),
+            ("orb6_relation_bindings", "relation_binding_id"),
+            ("orb6_orbital_solution_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -847,7 +1100,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v2",
+            "schema_version": "spacegate.e5_selected_components.v3",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,
