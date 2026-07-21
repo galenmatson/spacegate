@@ -1802,8 +1802,9 @@ Current status (July 19, 2026, in progress):
   complete 152-field schemas, unique identities, correct boundary polarity,
   and explicit RV/XP/epoch-photometry/RVS product coverage for E4
 - the checked-in Gaia variability audit passes 592,197 rows and every one of 52
-  rotation-vector fields with exact length/mask semantics, establishing
-  coherent per-source variability and rotation parameter sets for E4
+  rotation-vector fields with exact length/mask semantics and an exhaustive
+  source-column role ledger, establishing coherent per-source variability and
+  rotation parameter sets for E4
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

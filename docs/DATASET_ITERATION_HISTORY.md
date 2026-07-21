@@ -2165,6 +2165,10 @@ Representative commits:
   per source and one coherent rotation-modulation parameter set per source.
   Independent scalar expansion would lose vector covariance and materially
   amplify the evidence artifact.
+- The generated report now partitions every source column exactly once as
+  identity, membership flag, cardinality, scalar solution field, or masked
+  vector. This makes field disposition inspectable before the E4 adapter and
+  prevents silent omission during parameter-set materialization.
 
 ## Recurrent Defect Classes and Mitigations
 

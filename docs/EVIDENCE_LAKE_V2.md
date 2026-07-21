@@ -975,7 +975,9 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   script. It passes 592,197 rows and all 52 rotation-vector fields with zero
   source-ID, schema, token, length, period-error, or false-alarm-probability
   defect. Its 99 wholly absent vectors remain distinct from 2,533,499 valid
-  `--` element masks. E4 will preserve variability summaries and rotation
+  `--` element masks. The report also exhaustively partitions every source
+  column into identity, membership-flag, cardinality, scalar-solution, or
+  masked-vector roles. E4 will preserve variability summaries and rotation
   solutions as coherent per-source parameter sets rather than independent
   scalar selections.
 - JPL Horizons collection now has a shared immutable snapshot writer. It keeps

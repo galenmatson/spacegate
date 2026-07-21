@@ -40,6 +40,24 @@ DEFAULT_REPORT = Path(
 )
 
 
+def field_roles(
+    columns: list[dict[str, Any]], *, vector_fields: list[str] | None = None
+) -> dict[str, list[str]]:
+    names = [str(field["name"]) for field in columns]
+    vectors = set(vector_fields or [])
+    identity = {"solution_id", "source_id"} & set(names)
+    membership = {name for name in names if name.startswith("in_vari_")}
+    cardinality = {"num_segments", "num_outliers"} & set(names)
+    assigned = identity | membership | cardinality | vectors
+    return {
+        "identity": sorted(identity),
+        "membership_flags": sorted(membership),
+        "cardinalities": sorted(cardinality),
+        "masked_vectors": sorted(vectors),
+        "scalar_solution_fields": sorted(set(names) - assigned),
+    }
+
+
 def parse_vector(raw: Any) -> tuple[list[float | None], bool]:
     if raw is None:
         return [], False
@@ -172,6 +190,7 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
                         "field_count": field_counts[table_name],
                         "solution_ids": solutions,
                         "membership_flag_true_counts": counts,
+                        "field_roles": field_roles(tables[table_name]["columns"]),
                     }
                 )
             for table_name in ROTATION_TABLES:
@@ -260,10 +279,15 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
                         },
                         "vector_contract": {
                             "vector_fields": len(vector_fields),
+                            "vector_field_names": sorted(vector_fields),
                             "segment_count_field": "num_segments",
                             "outlier_count_field": "num_outliers",
                             "mask_marker": "--",
                         },
+                        "field_roles": field_roles(
+                            tables[table_name]["columns"],
+                            vector_fields=vector_fields,
+                        ),
                     }
                 )
         finally:
