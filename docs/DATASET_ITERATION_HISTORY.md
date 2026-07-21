@@ -2030,6 +2030,23 @@ Representative commits:
   requirements remain: Gaia source, Gaia variability/rotation, VSX, natural JPL
   Horizons, and separately scoped artificial-object Horizons trajectories.
 
+### 68) VSX Identity and Bibliography Boundary Audit
+
+- `scripts/audit_vsx_typed_source.py` audits the exact pinned raw/typed release
+  selected by the Evidence Lake registry. It accounts all 10,304,568 VSX rows,
+  23 object columns plus two ReadMe columns, unique non-null OIDs, non-null
+  names, valid J2000 coordinates, published status/limit/uncertainty flag
+  domains, and positive periods.
+- The two duplicated normalized public names remain visible collision evidence:
+  `EROS2-SMC-RCB-2` and `V7646 Sgr` each identify two distinct OIDs. The E4
+  adapter must therefore use `vsx_oid` as source identity and retain the public
+  name only as a source-scoped designation claim.
+- The audit status is deliberately `incomplete`, not `pass`. The current pinned
+  acquisition contains `vsx.dat` and `ReadMe` but not the documented
+  `refs.dat` OID-to-bibcode relation. That bibliography must be pinned, typed,
+  and exactly linked before the VSX adapter can satisfy the naming and
+  bibliography source role; no catalog-wide reference will be fabricated.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

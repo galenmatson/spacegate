@@ -930,6 +930,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   authority. No registered source is unaccounted. The machine audit remains
   `in_progress` on five real adapter requirements: Gaia source, Gaia
   variability, VSX, natural JPL Horizons, and artificial JPL Horizons.
+- The pinned VSX object table now has a machine-readable pre-adapter audit. It
+  accounts all 10,304,568 rows, verifies unique source OIDs, valid coordinates,
+  status/limit/uncertainty flag domains, and positive published periods, and
+  records the two duplicated public-name strings without treating names as
+  identity keys. The audit remains `incomplete`: the registered acquisition
+  preserves `vsx.dat` and its ReadMe but omits the source-documented
+  object-to-bibcode `refs.dat` table. VSX cannot pass E4 until a pinned
+  bibliography artifact is acquired, typed, and linked without guessing
+  references for rows that do not publish one.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

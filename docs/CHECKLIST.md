@@ -1326,6 +1326,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E4 remaining registered adapter tail: materialize Gaia source, coherent
   Gaia variability/rotation, VSX, natural JPL Horizons, and separately scoped
   artificial JPL Horizons evidence
+- [x] E4 VSX pre-adapter audit: account all 10,304,568 pinned object rows;
+  verify OID uniqueness, coordinates, statuses, flags, periods, field coverage,
+  and public-name collisions without using names as source identity
+- [ ] E3/E4 VSX bibliography completion: pin and type the source-documented
+  `refs.dat` object-to-bibcode table, add it to the release contract, and link
+  only exact OID references before VSX E4 promotion
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

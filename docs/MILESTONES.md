@@ -1757,6 +1757,12 @@ Current status (July 19, 2026, in progress):
   scientific adapters. Thirty adapters exist; five blocking adapter families
   remain explicit: Gaia source, Gaia variability, VSX, and separate natural and
   artificial JPL Horizons evidence
+- the VSX typed-source audit accounts all 10,304,568 object rows and confirms
+  unique OIDs, valid coordinates/status/flag domains, positive periods, and two
+  expected public-name collisions. It intentionally remains `incomplete`
+  because the current acquisition omits the source-documented `refs.dat`
+  object-to-bibcode table; acquisition, typing, citation linkage, and E4
+  materialization remain required
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general
