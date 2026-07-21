@@ -1984,7 +1984,13 @@ Representative commits:
   orphan parameter rows, or reversed intervals. Direct typed-source inspection
   pins two hard-envelope FLAME luminosity intervals whose central estimate lies
   outside the published endpoints; they remain source-native reported anomalies.
-  Full immutable materialization and clean reproduction are pending.
+- Full build `c4a6b5fd297f8ef9cceb6340` atomically promoted a 26,810,527,744-byte
+  indexless DuckDB artifact. It accounts all 8,019,372 source records and 354
+  field occurrences, 52,352,445 stellar measurements, 66,558,671 photometry
+  measurements, 10,942,232 astrometric/distance measurements, 905,314
+  classifications, 12,904,333 coherent parameter sets, and 53,257,759 citation
+  links. Source-specific and independent artifact verification pass with zero
+  discrepancies or duplicate keys. Clean scratch reproduction is in progress.
 
 ### 66) Immutable Evidence Key Audits Replace Runtime Indexes
 

@@ -1741,10 +1741,10 @@ Current status (July 19, 2026, in progress):
 - contract v71 accounts all 354 field occurrences in the four Gaia
   supplementary-parameter tables. It preserves MARCS, PHOENIX, OB, and A
   GSP-Phot alternatives without selecting or compositing them, and separates
-  GSP-Spec ANN from spectroscopic FLAME parameter/evolution contexts. Contract,
-  schema, source-interval, and real-row smoke gates pass; the full immutable
-  build, source audit, generic artifact audit, and clean reproduction remain the
-  next E4 checkpoint
+  GSP-Spec ANN from spectroscopic FLAME parameter/evolution contexts. Immutable
+  build `c4a6b5fd297f8ef9cceb6340`, the source audit, and the independent artifact
+  audit now pass across all 8,019,372 source rows and 354 fields with no
+  duplicate keys; clean reproduction remains the last checkpoint
 - compiler/contract v71/v72 replaces retained runtime uniqueness indexes with
   exact pre-promotion and independent key-integrity audits for every immutable
   evidence table. A representative same-row A/B has identical logical hashes,

@@ -906,8 +906,11 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   identical contracts. All 354 field occurrences reconcile, 67 compiler tests
   and a representative real-row materialization pass, and direct source audit
   finds no reversed bounds plus two preserved hard-envelope FLAME luminosity
-  intervals whose central estimate does not bracket. Full immutable
-  materialization and reproduction remain pending.
+  intervals whose central estimate does not bracket. Immutable build
+  `c4a6b5fd297f8ef9cceb6340` now passes the source-specific and independent
+  artifact audits with all 8,019,372 source records, 354 fields, and
+  53,257,759 evidence/citation links accounted and no duplicate keys. Clean
+  scratch reproduction remains pending.
 - Compiler/contract v71/v72 removes retained DuckDB primary-key and unique ART
   indexes from immutable analytical evidence tables. Those indexes enforced
   transient write-time uniqueness but occupied most of the accepted main AP
