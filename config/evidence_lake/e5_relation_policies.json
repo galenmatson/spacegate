@@ -1,0 +1,40 @@
+{
+  "schema_version": "spacegate.e5_relation_policies.v1",
+  "policy_version": "2026-07-21.e5-relations.1",
+  "compiler_version": "selected_relation_evidence_compiler_v1",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "sources": [
+    {
+      "source_id": "multiplicity.el_badry_2021_wide_binary",
+      "release_id": "zenodo_4435257",
+      "evidence_build_id": "aaf262b1791d98ce3e9f96e7",
+      "relation_table": "relation_claim_evidence",
+      "object_type": "star",
+      "endpoint_binding": {
+        "source_namespace": "gaia_edr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal",
+        "method": "authoritative_gaia_edr3_to_dr3_source_identity",
+        "reason": "Gaia DR3 source astrometry is the EDR3 source solution and the release-scoped numeric source identifier is preserved",
+        "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/"
+      },
+      "projection": {
+        "candidate_polarity": "candidate",
+        "negative_polarity": "negative_control",
+        "confidence_statistic_key": "chance_alignment_density_ratio",
+        "high_confidence_operator": "lt",
+        "high_confidence_threshold": 0.1,
+        "high_confidence_semantics": "source-defined high-bound-probability subset; R_chance_align is an approximate chance-alignment density ratio, not a strict probability",
+        "citation_url": "https://arxiv.org/abs/2101.05282",
+        "canonical_containment_promotion": false
+      },
+      "acceptance": {
+        "expected_relation_claims": 1116713,
+        "expected_endpoint_bindings": 2233426,
+        "expected_both_endpoints_accepted": 102266,
+        "expected_high_confidence_relations": 95045,
+        "expected_negative_controls_with_bound_endpoints": 3043
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-21.e5-policy-batches.5",
-  "disposition_version": "2026-07-21.e5-source-dispositions.7",
+  "batch_version": "2026-07-21.e5-policy-batches.6",
+  "disposition_version": "2026-07-21.e5-source-dispositions.8",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -47,14 +47,14 @@
       "sources": [
         "gaia.dr3.non_single_star",
         "multiplicity.debcat",
-        "multiplicity.el_badry_2021_wide_binary",
         "multiplicity.msc",
         "multiplicity.orb6",
         "multiplicity.sb9",
         "multiplicity.sbx",
         "multiplicity.wds",
         "tess.villanova_eb"
-      ]
+      ],
+      "completed_sources": ["multiplicity.el_badry_2021_wide_binary"]
     },
     {
       "batch_id": "planet_lifecycle",

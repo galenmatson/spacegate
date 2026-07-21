@@ -67,6 +67,18 @@ Evidence Lake v2 staging rule:
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
+- E5 selected-relation artifacts live at
+  `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/selected_relations/<build_id>/`.
+  `relation_endpoint_bindings` gives the left and right evidence endpoints
+  independent `accepted|missing|excluded|ambiguous` outcomes and withholds a
+  target key unless exactly one compatible canonical object resolves.
+  `relation_evidence_projection` retains the source claim, polarity,
+  confidence statistic, citation, both endpoint outcomes, and projection
+  disposition. A high-confidence evidence row is not a hierarchy edge,
+  `orbit_edge`, or CORE containment assertion. Negative controls remain
+  negative evidence. Deterministic ordered Parquet files are the reproduction
+  interface, and an independent audit checks hashes, endpoint accounting,
+  polarity, thresholds, and the prohibition on fabricated probabilities.
 - `evidence_object_bindings` contains exactly one outcome per eligible evidence
   subject. `binding_subject_kind` and `binding_subject_id` distinguish an
   unscoped source record, classification evidence row, or scoped parameter set;

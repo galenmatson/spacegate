@@ -2746,6 +2746,21 @@ Representative commits:
   duplicate DuckDB/Parquet durability cost through an explicit artifact-contract
   change; it must not weaken stable IDs, lineage, row order, or byte hashes.
 
+### 94) Multiplicity Starts With Two Independent Endpoints
+
+- E5 relation compiler v1 resolves the left and right endpoints separately and
+  retains every accepted, missing, excluded, or ambiguous outcome. A relation
+  cannot borrow a whole-system name match to populate a component endpoint.
+- El-Badry artifact `c59bf6664db0b60960dc36a1` accounts all 1,116,713
+  retained claims and 2,233,426 endpoint attempts. It finds 102,266 claims with
+  two current canonical endpoints, including 95,045 source-defined
+  `R_chance_align < 0.1` high-confidence candidates and 3,043 shifted-sky
+  negative controls.
+- The projection preserves the published density ratio as a confidence
+  statistic, never manufactures a probability, and creates no hierarchy,
+  orbit, or containment row. Independent audit and clean reproduction pass with
+  identical ordered Parquet hashes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

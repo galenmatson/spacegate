@@ -29,6 +29,7 @@ ALLOWED_DISPOSITIONS = {
     "deferred_pending_quantity_policy",
     "deferred_pending_applicability_policy",
     "deferred_pending_projection_policy",
+    "selected_relation_evidence_projection",
 }
 
 
@@ -126,6 +127,12 @@ def audit(
         if disposition not in ALLOWED_DISPOSITIONS:
             invalid_dispositions.append(source_id)
         if not owner or not reason or not isinstance(row.get("blocks_e5"), bool):
+            incomplete_dispositions.append(source_id)
+        if disposition == "selected_relation_evidence_projection" and (
+            not row.get("relation_policy_version")
+            or not row.get("relation_artifact_id")
+            or row.get("blocks_e5") is not False
+        ):
             incomplete_dispositions.append(source_id)
         rows.append(
             {

@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.7",
+  "disposition_version": "2026-07-21.e5-source-dispositions.8",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -75,10 +75,12 @@
       "reason": "Primary and secondary component physics requires accepted endpoint bindings; integrated metallicity and photometry must remain system scoped."
     },
     "multiplicity.el_badry_2021_wide_binary": {
-      "disposition": "deferred_pending_identity_scope",
-      "owner": "E2/E5",
-      "blocks_e5": true,
-      "reason": "Probability-bearing wide-pair claims require independent endpoint binding and relation selection without manufacturing containment."
+      "disposition": "selected_relation_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "relation_policy_version": "2026-07-21.e5-relations.1",
+      "relation_artifact_id": "c59bf6664db0b60960dc36a1",
+      "reason": "E5 independently binds both release-scoped Gaia EDR3 endpoints through the official EDR3/DR3 source-list identity, accounts every endpoint outcome, preserves candidates and shifted-sky controls, and marks the source-defined R_chance_align < 0.1 subset as high-confidence relation evidence without manufacturing a strict probability, hierarchy edge, or canonical containment."
     },
     "multiplicity.msc": {
       "disposition": "deferred_pending_identity_scope",

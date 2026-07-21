@@ -823,6 +823,23 @@ The applied report records 34,929,528,832 reclaimed allocated bytes. Future E5
 cleanup requires the same independent failed-artifact audit, reference/current/
 process/link checks, and exact candidate-set dry-run/apply process.
 
+## E5 Selected-Relation Artifacts
+
+`derived/evidence_lake_v2/selected_relations/<build_id>/` contains immutable E5
+relation-evidence projections. Protect the active or ledger-referenced artifact,
+its relation policy and compiler hash, E2 identity graph, every referenced E4
+source shard, deterministic Parquet files, manifest, independent audit, and
+clean-reproduction reports. Never remove the DuckDB inspection database or one
+Parquet partition independently. Whole staging or superseded experiment trees
+may be removed only after the compiler exits, no config/current/build/report
+reference names them, and the comparison or failure report is durable.
+
+Artifact `c59bf6664db0b60960dc36a1` is the protected El-Badry checkpoint. It
+passes independent audit and clean reproduction with identical endpoint and
+relation-projection Parquet hashes. Two immediately preceding local experiment
+trees that lacked final compiler-hash lineage were unreferenced, superseded by
+this artifact, and removed as whole units after their reports were retained.
+
 The policy-v6/compiler-v6 diagnostic staging tree
 `.0a50fc1790001c87c8568bae.wczxlv1h` was stopped after scientific
 materialization when a pathological integrity anti-join consumed 2 hours 25

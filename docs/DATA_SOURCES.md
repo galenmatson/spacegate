@@ -345,7 +345,11 @@ accounts for 1,218,874 excluded rows. `R_chance_align` is preserved as the
 paper's KDE chance-alignment density ratio, not converted to a strict
 probability or `1-R`. Every relation retains separate left/right Gaia EDR3
 identity and binding scope. No row is accepted as canonical containment at this
-stage; E5 owns versioned applicability and acceptance policy.
+stage. E5 relation artifact `c59bf6664db0b60960dc36a1` independently accounts
+both endpoints, retains 95,045 fully bound `R_chance_align < 0.1`
+high-confidence evidence rows and 3,043 fully bound shifted-sky negative
+controls, and still emits no containment or hierarchy edge. The official Gaia
+EDR3/DR3 source-list continuity is the only endpoint release bridge used.
 
 ## Gaia Release Identity Evidence
 

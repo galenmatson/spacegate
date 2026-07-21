@@ -1461,6 +1461,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   reject its byte-nondeterministic fast mode and its spill-heavy ordered mode,
   reject concurrent per-partition export after worse measured throughput, and
   retain the existing stable sequential export pending a better design
+- [x] E5 relation endpoint foundation: bind both endpoints independently,
+  retain exhaustive nonaccepted outcomes, preserve negative controls, forbid
+  containment promotion, and pass independent deterministic artifact audit
+- [x] E5 El-Badry wide-binary projection: account 1,116,713 relations and
+  2,233,426 endpoints, retain `R_chance_align` as a non-probability confidence
+  statistic, and identify 95,045 fully bound source-defined high-confidence
+  relation-evidence rows without creating canonical hierarchy edges
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

@@ -1354,6 +1354,19 @@ an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
 
+The multiplicity batch begins with a reusable two-endpoint relation contract.
+Each evidence endpoint receives an independent release-scoped identity outcome;
+only a unique compatible canonical object receives a target key. The resulting
+relation projection preserves candidates, negative controls, source confidence
+statistics, citations, and unresolved tails but has no code path that emits a
+CORE containment row or ARM hierarchy/orbit edge. El-Badry artifact
+`c59bf6664db0b60960dc36a1` accounts 1,116,713 relation claims and 2,233,426
+endpoints. Of those claims, 102,266 resolve both endpoints: 95,045 meet the
+paper's source-defined `R_chance_align < 0.1` high-confidence criterion, 4,178
+remain ordinary candidate evidence, and 3,043 are shifted-sky negative
+controls. The density ratio remains explicitly non-probabilistic. Independent
+artifact audit and a second full compile reproduce both ordered Parquet hashes.
+
 Policy v7/compiler v8 supports multiple source-native coherent parameter-set
 kinds in one E4 table. Each quantity group names the kinds to which its field
 schema applies; duplicate checking, decisions, and facts use the same filter.

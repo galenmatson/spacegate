@@ -2000,6 +2000,13 @@ Foundation checkpoint (July 21, 2026):
   writers complete only four partitions in 42.1 seconds at about 35.2 GiB RSS.
   None is eligible for production, and direct Gaia fact encoding remains the
   dominant optimization target
+- E5 relation compiler v1 introduces independent left/right endpoint outcomes
+  and a polarity-preserving evidence projection that cannot emit containment or
+  hierarchy edges. El-Badry artifact `c59bf6664db0b60960dc36a1` accounts all
+  1,116,713 claims and 2,233,426 endpoints; 102,266 claims resolve both
+  endpoints, including 95,045 `R_chance_align < 0.1` high-confidence evidence
+  rows and 3,043 shifted-sky negative controls. Independent audit and clean
+  reproduction pass with identical Parquet hashes in about 15 seconds
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys
