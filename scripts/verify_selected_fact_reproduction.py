@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from compile_selected_facts import (
+    DEFAULT_DISPOSITIONS,
     DEFAULT_POLICY,
     atomic_json,
     compile_selected_facts,
@@ -22,6 +23,9 @@ def comparison_projection(report: dict[str, Any]) -> dict[str, Any]:
         "build_id": report["build_id"],
         "build_sha256": report["build_sha256"],
         "policy_version": report["policy_version"],
+        "source_disposition_version": report.get("source_disposition_version"),
+        "source_disposition_status": report.get("source_disposition_status"),
+        "source_disposition_blockers": report.get("source_disposition_blockers"),
         "evidence_release_set_id": report["evidence_release_set_id"],
         "identity_graph_id": report["identity_graph_id"],
         "canonical_reference_build_id": report["canonical_reference_build_id"],
@@ -46,6 +50,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", type=Path, default=Path("/data/spacegate/state"))
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    parser.add_argument("--dispositions", type=Path, default=DEFAULT_DISPOSITIONS)
     parser.add_argument(
         "--reference-report",
         type=Path,
@@ -81,6 +86,7 @@ def main() -> int:
         reproduced = compile_selected_facts(
             state_dir=args.state_dir,
             policy_path=args.policy,
+            dispositions_path=args.dispositions,
             artifact_root=scratch / "artifacts",
             report_path=scratch / "compile-report.json",
             memory_limit=args.memory_limit,

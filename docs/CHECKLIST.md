@@ -1434,6 +1434,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   DR4, and LAMOST DR11 evidence; apply official/source-native quality gates,
   rank repeat observations deterministically, retain winner/runner-up quality
   lineage, and pass independent audit plus clean reproduction
+- [x] E5 source-disposition accounting: classify all 38 accepted E4 sources as
+  selected, explicitly non-selectable evidence, or an owned blocking policy;
+  fail on omissions/conflicts and hash the ledger into compiler identity
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

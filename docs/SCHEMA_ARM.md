@@ -69,6 +69,12 @@ Evidence Lake v2 staging rule:
   `missing` and `ambiguous` retain null canonical target fields and cannot emit
   selected facts. Per-source outcome totals must equal eligible-record totals,
   and accepted totals must equal `selection_source_accounting`.
+- `config/evidence_lake/e5_source_dispositions.json` is the fail-closed boundary
+  ledger for accepted E4 sources not yet named in a selected-fact policy. A
+  source must be selected or have exactly one explicit evidence-only/deferred
+  disposition with ownership, blocker state, and reason. The compiler hashes
+  this ledger and emits its audit status and blocker list; a disposition does
+  not authorize selection or canonical projection.
 - Bailer-Jones distance selection preserves `gaia_edr3_source_id` separately
   from canonical `gaia_dr3`. Binding is permitted only by the policy-pinned,
   authoritative EDR3-to-DR3 source-list relationship and records that release

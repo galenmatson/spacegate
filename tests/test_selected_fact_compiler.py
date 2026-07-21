@@ -330,6 +330,7 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
     write_json(
         state / "derived/evidence_lake_v2/scientific_evidence_sets" / release_id / "manifest.json",
         {
+            "schema_version": "spacegate.scientific_evidence_release_set.v1",
             "release_set_id": release_id,
             "release_set_sha256": release_sha,
             "status": "pass",
@@ -517,6 +518,14 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             ],
         },
     )
+    write_json(
+        tmp_path / "e5_source_dispositions.json",
+        {
+            "schema_version": "spacegate.e5_source_dispositions.v1",
+            "disposition_version": "test-dispositions-v1",
+            "explicit_dispositions": {},
+        },
+    )
     return policy
 
 
@@ -532,6 +541,8 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     )
 
     assert report["status"] == "pass"
+    assert report["source_disposition_status"] == "pass"
+    assert report["source_disposition_blockers"] == []
     assert report["table_counts"]["selected_facts"] == 8
     assert report["binding_outcomes"]["source.distance"] == {
         "accepted": 1,

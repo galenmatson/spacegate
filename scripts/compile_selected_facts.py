@@ -16,9 +16,12 @@ from typing import Any
 
 import duckdb
 
+import audit_e5_source_dispositions as source_disposition_audit
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e5_selection_policies.json"
+DEFAULT_DISPOSITIONS = ROOT / "config/evidence_lake/e5_source_dispositions.json"
 SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -1390,6 +1393,7 @@ def compile_selected_facts(
     *,
     state_dir: Path,
     policy_path: Path,
+    dispositions_path: Path | None = None,
     artifact_root: Path | None = None,
     report_path: Path | None = None,
     memory_limit: str = "32GB",
@@ -1398,9 +1402,21 @@ def compile_selected_facts(
 ) -> dict[str, Any]:
     state_dir = state_dir.resolve()
     policy_path = policy_path.resolve()
+    dispositions_path = (
+        dispositions_path or policy_path.with_name(DEFAULT_DISPOSITIONS.name)
+    ).resolve()
     policy = load_json(policy_path)
     release_manifest_path, release_manifest = release_set_paths(state_dir, policy)
     validate_policy(policy, release_manifest)
+    dispositions = load_json(dispositions_path)
+    disposition_audit = source_disposition_audit.audit(
+        release_manifest, policy, dispositions
+    )
+    if disposition_audit["status"] == "fail":
+        raise ValueError(
+            "E5 source disposition audit failed: "
+            + json.dumps(disposition_audit["checks"], sort_keys=True)
+        )
     members = member_by_source(release_manifest)
 
     identity_dir = state_dir / "derived/evidence_lake_v2/identity" / str(policy["identity_graph_id"])
@@ -1413,8 +1429,15 @@ def compile_selected_facts(
     core_sha = file_sha256(core_db)
     compiler_sha = file_sha256(Path(__file__).resolve())
     policy_sha = file_sha256(policy_path)
+    dispositions_sha = file_sha256(dispositions_path)
+    disposition_audit_compiler_sha = file_sha256(
+        Path(source_disposition_audit.__file__).resolve()
+    )
     inputs = {
         "policy_sha256": policy_sha,
+        "source_disposition_sha256": dispositions_sha,
+        "source_disposition_version": dispositions["disposition_version"],
+        "source_disposition_audit_compiler_sha256": disposition_audit_compiler_sha,
         "evidence_release_set_id": release_manifest["release_set_id"],
         "evidence_release_set_sha256": release_manifest["release_set_sha256"],
         "identity_graph_id": policy["identity_graph_id"],
@@ -1646,6 +1669,9 @@ def compile_selected_facts(
         "build_id": build_id,
         "build_sha256": build_sha,
         "policy_version": policy["policy_version"],
+        "source_disposition_version": dispositions["disposition_version"],
+        "source_disposition_status": disposition_audit["status"],
+        "source_disposition_blockers": disposition_audit["checks"]["blocking_sources"],
         "evidence_release_set_id": release_manifest["release_set_id"],
         "identity_graph_id": policy["identity_graph_id"],
         "canonical_reference_build_id": policy["canonical_reference_build_id"],
@@ -1681,6 +1707,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", type=Path, default=Path("/data/spacegate/state"))
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    parser.add_argument("--dispositions", type=Path, default=DEFAULT_DISPOSITIONS)
     parser.add_argument("--artifact-root", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--memory-limit", default="32GB")
@@ -1690,6 +1717,7 @@ def main() -> int:
     report = compile_selected_facts(
         state_dir=args.state_dir,
         policy_path=args.policy,
+        dispositions_path=args.dispositions,
         artifact_root=args.artifact_root,
         report_path=args.report,
         memory_limit=args.memory_limit,

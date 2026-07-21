@@ -1222,6 +1222,23 @@ audit passes with no failures, and clean reproduction matches logical hash
 `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
 with no differing section and complete scratch removal.
 
+E5 source-disposition ledger `2026-07-21.e5-source-dispositions.1` makes the
+selection boundary exhaustive across all 38 accepted E4 adapter sources. Seven
+sources have active quantity-group policies, three are explicitly retained as
+non-selectable identity, context, or negative-control evidence, and 28 remain
+named E5 blockers with an owning stage and scientific reason. The audit fails
+on an unaccounted source, stale row, policy/disposition conflict, invalid
+disposition, or incomplete ownership/reason metadata. Its status is therefore
+`in_progress`, not a false E5 pass.
+
+The selected-fact compiler now runs this audit before attaching E4 shards and
+hashes the ledger version and bytes into build identity. Every artifact report
+records the current blocker list. A policy or accepted-source change cannot
+silently bypass the ledger or reuse an artifact compiled under an older
+boundary. This compiler change is intentionally queued with the next batch of
+classification/applicability work rather than producing an otherwise identical
+53-GB checkpoint.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

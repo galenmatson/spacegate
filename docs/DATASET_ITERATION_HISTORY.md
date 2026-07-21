@@ -2489,6 +2489,28 @@ Representative commits:
   `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
   with no differing section and removes its scratch tree.
 
+### 83) E5 Source-Disposition Boundary
+
+- `config/evidence_lake/e5_source_dispositions.json` accounts every accepted
+  E4 source not yet present in the selected-fact policy. The first ledger
+  records seven selected sources, three explicit non-selectable identity,
+  context, or negative-control roles, and 28 blocking sources with an owning
+  stage and scientific reason.
+- `scripts/audit_e5_source_dispositions.py` fails on an unaccounted accepted
+  source, a stale disposition, a selection/disposition conflict, an unknown
+  selection source, an invalid disposition, or missing ownership/reason/blocker
+  metadata. The checked ledger reports `in_progress`, accurately reflecting the
+  remaining classification, compact-object, variability, relation/orbit,
+  naming, lifecycle, extended-object, and projection policies.
+- The selected-fact compiler now runs this audit before compilation, hashes the
+  ledger version and bytes into immutable build identity, and writes the audit
+  status and blocker list to its report. This prevents future E4 or policy
+  changes from becoming silent omissions.
+- No large selected-fact build was emitted for this metadata-only boundary
+  change. The next approximately 53-GB compile is reserved for a batched
+  classification/applicability checkpoint, preserving `/data` headroom and
+  avoiding an immediately superseded artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

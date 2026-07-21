@@ -805,6 +805,13 @@ The applied report records 34,929,528,832 reclaimed allocated bytes. Future E5
 cleanup requires the same independent failed-artifact audit, reference/current/
 process/link checks, and exact candidate-set dry-run/apply process.
 
+The E5 source-disposition ledger and its machine-readable audit report are
+protected compiler-policy inputs. The compiler now hashes the ledger, but the
+active `d3f255b55e4573676347b206` artifact predates that identity input. Do not
+replace or prune it until the next batched policy build passes independent
+audit and clean reproduction; do not create a full build solely to refresh this
+metadata checkpoint.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

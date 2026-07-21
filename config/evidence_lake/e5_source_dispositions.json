@@ -1,0 +1,192 @@
+{
+  "schema_version": "spacegate.e5_source_dispositions.v1",
+  "disposition_version": "2026-07-21.e5-source-dispositions.1",
+  "explicit_dispositions": {
+    "classification.gcvs": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Variable-star and spectral classifications remain source object/system scoped until public-name identity and component applicability are resolved without copying system evidence onto a star."
+    },
+    "classification.vsx": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "VSX OID, public-name, Gaia-name, variability, and classification scopes require an explicit identity/applicability policy before selection."
+    },
+    "clusters.hunt_reffert_2024": {
+      "disposition": "deferred_pending_quantity_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Cluster physical solutions and probability-bearing memberships need separate authority, probability, and non-containment selection policies."
+    },
+    "compact.atnf": {
+      "disposition": "deferred_pending_applicability_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Pulsar timing, spin, position, association, and classification contexts require compact-object applicability and coherent-context selection."
+    },
+    "compact.gaia_edr3_white_dwarf": {
+      "disposition": "deferred_pending_applicability_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "White-dwarf candidate probability and fidelity must govern selection among H, He, and mixed atmosphere solutions; alternatives cannot be flattened field by field."
+    },
+    "compact.mcgill_magnetar": {
+      "disposition": "deferred_pending_applicability_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Distinct timing, X-ray, distance, association, and activity contexts require compact-object quantity-specific applicability policies."
+    },
+    "exoplanet_lifecycle.exoplanet_eu": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "Supplemental lifecycle assertions must be reconciled with NASA and M5.3 while retaining conflicts, transitions, negative evidence, and tombstones."
+    },
+    "exoplanet_lifecycle.hwc": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "Habitability-context lifecycle evidence needs identity reconciliation and must not create canonical planet inventory or status independently."
+    },
+    "exoplanet_lifecycle.open_exoplanet_catalogue": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "OEC lifecycle and parameter evidence requires conflict-preserving reconciliation against the canonical NASA-led planet projection."
+    },
+    "extended.green_snr": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "Supernova-remnant physical evidence requires extended-object identity and public-projection policy; it must not enter stellar facts."
+    },
+    "extended.openngc_and_nebulae": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "Extended-object identities, aliases, constituent markers, geometry, and distances require a separate extended-object projection policy."
+    },
+    "gaia.dr3.astrophysical_parameters_supp": {
+      "disposition": "deferred_pending_quantity_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Supplementary AP activity, extinction, chemistry, and evolutionary quantities need domain-specific authority and coherent-set policies."
+    },
+    "gaia.dr3.external_crossmatches": {
+      "disposition": "identity_scope_evidence_only",
+      "owner": "E2",
+      "blocks_e5": false,
+      "reason": "Official external-crossmatch rows are identity/scope evidence and are not independently selectable scientific quantities."
+    },
+    "gaia.dr3.non_single_star": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "NSS fitted solutions lack inspectable component endpoints and need reviewed relation binding before orbit projection."
+    },
+    "gaia.dr3.variability": {
+      "disposition": "deferred_pending_quantity_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Heterogeneous coherent variability schemas require schema-aware quantity, classification, and applicability policies."
+    },
+    "identity.simbad": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "SIMBAD identifiers, object types, classifications, and bibliography need separate alias, identity, and scientific-applicability decisions."
+    },
+    "multiplicity.debcat": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Primary and secondary component physics requires accepted endpoint bindings; integrated metallicity and photometry must remain system scoped."
+    },
+    "multiplicity.el_badry_2021_wide_binary": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Probability-bearing wide-pair claims require independent endpoint binding and relation selection without manufacturing containment."
+    },
+    "multiplicity.msc": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "MSC component classifications, physics, hierarchy, and orbits require reusable component-label and endpoint reconciliation."
+    },
+    "multiplicity.orb6": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Combined pair designations remain identity evidence until both orbit endpoints and pair scope resolve uniquely."
+    },
+    "multiplicity.sb9": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Primary/secondary classifications and orbital solutions require accepted component endpoint bindings rather than system-name matching."
+    },
+    "multiplicity.sbx": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Binary and hierarchy endpoint scopes must resolve independently before component classifications or orbits become selected facts."
+    },
+    "multiplicity.wds": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "WDS summary classifications describe visual pairs and cannot be copied onto individual stars without reviewed component scope."
+    },
+    "multiplicity.wds_gaia_xmatch": {
+      "disposition": "identity_scope_evidence_only",
+      "owner": "E2",
+      "blocks_e5": false,
+      "reason": "WDS-to-Gaia rows are component endpoint crossmatch evidence, not standalone scientific quantities."
+    },
+    "naming.iau_wgsn": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Official proper names and Bayer component ambiguity require an explicit naming authority and object-scope selection policy."
+    },
+    "solar_system.jpl_horizons_artificial": {
+      "disposition": "negative_or_context_evidence_only",
+      "owner": "E4/E6",
+      "blocks_e5": false,
+      "reason": "Artificial-spacecraft controls verify source and orbit contracts but are excluded from the public natural-object selection projection."
+    },
+    "solar_system.jpl_horizons_authority": {
+      "disposition": "deferred_pending_quantity_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Natural Solar System state vectors and orbital elements require epoch/frame-aware authority and projection policies."
+    },
+    "tess.identity_and_candidate_evidence": {
+      "disposition": "deferred_pending_projection_policy",
+      "owner": "E5/E6",
+      "blocks_e5": true,
+      "reason": "TOI candidates, confirmations, false positives, and transitions must preserve lifecycle polarity and remain separate from canonical planet counts."
+    },
+    "tess.villanova_eb": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "TESS eclipsing-binary target, sector, status, and flag evidence needs host/component binding and relation-aware projection."
+    },
+    "ultracool.gaia_dr3_sample": {
+      "disposition": "deferred_pending_applicability_policy",
+      "owner": "E5",
+      "blocks_e5": true,
+      "reason": "Gaia ultracool sample measurements and membership context require applicability policy; sample membership alone cannot invent a classification."
+    },
+    "ultracool.ultracoolsheet": {
+      "disposition": "deferred_pending_identity_scope",
+      "owner": "E2/E5",
+      "blocks_e5": true,
+      "reason": "Optical and infrared classifications, gravity, astrometry, and photometry need unique Gaia/object binding plus an explicit object-or-component applicability decision."
+    }
+  }
+}

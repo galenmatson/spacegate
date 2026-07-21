@@ -1955,6 +1955,13 @@ Foundation checkpoint (July 21, 2026):
   clean reproduction matches logical hash
   `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
   with no differing section and removes its scratch tree
+- source-disposition ledger `2026-07-21.e5-source-dispositions.1` accounts all
+  38 accepted E4 sources as seven actively selected sources, three explicit
+  non-selectable evidence roles, and 28 owned E5 blockers; the audit fails on
+  omissions, stale rows, conflicts, invalid dispositions, or incomplete reasons
+- the compiler hashes that ledger into build identity and records its status and
+  blockers in each report; the next large compile is deferred until compatible
+  classification/applicability work is batched into the same storage cycle
 
 Deliverables:
 
