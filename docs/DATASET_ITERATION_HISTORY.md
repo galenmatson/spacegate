@@ -2402,6 +2402,14 @@ Representative commits:
   clean reproduction matches logical hash
   `330614599768f062123305aece47c7965f0ff5114a7f9c293498869145e9327c`
   with no differing section and removes all scratch output.
+- Independent artifact audits then rejected only diagnostics
+  `a8a74dbc173b9566fc4d5e5c` and `b68c1e6b5649588175854701` for their measured
+  coverage and partition failures. Exact-hash retention candidate
+  `7e53eabad6412f57b767c20dee777fd6da57f14c5e57728e2114c8019118d17e`
+  removed those two artifacts and reclaimed 34,929,528,832 allocated bytes.
+  Accepted build `e8cb1529df6dbcc7c5baadee` remains current; complete builds
+  `5c84220e408e8fea5f4da218` and `237158e09fce993f1b033414` remain available as
+  rollback/reference checkpoints.
 
 ## Recurrent Defect Classes and Mitigations
 

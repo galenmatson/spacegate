@@ -788,8 +788,14 @@ build `5c84220e408e8fea5f4da218` and foundation build
 `237158e09fce993f1b033414` are valid rollback/reference artifacts. Diagnostics
 `a8a74dbc173b9566fc4d5e5c` (zero Gaia-source coverage) and
 `b68c1e6b5649588175854701` (missing required partitions) are not rollback
-artifacts, but may be removed only through an independent failed-artifact audit
-and exact candidate-set dry-run/apply process.
+artifacts. On July 21, 2026, `scripts/audit_selected_fact_artifact.py`
+independently rejected both artifacts, and
+`scripts/prune_selected_fact_artifacts.py` removed exactly that two-artifact set
+through candidate hash
+`7e53eabad6412f57b767c20dee777fd6da57f14c5e57728e2114c8019118d17e`.
+The applied report records 34,929,528,832 reclaimed allocated bytes. Future E5
+cleanup requires the same independent failed-artifact audit, reference/current/
+process/link checks, and exact candidate-set dry-run/apply process.
 
 ## WISE Image Cache
 

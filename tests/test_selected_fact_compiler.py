@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import compile_selected_facts as compiler  # noqa: E402
+import audit_selected_fact_artifact as artifact_audit  # noqa: E402
 import verify_selected_fact_reproduction as reproduction  # noqa: E402
 
 
@@ -361,6 +362,9 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
     assert sum(report["partition_exports"]["selected_facts"].values()) == 6
     assert sum(report["partition_exports"]["selection_decisions"].values()) == 4
+    audit = artifact_audit.audit_artifact(artifact, policy)
+    assert audit["status"] == "pass"
+    assert audit["failing_checks"] == {}
     con = duckdb.connect(str(artifact / "selected_facts.duckdb"), read_only=True)
     facts = con.execute(
         "SELECT quantity_key, normalized_value, value_lower, value_upper, fact_status "
