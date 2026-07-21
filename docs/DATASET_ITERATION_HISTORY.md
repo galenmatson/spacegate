@@ -2046,6 +2046,11 @@ Representative commits:
   `refs.dat` OID-to-bibcode relation. That bibliography must be pinned, typed,
   and exactly linked before the VSX adapter can satisfy the naming and
   bibliography source role; no catalog-wide reference will be fabricated.
+- The next acquisition now includes the official CDS `refs.dat.gz`. Direct
+  inspection finds 830,415 unique OID/bibcode pairs for 586,530 OIDs, no empty
+  or malformed rows, no duplicated pairs, and a maximum OID of 683,950. The
+  server reports a 2022 modification date, so this remains a labeled historical
+  partial bibliography alongside the 2026 rolling object table.
 
 ### 69) Immutable Horizons Response Acquisition
 

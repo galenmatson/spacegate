@@ -1340,6 +1340,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E3/E4 VSX bibliography completion: pin and type the source-documented
   `refs.dat` object-to-bibcode table, add it to the release contract, and link
   only exact OID references before VSX E4 promotion
+- [x] Add the official VSX `refs.dat.gz` endpoint to reproducible catalog
+  acquisition and document that its 2022-era OID coverage is a partial
+  historical bibliography rather than complete coverage of the 2026 objects
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

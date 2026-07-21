@@ -47,6 +47,7 @@ CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/
 CLUSTERS_README_URL="${CLUSTERS_README_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/ReadMe}"
 VSX_URL="${VSX_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat}"
 VSX_README_URL="${VSX_README_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/ReadMe}"
+VSX_REFS_URL="${VSX_REFS_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/refs.dat.gz}"
 SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
 MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
@@ -264,6 +265,7 @@ catalog_sources() {
     vsx)
       printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat"
       printf '%s\n' "vsx|vsx_readme|$VSX_README_URL|raw/vsx/ReadMe"
+      printf '%s\n' "vsx|vsx_references|$VSX_REFS_URL|raw/vsx/refs.dat.gz"
       ;;
     snr)
       printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"

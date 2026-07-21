@@ -828,6 +828,16 @@ Role:
 Source endpoint:
 
 - CDS HTTPS mirror (`https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat`)
+- source schema/method document (`https://cdsarc.cds.unistra.fr/ftp/B/vsx/ReadMe`)
+- historical OID-to-bibcode relation
+  (`https://cdsarc.cds.unistra.fr/ftp/B/vsx/refs.dat.gz`)
+
+The bibliography relation is source-published and exact but incomplete for the
+current rolling object table: the server artifact was last modified in 2022,
+contains 830,415 links for 586,530 distinct OIDs, and reaches OID 683,950,
+whereas the pinned 2026 object table contains 10,304,568 OIDs. Spacegate keeps
+that lineage as a partial historical relation and reports uncovered current
+rows; it must not imply that absence from `refs.dat` means no publication exists.
 
 ## 11) UltracoolSheet
 

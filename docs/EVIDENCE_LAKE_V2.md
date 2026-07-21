@@ -939,6 +939,10 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   object-to-bibcode `refs.dat` table. VSX cannot pass E4 until a pinned
   bibliography artifact is acquired, typed, and linked without guessing
   references for rows that do not publish one.
+  The collector now includes that endpoint for the next pinned snapshot. The
+  available CDS artifact is a clean but historical partial relation (830,415
+  unique OID/bibcode links, 586,530 OIDs, maximum OID 683,950, server-modified
+  in 2022), so coverage gaps against the 2026 object table will remain explicit.
 - JPL Horizons collection now has a shared immutable snapshot writer. It keeps
   byte-identical API response bodies, exact query parameters/URLs, checksums,
   sizes, retrieval time, reviewed operator-target seed and collector checksum,

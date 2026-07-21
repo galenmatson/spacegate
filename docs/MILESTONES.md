@@ -1763,6 +1763,11 @@ Current status (July 19, 2026, in progress):
   because the current acquisition omits the source-documented `refs.dat`
   object-to-bibcode table; acquisition, typing, citation linkage, and E4
   materialization remain required
+- the VSX collector now declares the official CDS `refs.dat.gz` endpoint for
+  the next pinned snapshot. Its 830,415 exact OID/bibcode links are a historical
+  partial relation covering 586,530 OIDs through OID 683,950, not complete
+  bibliography for the 10.3-million-row 2026 object table; uncovered rows must
+  remain reported rather than receiving inferred citations
 - the shared Horizons snapshot writer closes the E1 raw-preservation gap in the
   natural and artificial JPL collectors: exact response bytes, query records,
   checksums, reviewed target seed, collector identity, and parsed projections
