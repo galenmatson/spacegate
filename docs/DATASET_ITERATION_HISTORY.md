@@ -2822,6 +2822,30 @@ Representative commits:
   byte-identical production reproduction pass across seventeen ordered Parquet
   files in about 3 seconds per pass.
 
+### 98) MSC Scope Starts With Every Identity Claim
+
+- The initial E5 component graph began from hierarchy endpoints and therefore
+  omitted 1,443 valid source components or parent subsystems that appeared only
+  in other MSC tables. Policy v4 instead starts from every release-native
+  `msc_component` identity claim. It accounts 32,790 identities: 24,671 anchor
+  to 5,369 exact canonical WDS systems and 8,119 remain missing scopes.
+- Every MSC parameter set, classification, photometry row, astrometry/motion
+  row, hierarchy relation, and orbit row now receives a component or relation
+  outcome. Accepted scopes expose 44,130 mass/apparent-V facts, 16,182 spectral
+  classifications, 54,902 photometry rows, and 62,214 astrometry/motion rows as
+  later selection candidates. The 5,793 accepted relative separations remain
+  context evidence because they are not intrinsic stellar quantities.
+- The 14,638 hierarchy-table orbit rows follow their own relation claims. The
+  separate orbit table must provide two comma-separated endpoints and match one
+  accepted WDS-qualified MSC relation. Across all 19,366 orbit rows, 14,939 are
+  eligible; 3,397 unresolved and three invalid hierarchy relations, 914 missing
+  orbit-table relations, 110 non-two-endpoint labels, and three missing pair
+  identities remain explicit.
+- Artifact `bbc7f0083646dfd5a602467b` creates no canonical stars, containment,
+  hierarchy, or orbit winner. Independent audit, clean fixture, and
+  byte-identical reproduction pass across twenty-four ordered Parquet files in
+  about 5.8 seconds per pass.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

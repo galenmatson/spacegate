@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v3"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v4"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -76,6 +76,18 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "accepted_msc_relations_without_targets": "SELECT count(*) FROM msc_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND (left_source_component_key IS NULL OR right_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "accepted_msc_self_relations": "SELECT count(*) FROM msc_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND left_source_component_key=right_source_component_key",
         "invalid_self_relations_not_self": "SELECT count(*) FROM msc_relation_evidence_projection WHERE projection_status='invalid_self_relation_evidence' AND left_component_entity_id<>right_component_entity_id",
+        "duplicate_msc_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM msc_component_parameter_set_bindings",
+        "duplicate_msc_orbit_binding_ids": "SELECT count(*)-count(DISTINCT orbit_binding_id) FROM msc_orbit_solution_bindings",
+        "accepted_msc_parameter_sets_without_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted' AND (component_entity_id IS NULL OR target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_msc_parameter_sets_with_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status<>'accepted' AND target_key IS NOT NULL",
+        "eligible_msc_parameters_without_targets": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "selectable_msc_relative_separations": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE quantity_key='separation_from_main_component' AND projection_status='eligible_for_quantity_selection'",
+        "eligible_msc_classifications_without_targets": "SELECT count(*) FROM msc_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_msc_photometry_without_targets": "SELECT count(*) FROM msc_photometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_msc_astrometry_without_targets": "SELECT count(*) FROM msc_astrometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "accepted_msc_orbits_without_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status='accepted' AND (msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_msc_orbits_with_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "eligible_msc_orbit_projections_without_bindings": "SELECT count(*) FROM msc_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND orbit_binding_id IS NULL",
         "accepted_debcat_relations_without_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status='accepted' AND (primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "unaccepted_debcat_relations_with_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL)",
         "eligible_parameter_rows_without_target": "SELECT count(*) FROM debcat_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND (evidence_id IS NULL OR parameter_set_id IS NULL OR target_key IS NULL)",
@@ -96,10 +108,16 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
+    def eligible(table: str) -> int:
+        return int(con.execute(
+            f"SELECT count(*) FROM {table} WHERE projection_status='eligible_for_quantity_selection'"
+        ).fetchone()[0])
+
     msc_system = dict(con.execute("SELECT binding_status,count(*) FROM msc_system_bindings GROUP BY 1").fetchall())
     msc_identity = dict(con.execute("SELECT identity_graph_binding_status,count(*) FROM msc_system_bindings GROUP BY 1").fetchall())
     msc_components = dict(con.execute("SELECT binding_status,count(*) FROM msc_component_entities GROUP BY 1").fetchall())
     msc_relations = dict(con.execute("SELECT projection_status,count(*) FROM msc_relation_evidence_projection GROUP BY 1").fetchall())
+    msc_orbits = dict(con.execute("SELECT binding_status,count(*) FROM msc_orbit_solution_bindings GROUP BY 1").fetchall())
     msc_observed = {
         "system_bindings": sum(msc_system.values()),
         "systems_accepted": msc_system.get("accepted", 0),
@@ -116,17 +134,31 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "relations_accepted": msc_relations.get("accepted_relation_evidence", 0),
         "relations_unresolved": msc_relations.get("unresolved_endpoint_evidence", 0),
         "relations_invalid_self": msc_relations.get("invalid_self_relation_evidence", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_bound": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("msc_stellar_parameter_projection"),
+        "parameter_evidence_context_only": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM msc_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("msc_classification_projection"),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM msc_photometry_projection").fetchone()[0]),
+        "photometry_evidence_eligible": eligible("msc_photometry_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM msc_astrometry_projection").fetchone()[0]),
+        "astrometry_evidence_eligible": eligible("msc_astrometry_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM msc_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("msc_orbital_solution_projection"),
+        "orbits_unresolved_msc_relation": msc_orbits.get("unresolved_msc_relation", 0),
+        "orbits_invalid_msc_relation": msc_orbits.get("invalid_msc_relation", 0),
+        "orbits_missing_msc_relation": msc_orbits.get("missing_msc_relation", 0),
+        "orbits_ambiguous_msc_relation": msc_orbits.get("ambiguous_msc_relation", 0),
+        "orbits_unparsed_pair": msc_orbits.get("unparsed_pair", 0),
+        "orbits_missing_pair_identity": msc_orbits.get("missing_pair_identity", 0),
     }
     msc_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["msc"]["acceptance"].items()}
     failures["msc_acceptance_mismatch"] = int(msc_observed != msc_expected)
 
     deb_system = dict(con.execute("SELECT binding_status,count(*) FROM debcat_system_bindings GROUP BY 1").fetchall())
     deb_relations = dict(con.execute("SELECT binding_status,count(*) FROM debcat_relation_bindings GROUP BY 1").fetchall())
-
-    def eligible(table: str) -> int:
-        return int(con.execute(
-            f"SELECT count(*) FROM {table} WHERE projection_status='eligible_for_quantity_selection'"
-        ).fetchone()[0])
 
     deb_observed = {
         "system_bindings": sum(deb_system.values()),

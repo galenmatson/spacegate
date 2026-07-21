@@ -1468,10 +1468,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   2,233,426 endpoints, retain `R_chance_align` as a non-probability confidence
   statistic, and identify 95,045 fully bound source-defined high-confidence
   relation-evidence rows without creating canonical hierarchy edges
-- [x] E5 MSC component-scope foundation: account 6,936 WDS systems, 31,347
+- [x] E5 MSC component-scope foundation: account 6,937 WDS systems, 32,790
   release-scoped component identities, and 15,748 relations; retain missing
   endpoints and three source self-relations explicitly without creating CORE
   stars, hierarchy edges, or containment
+- [x] E5 full MSC projection: bind every component parameter, classification,
+  photometry, astrometry/motion, hierarchy, and orbit row to exact release-scoped
+  component or relation evidence; keep relative separation context-only and
+  preserve every nonaccepted scope outcome
 - [x] E5 DEBCat component projection: account all 374 systems through exact
   priority-aware name resolution, require a unique WDS/period-compatible MSC
   relation for primary/secondary physics, keep integrated photometry and

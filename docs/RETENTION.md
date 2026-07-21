@@ -850,10 +850,11 @@ ordered Parquet files, manifest, independent audit, and clean-reproduction
 report. Never prune a DuckDB inspection database or individual Parquet member
 from a retained artifact.
 
-Artifact `6def85dff374034cfe125b6b` is the protected checkpoint. It passes
-independent audit and clean reproduction with identical hashes for all seventeen
-ordered Parquet files. Its predecessor `1dddf975f24d9bba9590d046` predates the
-ORB6 projection and is no longer ledger-current. Earlier artifacts
+Artifact `bbc7f0083646dfd5a602467b` is the protected checkpoint. It passes
+independent audit and clean reproduction with identical hashes for all
+twenty-four ordered Parquet files. Its predecessors `6def85dff374034cfe125b6b`
+and `1dddf975f24d9bba9590d046` predate the full MSC and ORB6 projections and are
+no longer ledger-current. Earlier artifacts
 `58f4c58cf2fff4d18e7a32c4` and
 `78b28bd541f82c49cd0ff5b7` are unreferenced experiments: the first lacked the
 exact DEBCat source-native quantity-authority keys, while the second preceded a

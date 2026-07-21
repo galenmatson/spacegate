@@ -109,6 +109,25 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           quality_json JSON, projection_status VARCHAR, projection_reason VARCHAR,
           policy_version VARCHAR
         );
+        CREATE TABLE msc_component_parameter_set_bindings (
+          parameter_set_binding_id VARCHAR, parameter_set_id VARCHAR,
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, component_scope VARCHAR,
+          component_entity_id VARCHAR, target_scope VARCHAR, target_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE msc_orbit_solution_bindings (
+          orbit_binding_id VARCHAR, orbit_evidence_id VARCHAR, source_record_id VARCHAR,
+          source_table VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, wds_id_raw VARCHAR, pair_label_raw VARCHAR,
+          primary_component_label VARCHAR, secondary_component_label VARCHAR,
+          relation_candidate_count BIGINT, msc_projected_relation_id VARCHAR,
+          msc_relation_evidence_id VARCHAR, primary_source_component_key VARCHAR,
+          secondary_source_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_method VARCHAR, binding_reason VARCHAR, policy_version VARCHAR
+        );
         CREATE TABLE debcat_system_bindings (
           system_binding_id VARCHAR, source_record_id VARCHAR, identifier_evidence_id VARCHAR,
           source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
@@ -188,22 +207,20 @@ def compile_msc(
     policy_sql = sql_literal(policy_version)
     method = sql_literal(source["system_binding_method"])
     namespace = sql_literal(source["component_namespace"])
+    parameter_authority = "CASE p.quantity_key " + " ".join(
+        f"WHEN {sql_literal(key)} THEN {sql_literal(value)}"
+        for key, value in source["component_parameter_authority"].items()
+    ) + " ELSE 'msc_unclassified_component_parameter' END"
+    context_quantities = ",".join(sql_literal(value) for value in source["context_only_parameter_quantities"])
 
     con.execute(
         f"""
         CREATE TEMP TABLE msc_component_subjects AS
-        SELECT DISTINCT source_component_raw,
-               split_part(trim(source_component_raw), ':', 1) wds_id_raw,
-               split_part(trim(source_component_raw), ':', 2) component_label_raw
-        FROM (
-          SELECT left_identity_raw source_component_raw
-          FROM msc.relation_claim_evidence
-          WHERE left_identity_namespace={namespace}
-          UNION ALL
-          SELECT right_identity_raw
-          FROM msc.relation_claim_evidence
-          WHERE right_identity_namespace={namespace}
-        );
+        SELECT DISTINCT identifier_raw source_component_raw,
+               split_part(trim(identifier_raw), ':', 1) wds_id_raw,
+               split_part(trim(identifier_raw), ':', 2) component_label_raw
+        FROM msc.identifier_claim_evidence
+        WHERE namespace={namespace};
 
         CREATE TEMP TABLE msc_system_subjects AS
         SELECT DISTINCT wds_id_raw FROM msc_component_subjects;
@@ -313,12 +330,239 @@ def compile_msc(
         JOIN msc_component_entities l ON l.source_component_raw=r.left_identity_raw
         JOIN msc_component_entities rr ON rr.source_component_raw=r.right_identity_raw
         LEFT JOIN source_orbits o USING(source_record_id);
+
+        INSERT INTO msc_component_parameter_set_bindings
+        SELECT sha256(concat_ws('|',{source_id},p.parameter_set_id,{policy_sql})),
+               p.parameter_set_id,p.source_record_id,{source_id},{release_id},
+               {evidence_build_id},p.component_scope,e.component_entity_id,
+               'msc_source_component',
+               CASE WHEN e.binding_status='accepted' THEN e.source_component_key END,
+               CASE WHEN e.binding_status='accepted'
+                    THEN e.canonical_system_stable_object_key END,
+               coalesce(e.binding_status,'missing'),
+               coalesce(e.binding_reason,'no release-scoped MSC component identity exists'),
+               {policy_sql}
+        FROM msc.stellar_parameter_sets p
+        LEFT JOIN msc_component_entities e
+          ON e.source_component_raw=p.component_scope;
+
+        CREATE TABLE msc_stellar_parameter_projection AS
+        SELECT p.*,b.parameter_set_binding_id,b.component_entity_id,
+               b.target_scope,b.target_key,b.canonical_system_stable_object_key,
+               {parameter_authority} authority_role,
+               CASE WHEN b.binding_status='accepted'
+                          AND p.quantity_key IN ({context_quantities})
+                      THEN 'context_only_evidence'
+                    WHEN b.binding_status='accepted'
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               b.binding_reason projection_reason,{policy_sql} policy_version
+        FROM msc.stellar_parameter_evidence p
+        JOIN msc_component_parameter_set_bindings b
+          USING(parameter_set_id,source_record_id);
+
+        CREATE TABLE msc_classification_projection AS
+        SELECT p.*,e.component_entity_id,
+               CASE WHEN e.binding_status='accepted' THEN e.source_component_key END target_key,
+               CASE WHEN e.binding_status='accepted'
+                    THEN e.canonical_system_stable_object_key END
+                 canonical_system_stable_object_key,
+               {sql_literal(source['classification_authority'])} authority_role,
+               CASE WHEN e.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               coalesce(e.binding_reason,'no release-scoped MSC component identity exists')
+                 projection_reason,
+               {policy_sql} policy_version
+        FROM msc.stellar_classification_evidence p
+        LEFT JOIN msc_component_entities e
+          ON e.source_component_raw=p.component_scope;
+
+        CREATE TEMP TABLE msc_source_component_claims AS
+        SELECT source_record_id,count(DISTINCT identifier_raw) component_candidate_count,
+               min(identifier_raw) component_scope
+        FROM msc.identifier_claim_evidence
+        WHERE namespace={namespace} AND component_scope='source_component'
+        GROUP BY source_record_id;
+
+        CREATE TABLE msc_photometry_projection AS
+        SELECT p.*,c.component_candidate_count,e.component_entity_id,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                    THEN e.source_component_key END target_key,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                    THEN e.canonical_system_stable_object_key END
+                 canonical_system_stable_object_key,
+               {sql_literal(source['photometry_authority'])} authority_role,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN c.component_candidate_count IS NULL
+                      THEN 'source record has no release-scoped source-component claim'
+                    WHEN c.component_candidate_count<>1
+                      THEN 'source record has multiple release-scoped source-component claims'
+                    ELSE coalesce(e.binding_reason,'no release-scoped MSC component identity exists') END
+                 projection_reason,
+               {policy_sql} policy_version
+        FROM msc.photometry_extinction_evidence p
+        LEFT JOIN msc_source_component_claims c USING(source_record_id)
+        LEFT JOIN msc_component_entities e
+          ON e.source_component_raw=c.component_scope;
+
+        CREATE TABLE msc_astrometry_projection AS
+        SELECT p.*,c.component_candidate_count,e.component_entity_id,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                    THEN e.source_component_key END target_key,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                    THEN e.canonical_system_stable_object_key END
+                 canonical_system_stable_object_key,
+               {sql_literal(source['astrometry_authority'])} authority_role,
+               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN c.component_candidate_count IS NULL
+                      THEN 'source record has no release-scoped source-component claim'
+                    WHEN c.component_candidate_count<>1
+                      THEN 'source record has multiple release-scoped source-component claims'
+                    ELSE coalesce(e.binding_reason,'no release-scoped MSC component identity exists') END
+                 projection_reason,
+               {policy_sql} policy_version
+        FROM msc.astrometry_distance_evidence p
+        LEFT JOIN msc_source_component_claims c USING(source_record_id)
+        LEFT JOIN msc_component_entities e
+          ON e.source_component_raw=c.component_scope;
+
+        CREATE TEMP TABLE msc_orbit_subjects AS
+        WITH identifiers AS (
+          SELECT source_record_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_id') wds_id_raw,
+                 min(identifier_raw) FILTER(WHERE namespace='msc_orbit_pair_label') pair_label_raw
+          FROM msc.identifier_claim_evidence GROUP BY source_record_id
+        )
+        SELECT o.evidence_id orbit_evidence_id,o.source_record_id,s.source_table,
+               i.wds_id_raw,i.pair_label_raw
+        FROM msc.orbital_solution_evidence o
+        JOIN msc.source_records s USING(source_record_id)
+        LEFT JOIN identifiers i USING(source_record_id);
+
+        CREATE TEMP TABLE msc_accepted_pair_candidates AS
+        SELECT p.projected_relation_id,p.relation_evidence_id,
+               p.left_source_component_key,p.right_source_component_key,
+               p.canonical_system_stable_object_key,ms.wds_id_raw,
+               l.component_label_raw left_component_label,
+               r.component_label_raw right_component_label
+        FROM msc_relation_evidence_projection p
+        JOIN msc_component_entities l ON l.component_entity_id=p.left_component_entity_id
+        JOIN msc_component_entities r ON r.component_entity_id=p.right_component_entity_id
+        JOIN msc_system_bindings ms
+          ON ms.canonical_system_stable_object_key=p.canonical_system_stable_object_key
+        WHERE p.projection_status='accepted_relation_evidence';
+
+        CREATE TEMP TABLE msc_orbit_table_candidates AS
+        SELECT s.*,
+               split_part(s.pair_label_raw,',',1) primary_component_label,
+               split_part(s.pair_label_raw,',',2) secondary_component_label,
+               count(p.projected_relation_id) relation_candidate_count,
+               min(p.projected_relation_id) projected_relation_id,
+               min(p.relation_evidence_id) relation_evidence_id,
+               min(CASE WHEN lower(p.left_component_label)=
+                                  lower(split_part(s.pair_label_raw,',',1))
+                        THEN p.left_source_component_key ELSE p.right_source_component_key END)
+                 primary_source_component_key,
+               min(CASE WHEN lower(p.left_component_label)=
+                                  lower(split_part(s.pair_label_raw,',',2))
+                        THEN p.left_source_component_key ELSE p.right_source_component_key END)
+                 secondary_source_component_key,
+               min(p.canonical_system_stable_object_key) canonical_system_stable_object_key
+        FROM msc_orbit_subjects s
+        LEFT JOIN msc_accepted_pair_candidates p
+          ON p.wds_id_raw=s.wds_id_raw
+         AND regexp_full_match(s.pair_label_raw,'[^,]+,[^,]+')
+         AND least(lower(p.left_component_label),lower(p.right_component_label))=
+             least(lower(split_part(s.pair_label_raw,',',1)),
+                   lower(split_part(s.pair_label_raw,',',2)))
+         AND greatest(lower(p.left_component_label),lower(p.right_component_label))=
+             greatest(lower(split_part(s.pair_label_raw,',',1)),
+                      lower(split_part(s.pair_label_raw,',',2)))
+        WHERE s.source_table='msc_orb'
+        GROUP BY ALL;
+
+        INSERT INTO msc_orbit_solution_bindings
+        SELECT sha256(concat_ws('|',{source_id},s.orbit_evidence_id,'orbit',{policy_sql})),
+               s.orbit_evidence_id,s.source_record_id,s.source_table,{source_id},{release_id},
+               {evidence_build_id},s.wds_id_raw,NULL,
+               l.component_label_raw,r.component_label_raw,1,
+               p.projected_relation_id,p.relation_evidence_id,
+               CASE WHEN p.projection_status='accepted_relation_evidence'
+                    THEN p.left_source_component_key END,
+               CASE WHEN p.projection_status='accepted_relation_evidence'
+                    THEN p.right_source_component_key END,
+               CASE WHEN p.projection_status='accepted_relation_evidence'
+                    THEN p.canonical_system_stable_object_key END,
+               CASE WHEN p.projection_status='accepted_relation_evidence' THEN 'accepted'
+                    WHEN p.projection_status='invalid_self_relation_evidence' THEN 'invalid_msc_relation'
+                    ELSE 'unresolved_msc_relation' END,
+               'source_record_relation_claim',p.projection_reason,{policy_sql}
+        FROM msc_orbit_subjects s
+        JOIN msc_relation_evidence_projection p
+          ON p.source_orbit_evidence_id=s.orbit_evidence_id
+        JOIN msc_component_entities l ON l.component_entity_id=p.left_component_entity_id
+        JOIN msc_component_entities r ON r.component_entity_id=p.right_component_entity_id
+        WHERE s.source_table='msc_sys';
+
+        INSERT INTO msc_orbit_solution_bindings
+        SELECT sha256(concat_ws('|',{source_id},orbit_evidence_id,'orbit',{policy_sql})),
+               orbit_evidence_id,source_record_id,source_table,{source_id},{release_id},
+               {evidence_build_id},wds_id_raw,pair_label_raw,
+               CASE WHEN regexp_full_match(pair_label_raw,'[^,]+,[^,]+')
+                    THEN primary_component_label END,
+               CASE WHEN regexp_full_match(pair_label_raw,'[^,]+,[^,]+')
+                    THEN secondary_component_label END,
+               relation_candidate_count,
+               CASE WHEN relation_candidate_count=1 THEN projected_relation_id END,
+               CASE WHEN relation_candidate_count=1 THEN relation_evidence_id END,
+               CASE WHEN relation_candidate_count=1 THEN primary_source_component_key END,
+               CASE WHEN relation_candidate_count=1 THEN secondary_source_component_key END,
+               CASE WHEN relation_candidate_count=1 THEN canonical_system_stable_object_key END,
+               CASE WHEN pair_label_raw IS NULL THEN 'missing_pair_identity'
+                    WHEN NOT regexp_full_match(pair_label_raw,'[^,]+,[^,]+') THEN 'unparsed_pair'
+                    WHEN relation_candidate_count=0 THEN 'missing_msc_relation'
+                    WHEN relation_candidate_count>1 THEN 'ambiguous_msc_relation'
+                    ELSE 'accepted' END,
+               'exact_wds_qualified_comma_pair',
+               CASE WHEN pair_label_raw IS NULL
+                      THEN 'orbit row has no release-native pair identity'
+                    WHEN NOT regexp_full_match(pair_label_raw,'[^,]+,[^,]+')
+                      THEN 'orbit pair is not an explicit two-endpoint comma form'
+                    WHEN relation_candidate_count=0
+                      THEN 'no accepted MSC relation has the exact WDS-qualified endpoints'
+                    WHEN relation_candidate_count>1
+                      THEN 'multiple accepted MSC relations have the exact WDS-qualified endpoints'
+                    ELSE 'one accepted MSC relation has the exact WDS-qualified endpoints' END,
+               {policy_sql}
+        FROM msc_orbit_table_candidates;
+
+        CREATE TABLE msc_orbital_solution_projection AS
+        SELECT o.*,b.orbit_binding_id,b.source_table,b.msc_projected_relation_id,
+               b.msc_relation_evidence_id,b.primary_source_component_key,
+               b.secondary_source_component_key,b.canonical_system_stable_object_key,
+               CASE WHEN b.source_table='msc_sys'
+                      THEN {sql_literal(source['hierarchy_orbit_authority'])}
+                    ELSE {sql_literal(source['orbit_table_authority'])} END authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               b.binding_reason projection_reason,{policy_sql} policy_version
+        FROM msc.orbital_solution_evidence o
+        JOIN msc_orbit_solution_bindings b
+          ON b.orbit_evidence_id=o.evidence_id;
         """
     )
     system_counts = dict(con.execute("SELECT binding_status,count(*) FROM msc_system_bindings GROUP BY 1").fetchall())
     identity_counts = dict(con.execute("SELECT identity_graph_binding_status,count(*) FROM msc_system_bindings GROUP BY 1").fetchall())
     component_counts = dict(con.execute("SELECT binding_status,count(*) FROM msc_component_entities GROUP BY 1").fetchall())
     relation_counts = dict(con.execute("SELECT projection_status,count(*) FROM msc_relation_evidence_projection GROUP BY 1").fetchall())
+    orbit_counts = dict(con.execute("SELECT binding_status,count(*) FROM msc_orbit_solution_bindings GROUP BY 1").fetchall())
+    eligible = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0])
     observed = {
         "system_bindings": sum(system_counts.values()),
         "systems_accepted": system_counts.get("accepted", 0),
@@ -335,6 +579,25 @@ def compile_msc(
         "relations_accepted": relation_counts.get("accepted_relation_evidence", 0),
         "relations_unresolved": relation_counts.get("unresolved_endpoint_evidence", 0),
         "relations_invalid_self": relation_counts.get("invalid_self_relation_evidence", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_bound": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("msc_stellar_parameter_projection"),
+        "parameter_evidence_context_only": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM msc_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("msc_classification_projection"),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM msc_photometry_projection").fetchone()[0]),
+        "photometry_evidence_eligible": eligible("msc_photometry_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM msc_astrometry_projection").fetchone()[0]),
+        "astrometry_evidence_eligible": eligible("msc_astrometry_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM msc_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("msc_orbital_solution_projection"),
+        "orbits_unresolved_msc_relation": orbit_counts.get("unresolved_msc_relation", 0),
+        "orbits_invalid_msc_relation": orbit_counts.get("invalid_msc_relation", 0),
+        "orbits_missing_msc_relation": orbit_counts.get("missing_msc_relation", 0),
+        "orbits_ambiguous_msc_relation": orbit_counts.get("ambiguous_msc_relation", 0),
+        "orbits_unparsed_pair": orbit_counts.get("unparsed_pair", 0),
+        "orbits_missing_pair_identity": orbit_counts.get("missing_pair_identity", 0),
     }
     expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
     if observed != expected:
@@ -969,6 +1232,18 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "unaccepted_components_with_targets": "SELECT count(*) FROM msc_component_entities WHERE binding_status<>'accepted' AND source_component_key IS NOT NULL",
         "accepted_msc_relations_without_two_targets": "SELECT count(*) FROM msc_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND (left_source_component_key IS NULL OR right_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "accepted_msc_self_relations": "SELECT count(*) FROM msc_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND left_source_component_key=right_source_component_key",
+        "duplicate_msc_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM msc_component_parameter_set_bindings",
+        "duplicate_msc_orbit_binding_ids": "SELECT count(*)-count(DISTINCT orbit_binding_id) FROM msc_orbit_solution_bindings",
+        "accepted_msc_parameter_sets_without_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted' AND (component_entity_id IS NULL OR target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_msc_parameter_sets_with_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status<>'accepted' AND target_key IS NOT NULL",
+        "eligible_msc_parameters_without_targets": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "selectable_msc_relative_separations": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE quantity_key='separation_from_main_component' AND projection_status='eligible_for_quantity_selection'",
+        "eligible_msc_classifications_without_targets": "SELECT count(*) FROM msc_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_msc_photometry_without_targets": "SELECT count(*) FROM msc_photometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_msc_astrometry_without_targets": "SELECT count(*) FROM msc_astrometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "accepted_msc_orbits_without_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status='accepted' AND (msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_msc_orbits_with_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "eligible_msc_orbit_projections_without_bindings": "SELECT count(*) FROM msc_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND orbit_binding_id IS NULL",
         "accepted_debcat_relations_without_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status='accepted' AND (primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "unaccepted_debcat_relations_with_component_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL)",
         "component_parameter_sets_targeting_systems": "SELECT count(*) FROM debcat_parameter_set_bindings WHERE component_scope IN ('primary','secondary') AND binding_status='accepted' AND target_scope<>'msc_source_component'",
@@ -1068,6 +1343,13 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("msc_system_bindings", "system_binding_id"),
             ("msc_component_entities", "component_entity_id"),
             ("msc_relation_evidence_projection", "projected_relation_id"),
+            ("msc_component_parameter_set_bindings", "parameter_set_binding_id"),
+            ("msc_stellar_parameter_projection", "evidence_id"),
+            ("msc_classification_projection", "evidence_id"),
+            ("msc_photometry_projection", "evidence_id"),
+            ("msc_astrometry_projection", "evidence_id"),
+            ("msc_orbit_solution_bindings", "orbit_binding_id"),
+            ("msc_orbital_solution_projection", "evidence_id"),
             ("debcat_system_bindings", "system_binding_id"),
             ("debcat_relation_bindings", "relation_binding_id"),
             ("debcat_parameter_set_bindings", "parameter_set_binding_id"),
@@ -1100,7 +1382,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v3",
+            "schema_version": "spacegate.e5_selected_components.v4",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

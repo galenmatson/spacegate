@@ -74,6 +74,23 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         CREATE TABLE orbital_solution_evidence (
           evidence_id VARCHAR, source_record_id VARCHAR, parameter_set_raw JSON
         );
+        CREATE TABLE source_records (source_record_id VARCHAR, source_table VARCHAR);
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_raw VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_sets (
+          parameter_set_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_evidence (
+          evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+          quantity_key VARCHAR
+        );
+        CREATE TABLE stellar_classification_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE photometry_extinction_evidence (evidence_id VARCHAR, source_record_id VARCHAR);
+        CREATE TABLE astrometry_distance_evidence (evidence_id VARCHAR, source_record_id VARCHAR);
         INSERT INTO relation_claim_evidence VALUES
           ('m-r1','m-s1','msc_component','00001+0001:A','msc_component','00001+0001:B',
            'binary','pair','positive','test','ref','{"Comment":"SB9_1"}'),
@@ -85,6 +102,20 @@ def make_fixture(state: Path, policy_path: Path) -> None:
           ('m-o1','m-s1','{"P":"2.0","Punit":"d"}'),
           ('m-o2','m-self-source','{"P":"3.0","Punit":"d"}'),
           ('m-o3','m-missing-source','{"P":"4.0","Punit":"d"}');
+        INSERT INTO source_records VALUES
+          ('m-s1','msc_sys'),('m-self-source','msc_sys'),
+          ('m-missing-source','msc_sys'),('m-comp1','msc_comp');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('m-i-a','m-s1','msc_component','00001+0001:A','primary_endpoint'),
+          ('m-i-b','m-s1','msc_component','00001+0001:B','secondary_endpoint'),
+          ('m-i-ma','m-missing-source','msc_component','99999+9999:A','primary_endpoint'),
+          ('m-i-mb','m-missing-source','msc_component','99999+9999:B','secondary_endpoint'),
+          ('m-i-source','m-comp1','msc_component','00001+0001:A','source_component');
+        INSERT INTO stellar_parameter_sets VALUES ('m-ps1','m-comp1','00001+0001:A');
+        INSERT INTO stellar_parameter_evidence VALUES ('m-p1','m-ps1','m-comp1','mass');
+        INSERT INTO stellar_classification_evidence VALUES ('m-c1','m-comp1','00001+0001:A');
+        INSERT INTO photometry_extinction_evidence VALUES ('m-ph1','m-comp1');
+        INSERT INTO astrometry_distance_evidence VALUES ('m-a1','m-comp1');
         """
     )
     con.close()
@@ -263,6 +294,13 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                 "component_namespace": "msc_component",
                 "system_namespace": "wds",
                 "system_binding_method": "test-exact-wds",
+                "component_parameter_authority": {"mass": "test-msc-mass"},
+                "context_only_parameter_quantities": ["separation_from_main_component"],
+                "classification_authority": "test-msc-classification",
+                "photometry_authority": "test-msc-photometry",
+                "astrometry_authority": "test-msc-astrometry",
+                "hierarchy_orbit_authority": "test-msc-hierarchy-orbit",
+                "orbit_table_authority": "test-msc-orbit-table",
                 "canonical_containment_promotion": False,
                 "acceptance": {
                     "expected_system_bindings": 2,
@@ -280,6 +318,25 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_relations_accepted": 1,
                     "expected_relations_unresolved": 1,
                     "expected_relations_invalid_self": 1,
+                    "expected_parameter_sets": 1,
+                    "expected_parameter_sets_bound": 1,
+                    "expected_parameter_evidence": 1,
+                    "expected_parameter_evidence_eligible": 1,
+                    "expected_parameter_evidence_context_only": 0,
+                    "expected_classification_evidence": 1,
+                    "expected_classification_evidence_eligible": 1,
+                    "expected_photometry_evidence": 1,
+                    "expected_photometry_evidence_eligible": 1,
+                    "expected_astrometry_evidence": 1,
+                    "expected_astrometry_evidence_eligible": 1,
+                    "expected_orbital_solutions": 3,
+                    "expected_orbital_solutions_eligible": 1,
+                    "expected_orbits_unresolved_msc_relation": 1,
+                    "expected_orbits_invalid_msc_relation": 1,
+                    "expected_orbits_missing_msc_relation": 0,
+                    "expected_orbits_ambiguous_msc_relation": 0,
+                    "expected_orbits_unparsed_pair": 0,
+                    "expected_orbits_missing_pair_identity": 0,
                 },
             },
             "debcat": {
@@ -402,6 +459,19 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
         "accepted_relation_evidence": 1,
         "invalid_self_relation_evidence": 1,
         "unresolved_endpoint_evidence": 1,
+    }
+    assert con.execute(
+        "SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM msc_photometry_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 1
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM msc_orbit_solution_bindings GROUP BY 1"
+    ).fetchall()) == {
+        "accepted": 1,
+        "invalid_msc_relation": 1,
+        "unresolved_msc_relation": 1,
     }
     assert dict(con.execute("SELECT binding_status,count(*) FROM debcat_relation_bindings GROUP BY 1").fetchall()) == {
         "accepted": 1,

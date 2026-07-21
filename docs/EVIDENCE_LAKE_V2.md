@@ -1367,6 +1367,25 @@ Artifact `6def85dff374034cfe125b6b` preserves every outcome, passes independent
 audit and byte-identical reproduction across seventeen ordered Parquet files,
 and creates no canonical object, containment, hierarchy, or system-level orbit.
 
+Component-scope policy v4 closes the rest of the MSC source contract. Component
+identity now begins from all `msc_component` claims rather than relation
+endpoints alone, yielding 32,790 release-scoped components or subsystems: 24,671
+anchor to 5,369 canonical WDS systems and 8,119 remain explicit missing scopes.
+The projection makes 44,130 mass/apparent-V facts, 16,182 spectral
+classifications, 54,902 photometry rows, and 62,214 astrometry/motion rows
+eligible for later authority selection. Another 5,793 accepted relative
+separations remain context-only because they are not intrinsic stellar scalars.
+
+All 19,366 MSC orbit rows now have outcomes. The 14,638 hierarchy-table rows use
+their own relation claim; the separate orbit table must name two explicit
+comma-separated endpoints and match one accepted WDS-qualified MSC relation.
+This admits 14,939 solutions overall, retains 3,397 unresolved and three invalid
+hierarchy relations, 914 missing orbit-table relations, 110 non-two-endpoint
+pair labels, and three missing pair identities. Artifact
+`bbc7f0083646dfd5a602467b` passes independent audit and byte-identical
+reproduction across twenty-four ordered Parquet files in about 5.8 seconds.
+It adds no canonical identity, containment, hierarchy edge, or orbit winner.
+
 The system-binding audit also exposes an E2 diagnostic rather than hiding it:
 among the 5,369 canonical WDS matches, the current identity graph agrees on one
 system for 4,706, is missing a raw WDS route for 612, and spans multiple
@@ -1405,8 +1424,8 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-21.e5-policy-batches.9` records 13 completed sources and 13
-remaining blockers after the ORB6 checkpoint.
+Ledger `2026-07-21.e5-policy-batches.10` records 14 completed sources and 12
+remaining blockers after the full MSC projection.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

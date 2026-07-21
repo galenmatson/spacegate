@@ -869,7 +869,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `6def85dff374034cfe125b6b` accounts all 374
+- E5 component-scope artifact `bbc7f0083646dfd5a602467b` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -923,11 +923,14 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `6def85dff374034cfe125b6b` now accounts 6,936 WDS systems, 31,347 source
-  component identities, and 15,748 relations. It anchors 24,000 components and
+  `bbc7f0083646dfd5a602467b` now accounts 6,937 WDS systems, 32,790 source
+  component identities, and 15,748 relations. It anchors 24,671 components and
   accepts 12,052 two-endpoint relation-evidence rows while retaining 7,347
   missing components, 3,693 unresolved relations, and three invalid source
-  self-relations. Full MSC physics and orbit selection remains pending.
+  self-relations. It also projects 44,130 selectable mass/apparent-V facts,
+  16,182 classifications, 54,902 photometry rows, 62,214 astrometry/motion rows,
+  and 14,939 exact relation-bound orbit solutions while keeping relative
+  separations as context-only evidence.
 
 Security/transport note:
 
@@ -1181,7 +1184,7 @@ SB9 policy:
   back to name-only or coordinate-only component assignment
 - DEBCat component evidence uses a separate unique canonical-system + period
   match and the same endpoint-existence gates
-- E5 artifact `6def85dff374034cfe125b6b` applies the SB9 rule to all 4,079
+- E5 artifact `bbc7f0083646dfd5a602467b` applies the SB9 rule to all 4,079
   catalog relations. It accepts 790 unique references with two resolved MSC
   endpoints, retains 3,104 missing references, eight ambiguous references, and
   177 unresolved referenced relations, and makes 874 component magnitudes, 940
