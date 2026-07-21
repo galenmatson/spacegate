@@ -72,6 +72,11 @@ def main() -> int:
         type=Path,
         default=Path("/mnt/space/spacegate/e5-selected-fact-reproduction"),
     )
+    parser.add_argument(
+        "--performance-report",
+        type=Path,
+        help="preserve the reproduced compiler's phase telemetry outside scratch",
+    )
     parser.add_argument("--memory-limit", default="48GB")
     parser.add_argument("--threads", type=int, default=12)
     args = parser.parse_args()
@@ -94,6 +99,13 @@ def main() -> int:
             temp_directory=scratch / "spill",
         )
     differences = compare_reports(reference, reproduced)
+    performance_report = args.performance_report or args.report.with_name(
+        f"{args.report.stem}_timing.json"
+    )
+    reproduction_performance = reproduced.get("performance")
+    if not isinstance(reproduction_performance, dict):
+        raise ValueError("reproduced compiler report has no phase telemetry")
+    atomic_json(performance_report, reproduction_performance)
     report = {
         "schema_version": "spacegate.selected_fact_reproduction.v1",
         "status": "pass" if not differences else "fail",
@@ -103,6 +115,8 @@ def main() -> int:
         "reproduced_logical_content_sha256": reproduced["logical_content_sha256"],
         "differing_sections": differences,
         "scratch_removed": not Path(scratch_name).exists(),
+        "performance_report": str(performance_report),
+        "performance_phase_count": len(reproduction_performance.get("phases") or []),
     }
     atomic_json(args.report, report)
     if differences:

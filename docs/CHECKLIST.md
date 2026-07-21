@@ -1444,7 +1444,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   every usable-model subject, choose one complete H/He/mixed atmosphere by
   published fit chi-square, preserve alternatives, and pass deterministic
   focused verification before the next batched full compile
-- [ ] E5 compiler performance accounting: record wall and CPU time, row counts,
+- [x] E5 compiler performance accounting: record wall and CPU time, row counts,
   durable bytes, peak memory, and spill bytes for every source and compile,
   selection, derivation, integrity, export, hash, and promotion phase; publish a
   machine-readable timing report and optimize measured bottlenecks before the

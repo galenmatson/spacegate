@@ -1974,9 +1974,10 @@ Foundation checkpoint (July 21, 2026):
   outcomes, and chooses one complete H/He/mixed model by minimum published
   chi-square; focused two-pass verification selects 493,275 facts with zero
   probability, scope, completeness, fit-order, duplicate, or lineage failures
-- the classification and white-dwarf policies are queued for the next batched
-  selected-fact build; the current accepted artifact remains
-  `d3f255b55e4573676347b206` until full audit and clean reproduction pass
+- the classification and white-dwarf policies landed together in batched build
+  `f04aa4bc9c86d0c6f97a34da`; it is locally current and independently audited,
+  while `d3f255b55e4573676347b206` remains the rollback until clean reproduction
+  passes
 - the v6 batch also establishes a compiler-performance gate: capture per-source
   and per-phase wall/CPU time, row volume, durable output, peak memory, and spill
   use; retain query plans for measured bottlenecks and optimize them before the
@@ -1987,6 +1988,16 @@ Foundation checkpoint (July 21, 2026):
 - compiler v7 stores the exact accepted binding ID on each source fact, uses a
   direct-key lineage gate, and writes incremental phase telemetry so interrupted
   attempts retain actionable timing and resource evidence
+- full v7 build `f04aa4bc9c86d0c6f97a34da` passed compilation and independent
+  audit with 110,867,283 selected facts, 36,985,305 decisions, and logical
+  content hash
+  `c8c94d706258394915de8e62b9098202c0d730b4ff527dbf16972ec504125621`;
+  it is the local current checkpoint pending clean reproduction
+- the 70-phase performance report measures 1,441.5 wall seconds and 5,998.0
+  CPU-seconds; the corrected accepted-binding gate takes 4.5 seconds instead of
+  exceeding 2 hours 25 minutes, while Gaia direct fact materialization (540.0
+  seconds), input verification (238.5 seconds), exports (166.9 seconds), and
+  Bailer-Jones binding/selection (230.2 seconds) are the next ranked targets
 
 Deliverables:
 

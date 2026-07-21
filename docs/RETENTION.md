@@ -783,14 +783,17 @@ staging directory may be considered only after no compiler process is active;
 use an exact candidate dry run before deletion. DuckDB spill under
 `/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
-The active E5 checkpoint is `d3f255b55e4573676347b206`; its
+The active E5 checkpoint is `f04aa4bc9c86d0c6f97a34da`; its compile,
+deterministic Parquet exports, manifest, independent audit, timing, and
+performance-analysis reports are protected pending clean reproduction. It
+peaked at 66,102,259,712 staging and 161,548,070,912 spill allocated bytes. The
+immediate verified rollback `d3f255b55e4573676347b206`, its
 28,307,894,272-byte DuckDB, deterministic Parquet exports, manifest,
-independent audit, and clean-reproduction report are protected. The
+independent audit, and clean-reproduction report remain protected. That
 reproduction matched logical hash
 `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
-and removed its external scratch tree. Peak clean-build scratch usage was about
-126 GB on `/mnt/space`; future E5 runs must retain at least that measured margin
-plus operating headroom. Prior distance build `bfe3e1da9ddc5257f79b6838`,
+and removed its external scratch tree. Future E5 runs must retain at least the
+new 161.6-GB measured spill margin plus operating headroom. Prior distance build `bfe3e1da9ddc5257f79b6838`,
 coherent-source build `e8cb1529df6dbcc7c5baadee`, complete monolithic build
 `5c84220e408e8fea5f4da218`, and foundation build
 `237158e09fce993f1b033414` are valid rollback/reference artifacts. Diagnostics
@@ -821,19 +824,17 @@ allocated bytes. Dry-run and applied reports are retained under
 inputs were excluded.
 
 The E5 source-disposition ledger and its machine-readable audit report are
-protected compiler-policy inputs. The compiler now hashes the ledger, but the
-active `d3f255b55e4573676347b206` artifact predates that identity input. Do not
-replace or prune it until the next batched policy build passes independent
-audit and clean reproduction; do not create a full build solely to refresh this
-metadata checkpoint.
+protected compiler-policy inputs. Current build `f04aa4bc9c86d0c6f97a34da`
+hashes the ledger; rollback `d3f255b55e4573676347b206` predates that identity
+input and remains protected until the current build passes clean reproduction.
 
 Focused reports `e5_classification_selection_verification.json` and
 `e5_white_dwarf_selection_verification.json` are protected E5 policy evidence.
-They verify the queued v6 policy against immutable E4 shards and identity graph
-without replacing the active selected-fact artifact. Their source E4 builds,
-the identity graph, and the reports must remain until the next batched E5 build
-passes independent audit and clean reproduction. The reports do not themselves
-authorize pruning any current or rollback artifact.
+They verify the v6 policy now materialized by current build
+`f04aa4bc9c86d0c6f97a34da` against immutable E4 shards and the identity graph.
+Their source E4 builds, identity graph, and reports remain protected through
+clean reproduction. The reports do not themselves authorize pruning any
+current or rollback artifact.
 
 ## WISE Image Cache
 

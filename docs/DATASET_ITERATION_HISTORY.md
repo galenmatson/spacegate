@@ -2568,6 +2568,11 @@ Representative commits:
   `b714aacda3b912e8eec26a00dc6808d81e2859c085cd3b1ea72d582ea67b6998`,
   reclaiming 110,415,441,920 allocated bytes. The accepted current artifact and
   every E4/raw/typed input remained protected.
+- Full compiler-v7 build `f04aa4bc9c86d0c6f97a34da` then passed in 1,441.5
+  wall seconds and promoted only after all 18 integrity gates passed. The
+  formerly pathological accepted-binding check completed in 4.5 seconds. Its
+  independent audit passes, and the machine-readable performance analysis ranks
+  the remaining productive costs before clean reproduction.
 
 ## Recurrent Defect Classes and Mitigations
 

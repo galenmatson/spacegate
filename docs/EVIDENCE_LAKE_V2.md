@@ -1289,6 +1289,18 @@ memory, and spill bytes for binding, candidacy, preselection, global selection,
 derivation, integrity checks, exports, hashing, and promotion. Measured slow
 queries must retain explain/analyze evidence and an optimization comparison.
 
+The resulting local checkpoint `f04aa4bc9c86d0c6f97a34da` passes the full
+compile and independent artifact audit with 75,062,360 binding outcomes,
+164,425 preselections, 36,985,305 decisions, 110,867,283 selected facts, and
+65,171 derivations. Its logical Parquet hash is
+`c8c94d706258394915de8e62b9098202c0d730b4ff527dbf16972ec504125621`.
+The 70-phase timing report records 1,441.5 wall seconds, 5,998.0 CPU-seconds,
+35,215.8 MiB peak process RSS, 61.6 GiB peak staging allocation, and 150.5 GiB
+peak spill allocation. The direct binding-lineage gate now takes 4.5 seconds.
+A reusable analyzer ranks Gaia direct fact materialization, immutable-input
+verification, exports, and Bailer-Jones binding/selection for bounded profiling
+experiments without relaxing determinism or scientific accounting.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and
