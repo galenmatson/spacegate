@@ -990,12 +990,11 @@ Notes:
 1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
    resolve only material production regressions while the scientific rebuild
    proceeds in parallel.
-2. Build M8.3c-E4's combined evidence artifact now that every source adapter
-   independently reproduces. All 47 registered releases are accounted by 38
-   scientific adapters plus nine explicit E2/E3/E6 boundary dispositions. The
-   lifecycle and McGill bibliography follow-ups pass source, artifact, and clean
-   reproduction gates; all E4 artifacts remain unserved pre-ARM inputs until
-   E5/E6.
+2. Build the E5 selected-fact/derivation compiler over E4 release set
+   `a188a3adc6207d3a217d54a9`. Its atomic manifest composes all 38 independently
+   reproducible scientific adapters across 36 immutable source shards without
+   duplicating 449.2 GB of evidence. All E4 artifacts remain unserved pre-ARM
+   inputs until E5/E6.
 3. Build the E5 versioned selection/derivation
    compiler. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B
    scientific diff before promotion or deployment.

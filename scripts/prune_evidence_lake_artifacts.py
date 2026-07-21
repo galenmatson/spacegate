@@ -180,6 +180,29 @@ def current_pointer_references(root: Path, candidate: Path) -> list[str]:
     return references
 
 
+def release_set_references(root: Path, candidate: Path) -> list[str]:
+    """Return immutable E4 release-set manifests that pin a source shard."""
+
+    release_set_root = root.parent / "scientific_evidence_sets"
+    if not release_set_root.is_dir():
+        return []
+    references: list[str] = []
+    for manifest_path in sorted(release_set_root.glob("*/manifest.json")):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(
+                "cannot prove release-set references because a manifest is "
+                f"unreadable: {manifest_path}: {error}"
+            ) from error
+        members = manifest.get("members")
+        if not isinstance(members, list):
+            raise ValueError(f"release-set manifest has no members array: {manifest_path}")
+        if any(str(member.get("build_id") or "") == candidate.name for member in members):
+            references.append(str(manifest_path))
+    return references
+
+
 def inspect_failed_artifact(
     root: Path,
     value: str,
@@ -243,6 +266,12 @@ def inspect_failed_artifact(
     if pointer_references:
         raise ValueError(
             f"failed artifact is referenced by current pointer: {value}: {pointer_references}"
+        )
+    set_references = release_set_references(root, candidate)
+    if set_references:
+        raise ValueError(
+            f"failed artifact is referenced by an E4 release set: {value}: "
+            f"{set_references}"
         )
     newest_mtime_ns = max(int(row["mtime_ns"]) for row in identity)
     age_seconds = max(0.0, datetime.now(timezone.utc).timestamp() - newest_mtime_ns / 1e9)

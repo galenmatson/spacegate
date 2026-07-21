@@ -761,6 +761,18 @@ Earlier McGill or lifecycle diagnostics are not deletion candidates merely
 because a later adapter exists; retire only specifically enumerated,
 unreferenced artifacts through the exact-candidate dry-run/apply workflow.
 
+## E4 Scientific Evidence Release Set
+
+Release set `a188a3adc6207d3a217d54a9` under
+`derived/evidence_lake_v2/scientific_evidence_sets/` is the active E5 input. Its
+manifest references 36 accepted shard directories totaling 449,199,915,008
+database bytes. Every referenced artifact, manifest, database, raw/typed input,
+audit, and reproduction report is protected. The set deliberately stores no
+copied evidence database; deleting a referenced shard would corrupt the set.
+Retention tooling must resolve active and rollback release-set manifests before
+considering any E4 artifact candidate. Superseded diagnostics remain subject to
+the existing exact-candidate dry-run/apply rules, never an age-only sweep.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

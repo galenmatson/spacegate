@@ -1349,6 +1349,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   controversial cases, retractions, limit semantics, and product links; keep
   HWC habitability features out of lifecycle evidence and canonical counts;
   pass typed/source/artifact/clean-reproduction gates
+- [x] E4 immutable release-set composition: explicitly map all 38 adapters to
+  36 accepted source shards, validate exact source/release membership and
+  artifact manifest/database identities, index every populated domain-table
+  shard, atomically promote release set `a188a3adc6207d3a217d54a9`, and reproduce
+  its manifest byte-for-byte without duplicating 449.2 GB of evidence
 - [x] Make the Gaia variability source audit reproducible: validate all 592,197
   rows and 52 masked vector fields, distinguishing whole-vector absence from
   valid element masks, exhaustively partition every source column by role, and

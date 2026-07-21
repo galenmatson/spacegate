@@ -47,6 +47,12 @@ Evidence Lake v2 staging rule:
   A field declaration is not materialization: `declared_pending` fields keep an
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
+- The complete E4 input is an immutable release set, not a duplicate monolithic
+  DuckDB file. Release set `a188a3adc6207d3a217d54a9` pins each accepted shard
+  manifest/database/logical/scientific hash and provides a table-to-shard index.
+  E5 opens only those databases read-only. This preserves one atomic scientific
+  build identity while avoiding another 449.2 GB copy of already immutable
+  domain tables.
 - `source_field_dispositions.source_field` is the legal typed-column name, while
   `source_native_field` retains the exact upstream spelling. They differ only
   when a source format requires an alias, including case-only VOTable collisions

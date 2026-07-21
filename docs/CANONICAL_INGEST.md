@@ -13,11 +13,15 @@ not an accepted production build configuration.
 E1 source-native Parquet, the E2 release-scoped identity/scope graph, and the 38
 registered E4 scientific adapters now have explicit compiler contracts. They
 remain unserved compiler inputs: the current canonical build path stays
-operational until the combined E4 artifact and E5 selected facts are complete
-and E6 passes the shadow scientific A/B review. The preflight,
+operational until E5 selected facts are complete and E6 passes the shadow
+scientific A/B review. The preflight,
 typed-lake, identity graph, and E4 evidence contracts do not promote registry
 metadata, source relations, release crossmatches, or coherent Gaia source
 solutions into CORE by themselves.
+The combined E4 identity is release set `a188a3adc6207d3a217d54a9`, an atomic
+manifest over 36 immutable read-only source shards rather than another copied
+database. Canonical ingest must consume E5 selected facts derived from that set,
+not attach an arbitrary collection of whichever E4 artifacts happen to exist.
 
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 

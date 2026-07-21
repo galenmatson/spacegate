@@ -1781,6 +1781,12 @@ Current status (July 19, 2026, in progress):
   and 215 CDS references are preserved, and four unresolved historical codes
   remain explicit with no fabricated URL. Source, artifact, and clean
   reproduction audits pass
+- E4 release set `a188a3adc6207d3a217d54a9` atomically composes all 38 accepted
+  adapters across 36 immutable artifacts and 449,199,915,008 database bytes.
+  Exact source/release membership, manifest identity, database size/hash,
+  logical/scientific hashes, populated table-shard indexes, registry coverage,
+  and nine boundary dispositions are fail-closed. Clean composition produces
+  an identical manifest without a 449.2-GB duplicate database
 - VSX release `rolling_snapshot_20260721` is checked into the registry with all
   three official artifacts. Build `d9780b76333132c0a05098b7` accounts
   11,135,737 source records and all 29 fields; it materializes 29,456,421

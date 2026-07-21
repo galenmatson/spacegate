@@ -202,6 +202,39 @@ def test_retention_accepts_only_independently_audit_failed_immutable_build(
     assert not artifact.exists()
 
 
+def test_retention_rejects_failed_artifact_referenced_by_release_set(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "derived/evidence_lake_v2/scientific_evidence"
+    root.mkdir(parents=True)
+    artifact, audit = failed_artifact(root, tmp_path)
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    release_set = (
+        root.parent
+        / "scientific_evidence_sets"
+        / ("a" * 24)
+        / "manifest.json"
+    )
+    release_set.parent.mkdir(parents=True)
+    release_set.write_text(
+        json.dumps({"members": [{"build_id": artifact.name}]})
+    )
+
+    try:
+        retention.inspect_failed_artifact(
+            root,
+            artifact.name,
+            audit,
+            minimum_age_minutes=0,
+            proc_root=proc_root,
+        )
+    except ValueError as error:
+        assert "referenced by an E4 release set" in str(error)
+    else:
+        raise AssertionError("release-set member was accepted for retention")
+
+
 def test_failed_immutable_retention_rejects_passing_or_mismatched_audit(
     tmp_path: Path,
 ) -> None:

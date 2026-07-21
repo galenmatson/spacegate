@@ -1083,6 +1083,17 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   adapters and nine explicit E2/E3/E6 boundary dispositions. It reports no
   blocker, stale disposition, conflict, or unregistered adapter. This is
   adapter completeness, not permission to select public winners before E5.
+- `config/evidence_lake/e4_accepted_artifacts.json` and
+  `scripts/compile_scientific_evidence_set.py` compose the accepted source
+  shards into one immutable release identity rather than copying their tables
+  into another monolith. Release set `a188a3adc6207d3a217d54a9` pins 38 adapter
+  sources across 36 artifacts, 172,626,230 source records, 33 populated domain-
+  table families, and 449,199,915,008 database bytes. The compiler verifies
+  registry releases, exact build/source membership, manifest hashes, database
+  sizes/hashes, logical/scientific hashes, and E4/E2-E3-E6 scope exhaustion;
+  its `current` pointer is atomic. A clean output-root composition produces the
+  identical manifest without copying a database. A separate full integrity
+  pass rereads all 449,199,915,008 bytes and matches every database SHA-256.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

@@ -2329,6 +2329,30 @@ Representative commits:
   or unregistered adapter. This closes adapter coverage; it does not promote
   evidence or authorize public selection before E5/E6.
 
+### 77) Immutable E4 Scientific Evidence Release Set
+
+- A storage audit found 449,199,915,008 bytes across the 36 accepted source
+  artifacts. Recompiling those already immutable domain tables into one
+  monolithic database would consume the remaining `/data` safety margin and
+  duplicate evidence without adding scientific information.
+- `config/evidence_lake/e4_accepted_artifacts.json` therefore names the accepted
+  artifact for every one of the 38 E4 adapters. The release-set compiler fails
+  unless that policy exactly equals the contract adapter set, the adapter plus
+  boundary ledgers exhaust all 47 registry sources, shared artifacts contain
+  exactly their expected source/release pairs, and every manifest/database
+  identity remains intact.
+- Atomic release set `a188a3adc6207d3a217d54a9` contains no copied database. Its
+  content-addressed manifest pins 36 artifact manifests and databases,
+  172,626,230 source records, 33 populated domain-table shard lists, registry/
+  contract/scope/policy hashes, and all member logical/scientific hashes. E5 can
+  query the shards read-only under one reproducible input identity.
+- A clean independent output-root composition produces the identical manifest
+  byte-for-byte and removes its scratch tree. The active `current` pointer is
+  atomic. A full integrity pass rereads all 449,199,915,008 database bytes and
+  matches every accepted manifest SHA-256. The release-set retention rule
+  protects every referenced shard and prevents age-based cleanup from breaking
+  an active or rollback evidence set.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

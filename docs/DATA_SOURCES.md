@@ -49,6 +49,11 @@ Evidence Lake v2 active storage paths are:
   reverse-universe, collision, quarantine, scope, and artifact accounting
 - `reports/evidence_lake_v2/e2_identity_reproduction.json`: independent graph
   compile comparison by rows, bytes, and SHA-256
+- `derived/evidence_lake_v2/scientific_evidence/<build_id>/`: immutable E4
+  source-shard databases and manifests
+- `derived/evidence_lake_v2/scientific_evidence_sets/<release_set_id>/`: atomic
+  E4 accepted-artifact manifest and table-shard index; the active set references
+  source shards read-only and does not duplicate their 449.2 GB of evidence
 - `raw/evidence_lake_v2_acquisition/<source>/<release>/snapshots/`: E3 exact
   TAP response sets with ADQL, UWS lineage, source schemas, field dispositions,
   row/MAXREC checks, and response hashes
