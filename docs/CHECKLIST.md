@@ -1429,9 +1429,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence
-- [ ] E5: inventory every current derivation and presentation prior; record
-  inputs, algorithm/applicability, uncertainty/confidence, supersession, and
-  fail when a fallback wins despite acceptable higher-authority evidence
+- [x] E5: inventory every current derivation and presentation prior; record
+  inputs, algorithm/applicability, uncertainty/confidence, provenance,
+  supersession, implementation markers, and materialized-method accounting
+- [ ] E5: extend lower-authority-winner gates across every selected domain so a
+  fallback cannot win despite acceptable higher-authority evidence
 - [ ] E5: make HZ, classifications, planet categories, simulations, search,
   map, API, tags, and future AAA packets consume the shared selected-fact
   projection rather than independent scientific fallback logic

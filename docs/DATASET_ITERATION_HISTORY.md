@@ -2411,6 +2411,29 @@ Representative commits:
   `5c84220e408e8fea5f4da218` and `237158e09fce993f1b033414` remain available as
   rollback/reference checkpoints.
 
+### 80) E5 Legacy Derivation and Presentation-Prior Inventory
+
+- Machine-readable inventory `2026-07-21.e5-legacy-inventory.1` classifies 24
+  production paths spanning ARM science derivations, empirical and display
+  classifications, shared projections, runtime physical fallbacks, orbit and
+  planet presentation assumptions, visual scaling, map selection, planet
+  categories, coolness features, and DISC assumption materialization.
+- Every path records its inputs, outputs, algorithm version, applicability,
+  uncertainty limitation, confidence, provenance, supersession state, and
+  retirement gate. Four accepted E5 derivation keys are all mapped to the
+  legacy paths they replace; presentation-only policies remain explicitly
+  separate from selected scientific facts.
+- `scripts/audit_legacy_derivation_inventory.py` scans 36 production files,
+  verifies 28 implementation bindings, discovers 16 versioned algorithm
+  markers, and rejects missing symbols/markers, unknown E5 successors, or any
+  materialized method absent from the inventory. The checked stability build
+  has no unaccounted ARM/DISC marker.
+- The stability baseline contains 2,709 materialized physical derivations,
+  21,141 stellar classification rows, and 5,879,796 shared leaf
+  classifications. Its 12,248 mass-only assumed classifications, 8,299
+  assumed leaf values, and 337,357 leaves lacking exact classification evidence
+  are now explicit E6 fallback-reduction metrics rather than hidden UI behavior.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

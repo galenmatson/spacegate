@@ -69,6 +69,13 @@ Evidence Lake v2 staging rule:
   count before hashing or promotion. DuckDB remains the queryable compiler
   form, while the partitions are the stable reproduction and downstream
   projection interface.
+- `config/evidence_lake/e5_legacy_derivation_inventory.json` is the audited
+  transition contract for pre-E5 derived, inferred, and assumed values. It
+  separates ARM science derivations from empirical classifications and
+  DISC/render presentation priors, records their uncertainty limitations and
+  supersession gates, and maps current materialized method values. New legacy
+  methods fail `scripts/audit_legacy_derivation_inventory.py` until explicitly
+  classified; registration does not authorize a method as an E5 public fact.
 - `source_field_dispositions.source_field` is the legal typed-column name, while
   `source_native_field` retains the exact upstream spelling. They differ only
   when a source format requires an alias, including case-only VOTable collisions

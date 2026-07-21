@@ -1145,11 +1145,10 @@ fact IDs. Duplicate identity/fact, missing-lineage, and lower-authority-winner
 checks are zero.
 
 This is an E5 foundation checkpoint, not E5 completion or a public selection
-cutover. Coherent Gaia source arrays, distance/astrometry, spectroscopy,
-classification, variability, compact-object, relation/orbit, and naming
+cutover. Distance-estimate, spectroscopy, classification, variability,
+compact-object, relation/orbit, and naming
 policies remain to be compiled or explicitly assigned a non-selected evidence
-role. The complete legacy derivation/presentation-prior inventory and shared
-consumer migration also remain open before E6.
+role. Shared consumer migration also remains open before E6.
 
 The next accepted checkpoint, build `e8cb1529df6dbcc7c5baadee`, adds a bounded
 projection from the coherent Gaia DR3 source arrays without expanding all 125
@@ -1170,6 +1169,19 @@ and selected-fact floors now make that failure fatal. Build
 files because a prepared `COPY TO` path was not materialized; explicit
 partition existence and row-accounting gates now prevent such an artifact from
 passing. Neither diagnostic is an accepted input or rollback.
+
+Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
+across ARM science derivations, component/classification projections, API and
+simulation fallbacks, map and planet-category policy, coolness features, and
+DISC presentation assumptions/transforms. Each path records inputs, outputs,
+algorithm version, applicability, uncertainty limitation, confidence,
+provenance, supersession state, and retirement gate. The machine audit scans 36
+production files, binds 28 implementations, discovers 16 versioned algorithm
+markers with no unowned marker, maps all four E5 derivation successors, and
+accounts every materialized legacy method in stability build
+`20260717T0614Z_f452835_side`. The registry deliberately identifies duplicate
+runtime/map/coolness selection paths as E5/E6 retirement obligations rather
+than treating them as permanent authorities.
 
 ### E6. Reproducible Product Projections and Shadow Build
 
