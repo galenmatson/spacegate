@@ -77,6 +77,71 @@ REQUIRED_FIELDS = {
 }
 
 
+def field_roles(field_names: list[str]) -> dict[str, list[str]]:
+    roles: dict[str, list[str]] = {
+        "identity": [],
+        "compiler_index": [],
+        "astrometric_solution": [],
+        "photometric_solution": [],
+        "radial_velocity_solution": [],
+        "classification_and_membership": [],
+        "observation_product_index": [],
+        "redundant_ap_projection": [],
+        "unclassified": [],
+    }
+    classification_fields = {
+        "phot_variable_flag",
+        "in_qso_candidates",
+        "in_galaxy_candidates",
+        "non_single_star",
+        "in_andromeda_survey",
+    }
+    coordinate_fields = {"l", "b", "ecl_lon", "ecl_lat"}
+    colour_fields = {"bp_rp", "bp_g", "g_rp"}
+    for name in field_names:
+        if name in {"solution_id", "designation", "source_id"}:
+            role = "identity"
+        elif name == "random_index":
+            role = "compiler_index"
+        elif "_gspphot" in name or name == "libname_gspphot":
+            role = "redundant_ap_projection"
+        elif name in classification_fields or name.startswith("classprob_"):
+            role = "classification_and_membership"
+        elif name.startswith("has_"):
+            role = "observation_product_index"
+        elif (
+            name in coordinate_fields
+            or name in {"ref_epoch", "pm", "ruwe", "duplicated_source"}
+            or name in {"ra", "dec", "parallax", "pmra", "pmdec"}
+            or name.startswith(
+                (
+                    "ra_",
+                    "dec_",
+                    "parallax_",
+                    "pmra_",
+                    "pmdec_",
+                    "astrometric_",
+                    "nu_eff_",
+                    "pseudocolour",
+                    "visibility_",
+                    "matched_",
+                    "new_matched_",
+                    "ipd_",
+                    "scan_direction_",
+                )
+            )
+        ):
+            role = "astrometric_solution"
+        elif name.startswith(("radial_velocity", "rv_", "vbroad", "grvs_", "rvs_")):
+            role = "radial_velocity_solution"
+        elif name.startswith("phot_") or name in colour_fields:
+            role = "photometric_solution"
+        else:
+            role = "unclassified"
+        roles[role].append(name)
+    return {key: sorted(values) for key, values in roles.items()}
+
+
 def query_row(
     con: duckdb.DuckDBPyConnection,
     query: str,
@@ -189,6 +254,7 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
         hard_path = typed_root / str(tables[HARD_TABLE]["parquet_path"])
         supplement_path = typed_root / str(tables[SUPPLEMENT_TABLE]["parquet_path"])
         fields = [field for field, _ in schemas[HARD_TABLE]]
+        roles = field_roles(fields)
         error_fields = sorted(
             field
             for field in fields
@@ -268,6 +334,7 @@ def audit(typed_root: Path, typed_manifest: dict[str, Any]) -> dict[str, Any]:
                 "audited_error_fields": error_fields,
                 "audited_correlation_fields": correlation_fields,
                 "audited_probability_fields": probability_fields,
+                "field_roles": roles,
             }
         )
     failed = any(bool(value) for value in checks.values())

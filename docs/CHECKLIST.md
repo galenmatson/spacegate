@@ -1330,7 +1330,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
-  report product-index and radial-velocity coverage
+  report product-index and radial-velocity coverage and exhaustively assign all
+  source columns to adapter roles with no unclassified tail
 - [x] Make the Gaia variability source audit reproducible: validate all 592,197
   rows and 52 masked vector fields, distinguishing whole-vector absence from
   valid element masks, exhaustively partition every source column by role, and

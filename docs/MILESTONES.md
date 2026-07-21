@@ -1800,7 +1800,8 @@ Current status (July 19, 2026, in progress):
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,
-  and explicit RV/XP/epoch-photometry/RVS product coverage for E4
+  explicit RV/XP/epoch-photometry/RVS product coverage, and an exhaustive
+  zero-unclassified source-column role ledger for E4
 - the checked-in Gaia variability audit passes 592,197 rows and every one of 52
   rotation-vector fields with exact length/mask semantics and an exhaustive
   source-column role ledger, establishing coherent per-source variability and

@@ -12,6 +12,31 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import audit_gaia_source_typed_source as gaia_audit  # noqa: E402
 
 
+def test_field_roles_exhaustively_partition_gaia_source_columns() -> None:
+    fields = [
+        "solution_id",
+        "source_id",
+        "random_index",
+        "ra",
+        "phot_g_mean_mag",
+        "radial_velocity",
+        "phot_variable_flag",
+        "has_rvs",
+        "teff_gspphot",
+    ]
+    roles = gaia_audit.field_roles(fields)
+    assert roles["identity"] == ["solution_id", "source_id"]
+    assert roles["compiler_index"] == ["random_index"]
+    assert roles["astrometric_solution"] == ["ra"]
+    assert roles["photometric_solution"] == ["phot_g_mean_mag"]
+    assert roles["radial_velocity_solution"] == ["radial_velocity"]
+    assert roles["classification_and_membership"] == ["phot_variable_flag"]
+    assert roles["observation_product_index"] == ["has_rvs"]
+    assert roles["redundant_ap_projection"] == ["teff_gspphot"]
+    assert roles["unclassified"] == []
+    assert sorted(value for values in roles.values() for value in values) == sorted(fields)
+
+
 def source_row(source_id: int, parallax: float | None) -> dict[str, object]:
     row: dict[str, object] = {field: None for field in gaia_audit.REQUIRED_FIELDS}
     row.update(

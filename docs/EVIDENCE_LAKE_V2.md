@@ -969,8 +969,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   J2016.0 epoch, and valid coordinate, uncertainty, correlation, and probability
   domains. The audit records 2,929,216 radial-velocity rows, 5,778,039
   XP-continuous product indexes, 548,038 epoch-photometry indexes, and 206,781
-  RVS product indexes for E4 materialization. Signed `*_over_error` ratios remain
-  distinct from nonnegative uncertainty magnitudes.
+  RVS product indexes for E4 materialization. Its exhaustive adapter ledger
+  assigns all 152 columns with no unclassified tail: 65 astrometric, 24
+  photometric, 22 radial-velocity, 8 classification/membership, 6 observation-
+  product, 23 redundant AP-projection, 3 identity, and 1 compiler-index fields.
+  The copied GSP-Phot projection defers to the richer release-native AP source.
+  Signed `*_over_error` ratios remain distinct from nonnegative uncertainty
+  magnitudes.
 - The Gaia variability pre-adapter audit is now reproducible from a checked-in
   script. It passes 592,197 rows and all 52 rotation-vector fields with zero
   source-ID, schema, token, length, period-error, or false-alarm-probability

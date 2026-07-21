@@ -2148,6 +2148,11 @@ Representative commits:
 - Gaia `*_over_error` fields are signed signal-to-noise ratios, not uncertainty
   magnitudes. Their negative values are valid source evidence and are excluded
   from the audit's nonnegative-error rule.
+- The Gaia source audit now emits an exhaustive 152-field adapter ledger: 65
+  astrometric, 24 photometric, 22 radial-velocity, 8 classification/membership,
+  6 observation-product, 23 redundant AP-projection, 3 identity, and 1
+  compiler-index fields, with no unclassified tail. The redundant GSP-Phot
+  projection remains in E1 but must not compete with the richer AP source in E4.
 
 ### 71) Reproducible Gaia Variability Vector Audit
 
