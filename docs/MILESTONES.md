@@ -1738,6 +1738,13 @@ Current status (July 19, 2026, in progress):
   reproduction gates for all 51,164,425 rows and 482 fields at logical hash
   `b84be6a482e90bd4527f498f87f4381f1439b0e67a7ec5762c19530976ec6596`;
   failed manifestless staging trees were retired by exact-hash retention
+- contract v71 accounts all 354 field occurrences in the four Gaia
+  supplementary-parameter tables. It preserves MARCS, PHOENIX, OB, and A
+  GSP-Phot alternatives without selecting or compositing them, and separates
+  GSP-Spec ANN from spectroscopic FLAME parameter/evolution contexts. Contract,
+  schema, source-interval, and real-row smoke gates pass; the full immutable
+  build, source audit, generic artifact audit, and clean reproduction remain the
+  next E4 checkpoint
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

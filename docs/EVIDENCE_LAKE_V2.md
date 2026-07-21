@@ -894,6 +894,20 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   three GSP-Spec Mg/Fe measurements. Direct typed-Parquet counts match the
   evidence artifact exactly. These published values and endpoints remain
   unchanged and visible as anomalies; reversed endpoints remain fatal.
+- Contract v71 adds the four-table Gaia DR3 supplementary-parameter adapter.
+  MARCS, PHOENIX, OB, and A GSP-Phot posteriors remain four coherent atmosphere-
+  library alternatives with their own temperatures, gravities, metallicities,
+  radii, model distances, extinction, magnitudes, posterior scores, and sampler
+  acceptance. The publisher's `libname_best_gspphot` remains quality/selection
+  lineage and does not erase the other three solutions. GSP-Spec ANN and
+  spectroscopic FLAME remain separate coherent parameter sets; FLAME evolution
+  stage and bolometric correction retain their proper classification and
+  photometry domains. The disjoint uncertainty-envelope tables inherit the
+  identical contracts. All 354 field occurrences reconcile, 67 compiler tests
+  and a representative real-row materialization pass, and direct source audit
+  finds no reversed bounds plus two preserved hard-envelope FLAME luminosity
+  intervals whose central estimate does not bracket. Full immutable
+  materialization and reproduction remain pending.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

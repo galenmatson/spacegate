@@ -1312,6 +1312,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and link every ordinary and nested evidence-reference table through 32
   deterministic source-record hash buckets; preserve identical primary keys and
   counts under the 32-GB Photon compiler cap
+- [ ] E4 Gaia AP supplementary checkpoint: the v71 contract and real-row smoke
+  account all 354 fields while preserving four GSP-Phot library alternatives,
+  GSP-Spec ANN, and spectroscopic FLAME without winner selection; complete the
+  immutable build, source-specific/generic audits, and clean reproduction
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

@@ -1965,6 +1965,27 @@ Representative commits:
   audit now reports and pins source-native non-bracketing intervals while still
   failing reversed endpoints; no value or uncertainty is rewritten.
 
+### 65) Gaia DR3 Supplementary Parameter Alternatives
+
+- Contract v71 maps all 354 field occurrences across the hard-envelope and
+  disjoint uncertainty-envelope supplementary AP tables. The compiler retains
+  MARCS, PHOENIX, OB, and A as separate GSP-Phot posterior parameter sets,
+  preserving model-specific temperature, gravity, metallicity, radius,
+  distance, extinction, magnitude, posterior, and sampler evidence. Gaia's
+  published best-library field remains selection lineage rather than an E4
+  winner instruction.
+- The spectroscopic table retains the GSP-Spec ANN atmospheric solution and
+  spectroscopic FLAME radius, luminosity, mass, age, redshift, evolution-stage,
+  and bolometric-correction solution separately. `solution_id` is again the
+  release-wide processing marker and remains record lineage rather than object
+  identity. The uncertainty supplement inherits the same scientific contract.
+- Contract validation, 67 compiler tests, and a representative materialization
+  of all four tables pass with zero pending fields, identifier rejections,
+  orphan parameter rows, or reversed intervals. Direct typed-source inspection
+  pins two hard-envelope FLAME luminosity intervals whose central estimate lies
+  outside the published endpoints; they remain source-native reported anomalies.
+  Full immutable materialization and clean reproduction are pending.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

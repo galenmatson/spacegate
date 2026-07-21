@@ -145,6 +145,59 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "primary_source_model_component",
         "secondary_source_model_component",
     }
+    gaia_ap_supp = contract["source_adapters"][
+        "gaia.dr3.astrophysical_parameters_supp"
+    ]
+    assert set(gaia_ap_supp["tables"]) == {
+        "gaia_dr3_ap_supp_photometric_models_v2",
+        "gaia_dr3_ap_supp_spectroscopic_models_v2",
+        "gaia_dr3_ap_supp_photometric_models_uncertain_distance_supplement_v1",
+        "gaia_dr3_ap_supp_spectroscopic_models_uncertain_distance_supplement_v1",
+    }
+    supp_photometry = gaia_ap_supp["tables"][
+        "gaia_dr3_ap_supp_photometric_models_v2"
+    ]
+    assert [
+        parameter_set["scope_key"]
+        for parameter_set in supp_photometry["scoped_stellar_parameter_sets"]
+    ] == [
+        "GSP-Phot_MARCS",
+        "GSP-Phot_PHOENIX",
+        "GSP-Phot_OB",
+        "GSP-Phot_A",
+    ]
+    assert [
+        parameter_set["model"]
+        for parameter_set in supp_photometry["scoped_stellar_parameter_sets"]
+    ] == ["MARCS", "PHOENIX", "OB", "A"]
+    assert all(
+        len(parameter_set["measurements"]) == 4
+        for parameter_set in supp_photometry["scoped_stellar_parameter_sets"]
+    )
+    assert len(supp_photometry["configured_domain_measurements"]) == 4
+    assert len(supp_photometry["photometry_measurements"]) == 24
+    supp_spectroscopy = gaia_ap_supp["tables"][
+        "gaia_dr3_ap_supp_spectroscopic_models_v2"
+    ]
+    assert [
+        parameter_set["parameter_set_kind"]
+        for parameter_set in supp_spectroscopy["scoped_stellar_parameter_sets"]
+    ] == [
+        "gaia_dr3_gspspec_ann_atmosphere",
+        "gaia_dr3_flame_spectroscopic_evolution_model",
+        "gaia_dr3_flame_spectroscopic_evolution_stage",
+    ]
+    assert [
+        len(parameter_set["measurements"])
+        for parameter_set in supp_spectroscopy["scoped_stellar_parameter_sets"]
+    ] == [4, 5, 0]
+    assert len(supp_spectroscopy["photometry_measurements"]) == 1
+    assert gaia_ap_supp["tables"][
+        "gaia_dr3_ap_supp_photometric_models_uncertain_distance_supplement_v1"
+    ]["table_contract_ref"] == "gaia_dr3_ap_supp_photometric_models_v2"
+    assert gaia_ap_supp["tables"][
+        "gaia_dr3_ap_supp_spectroscopic_models_uncertain_distance_supplement_v1"
+    ]["table_contract_ref"] == "gaia_dr3_ap_supp_spectroscopic_models_v2"
     wgsn = contract["source_adapters"]["naming.iau_wgsn"]["tables"][
         "iau_wgsn_catalog_html"
     ]
