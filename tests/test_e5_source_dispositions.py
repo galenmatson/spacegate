@@ -19,8 +19,8 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
     )
     assert report["status"] == "in_progress"
     assert report["summaries"]["accepted_e4_sources"] == 38
-    assert report["summaries"]["selected_sources"] == 7
-    assert report["summaries"]["explicit_dispositions"] == 31
+    assert report["summaries"]["selected_sources"] == 9
+    assert report["summaries"]["explicit_dispositions"] == 29
     assert report["checks"]["selection_disposition_conflicts"] == []
     assert report["checks"]["metadata_errors"] == []
     assert report["checks"]["duplicate_selection_sources"] == []
@@ -29,7 +29,7 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
     assert report["checks"]["unaccounted_sources"] == []
     assert report["checks"]["invalid_dispositions"] == []
     assert report["checks"]["incomplete_dispositions"] == []
-    assert len(report["checks"]["blocking_sources"]) == 28
+    assert len(report["checks"]["blocking_sources"]) == 26
 
 
 def test_e5_disposition_audit_fails_conflicts_and_omissions() -> None:

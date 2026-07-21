@@ -31,13 +31,16 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
     checks: dict[str, int] = {}
     try:
         report_counts = manifest.get("report", {}).get("table_counts", {})
-        for table in [
+        audited_tables = [
             "selection_source_accounting",
             "evidence_object_bindings",
             "parameter_set_selection_decisions",
             "selected_facts",
             "selected_fact_derivations",
-        ]:
+        ]
+        if "source_parameter_set_preselections" in report_counts:
+            audited_tables.append("source_parameter_set_preselections")
+        for table in audited_tables:
             actual = scalar(con, f'SELECT COUNT(*) FROM "{table}"')
             checks[f"manifest_count_mismatch_{table}"] = int(
                 actual != int(report_counts.get(table, -1))
@@ -63,11 +66,70 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             con,
             "SELECT COUNT(*)-COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
         )
+        if "source_parameter_set_preselections" in report_counts:
+            checks["duplicate_preselection_ids"] = scalar(
+                con,
+                "SELECT COUNT(*)-COUNT(DISTINCT preselection_id) "
+                "FROM source_parameter_set_preselections",
+            )
+            checks["duplicate_source_preselection_keys"] = scalar(
+                con,
+                "SELECT COALESCE(SUM(n-1),0) FROM (SELECT COUNT(*) n "
+                "FROM source_parameter_set_preselections "
+                "GROUP BY source_id,source_record_id,selection_key "
+                "HAVING COUNT(*)>1)",
+            )
+            checks["selected_source_facts_outside_required_preselection"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM selected_facts f "
+                "WHERE f.fact_status='source_selected' AND f.source_id IN ("
+                "SELECT DISTINCT source_id FROM source_parameter_set_preselections) "
+                "AND NOT EXISTS (SELECT 1 FROM source_parameter_set_preselections p "
+                "WHERE p.source_id=f.source_id "
+                "AND p.source_record_id=f.source_record_id "
+                "AND p.selected_parameter_set_id=f.parameter_set_id)",
+            )
         checks["invalid_binding_statuses"] = scalar(
             con,
             "SELECT COUNT(*) FROM evidence_object_bindings "
-            "WHERE binding_status NOT IN ('accepted','missing','ambiguous')",
+            "WHERE binding_status NOT IN "
+            "('accepted','missing','excluded','ambiguous','quarantined','unresolved')",
         )
+        binding_columns = {
+            str(row[0])
+            for row in con.execute("DESCRIBE evidence_object_bindings").fetchall()
+        }
+        if {"binding_subject_kind", "binding_subject_id"}.issubset(binding_columns):
+            checks["bindings_without_subjects"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM evidence_object_bindings "
+                "WHERE binding_subject_kind IS NULL OR binding_subject_id IS NULL",
+            )
+            checks["selected_source_facts_without_accepted_subject_binding"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM selected_facts f "
+                "WHERE f.fact_status='source_selected' AND NOT EXISTS ("
+                "SELECT 1 FROM evidence_object_bindings b "
+                "WHERE b.source_id=f.source_id AND b.binding_status='accepted' AND ("
+                "(b.binding_subject_kind='source_record' "
+                "AND b.source_record_id=f.source_record_id) OR "
+                "(b.binding_subject_kind='classification_evidence' "
+                "AND b.binding_subject_id=f.evidence_id) OR "
+                "(b.binding_subject_kind='parameter_set' "
+                "AND b.binding_subject_id=f.parameter_set_id)))",
+            )
+        if {"applicability_status", "applicability_reason"}.issubset(binding_columns):
+            checks["invalid_applicability_statuses"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM evidence_object_bindings "
+                "WHERE applicability_status NOT IN ('applicable','inapplicable')",
+            )
+            checks["accepted_inapplicable_bindings"] = scalar(
+                con,
+                "SELECT COUNT(*) FROM evidence_object_bindings "
+                "WHERE binding_status='accepted' "
+                "AND applicability_status<>'applicable'",
+            )
         checks["accepted_bindings_without_targets"] = scalar(
             con,
             "SELECT COUNT(*) FROM evidence_object_bindings "
@@ -93,10 +155,19 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             "WHERE runner_up_quality_score IS NOT NULL "
             "AND NOT isfinite(runner_up_quality_score)",
         )
+        accounting_columns = {
+            str(row[0])
+            for row in con.execute("DESCRIBE selection_source_accounting").fetchall()
+        }
+        eligible_column = (
+            "eligible_binding_subjects"
+            if "eligible_binding_subjects" in accounting_columns
+            else "eligible_source_records"
+        )
         for source in policy.get("selection_sources") or []:
             source_id = str(source["source_id"])
             row = con.execute(
-                "SELECT eligible_source_records,accepted_current_bindings,selected_facts "
+                f"SELECT {eligible_column},accepted_current_bindings,selected_facts "
                 "FROM selection_source_accounting WHERE source_id=?",
                 [source_id],
             ).fetchone()

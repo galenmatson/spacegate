@@ -812,6 +812,14 @@ replace or prune it until the next batched policy build passes independent
 audit and clean reproduction; do not create a full build solely to refresh this
 metadata checkpoint.
 
+Focused reports `e5_classification_selection_verification.json` and
+`e5_white_dwarf_selection_verification.json` are protected E5 policy evidence.
+They verify the queued v6 policy against immutable E4 shards and identity graph
+without replacing the active selected-fact artifact. Their source E4 builds,
+the identity graph, and the reports must remain until the next batched E5 build
+passes independent audit and clean reproduction. The reports do not themselves
+authorize pruning any current or rollback artifact.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

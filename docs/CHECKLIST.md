@@ -1437,6 +1437,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E5 source-disposition accounting: classify all 38 accepted E4 sources as
   selected, explicitly non-selectable evidence, or an owned blocking policy;
   fail on omissions/conflicts and hash the ledger into compiler identity
+- [x] E5 evidence-subject/classification checkpoint: bind source records,
+  classification rows, and scoped parameter sets without scope leakage; select
+  5,282 UltracoolSheet categorical facts and account every eligible subject
+- [x] E5 white-dwarf applicability/model checkpoint: require `Pwd > 0.75`, bind
+  every usable-model subject, choose one complete H/He/mixed atmosphere by
+  published fit chi-square, preserve alternatives, and pass deterministic
+  focused verification before the next batched full compile
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.4",
-  "compiler_version": "selected_fact_compiler_v4",
+  "policy_version": "2026-07-21.e5-selection.6",
+  "compiler_version": "selected_fact_compiler_v6",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -374,6 +374,233 @@
                 {"scope": "evidence_quality", "path": "$.source_quality.snr", "operator": "gt", "value": 0}
               ],
               "quality_order": {"scope": "evidence_quality", "path": "$.source_quality.snr", "direction": "desc"}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "compact.gaia_edr3_white_dwarf",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "authoritative_release_equivalence",
+        "claim_namespace": "gaia_edr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal",
+        "release_equivalence": {
+          "source_release": "gaia_edr3",
+          "canonical_release": "gaia_dr3",
+          "relationship": "identical_source_list_and_astrometry_carried_forward",
+          "source_list_identical": true,
+          "authority_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
+          "authority_statement": "Gaia DR3 contains the astrometry and broad-band photometry already published in EDR3; the EDR3 source list was carried forward into DR3. This equivalence is specific to EDR3-to-DR3 and does not authorize equality across other Gaia releases."
+        }
+      },
+      "allowed_claim_scopes": ["star"],
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "applicability_context": {
+        "table": "compact_object_evidence",
+        "filters": {
+          "compact_kind": "white_dwarf_candidate"
+        },
+        "conditions": [
+          {
+            "scope": "applicability_parameters",
+            "path": "$.Pwd",
+            "operator": "gt",
+            "value": 0.75
+          }
+        ],
+        "reason": "Gentile Fusillo et al. 2021 general-purpose high-confidence white-dwarf threshold Pwd > 0.75"
+      },
+      "parameter_set_preselection": {
+        "selection_key": "white_dwarf_atmosphere_model",
+        "required_quantities": [
+          "effective_temperature",
+          "log10_surface_gravity",
+          "mass"
+        ],
+        "minimum_required_quantities": 3,
+        "order_quantity": "fit_chi_square",
+        "direction": "asc",
+        "minimum_selected_parameter_sets": 164425,
+        "expected_selected_parameter_sets": 164425,
+        "reason": "select one complete source-published H, He, or mixed atmosphere fit by minimum published chi-square; retain all alternatives as evidence"
+      },
+      "minimum_eligible_records": 222805,
+      "minimum_accepted_bindings": 164425,
+      "minimum_selected_facts": 493275,
+      "expected_binding_outcomes": {
+        "accepted": 164425,
+        "excluded": 1992,
+        "missing": 56388
+      },
+      "expected_selected_facts": 493275,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs"
+          },
+          "authorities": [
+            {
+              "rank": 5,
+              "method": "photometric_white_dwarf_atmosphere_fit",
+              "reason": "specialized coherent Gaia EDR3 white-dwarf atmosphere solution above the catalog's general-purpose high-confidence threshold"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_fundamental",
+          "quantities": {
+            "mass": "mass_msun"
+          },
+          "authorities": [
+            {
+              "rank": 5,
+              "method": "photometric_white_dwarf_atmosphere_fit",
+              "reason": "mass from the same selected coherent Gaia EDR3 white-dwarf atmosphere solution"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "ultracool.ultracoolsheet",
+      "object_type": "star",
+      "binding_scope": "star_or_substellar_object",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "allowed_claim_scopes": ["star_or_substellar_object"],
+      "component_scope_policy": "require_null",
+      "storage": "classification",
+      "classification_evidence_table": "stellar_classification_evidence",
+      "minimum_eligible_records": 10800,
+      "minimum_accepted_bindings": 5300,
+      "minimum_selected_facts": 5200,
+      "expected_binding_outcomes": {
+        "accepted": 5335,
+        "missing": 5552
+      },
+      "expected_selected_facts": 5282,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_optical_spectral_classification",
+          "quantities": {
+            "optical_spectral_type": {
+              "quantity_key": "spectral_type_optical",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "ultracoolsheet_compiled_optical_classification",
+              "reason": "UltracoolSheet source-compiled optical spectral classification with a unique Gaia DR3 object binding"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_infrared_spectral_classification",
+          "quantities": {
+            "infrared_spectral_type": {
+              "quantity_key": "spectral_type_infrared",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "ultracoolsheet_compiled_infrared_classification",
+              "reason": "UltracoolSheet source-compiled infrared spectral classification with a unique Gaia DR3 object binding"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_optical_gravity_classification",
+          "quantities": {
+            "optical_gravity_class": {
+              "quantity_key": "gravity_class_optical",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "ultracoolsheet_compiled_optical_gravity",
+              "reason": "UltracoolSheet source-compiled optical gravity classification with a unique Gaia DR3 object binding"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_infrared_gravity_classification",
+          "quantities": {
+            "infrared_gravity_class": {
+              "quantity_key": "gravity_class_infrared",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "ultracoolsheet_compiled_infrared_gravity",
+              "reason": "UltracoolSheet source-compiled infrared gravity classification with a unique Gaia DR3 object binding"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_age_category",
+          "quantities": {
+            "ultracoolsheet_age_category": {
+              "quantity_key": "ultracool_age_category",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 30,
+              "method": "ultracoolsheet_maintainer_age_formula",
+              "reason": "UltracoolSheet maintainer age-category compilation retained as categorical source evidence rather than a numeric age measurement"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_literature_flag",
+          "quantities": {
+            "ultracoolsheet_literature_flag": {
+              "quantity_key": "ultracool_literature_flag",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 30,
+              "method": "ultracoolsheet_literature_compilation",
+              "reason": "UltracoolSheet literature flag retained as source-native categorical context"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_youth_evidence",
+          "quantities": {
+            "ultracoolsheet_youth_evidence": {
+              "quantity_key": "ultracool_youth_evidence",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 20,
+              "method": "ultracoolsheet_youth_compilation",
+              "reason": "UltracoolSheet youth evidence retained as source-native categorical evidence"
             }
           ]
         }

@@ -64,11 +64,25 @@ Evidence Lake v2 staging rule:
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
-- `evidence_object_bindings` contains exactly one outcome per eligible selected
-  source record. `accepted` requires a unique canonical object and stable key;
-  `missing` and `ambiguous` retain null canonical target fields and cannot emit
-  selected facts. Per-source outcome totals must equal eligible-record totals,
-  and accepted totals must equal `selection_source_accounting`.
+- `evidence_object_bindings` contains exactly one outcome per eligible evidence
+  subject. `binding_subject_kind` and `binding_subject_id` distinguish an
+  unscoped source record, classification evidence row, or scoped parameter set;
+  `source_record_id` remains the parent lineage. The row retains component and
+  identifier-claim scope, applicability status/reason/evidence, and one of
+  `accepted|missing|excluded|ambiguous|quarantined|unresolved`. `accepted`
+  requires one compatible canonical object and stable key. Every other status
+  retains no selected target and cannot emit facts. Per-source outcome totals
+  must equal eligible-subject totals, and accepted totals must equal
+  `selection_source_accounting`.
+- `source_parameter_set_preselections` records source-internal model choice
+  before cross-source authority ranking. It retains the selected coherent set
+  and model, required-quantity completeness, uncertainty coverage, source-native
+  ordering value, candidate count, runner-up set/model/value, applicability
+  evidence, reason, and policy. It never deletes alternative E4 evidence.
+- Compiler v6 names the corresponding source-accounting columns
+  `eligible_binding_subjects` and `nonaccepted_binding_subjects`; earlier
+  artifacts retain the legacy record-named columns and remain independently
+  auditable.
 - `config/evidence_lake/e5_source_dispositions.json` is the fail-closed boundary
   ledger for accepted E4 sources not yet named in a selected-fact policy. A
   source must be selected or have exactly one explicit evidence-only/deferred
@@ -236,8 +250,10 @@ Evidence Lake v2 staging rule:
   parameter context; alternatives that are genuine stellar model solutions
   remain separate `stellar_parameter_sets`. The EDR3 white-dwarf adapter uses
   this division for candidate probability/quality versus H, He, and mixed
-  atmosphere fits. E5 must select a model through a versioned applicability and
-  fit-quality policy rather than flattening alternatives field by field.
+  atmosphere fits. E5 policy v6 requires `Pwd > 0.75`, then selects one complete
+  H, He, or mixed Teff/log-g/mass set by minimum published fit chi-square. The
+  selected mass and atmosphere values come from that same model; alternatives
+  remain evidence and are never flattened field by field.
 - Source citation catalogs are materialized before evidence tables that refer
   to them. A compact-object row may populate `reference_raw` only when its
   source-native token exactly matches an authoritative `source_reference_key`;
@@ -1423,6 +1439,13 @@ token semantics. Multiplicity and exoplanet flags without safe target endpoints
 stay source context and cannot create relation, containment, planet lifecycle,
 or canonical inventory rows. E5 must bind each source row and apply
 quantity-specific authority before selecting any public value.
+
+E5 policy v6 binds each populated classification evidence row independently to
+a unique current Gaia DR3 star. Direct optical/infrared spectral types and
+gravity classes remain separate quantities; age category, literature flag, and
+youth evidence remain categorical strings. Component-scoped rows remain
+unresolved under the default null-scope policy rather than inheriting a
+source-record target.
 
 ## Targeted TESS Evidence Policy
 

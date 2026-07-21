@@ -35,17 +35,19 @@ def make_identity_and_core(state: Path) -> tuple[str, str]:
         );
         CREATE TABLE canonical_object_nodes (
           object_node_key VARCHAR, stable_object_key VARCHAR,
-          system_stable_object_key VARCHAR
+          system_stable_object_key VARCHAR, object_type VARCHAR
         );
         INSERT INTO canonical_identifier_bindings VALUES
           ('gaia_dr3', '123', 'star-node', 'star-key', 'system-key'),
+          ('gaia_dr3', '124', 'model-node', 'model-key', 'model-system-key'),
           ('gaia_dr3', '888', 'ambiguous-node-a', 'ambiguous-key-a', 'system-key-a'),
           ('gaia_dr3', '888', 'ambiguous-node-b', 'ambiguous-key-b', 'system-key-b');
         INSERT INTO canonical_object_nodes VALUES
-          ('star-node', 'star-key', 'system-key'),
-          ('ambiguous-node-a', 'ambiguous-key-a', 'system-key-a'),
-          ('ambiguous-node-b', 'ambiguous-key-b', 'system-key-b'),
-          ('planet-node', 'planet-key', 'system-key');
+          ('star-node', 'star-key', 'system-key', 'star'),
+          ('model-node', 'model-key', 'model-system-key', 'star'),
+          ('ambiguous-node-a', 'ambiguous-key-a', 'system-key-a', 'star'),
+          ('ambiguous-node-b', 'ambiguous-key-b', 'system-key-b', 'star'),
+          ('planet-node', 'planet-key', 'system-key', 'planet');
         """
     )
     con.close()
@@ -84,11 +86,97 @@ def make_e4_artifact(
           source_record_id VARCHAR, source_table VARCHAR, source_context_json JSON
         );
         CREATE TABLE identifier_claim_evidence (
-          source_record_id VARCHAR, namespace VARCHAR, identifier_normalized VARCHAR
+          source_record_id VARCHAR, namespace VARCHAR, identifier_normalized VARCHAR,
+          claim_scope VARCHAR, component_scope VARCHAR
         );
         """
     )
-    if object_type == "coherent":
+    if object_type == "classification":
+        con.execute(
+            """
+            CREATE TABLE stellar_classification_evidence (
+              evidence_id VARCHAR, source_record_id VARCHAR,
+              component_scope VARCHAR, classification_scheme VARCHAR,
+              classification_raw VARCHAR, classification_normalized VARCHAR,
+              probability DOUBLE, method VARCHAR, model VARCHAR,
+              reference_raw VARCHAR, quality_json JSON
+            );
+            INSERT INTO source_records VALUES
+              ('class-record', 'classification_table', '{}'),
+              ('class-missing', 'classification_table', '{}'),
+              ('class-scoped', 'classification_table', '{}');
+            INSERT INTO identifier_claim_evidence VALUES
+              ('class-record', 'gaia_dr3_source_id', 'Gaia DR3 123',
+               'star_or_substellar_object', NULL),
+              ('class-missing', 'gaia_dr3_source_id', 'Gaia DR3 999',
+               'star_or_substellar_object', NULL),
+              ('class-scoped', 'gaia_dr3_source_id', 'Gaia DR3 123',
+               'star_or_substellar_object', NULL);
+            INSERT INTO stellar_classification_evidence VALUES
+              ('class-opt', 'class-record', NULL, 'optical_spectral_type',
+               'M8', NULL, NULL, 'compiled-optical', NULL, 'opt-ref', '{}'),
+              ('class-ir', 'class-record', NULL, 'infrared_spectral_type',
+               'L0', NULL, NULL, 'compiled-infrared', NULL, 'ir-ref', '{}'),
+              ('class-missing-opt', 'class-missing', NULL, 'optical_spectral_type',
+               'T5', NULL, NULL, 'compiled-optical', NULL, 'missing-ref', '{}'),
+              ('class-scoped-opt', 'class-scoped', 'primary', 'optical_spectral_type',
+               'G2V', NULL, NULL, 'compiled-optical', NULL, 'scoped-ref', '{}');
+            """
+        )
+    elif object_type == "model":
+        con.execute(
+            """
+            CREATE TABLE compact_object_evidence (
+              evidence_id VARCHAR, source_record_id VARCHAR, compact_kind VARCHAR,
+              parameter_set_raw JSON, quality_json JSON
+            );
+            CREATE TABLE stellar_parameter_sets (
+              parameter_set_id VARCHAR, source_record_id VARCHAR,
+              component_scope VARCHAR, method VARCHAR, model VARCHAR,
+              reference_raw VARCHAR, quality_json JSON
+            );
+            CREATE TABLE stellar_parameter_evidence (
+              evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+              quantity_key VARCHAR, value_raw VARCHAR, normalized_value DOUBLE,
+              normalized_unit VARCHAR, uncertainty_lower DOUBLE,
+              uncertainty_upper DOUBLE, bound_semantics VARCHAR,
+              reference_raw VARCHAR, normalization_version VARCHAR, quality_json JSON
+            );
+            INSERT INTO source_records VALUES
+              ('model-record', 'model_table', '{}'),
+              ('model-low-probability', 'model_table', '{}');
+            INSERT INTO identifier_claim_evidence VALUES
+              ('model-record', 'gaia_edr3_source_id', 'Gaia EDR3 124', 'star', NULL),
+              ('model-low-probability', 'gaia_edr3_source_id', 'Gaia EDR3 124', 'star', NULL);
+            INSERT INTO compact_object_evidence VALUES
+              ('context-good', 'model-record', 'white_dwarf_candidate',
+               '{"Pwd":0.99}', '{"fidelity":1.0}'),
+              ('context-low', 'model-low-probability', 'white_dwarf_candidate',
+               '{"Pwd":0.5}', '{"fidelity":1.0}');
+            INSERT INTO stellar_parameter_sets VALUES
+              ('model-h', 'model-record', NULL, 'photometric-model', 'hydrogen', 'model-ref', '{}'),
+              ('model-he', 'model-record', NULL, 'photometric-model', 'helium', 'model-ref', '{}'),
+              ('model-mixed', 'model-record', NULL, 'photometric-model', 'mixed', 'model-ref', '{}'),
+              ('model-low', 'model-low-probability', NULL, 'photometric-model', 'hydrogen', 'model-ref', '{}');
+            INSERT INTO stellar_parameter_evidence VALUES
+              ('h-teff', 'model-h', 'model-record', 'effective_temperature', '10000', 10000, 'K', 100, 100, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('h-logg', 'model-h', 'model-record', 'log10_surface_gravity', '8.0', 8.0, 'dex', 0.1, 0.1, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('h-mass', 'model-h', 'model-record', 'mass', '0.6', 0.6, 'solMass', 0.05, 0.05, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('h-chi', 'model-h', 'model-record', 'fit_chi_square', '2.0', 2.0, NULL, NULL, NULL, NULL, 'model-ref', 'model-v1', '{}'),
+              ('he-teff', 'model-he', 'model-record', 'effective_temperature', '11000', 11000, 'K', 100, 100, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('he-logg', 'model-he', 'model-record', 'log10_surface_gravity', '8.1', 8.1, 'dex', 0.1, 0.1, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('he-mass', 'model-he', 'model-record', 'mass', '0.7', 0.7, 'solMass', 0.05, 0.05, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('he-chi', 'model-he', 'model-record', 'fit_chi_square', '1.0', 1.0, NULL, NULL, NULL, NULL, 'model-ref', 'model-v1', '{}'),
+              ('mixed-teff', 'model-mixed', 'model-record', 'effective_temperature', '10500', 10500, 'K', 100, 100, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('mixed-logg', 'model-mixed', 'model-record', 'log10_surface_gravity', '8.05', 8.05, 'dex', 0.1, 0.1, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('mixed-chi', 'model-mixed', 'model-record', 'fit_chi_square', '0.5', 0.5, NULL, NULL, NULL, NULL, 'model-ref', 'model-v1', '{}'),
+              ('low-teff', 'model-low', 'model-low-probability', 'effective_temperature', '9000', 9000, 'K', 100, 100, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('low-logg', 'model-low', 'model-low-probability', 'log10_surface_gravity', '8.0', 8.0, 'dex', 0.1, 0.1, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('low-mass', 'model-low', 'model-low-probability', 'mass', '0.5', 0.5, 'solMass', 0.05, 0.05, 'symmetric_error', 'model-ref', 'model-v1', '{}'),
+              ('low-chi', 'model-low', 'model-low-probability', 'fit_chi_square', '1.0', 1.0, NULL, NULL, NULL, NULL, 'model-ref', 'model-v1', '{}');
+            """
+        )
+    elif object_type == "coherent":
         schema = json.dumps(
             {
                 "fields": [
@@ -109,7 +197,7 @@ def make_e4_artifact(
             );
             INSERT INTO source_records VALUES ('coherent-record', 'gaia_source', '{}');
             INSERT INTO identifier_claim_evidence VALUES
-              ('coherent-record', 'gaia_dr3_source_id', 'Gaia DR3 123');
+              ('coherent-record', 'gaia_dr3_source_id', 'Gaia DR3 123', 'star', NULL);
             INSERT INTO stellar_source_parameter_sets VALUES
               ('coherent-set', 'coherent-record', NULL, '[20.0,0.5,"VARIABLE"]',
                'coherent-method', NULL, 'coherent-ref', 'norm-v1', '{}');
@@ -140,9 +228,9 @@ def make_e4_artifact(
               ('distance-missing', 'distance_bundle', '{}'),
               ('distance-ambiguous', 'distance_bundle', '{}');
             INSERT INTO identifier_claim_evidence VALUES
-              ('distance-record', 'gaia_edr3_source_id', 'Gaia EDR3 123'),
-              ('distance-missing', 'gaia_edr3_source_id', 'Gaia EDR3 999'),
-              ('distance-ambiguous', 'gaia_edr3_source_id', 'Gaia EDR3 888');
+              ('distance-record', 'gaia_edr3_source_id', 'Gaia EDR3 123', 'star', NULL),
+              ('distance-missing', 'gaia_edr3_source_id', 'Gaia EDR3 999', 'star', NULL),
+              ('distance-ambiguous', 'gaia_edr3_source_id', 'Gaia EDR3 888', 'star', NULL);
             INSERT INTO astrometry_distance_evidence_bundles VALUES (
               'distance-bundle', 'distance-record',
               'storage_group_only_no_parameter_coherence',
@@ -235,7 +323,7 @@ def make_e4_artifact(
             INSERT INTO source_records VALUES
               ('gaia-record', 'gaia_ap', '{}');
             INSERT INTO identifier_claim_evidence VALUES
-              ('gaia-record', 'gaia_dr3_source_id', 'Gaia DR3 123');
+              ('gaia-record', 'gaia_dr3_source_id', 'Gaia DR3 123', 'star', NULL);
             INSERT INTO stellar_parameter_sets VALUES
               ('hot-set', 'gaia-record', NULL, 'hot-method', NULL, 'hot-ref'),
               ('hot-low-set', 'gaia-record', NULL, 'hot-method', NULL, 'hot-low-ref'),
@@ -269,8 +357,8 @@ def make_e4_artifact(
               ('planet-default', 'nasa_default', '{"default_flag":"1"}'),
               ('planet-composite', 'nasa_composite', '{}');
             INSERT INTO identifier_claim_evidence VALUES
-              ('planet-default', 'nasa_planet_name', 'Test-1 b'),
-              ('planet-composite', 'nasa_planet_name', 'Test-1 b');
+              ('planet-default', 'nasa_planet_name', 'Test-1 b', 'planet', NULL),
+              ('planet-composite', 'nasa_planet_name', 'Test-1 b', 'planet', NULL);
             INSERT INTO planet_parameter_sets VALUES
               ('planet-default-set', 'planet-default', 'reference', NULL, NULL, 'default-ref'),
               ('planet-composite-set', 'planet-composite', 'composite', NULL, NULL, 'composite-ref');
@@ -325,6 +413,20 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
         release_id="distance-release",
         object_type="bundle",
     )
+    classification = make_e4_artifact(
+        state,
+        build_id="classification-test",
+        source_id="source.classification",
+        release_id="classification-release",
+        object_type="classification",
+    )
+    model = make_e4_artifact(
+        state,
+        build_id="model-test",
+        source_id="source.model",
+        release_id="model-release",
+        object_type="model",
+    )
     release_id = "release-set-test"
     release_sha = "a" * 64
     write_json(
@@ -334,7 +436,7 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             "release_set_id": release_id,
             "release_set_sha256": release_sha,
             "status": "pass",
-            "members": [gaia, nasa, coherent, distance],
+            "members": [gaia, nasa, coherent, distance, classification, model],
         },
     )
     policy = tmp_path / "policy.json"
@@ -349,6 +451,124 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             "identity_graph_id": identity_id,
             "canonical_reference_build_id": core_id,
             "selection_sources": [
+                {
+                    "source_id": "source.model",
+                    "object_type": "star",
+                    "binding_scope": "star",
+                    "binding": {
+                        "strategy": "authoritative_release_equivalence",
+                        "claim_namespace": "gaia_edr3_source_id",
+                        "canonical_namespace": "gaia_dr3",
+                        "normalization": "unsigned_decimal",
+                        "release_equivalence": {
+                            "source_release": "gaia_edr3",
+                            "canonical_release": "gaia_dr3",
+                            "relationship": "identical_source_list_and_astrometry_carried_forward",
+                            "source_list_identical": True,
+                            "authority_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
+                            "authority_statement": "fixture authoritative release relationship",
+                        },
+                    },
+                    "allowed_claim_scopes": ["star"],
+                    "parameter_set_table": "stellar_parameter_sets",
+                    "parameter_evidence_table": "stellar_parameter_evidence",
+                    "component_scope_field": "component_scope",
+                    "applicability_context": {
+                        "table": "compact_object_evidence",
+                        "filters": {"compact_kind": "white_dwarf_candidate"},
+                        "conditions": [
+                            {
+                                "scope": "applicability_parameters",
+                                "path": "$.Pwd",
+                                "operator": "gt",
+                                "value": 0.75,
+                            }
+                        ],
+                        "reason": "high-confidence model candidate",
+                    },
+                    "parameter_set_preselection": {
+                        "selection_key": "atmosphere_model",
+                        "required_quantities": [
+                            "effective_temperature",
+                            "log10_surface_gravity",
+                            "mass",
+                        ],
+                        "minimum_required_quantities": 3,
+                        "order_quantity": "fit_chi_square",
+                        "direction": "asc",
+                        "minimum_selected_parameter_sets": 1,
+                        "expected_selected_parameter_sets": 1,
+                        "reason": "complete model with lowest published fit chi-square",
+                    },
+                    "expected_binding_outcomes": {"accepted": 1, "excluded": 1},
+                    "expected_selected_facts": 3,
+                    "quantity_groups": [
+                        {
+                            "group_key": "atmosphere",
+                            "quantities": {
+                                "effective_temperature": "teff_k",
+                                "log10_surface_gravity": "logg_cgs",
+                            },
+                            "authorities": [
+                                {"rank": 5, "method": "photometric-model", "reason": "specialized model"}
+                            ],
+                        },
+                        {
+                            "group_key": "fundamental",
+                            "quantities": {"mass": "mass_msun"},
+                            "authorities": [
+                                {"rank": 5, "method": "photometric-model", "reason": "specialized model"}
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "source_id": "source.classification",
+                    "object_type": "star",
+                    "binding_scope": "star_or_substellar_object",
+                    "binding": {
+                        "strategy": "canonical_identifier",
+                        "claim_namespace": "gaia_dr3_source_id",
+                        "canonical_namespace": "gaia_dr3",
+                        "normalization": "unsigned_decimal",
+                    },
+                    "allowed_claim_scopes": ["star_or_substellar_object"],
+                    "component_scope_policy": "require_null",
+                    "storage": "classification",
+                    "classification_evidence_table": "stellar_classification_evidence",
+                    "expected_binding_outcomes": {
+                        "accepted": 2,
+                        "missing": 1,
+                        "unresolved": 1,
+                    },
+                    "expected_selected_facts": 2,
+                    "quantity_groups": [
+                        {
+                            "group_key": "optical_classification",
+                            "quantities": {
+                                "optical_spectral_type": {
+                                    "quantity_key": "spectral_type_optical",
+                                    "numeric": False,
+                                }
+                            },
+                            "authorities": [
+                                {"rank": 10, "method": "compiled-optical", "reason": "direct optical"}
+                            ],
+                        },
+                        {
+                            "group_key": "infrared_classification",
+                            "quantities": {
+                                "infrared_spectral_type": {
+                                    "quantity_key": "spectral_type_infrared",
+                                    "numeric": False,
+                                }
+                            },
+                            "authorities": [
+                                {"rank": 10, "method": "compiled-infrared", "reason": "direct infrared"}
+                            ],
+                        },
+                    ],
+                },
                 {
                     "source_id": "source.coherent",
                     "object_type": "star",
@@ -543,17 +763,26 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     assert report["status"] == "pass"
     assert report["source_disposition_status"] == "pass"
     assert report["source_disposition_blockers"] == []
-    assert report["table_counts"]["selected_facts"] == 8
+    assert report["table_counts"]["selected_facts"] == 13
     assert report["binding_outcomes"]["source.distance"] == {
         "accepted": 1,
         "ambiguous": 1,
         "missing": 1,
     }
+    assert report["binding_outcomes"]["source.classification"] == {
+        "accepted": 2,
+        "missing": 1,
+        "unresolved": 1,
+    }
+    assert report["binding_outcomes"]["source.model"] == {
+        "accepted": 1,
+        "excluded": 1,
+    }
     artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
     assert (artifact / "selected_facts__teff_k.parquet").is_file()
     assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
-    assert sum(report["partition_exports"]["selected_facts"].values()) == 8
-    assert sum(report["partition_exports"]["selection_decisions"].values()) == 6
+    assert sum(report["partition_exports"]["selected_facts"].values()) == 13
+    assert sum(report["partition_exports"]["selection_decisions"].values()) == 10
     audit = artifact_audit.audit_artifact(artifact, policy)
     assert audit["status"] == "pass"
     assert audit["failing_checks"] == {}
@@ -575,10 +804,58 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
         "stable_object_key FROM evidence_object_bindings "
         "WHERE source_id='source.distance' ORDER BY source_record_id"
     ).fetchall()
+    classification_facts = con.execute(
+        "SELECT quantity_key,value_raw FROM selected_facts "
+        "WHERE source_id='source.classification' ORDER BY quantity_key"
+    ).fetchall()
+    classification_bindings = con.execute(
+        "SELECT binding_subject_id,component_scope,binding_status,binding_reason "
+        "FROM evidence_object_bindings WHERE source_id='source.classification' "
+        "ORDER BY binding_subject_id"
+    ).fetchall()
+    model_preselection = con.execute(
+        "SELECT selected_parameter_set_id,selected_model,selected_completeness,"
+        "selected_order_value,candidate_parameter_set_count,"
+        "runner_up_parameter_set_id,applicability_evidence_id "
+        "FROM source_parameter_set_preselections WHERE source_id='source.model'"
+    ).fetchone()
+    model_facts = con.execute(
+        "SELECT quantity_key,normalized_value,parameter_set_id "
+        "FROM selected_facts WHERE source_id='source.model' ORDER BY quantity_key"
+    ).fetchall()
     con.close()
 
     assert ("teff_k", 5800.0, 5700.0, 5900.0, "source_selected") in facts
     assert ("orbital_period_days", 10.0, 9.8, 10.3, "source_selected") in facts
+    assert classification_facts == [
+        ("spectral_type_infrared", "L0"),
+        ("spectral_type_optical", "M8"),
+    ]
+    assert classification_bindings == [
+        ("class-ir", None, "accepted", "unique current canonical target"),
+        ("class-missing-opt", None, "missing", "source identifier absent from current canonical graph"),
+        ("class-opt", None, "accepted", "unique current canonical target"),
+        (
+            "class-scoped-opt",
+            "primary",
+            "unresolved",
+            "component scope requires an explicit compatible binding policy",
+        ),
+    ]
+    assert model_preselection == (
+        "model-he",
+        "helium",
+        3,
+        1.0,
+        2,
+        "model-h",
+        "context-good",
+    )
+    assert model_facts == [
+        ("logg_cgs", 8.1, "model-he"),
+        ("mass_msun", 0.7, "model-he"),
+        ("teff_k", 11000.0, "model-he"),
+    ]
     assert ("parallax_mas", 20.0, 19.5, 20.5, "source_selected") in facts
     assert ("distance_geometric_pc", 50.0, 45.0, 57.0, "source_selected") in facts
     assert ("distance_photogeometric_pc", 49.0, 46.0, 53.0, "source_selected") in facts
@@ -596,10 +873,10 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
             None,
         ),
         (
-            "distance-missing",
-            "missing",
-            "authoritative_release_equivalence:gaia_edr3->gaia_dr3",
-            "no current canonical target",
+                "distance-missing",
+                "missing",
+                "authoritative_release_equivalence:gaia_edr3->gaia_dr3",
+                "source identifier absent from current canonical graph",
             None,
         ),
         (
@@ -616,13 +893,51 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 7
+    assert len(policy["selection_sources"]) == 9
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_scoped_classification_requires_explicit_same_record_policy(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    classification = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "source.classification"
+    )
+    classification["component_scope_policy"] = "same_record_object_identifier"
+    classification["expected_binding_outcomes"] = {"accepted": 3, "missing": 1}
+    write_json(policy_path, policy)
+
+    report = compiler.compile_selected_facts(
+        state_dir=state,
+        policy_path=policy_path,
+        temp_directory=tmp_path / "spill",
+        threads=1,
+        memory_limit="1GB",
+    )
+    assert report["binding_outcomes"]["source.classification"] == {
+        "accepted": 3,
+        "missing": 1,
+    }
+    artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
+    con = duckdb.connect(str(artifact / "selected_facts.duckdb"), read_only=True)
+    scoped = con.execute(
+        "SELECT binding_status,stable_object_key,component_scope "
+        "FROM evidence_object_bindings "
+        "WHERE source_id='source.classification' "
+        "AND binding_subject_id='class-scoped-opt'"
+    ).fetchone()
+    con.close()
+    assert scoped == ("accepted", "star-key", "primary")
 
 
 def test_release_equivalence_binding_requires_authoritative_contract(tmp_path: Path) -> None:

@@ -2511,6 +2511,38 @@ Representative commits:
   classification/applicability checkpoint, preserving `/data` headroom and
   avoiding an immediately superseded artifact.
 
+### 84) E5 Evidence-Subject and Compact-Model Selection
+
+- Source-disposition ledger v2 moves UltracoolSheet and the Gaia EDR3
+  white-dwarf catalogue from owned blockers to active policies, leaving nine
+  selected sources, three nonblocking evidence-only roles, and 26 blockers.
+- Policy/compiler v6 replaces the assumption that every source has one
+  unscoped binding subject. Source records, individual classification evidence,
+  and scoped parameter sets now retain distinct subject identity, parent-record
+  lineage, component/claim scope, applicability evidence, and exhaustive
+  accepted/missing/excluded/ambiguous/quarantined/unresolved outcomes.
+- UltracoolSheet policy binds 10,887 populated classification subjects to the
+  current Gaia DR3 identity graph. It accepts 5,335, records 5,552 as missing,
+  and selects 5,282 categorical optical/infrared spectral, gravity, age,
+  literature, and youth facts without converting source context into numeric
+  measurements. Two-pass focused verification matches logical hash
+  `2c55c8fa8b8e48094370a8fcaa075714269db99e79d4c89d361d4201740e3f33`.
+- Gaia EDR3 white-dwarf policy uses the paper's general-purpose `Pwd > 0.75`
+  threshold and release-specific EDR3-to-DR3 identity equivalence. Among
+  222,805 candidates with usable model quantities, 164,425 bind uniquely,
+  56,388 remain missing, and 1,992 are excluded as inapplicable.
+- A reusable source-model preselection records completeness, uncertainty
+  coverage, published fit chi-square, selected and runner-up model, and exact
+  applicability evidence. It chooses 96,744 hydrogen, 46,078 helium, and
+  21,603 mixed complete models and emits 493,275 focused facts from coherent
+  Teff/log-g/mass sets. All alternative models remain in E4.
+- Focused white-dwarf verification runs the projection twice and reports zero
+  probability, scope, completeness, fit-order, duplicate, or lineage failures,
+  with logical hash
+  `89c6648d6a933d8bde53902b54033c1550c126674b5744c90c57b9fa14a7408f`.
+  No large selected-fact artifact is promoted yet; these two policies are
+  intentionally batched into the next storage cycle.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

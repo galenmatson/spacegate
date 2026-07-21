@@ -114,15 +114,20 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
         if source_id not in members:
             raise ValueError(f"selection source absent from E4 release set: {source_id}")
         storage = str(source.get("storage") or "eav")
-        if storage not in {"eav", "coherent_array", "measurement_bundle"}:
+        if storage not in {
+            "eav", "coherent_array", "measurement_bundle", "classification"
+        }:
             raise ValueError(f"unsupported selection storage: {source_id}:{storage}")
-        sql_identifier(str(source["parameter_set_table"]))
+        if storage == "classification":
+            sql_identifier(str(source["classification_evidence_table"]))
+        else:
+            sql_identifier(str(source["parameter_set_table"]))
         if storage == "eav":
             sql_identifier(str(source["parameter_evidence_table"]))
         elif storage == "coherent_array":
             sql_identifier(str(source["schema_table"]))
             sql_identifier(str(source.get("values_field") or "values_json"))
-        else:
+        elif storage == "measurement_bundle":
             sql_identifier(str(source["bundle_table"]))
             sql_identifier(str(source.get("bundle_id_field") or "bundle_id"))
             sql_identifier(str(source.get("measurements_field") or "measurements"))
@@ -135,6 +140,101 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
             raise ValueError(
                 f"authoritative-direct selection requires coherent arrays or measurement bundles: {source_id}"
             )
+        component_scope_policy = str(
+            source.get("component_scope_policy") or "require_null"
+        )
+        if component_scope_policy not in {
+            "require_null",
+            "same_record_object_identifier",
+            "matching_identifier_component_scope",
+        }:
+            raise ValueError(
+                f"unsupported component-scope policy: {source_id}:{component_scope_policy}"
+            )
+        allowed_claim_scopes = source.get("allowed_claim_scopes")
+        if allowed_claim_scopes is not None and (
+            not isinstance(allowed_claim_scopes, list)
+            or not allowed_claim_scopes
+            or any(not str(value).strip() for value in allowed_claim_scopes)
+        ):
+            raise ValueError(f"invalid allowed claim scopes: {source_id}")
+        expected_outcomes = source.get("expected_binding_outcomes")
+        if expected_outcomes is not None:
+            allowed_statuses = {
+                "accepted", "missing", "excluded", "ambiguous",
+                "quarantined", "unresolved",
+            }
+            if (
+                not isinstance(expected_outcomes, dict)
+                or not set(expected_outcomes).issubset(allowed_statuses)
+                or any(
+                    not isinstance(value, int) or value < 0
+                    for value in expected_outcomes.values()
+                )
+            ):
+                raise ValueError(f"invalid expected binding outcomes: {source_id}")
+        expected_selected_facts = source.get("expected_selected_facts")
+        if expected_selected_facts is not None and (
+            not isinstance(expected_selected_facts, int)
+            or expected_selected_facts < 0
+        ):
+            raise ValueError(f"invalid expected selected facts: {source_id}")
+        applicability = source.get("applicability_context")
+        if applicability is not None:
+            if storage != "eav":
+                raise ValueError(
+                    f"applicability context currently requires EAV storage: {source_id}"
+                )
+            sql_identifier(str(applicability["table"]))
+            sql_identifier(str(applicability.get("record_id_field") or "source_record_id"))
+            sql_identifier(str(applicability.get("evidence_id_field") or "evidence_id"))
+            filters = applicability.get("filters") or {}
+            if not isinstance(filters, dict):
+                raise ValueError(f"invalid applicability filters: {source_id}")
+            for field in filters:
+                sql_identifier(str(field))
+            conditions = applicability.get("conditions") or []
+            validate_quality_rule(
+                {"quality_conditions": conditions},
+                source_id=source_id,
+                group_key="applicability_context",
+            )
+            if any(
+                str(condition.get("scope"))
+                not in {"applicability_parameters", "applicability_quality"}
+                for condition in conditions
+            ):
+                raise ValueError(
+                    f"applicability conditions use an unrelated scope: {source_id}"
+                )
+        preselection = source.get("parameter_set_preselection")
+        if preselection is not None:
+            if storage != "eav":
+                raise ValueError(
+                    f"parameter-set preselection requires EAV storage: {source_id}"
+                )
+            selection_key = str(preselection.get("selection_key") or "")
+            required_quantities = preselection.get("required_quantities") or []
+            order_quantity = str(preselection.get("order_quantity") or "")
+            direction = str(preselection.get("direction") or "asc")
+            if (
+                not SAFE_IDENTIFIER.fullmatch(selection_key)
+                or not isinstance(required_quantities, list)
+                or not required_quantities
+                or any(not str(value).strip() for value in required_quantities)
+                or not order_quantity
+                or direction not in {"asc", "desc"}
+                or not str(preselection.get("reason") or "").strip()
+            ):
+                raise ValueError(f"invalid parameter-set preselection: {source_id}")
+            expected_preselected = preselection.get("expected_selected_parameter_sets")
+            if expected_preselected is not None and (
+                not isinstance(expected_preselected, int)
+                or expected_preselected < 0
+            ):
+                raise ValueError(
+                    f"invalid expected parameter-set preselection count: {source_id}"
+                )
         binding = source.get("binding") or {}
         if binding.get("strategy") not in {
             "canonical_identifier", "canonical_unique_name",
@@ -182,13 +282,28 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                             "coherent-array quality rules cannot use evidence scope: "
                             f"{source_id}:{group_key}"
                         )
+            parameter_set_order = group.get("parameter_set_order")
+            if parameter_set_order is not None:
+                if storage != "eav":
+                    raise ValueError(
+                        f"parameter-set value ordering requires EAV storage: {key}"
+                    )
+                order_quantity = str(parameter_set_order.get("source_quantity") or "")
+                direction = str(parameter_set_order.get("direction") or "asc")
+                if (
+                    order_quantity not in (group.get("quantities") or {})
+                    or direction not in {"asc", "desc"}
+                ):
+                    raise ValueError(f"invalid parameter-set ordering: {key}")
             for source_quantity, selected_spec in (group.get("quantities") or {}).items():
                 if source_quantity in source_quantities:
                     raise ValueError(f"source quantity appears in multiple groups: {source_id}:{source_quantity}")
                 source_quantities.add(source_quantity)
                 if isinstance(selected_spec, dict):
                     selected_quantity = str(selected_spec.get("quantity_key") or "")
-                    if storage not in {"coherent_array", "measurement_bundle"} or not selected_quantity:
+                    if storage not in {
+                        "coherent_array", "measurement_bundle", "classification"
+                    } or not selected_quantity:
                         raise ValueError(f"invalid structured quantity mapping: {source_id}:{source_quantity}")
                 elif not str(selected_spec):
                     raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
@@ -198,7 +313,8 @@ def validate_quality_rule(
     rule: dict[str, Any], *, source_id: str, group_key: str
 ) -> None:
     allowed_scopes = {
-        "evidence_quality", "parameter_set_quality", "source_context"
+        "evidence_quality", "parameter_set_quality", "source_context",
+        "applicability_parameters", "applicability_quality",
     }
     allowed_operators = {
         "eq", "ne", "gt", "gte", "lt", "lte", "bitmask_none", "not_null"
@@ -237,7 +353,8 @@ def validate_quality_rule(
 
 
 def quality_json_expression(
-    scope: str, *, source_alias: str, set_alias: str, evidence_alias: str
+    scope: str, *, source_alias: str, set_alias: str, evidence_alias: str,
+    applicability_alias: str = "app",
 ) -> str:
     if scope == "evidence_quality":
         return f"{evidence_alias}.quality_json"
@@ -245,16 +362,21 @@ def quality_json_expression(
         return f"{set_alias}.quality_json"
     if scope == "source_context":
         return f"{source_alias}.source_context_json"
+    if scope == "applicability_parameters":
+        return f"{applicability_alias}.parameter_set_raw"
+    if scope == "applicability_quality":
+        return f"{applicability_alias}.quality_json"
     raise ValueError(f"unsupported quality JSON scope: {scope}")
 
 
 def quality_condition_sql(
     condition: dict[str, Any], *, source_alias: str, set_alias: str,
-    evidence_alias: str,
+    evidence_alias: str, applicability_alias: str = "app",
 ) -> str:
     expression = quality_json_expression(
         str(condition["scope"]), source_alias=source_alias,
         set_alias=set_alias, evidence_alias=evidence_alias,
+        applicability_alias=applicability_alias,
     )
     extracted = f"json_extract_string({expression}, {sql_literal(condition['path'])})"
     operator = str(condition["operator"])
@@ -307,7 +429,7 @@ def authority_condition(
 
 def quality_score_sql(
     rule: dict[str, Any], *, source_alias: str = "sr", set_alias: str = "ps",
-    evidence_alias: str = "pe",
+    evidence_alias: str = "pe", applicability_alias: str = "app",
 ) -> str:
     quality_order = rule.get("quality_order")
     if quality_order is None:
@@ -315,6 +437,7 @@ def quality_score_sql(
     expression = quality_json_expression(
         str(quality_order["scope"]), source_alias=source_alias,
         set_alias=set_alias, evidence_alias=evidence_alias,
+        applicability_alias=applicability_alias,
     )
     extracted = (
         f"try_cast(json_extract_string({expression}, "
@@ -323,19 +446,32 @@ def quality_score_sql(
     return f"-({extracted})" if quality_order.get("direction", "desc") == "asc" else extracted
 
 
-def authority_case(group: dict[str, Any], *, value: str) -> str:
+def authority_case(
+    group: dict[str, Any], *, value: str, source_alias: str = "sr",
+    set_alias: str = "ps", evidence_alias: str = "pe",
+) -> str:
     clauses: list[str] = []
     for rule in group["authorities"]:
-        condition = authority_condition(rule, "sr", "ps")
+        condition = authority_condition(
+            rule, source_alias, set_alias, evidence_alias
+        )
         clauses.append(f"WHEN {condition} THEN {sql_literal(rule[value])}")
     return "CASE " + " ".join(clauses) + " ELSE NULL END"
 
 
-def quality_score_case(group: dict[str, Any]) -> str:
+def quality_score_case(
+    group: dict[str, Any], *, source_alias: str = "sr",
+    set_alias: str = "ps", evidence_alias: str = "pe",
+) -> str:
     clauses: list[str] = []
     for rule in group["authorities"]:
-        condition = authority_condition(rule, "sr", "ps", "pe")
-        clauses.append(f"WHEN {condition} THEN {quality_score_sql(rule)}")
+        condition = authority_condition(
+            rule, source_alias, set_alias, evidence_alias
+        )
+        clauses.append(
+            f"WHEN {condition} THEN "
+            f"{quality_score_sql(rule, source_alias=source_alias, set_alias=set_alias, evidence_alias=evidence_alias)}"
+        )
     return "CASE " + " ".join(clauses) + " ELSE NULL END"
 
 
@@ -400,26 +536,112 @@ def coherent_field_specs(
     return resolved
 
 
-def authority_sql(source: dict[str, Any]) -> tuple[str, str, str]:
+def prepare_applicability_context(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+) -> tuple[str, str, str, str]:
+    context = source.get("applicability_context")
+    if context is None:
+        return "", "TRUE", "no additional applicability predicate", "NULL::VARCHAR"
+    table = sql_identifier(str(context["table"]))
+    record_id_field = sql_identifier(
+        str(context.get("record_id_field") or "source_record_id")
+    )
+    evidence_id_field = sql_identifier(
+        str(context.get("evidence_id_field") or "evidence_id")
+    )
+    filters = context.get("filters") or {}
+    filter_sql = " AND ".join(
+        f"{sql_identifier(str(field))}={sql_literal(value)}"
+        for field, value in sorted(filters.items())
+    ) or "TRUE"
+    view_name = sql_identifier(f"applicability_{source_alias}")
+    duplicate_count = int(
+        con.execute(
+            f"SELECT COUNT(*) FROM (SELECT {record_id_field},COUNT(*) n "
+            f"FROM {source_alias}.{table} WHERE {filter_sql} "
+            f"GROUP BY 1 HAVING COUNT(*)<>1)"
+        ).fetchone()[0]
+    )
+    if duplicate_count:
+        raise ValueError(
+            f"applicability context is not one row per source record: "
+            f"{source['source_id']}:{duplicate_count}"
+        )
+    con.execute(
+        f"CREATE OR REPLACE TEMP VIEW {view_name} AS "
+        f"SELECT * FROM {source_alias}.{table} WHERE {filter_sql}"
+    )
+    conditions = context.get("conditions") or []
+    configured_conditions = " AND ".join(
+        quality_condition_sql(
+            condition,
+            source_alias="sr",
+            set_alias="ps",
+            evidence_alias="pe",
+            applicability_alias="app",
+        )
+        for condition in conditions
+    ) or "TRUE"
+    condition_sql = f"app.{record_id_field} IS NOT NULL AND ({configured_conditions})"
+    reason = str(
+        context.get("reason")
+        or "source record satisfies the configured applicability predicate"
+    )
+    join_sql = f"LEFT JOIN {view_name} app ON app.{record_id_field}=ps.source_record_id"
+    return join_sql, condition_sql, reason, f"app.{evidence_id_field}"
+
+
+def authority_sql(
+    source: dict[str, Any], *, source_alias: str = "sr",
+    set_alias: str = "ps", evidence_alias: str = "pe",
+) -> tuple[str, str, str]:
     rank_clauses: list[str] = []
     reason_clauses: list[str] = []
     quality_clauses: list[str] = []
     for group in source["quantity_groups"]:
         group_literal = sql_literal(group["group_key"])
         rank_clauses.append(
-            f"WHEN q.group_key = {group_literal} THEN {authority_case(group, value='rank')}"
+            f"WHEN q.group_key = {group_literal} THEN "
+            f"{authority_case(group, value='rank', source_alias=source_alias, set_alias=set_alias, evidence_alias=evidence_alias)}"
         )
         reason_clauses.append(
-            f"WHEN q.group_key = {group_literal} THEN {authority_case(group, value='reason')}"
+            f"WHEN q.group_key = {group_literal} THEN "
+            f"{authority_case(group, value='reason', source_alias=source_alias, set_alias=set_alias, evidence_alias=evidence_alias)}"
         )
         quality_clauses.append(
-            f"WHEN q.group_key = {group_literal} THEN {quality_score_case(group)}"
+            f"WHEN q.group_key = {group_literal} THEN "
+            f"{quality_score_case(group, source_alias=source_alias, set_alias=set_alias, evidence_alias=evidence_alias)}"
         )
     return (
         "CASE " + " ".join(rank_clauses) + " ELSE NULL END",
         "CASE " + " ".join(reason_clauses) + " ELSE NULL END",
         "CASE " + " ".join(quality_clauses) + " ELSE NULL END",
     )
+
+
+def parameter_set_order_sql(source: dict[str, Any], fallback_sql: str) -> str:
+    clauses: list[str] = []
+    for group in source["quantity_groups"]:
+        order = group.get("parameter_set_order")
+        if order is None:
+            continue
+        source_quantity = sql_literal(str(order["source_quantity"]))
+        value = (
+            f"MAX(CASE WHEN pe.quantity_key={source_quantity} "
+            "THEN pe.normalized_value END) OVER "
+            "(PARTITION BY pe.parameter_set_id,q.group_key)"
+        )
+        if str(order.get("direction") or "asc") == "asc":
+            value = f"-({value})"
+        clauses.append(
+            f"WHEN q.group_key={sql_literal(group['group_key'])} THEN {value}"
+        )
+    if not clauses:
+        return fallback_sql
+    return "CASE " + " ".join(clauses) + f" ELSE {fallback_sql} END"
 
 
 def create_schema(con: duckdb.DuckDBPyConnection) -> None:
@@ -445,9 +667,9 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           release_id VARCHAR,
           evidence_build_id VARCHAR,
           object_type VARCHAR,
-          eligible_source_records BIGINT,
+          eligible_binding_subjects BIGINT,
           accepted_current_bindings BIGINT,
-          excluded_or_unresolved_records BIGINT,
+          nonaccepted_binding_subjects BIGINT,
           candidate_parameter_sets BIGINT,
           selected_parameter_sets BIGINT,
           selected_facts BIGINT
@@ -458,7 +680,14 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           release_id VARCHAR,
           evidence_build_id VARCHAR,
           source_record_id VARCHAR,
+          binding_subject_kind VARCHAR,
+          binding_subject_id VARCHAR,
           binding_scope VARCHAR,
+          component_scope VARCHAR,
+          identifier_claim_scope VARCHAR,
+          applicability_status VARCHAR,
+          applicability_reason VARCHAR,
+          applicability_evidence_id VARCHAR,
           object_type VARCHAR,
           canonical_object_node_key VARCHAR,
           stable_object_key VARCHAR,
@@ -466,6 +695,26 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           binding_status VARCHAR,
           binding_method VARCHAR,
           binding_reason VARCHAR
+        );
+        CREATE TABLE source_parameter_set_preselections (
+          preselection_id VARCHAR,
+          source_id VARCHAR,
+          release_id VARCHAR,
+          evidence_build_id VARCHAR,
+          source_record_id VARCHAR,
+          selection_key VARCHAR,
+          selected_parameter_set_id VARCHAR,
+          selected_model VARCHAR,
+          selected_completeness INTEGER,
+          selected_uncertainty_count INTEGER,
+          selected_order_value DOUBLE,
+          candidate_parameter_set_count INTEGER,
+          runner_up_parameter_set_id VARCHAR,
+          runner_up_model VARCHAR,
+          runner_up_order_value DOUBLE,
+          applicability_evidence_id VARCHAR,
+          selection_reason VARCHAR,
+          policy_version VARCHAR
         );
         CREATE TABLE parameter_set_selection_decisions (
           decision_id VARCHAR,
@@ -552,24 +801,41 @@ def create_binding(
     object_type = str(source["object_type"])
     binding = source["binding"]
     storage = str(source.get("storage") or "eav")
-    set_table = sql_identifier(str(source["parameter_set_table"]))
-    component_filter = ""
-    if source.get("component_scope_field"):
-        component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
+    component_field = source.get("component_scope_field")
+    component_scope_policy = str(
+        source.get("component_scope_policy") or "require_null"
+    )
+    set_table = (
+        sql_identifier(str(source["parameter_set_table"]))
+        if storage != "classification"
+        else None
+    )
     if storage == "coherent_array":
         values_field = sql_identifier(str(source.get("values_field") or "values_json"))
+        set_id_field = sql_identifier(str(source.get("set_id_field") or "evidence_id"))
         specs = coherent_field_specs(con, source=source, source_alias=source_alias)
         present = " OR ".join(
             f"json_extract(ps.{values_field}, '$[{specs[name]['position']}]') IS NOT NULL"
             for group in source["quantity_groups"]
             for name in group["quantities"]
         )
+        component_value = (
+            f"ps.{sql_identifier(str(component_field))}" if component_field else "NULL::VARCHAR"
+        )
         con.execute(
             f"""
             CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
-            SELECT DISTINCT ps.source_record_id
+            SELECT DISTINCT ps.source_record_id,
+                   CASE WHEN {component_value} IS NULL
+                        THEN 'source_record' ELSE 'parameter_set' END binding_subject_kind,
+                   CASE WHEN {component_value} IS NULL
+                        THEN ps.source_record_id ELSE cast(ps.{set_id_field} as varchar) END binding_subject_id,
+                   {component_value} component_scope,
+                   TRUE applicability_pass,
+                   'no additional applicability predicate'::VARCHAR applicability_reason,
+                   NULL::VARCHAR applicability_evidence_id
             FROM {source_alias}.{set_table} ps
-            WHERE ({present}) {component_filter}
+            WHERE ({present})
             """
         )
     elif storage == "measurement_bundle":
@@ -584,7 +850,13 @@ def create_binding(
         con.execute(
             f"""
             CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
-            SELECT DISTINCT bundle.source_record_id
+            SELECT DISTINCT bundle.source_record_id,
+                   'source_record'::VARCHAR binding_subject_kind,
+                   bundle.source_record_id binding_subject_id,
+                   NULL::VARCHAR component_scope,
+                   TRUE applicability_pass,
+                   'no additional applicability predicate'::VARCHAR applicability_reason,
+                   NULL::VARCHAR applicability_evidence_id
             FROM {source_alias}.{bundle_table} bundle
             CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement)
             WHERE nested.measurement.quantity_key IN ({quantity_list})
@@ -592,24 +864,83 @@ def create_binding(
                    OR NULLIF(TRIM(nested.measurement.value_raw), '') IS NOT NULL)
             """
         )
-    else:
-        evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
+    elif storage == "classification":
+        classification_table = sql_identifier(str(source["classification_evidence_table"]))
         quantity_rows = quantity_values(source)
         con.execute(
             f"""
             CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
             WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows})
-            SELECT DISTINCT pe.source_record_id
+            SELECT DISTINCT ce.source_record_id,
+                   'classification_evidence'::VARCHAR binding_subject_kind,
+                   ce.evidence_id binding_subject_id,
+                   ce.component_scope,
+                   TRUE applicability_pass,
+                   'no additional applicability predicate'::VARCHAR applicability_reason,
+                   NULL::VARCHAR applicability_evidence_id
+            FROM {source_alias}.{classification_table} ce
+            JOIN quantities q ON q.source_quantity = ce.classification_scheme
+            WHERE NULLIF(TRIM(ce.classification_raw), '') IS NOT NULL
+            """
+        )
+    else:
+        evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
+        quantity_rows = quantity_values(source)
+        (
+            applicability_join,
+            applicability_condition,
+            applicability_reason,
+            applicability_evidence_id,
+        ) = (
+            prepare_applicability_context(
+                con, source=source, source_alias=source_alias
+            )
+        )
+        component_value = (
+            f"ps.{sql_identifier(str(component_field))}" if component_field else "NULL::VARCHAR"
+        )
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
+            WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows})
+            SELECT DISTINCT pe.source_record_id,
+                   CASE WHEN {component_value} IS NULL
+                        THEN 'source_record' ELSE 'parameter_set' END binding_subject_kind,
+                   CASE WHEN {component_value} IS NULL
+                        THEN pe.source_record_id ELSE pe.parameter_set_id END binding_subject_id,
+                   {component_value} component_scope,
+                   coalesce(({applicability_condition}), FALSE) applicability_pass,
+                   {sql_literal(applicability_reason)}::VARCHAR applicability_reason,
+                   {applicability_evidence_id} applicability_evidence_id
             FROM {source_alias}.{evidence_table} pe
             JOIN quantities q ON q.source_quantity = pe.quantity_key
             JOIN {source_alias}.{set_table} ps ON ps.parameter_set_id = pe.parameter_set_id
+            {applicability_join}
             WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
-              {component_filter}
             """
         )
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
     claim_namespace = sql_literal(binding["claim_namespace"])
+    allowed_claim_scopes = source.get("allowed_claim_scopes") or []
+    claim_scope_filter = (
+        " AND ic.claim_scope IN ("
+        + ",".join(sql_literal(str(value)) for value in allowed_claim_scopes)
+        + ")"
+        if allowed_claim_scopes
+        else ""
+    )
+    if component_scope_policy == "matching_identifier_component_scope":
+        component_claim_filter = (
+            " AND (e.component_scope IS NULL OR ic.component_scope = e.component_scope)"
+        )
+    else:
+        component_claim_filter = ""
+    scope_candidate_filter = (
+        " AND e.applicability_pass AND e.component_scope IS NULL"
+        if component_scope_policy == "require_null"
+        else " AND e.applicability_pass"
+    )
     if strategy in {"canonical_identifier", "authoritative_release_equivalence"}:
         normalization = binding.get("normalization")
         if normalization != "unsigned_decimal":
@@ -625,13 +956,18 @@ def create_binding(
         else:
             binding_method = "canonical_identifier_graph"
         candidate_sql = f"""
-          SELECT e.source_record_id, b.object_node_key, b.stable_object_key,
-                 b.system_stable_object_key, {sql_literal(binding_method)} AS binding_method
+          SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+                 b.object_node_key, b.stable_object_key, b.system_stable_object_key,
+                 o.object_type target_object_type, ic.claim_scope identifier_claim_scope,
+                 {sql_literal(binding_method)} AS binding_method
           FROM eligible_{source_alias} e
           JOIN {source_alias}.identifier_claim_evidence ic
             ON ic.source_record_id = e.source_record_id AND ic.namespace = {claim_namespace}
+            {claim_scope_filter} {component_claim_filter}
           JOIN identity.canonical_identifier_bindings b
             ON b.namespace = {canonical_namespace} AND b.id_value_norm = {normalized}
+          JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
+          WHERE TRUE {scope_candidate_filter}
         """
     else:
         if binding.get("normalization") != "spacegate_public_name_v1":
@@ -644,16 +980,33 @@ def create_binding(
                    system_id, COUNT(*) OVER (PARTITION BY {canonical_name_field}) AS name_count
             FROM core.{canonical_table}
           )
-          SELECT e.source_record_id, o.object_node_key, n.stable_object_key,
-                 o.system_stable_object_key, 'canonical_unique_name' AS binding_method
+          SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+                 o.object_node_key, n.stable_object_key, o.system_stable_object_key,
+                 o.object_type target_object_type, ic.claim_scope identifier_claim_scope,
+                 'canonical_unique_name' AS binding_method
           FROM eligible_{source_alias} e
           JOIN {source_alias}.identifier_claim_evidence ic
             ON ic.source_record_id = e.source_record_id AND ic.namespace = {claim_namespace}
+            {claim_scope_filter} {component_claim_filter}
           JOIN canonical_names n
             ON n.name_count = 1 AND n.name_norm = TRIM(regexp_replace(lower(ic.identifier_normalized), '[^a-z0-9]+', ' ', 'g'))
           JOIN identity.canonical_object_nodes o ON o.stable_object_key = n.stable_object_key
+          WHERE TRUE {scope_candidate_filter}
         """
     con.execute(f"CREATE OR REPLACE TEMP TABLE binding_candidates_{source_alias} AS {candidate_sql}")
+    con.execute(
+        f"""
+        CREATE OR REPLACE TEMP TABLE binding_claim_stats_{source_alias} AS
+        SELECT e.binding_subject_kind, e.binding_subject_id,
+               COUNT(ic.source_record_id)::BIGINT claim_count,
+               MIN(ic.claim_scope) identifier_claim_scope
+        FROM eligible_{source_alias} e
+        LEFT JOIN {source_alias}.identifier_claim_evidence ic
+          ON ic.source_record_id=e.source_record_id AND ic.namespace={claim_namespace}
+          {claim_scope_filter} {component_claim_filter}
+        GROUP BY e.binding_subject_kind, e.binding_subject_id
+        """
+    )
     if strategy == "authoritative_release_equivalence":
         configured_method = (
             "authoritative_release_equivalence:"
@@ -673,36 +1026,70 @@ def create_binding(
         f"""
         INSERT INTO evidence_object_bindings
         WITH resolved AS (
-          SELECT source_record_id,
-                 MIN(object_node_key) AS object_node_key,
-                 MIN(stable_object_key) AS stable_object_key,
-                 MIN(system_stable_object_key) AS system_stable_object_key,
+          SELECT binding_subject_kind, binding_subject_id,
+                 MIN(object_node_key) FILTER (
+                   WHERE target_object_type={sql_literal(object_type)}
+                 ) AS object_node_key,
+                 MIN(stable_object_key) FILTER (
+                   WHERE target_object_type={sql_literal(object_type)}
+                 ) AS stable_object_key,
+                 MIN(system_stable_object_key) FILTER (
+                   WHERE target_object_type={sql_literal(object_type)}
+                 ) AS system_stable_object_key,
                  MIN(binding_method) AS binding_method,
-                 COUNT(DISTINCT stable_object_key) AS target_count
+                 MIN(identifier_claim_scope) identifier_claim_scope,
+                 COUNT(DISTINCT stable_object_key) AS target_count,
+                 COUNT(DISTINCT stable_object_key) FILTER (
+                   WHERE target_object_type={sql_literal(object_type)}
+                 ) AS compatible_target_count
           FROM binding_candidates_{source_alias}
-          GROUP BY source_record_id
+          GROUP BY binding_subject_kind, binding_subject_id
         )
-        SELECT sha256(concat_ws('|', {sql_literal(source_id)}, e.source_record_id,
-                                    {sql_literal(object_type)})),
+        SELECT sha256(concat_ws('|', {sql_literal(source_id)}, e.binding_subject_kind,
+                                    e.binding_subject_id, {sql_literal(object_type)})),
                {sql_literal(source_id)}, {sql_literal(release_id)}, {sql_literal(member['build_id'])},
-               e.source_record_id, {sql_literal(source['binding_scope'])},
+               e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+               {sql_literal(source['binding_scope'])}, e.component_scope,
+               coalesce(r.identifier_claim_scope, cs.identifier_claim_scope),
+               CASE WHEN e.applicability_pass THEN 'applicable' ELSE 'inapplicable' END,
+               e.applicability_reason,
+               e.applicability_evidence_id,
                {sql_literal(object_type)},
-               CASE WHEN r.target_count = 1 THEN r.object_node_key END,
-               CASE WHEN r.target_count = 1 THEN r.stable_object_key END,
-               CASE WHEN r.target_count = 1 THEN r.system_stable_object_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.object_node_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.stable_object_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.system_stable_object_key END,
                CASE
-                 WHEN r.target_count = 1 THEN 'accepted'
+                 WHEN NOT e.applicability_pass THEN 'excluded'
+                 WHEN e.component_scope IS NOT NULL
+                  AND {sql_literal(component_scope_policy)} = 'require_null' THEN 'unresolved'
+                 WHEN e.component_scope IS NOT NULL AND cs.claim_count = 0
+                   THEN 'unresolved'
+                 WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN 'accepted'
                  WHEN r.target_count > 1 THEN 'ambiguous'
+                 WHEN r.target_count = 1 AND r.compatible_target_count = 0 THEN 'excluded'
                  ELSE 'missing'
                END,
                COALESCE(r.binding_method, {sql_literal(configured_method)}),
                CASE
-                 WHEN r.target_count = 1 THEN {sql_literal(accepted_reason)}
+                 WHEN NOT e.applicability_pass
+                   THEN 'source evidence fails the configured applicability predicate: '
+                        || e.applicability_reason
+                 WHEN e.component_scope IS NOT NULL
+                  AND {sql_literal(component_scope_policy)} = 'require_null'
+                   THEN 'component scope requires an explicit compatible binding policy'
+                 WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN {sql_literal(accepted_reason)}
                  WHEN r.target_count > 1 THEN 'multiple current canonical targets'
-                 ELSE 'no current canonical target'
+                 WHEN r.target_count = 1 AND r.compatible_target_count = 0
+                   THEN 'unique identifier target has an incompatible canonical object type'
+                 WHEN cs.claim_count = 0 AND e.component_scope IS NOT NULL
+                   THEN 'no scope-compatible source identifier claim'
+                 WHEN cs.claim_count = 0 THEN 'no source identifier claim'
+                 ELSE 'source identifier absent from current canonical graph'
                END
         FROM eligible_{source_alias} e
-        LEFT JOIN resolved r USING (source_record_id)
+        LEFT JOIN resolved r USING (binding_subject_kind, binding_subject_id)
+        LEFT JOIN binding_claim_stats_{source_alias} cs
+          USING (binding_subject_kind, binding_subject_id)
         """
     )
     accepted = int(
@@ -715,6 +1102,116 @@ def create_binding(
     return eligible_count, accepted
 
 
+def create_parameter_set_preselection(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> int:
+    preselection = source.get("parameter_set_preselection")
+    if preselection is None:
+        return 0
+    set_table = sql_identifier(str(source["parameter_set_table"]))
+    evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
+    selection_key = str(preselection["selection_key"])
+    required = sorted(str(value) for value in preselection["required_quantities"])
+    required_sql = ",".join(sql_literal(value) for value in required)
+    order_quantity = str(preselection["order_quantity"])
+    direction = str(preselection.get("direction") or "asc")
+    order_direction = "ASC" if direction == "asc" else "DESC"
+    minimum_completeness = int(
+        preselection.get("minimum_required_quantities") or len(required)
+    )
+    if minimum_completeness < 1 or minimum_completeness > len(required):
+        raise ValueError(
+            f"invalid preselection completeness floor: {source['source_id']}"
+        )
+    temp_name = sql_identifier(f"preselected_{source_alias}")
+    con.execute(
+        f"""
+        CREATE OR REPLACE TEMP TABLE {temp_name} AS
+        WITH set_stats AS (
+          SELECT ps.source_record_id, ps.parameter_set_id, ps.model,
+                 COUNT(DISTINCT pe.quantity_key) FILTER (
+                   WHERE pe.quantity_key IN ({required_sql})
+                     AND (pe.normalized_value IS NOT NULL
+                       OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
+                 )::INTEGER completeness,
+                 COUNT(DISTINCT pe.quantity_key) FILTER (
+                   WHERE pe.quantity_key IN ({required_sql})
+                     AND (pe.uncertainty_lower IS NOT NULL
+                       OR pe.uncertainty_upper IS NOT NULL)
+                 )::INTEGER uncertainty_count,
+                 MAX(pe.normalized_value) FILTER (
+                   WHERE pe.quantity_key={sql_literal(order_quantity)}
+                 ) order_value,
+                 MIN(b.applicability_evidence_id) applicability_evidence_id
+          FROM {source_alias}.{set_table} ps
+          JOIN {source_alias}.{evidence_table} pe
+            ON pe.parameter_set_id=ps.parameter_set_id
+          JOIN evidence_object_bindings b
+            ON b.source_id={sql_literal(source['source_id'])}
+           AND b.binding_subject_kind='source_record'
+           AND b.source_record_id=ps.source_record_id
+           AND b.binding_status='accepted'
+          WHERE pe.quantity_key IN ({required_sql},{sql_literal(order_quantity)})
+          GROUP BY ps.source_record_id,ps.parameter_set_id,ps.model
+        ), eligible AS (
+          SELECT * FROM set_stats
+          WHERE completeness >= {minimum_completeness} AND order_value IS NOT NULL
+        ), ranked AS (
+          SELECT *,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY source_record_id
+                   ORDER BY completeness DESC,uncertainty_count DESC,
+                            order_value {order_direction} NULLS LAST,
+                            model,parameter_set_id
+                 ) selection_rank,
+                 COUNT(*) OVER (PARTITION BY source_record_id)::INTEGER candidate_count,
+                 LEAD(parameter_set_id) OVER (
+                   PARTITION BY source_record_id
+                   ORDER BY completeness DESC,uncertainty_count DESC,
+                            order_value {order_direction} NULLS LAST,
+                            model,parameter_set_id
+                 ) runner_up_parameter_set_id,
+                 LEAD(model) OVER (
+                   PARTITION BY source_record_id
+                   ORDER BY completeness DESC,uncertainty_count DESC,
+                            order_value {order_direction} NULLS LAST,
+                            model,parameter_set_id
+                 ) runner_up_model,
+                 LEAD(order_value) OVER (
+                   PARTITION BY source_record_id
+                   ORDER BY completeness DESC,uncertainty_count DESC,
+                            order_value {order_direction} NULLS LAST,
+                            model,parameter_set_id
+                 ) runner_up_order_value
+          FROM eligible
+        )
+        SELECT * FROM ranked WHERE selection_rank=1
+        """
+    )
+    con.execute(
+        f"""
+        INSERT INTO source_parameter_set_preselections
+        SELECT sha256(concat_ws('|',{sql_literal(source['source_id'])},
+                                source_record_id,{sql_literal(selection_key)},
+                                parameter_set_id,{sql_literal(source['_policy_version'])})),
+               {sql_literal(source['source_id'])}, {sql_literal(release_id)},
+               {sql_literal(member['build_id'])}, source_record_id,
+               {sql_literal(selection_key)}, parameter_set_id, model,
+               completeness, uncertainty_count, order_value, candidate_count,
+               runner_up_parameter_set_id, runner_up_model, runner_up_order_value,
+               applicability_evidence_id, {sql_literal(preselection['reason'])},
+               {sql_literal(source['_policy_version'])}
+        FROM {temp_name}
+        """
+    )
+    return int(con.execute(f"SELECT COUNT(*) FROM {temp_name}").fetchone()[0])
+
+
 def insert_candidates(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -723,6 +1220,15 @@ def insert_candidates(
     member: dict[str, Any],
     release_id: str,
 ) -> None:
+    if str(source.get("storage") or "eav") == "classification":
+        insert_classification_candidates(
+            con,
+            source=source,
+            source_alias=source_alias,
+            member=member,
+            release_id=release_id,
+        )
+        return
     if str(source.get("storage") or "eav") == "measurement_bundle":
         insert_measurement_bundle_direct(
             con,
@@ -754,9 +1260,16 @@ def insert_candidates(
     evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
     quantity_rows = quantity_values(source)
     rank_sql, reason_sql, quality_sql = authority_sql(source)
+    quality_sql = parameter_set_order_sql(source, quality_sql)
     component_filter = ""
     if source.get("component_scope_field"):
         component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
+    preselection_join = ""
+    if source.get("parameter_set_preselection") is not None:
+        preselection_join = (
+            f"JOIN {sql_identifier(f'preselected_{source_alias}')} pre "
+            "ON pre.parameter_set_id=pe.parameter_set_id"
+        )
     con.execute(
         f"""
         INSERT INTO fact_candidates
@@ -775,9 +1288,11 @@ def insert_candidates(
           FROM {source_alias}.{evidence_table} pe
           JOIN quantities q ON q.source_quantity = pe.quantity_key
           JOIN {source_alias}.{set_table} ps ON ps.parameter_set_id = pe.parameter_set_id
+          {preselection_join}
           JOIN {source_alias}.source_records sr ON sr.source_record_id = pe.source_record_id
           JOIN evidence_object_bindings b
             ON b.source_id = {sql_literal(source['source_id'])}
+           AND b.binding_subject_kind = 'source_record'
            AND b.source_record_id = pe.source_record_id
            AND b.binding_status = 'accepted'
           WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
@@ -791,6 +1306,63 @@ def insert_candidates(
                {sql_literal(source['source_id'])}, {sql_literal(release_id)},
                method, model, reference_raw, authority_rank, authority_reason,
                selection_quality_score, normalization_version, quality_json
+        FROM candidates WHERE authority_rank IS NOT NULL
+        """
+    )
+
+
+def insert_classification_candidates(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    table_name = str(source["classification_evidence_table"])
+    evidence_table = sql_identifier(table_name)
+    quantity_rows = quantity_values(source)
+    rank_sql, reason_sql, quality_sql = authority_sql(
+        source, source_alias="sr", set_alias="ce", evidence_alias="ce"
+    )
+    con.execute(
+        f"""
+        INSERT INTO fact_candidates
+        WITH quantities(source_quantity, selected_quantity, group_key) AS (
+          VALUES {quantity_rows}
+        ), candidates AS (
+          SELECT b.object_type, b.stable_object_key, b.system_stable_object_key,
+                 q.group_key, q.selected_quantity quantity_key,
+                 ce.classification_raw value_raw, NULL::DOUBLE normalized_value,
+                 NULL::VARCHAR normalized_unit, NULL::DOUBLE uncertainty_lower,
+                 NULL::DOUBLE uncertainty_upper, NULL::VARCHAR bound_semantics,
+                 ce.evidence_id, ce.evidence_id parameter_set_id,
+                 ce.source_record_id, ce.method, ce.model, ce.reference_raw,
+                 'source_native_classification_v1'::VARCHAR normalization_version,
+                 ce.quality_json,
+                 {rank_sql} authority_rank,
+                 {reason_sql} authority_reason,
+                 {quality_sql} selection_quality_score
+          FROM {source_alias}.{evidence_table} ce
+          JOIN quantities q ON q.source_quantity=ce.classification_scheme
+          JOIN {source_alias}.source_records sr
+            ON sr.source_record_id=ce.source_record_id
+          JOIN evidence_object_bindings b
+            ON b.source_id={sql_literal(source['source_id'])}
+           AND b.binding_subject_kind='classification_evidence'
+           AND b.binding_subject_id=ce.evidence_id
+           AND b.binding_status='accepted'
+          WHERE NULLIF(TRIM(ce.classification_raw), '') IS NOT NULL
+        )
+        SELECT object_type, stable_object_key, system_stable_object_key,
+               group_key, quantity_key, value_raw, normalized_value,
+               normalized_unit, uncertainty_lower, uncertainty_upper,
+               bound_semantics, {sql_literal(member['build_id'])},
+               {sql_literal(table_name)}, evidence_id, parameter_set_id,
+               source_record_id, {sql_literal(source['source_id'])},
+               {sql_literal(release_id)}, method, model, reference_raw,
+               authority_rank, authority_reason, selection_quality_score,
+               normalization_version, quality_json
         FROM candidates WHERE authority_rank IS NOT NULL
         """
     )
@@ -823,6 +1395,7 @@ def insert_measurement_bundle_direct(
               FROM {source_alias}.{bundle_table} bundle
               JOIN evidence_object_bindings b
                 ON b.source_id={source_id}
+               AND b.binding_subject_kind='source_record'
                AND b.source_record_id=bundle.source_record_id
                AND b.binding_status='accepted'
               GROUP BY b.stable_object_key HAVING COUNT(*) > 1
@@ -863,7 +1436,8 @@ def insert_measurement_bundle_direct(
             f"NULL, 1, NULL, NULL, NULL, {policy_version} "
             f"FROM {source_alias}.{bundle_table} bundle "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.source_record_id=bundle.source_record_id "
+            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            "AND b.source_record_id=bundle.source_record_id "
             "AND b.binding_status='accepted' "
             f"CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement) "
             f"WHERE nested.measurement.quantity_key IN ({quantity_list}) "
@@ -929,6 +1503,7 @@ def insert_measurement_bundle_direct(
         FROM {source_alias}.{bundle_table} bundle
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
+         AND b.binding_subject_kind='source_record'
          AND b.source_record_id=bundle.source_record_id
          AND b.binding_status='accepted'
         CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement)
@@ -969,6 +1544,7 @@ def insert_coherent_direct(
             FROM {source_alias}.{set_table} ps
             JOIN evidence_object_bindings b
               ON b.source_id={source_id}
+             AND b.binding_subject_kind='source_record'
              AND b.source_record_id=ps.source_record_id
              AND b.binding_status='accepted'
             """
@@ -1045,7 +1621,8 @@ def insert_coherent_direct(
             f"FROM {source_alias}.{set_table} ps "
             f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.source_record_id=ps.source_record_id "
+            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            "AND b.source_record_id=ps.source_record_id "
             f"AND b.binding_status='accepted' WHERE {condition}"
         )
     con.execute(
@@ -1075,6 +1652,7 @@ def insert_coherent_direct(
         FROM {source_alias}.{set_table} ps
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
+         AND b.binding_subject_kind='source_record'
          AND b.source_record_id=ps.source_record_id
          AND b.binding_status='accepted'
         CROSS JOIN LATERAL (
@@ -1166,6 +1744,7 @@ def insert_coherent_candidates(
                 f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
                 "JOIN evidence_object_bindings b "
                 f"ON b.source_id={sql_literal(source['source_id'])} "
+                "AND b.binding_subject_kind='source_record' "
                 "AND b.source_record_id=ps.source_record_id AND b.binding_status='accepted' "
                 f"WHERE {raw} IS NOT NULL"
             )
@@ -1355,13 +1934,20 @@ def derive_stellar_luminosity(
 def verify_keys(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_binding_ids": "SELECT COUNT(*) - COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
-        "invalid_binding_statuses": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status NOT IN ('accepted', 'missing', 'ambiguous')",
+        "duplicate_preselection_ids": "SELECT COUNT(*) - COUNT(DISTINCT preselection_id) FROM source_parameter_set_preselections",
+        "duplicate_source_preselection_keys": "SELECT COALESCE(SUM(n-1),0) FROM (SELECT COUNT(*) n FROM source_parameter_set_preselections GROUP BY source_id,source_record_id,selection_key HAVING COUNT(*)>1)",
+        "invalid_binding_statuses": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status NOT IN ('accepted', 'missing', 'excluded', 'ambiguous', 'quarantined', 'unresolved')",
+        "bindings_without_subjects": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_subject_kind IS NULL OR binding_subject_id IS NULL",
+        "invalid_applicability_statuses": "SELECT COUNT(*) FROM evidence_object_bindings WHERE applicability_status NOT IN ('applicable','inapplicable')",
+        "accepted_inapplicable_bindings": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status='accepted' AND applicability_status<>'applicable'",
         "accepted_bindings_without_targets": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status='accepted' AND (canonical_object_node_key IS NULL OR stable_object_key IS NULL)",
         "unresolved_bindings_with_targets": "SELECT COUNT(*) FROM evidence_object_bindings WHERE binding_status<>'accepted' AND (canonical_object_node_key IS NOT NULL OR stable_object_key IS NOT NULL OR system_stable_object_key IS NOT NULL)",
         "duplicate_decision_ids": "SELECT COUNT(*) - COUNT(DISTINCT decision_id) FROM parameter_set_selection_decisions",
         "duplicate_selected_fact_ids": "SELECT COUNT(*) - COUNT(DISTINCT selected_fact_id) FROM selected_facts",
         "duplicate_object_quantities": "SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT COUNT(*) n FROM selected_facts GROUP BY object_type, stable_object_key, quantity_key HAVING COUNT(*) > 1)",
         "selected_source_facts_without_evidence": "SELECT COUNT(*) FROM selected_facts WHERE fact_status='source_selected' AND (evidence_build_id IS NULL OR evidence_id IS NULL OR parameter_set_id IS NULL)",
+        "selected_source_facts_without_accepted_subject_binding": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND NOT EXISTS (SELECT 1 FROM evidence_object_bindings b WHERE b.source_id=f.source_id AND b.binding_status='accepted' AND ((b.binding_subject_kind='source_record' AND b.source_record_id=f.source_record_id) OR (b.binding_subject_kind='classification_evidence' AND b.binding_subject_id=f.evidence_id) OR (b.binding_subject_kind='parameter_set' AND b.binding_subject_id=f.parameter_set_id)))",
+        "selected_source_facts_outside_required_preselection": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND f.source_id IN (SELECT DISTINCT source_id FROM source_parameter_set_preselections) AND NOT EXISTS (SELECT 1 FROM source_parameter_set_preselections p WHERE p.source_id=f.source_id AND p.source_record_id=f.source_record_id AND p.selected_parameter_set_id=f.parameter_set_id)",
         "derived_facts_without_derivation": "SELECT COUNT(*) FROM selected_facts f LEFT JOIN selected_fact_derivations d ON d.output_selected_fact_id=f.selected_fact_id WHERE f.fact_status='derived' AND d.derivation_id IS NULL",
         "lower_authority_winner": "SELECT COUNT(*) FROM parameter_set_selection_decisions WHERE runner_up_authority_rank IS NOT NULL AND runner_up_authority_rank < authority_rank",
     }
@@ -1377,6 +1963,7 @@ def table_counts(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         table: int(con.execute(f"SELECT COUNT(*) FROM {sql_identifier(table)}").fetchone()[0])
         for table in [
             "selection_source_accounting", "evidence_object_bindings",
+            "source_parameter_set_preselections",
             "parameter_set_selection_decisions", "selected_facts",
             "selected_fact_derivations",
         ]
@@ -1505,6 +2092,20 @@ def compile_selected_facts(
                 member=member,
                 release_id=release_id,
             )
+            actual_outcomes = {
+                str(status): int(count)
+                for status, count in con.execute(
+                    "SELECT binding_status,COUNT(*) FROM evidence_object_bindings "
+                    "WHERE source_id=? GROUP BY 1 ORDER BY 1",
+                    [source_id],
+                ).fetchall()
+            }
+            expected_outcomes = source.get("expected_binding_outcomes")
+            if expected_outcomes is not None and actual_outcomes != expected_outcomes:
+                raise ValueError(
+                    f"selection source binding outcomes changed: {source_id}:"
+                    f"expected={expected_outcomes}:actual={actual_outcomes}"
+                )
             if eligible < int(source.get("minimum_eligible_records") or 1):
                 raise ValueError(
                     f"selection source eligible-record floor failed: "
@@ -1515,6 +2116,35 @@ def compile_selected_facts(
                     f"selection source accepted-binding floor failed: "
                     f"{source_id}:{accepted}<{source.get('minimum_accepted_bindings', 1)}"
                 )
+            preselected = create_parameter_set_preselection(
+                con,
+                source=source,
+                source_alias=alias,
+                member=member,
+                release_id=release_id,
+            )
+            if source.get("parameter_set_preselection") is not None:
+                minimum_preselected = int(
+                    source["parameter_set_preselection"].get(
+                        "minimum_selected_parameter_sets", 1
+                    )
+                )
+                if preselected < minimum_preselected:
+                    raise ValueError(
+                        f"source parameter-set preselection floor failed: "
+                        f"{source_id}:{preselected}<{minimum_preselected}"
+                    )
+                expected_preselected = source["parameter_set_preselection"].get(
+                    "expected_selected_parameter_sets"
+                )
+                if (
+                    expected_preselected is not None
+                    and preselected != int(expected_preselected)
+                ):
+                    raise ValueError(
+                        f"source parameter-set preselection count changed: "
+                        f"{source_id}:expected={expected_preselected}:actual={preselected}"
+                    )
             insert_candidates(
                 con,
                 source=source,
@@ -1557,6 +2187,14 @@ def compile_selected_facts(
                 raise ValueError(
                     f"selection source selected-fact floor failed: "
                     f"{source_id}:{selected}<{source.get('minimum_selected_facts', 1)}"
+                )
+            if (
+                source.get("expected_selected_facts") is not None
+                and selected != int(source["expected_selected_facts"])
+            ):
+                raise ValueError(
+                    f"selection source selected-fact count changed: {source_id}:"
+                    f"expected={source['expected_selected_facts']}:actual={selected}"
                 )
             con.execute(
                 "INSERT INTO selection_source_accounting VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -1619,6 +2257,7 @@ def compile_selected_facts(
         for table, order_key in [
             ("selected_fact_derivations", "derivation_id"),
             ("selection_source_accounting", "source_id"),
+            ("source_parameter_set_preselections", "preselection_id"),
         ]:
             output = staging / f"{table}.parquet"
             con.execute(

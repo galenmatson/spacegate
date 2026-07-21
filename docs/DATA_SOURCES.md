@@ -489,7 +489,10 @@ Evidence Lake E4 source checkpoints:
   evidence cannot alter canonical planet inventory.
 - Gaia EDR3 White Dwarf `486e4975af015d4e5f5a3c9b`: 337,272 posterior-
   interval-overlap candidates from 1,280,266 raw rows, 161 fields accounted,
-  and independent H/He/mixed atmosphere parameter sets with no implicit winner
+  and independent H/He/mixed atmosphere parameter sets. E5 policy v6 applies
+  the [Gentile Fusillo et al. (2021)](https://doi.org/10.1093/mnras/stab2672)
+  `Pwd > 0.75` general-purpose threshold and chooses one complete model by
+  minimum published fit chi-square without deleting alternatives
 - ATNF Pulsar Catalogue `64c55c19a5a10a88877d4cd2`: 190,671 package rows,
   91,858 parameter/glitch contexts, 97,424 identifier claims, 1,210 full source
   references, and 84,388 exact citation links; unmatched lexical reference
@@ -974,6 +977,9 @@ Evidence Lake v2 checkpoint:
   are retained exactly but not split by an undocumented parser
 - multiplicity and exoplanet flags remain source context until an endpoint- and
   scope-safe relation/lifecycle adapter exists; they do not alter CORE inventory
+- E5 policy v6 independently binds 10,887 populated classification subjects:
+  5,335 resolve to current stars, 5,552 remain explicit missing outcomes, and
+  5,282 selected categorical facts retain exact classification-row lineage
 
 Core bridge diagnostics:
 

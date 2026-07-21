@@ -1222,10 +1222,10 @@ audit passes with no failures, and clean reproduction matches logical hash
 `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
 with no differing section and complete scratch removal.
 
-E5 source-disposition ledger `2026-07-21.e5-source-dispositions.1` makes the
-selection boundary exhaustive across all 38 accepted E4 adapter sources. Seven
-sources have active quantity-group policies, three are explicitly retained as
-non-selectable identity, context, or negative-control evidence, and 28 remain
+E5 source-disposition ledger `2026-07-21.e5-source-dispositions.2` makes the
+selection boundary exhaustive across all 38 accepted E4 adapter sources. Nine
+sources now have active quantity-group policies, three are explicitly retained
+as non-selectable identity, context, or negative-control evidence, and 26 remain
 named E5 blockers with an owning stage and scientific reason. The audit fails
 on an unaccounted source, stale row, policy/disposition conflict, invalid
 disposition, or incomplete ownership/reason metadata. Its status is therefore
@@ -1238,6 +1238,37 @@ silently bypass the ledger or reuse an artifact compiled under an older
 boundary. This compiler change is intentionally queued with the next batch of
 classification/applicability work rather than producing an otherwise identical
 53-GB checkpoint.
+
+Policy/compiler v6 adds reusable evidence-subject binding, source-level
+applicability predicates, and coherent source-model preselection. A binding may
+therefore name a source record, classification evidence row, or scoped
+parameter set; it still retains the parent source record and may emit facts only
+after unique compatible-object resolution. Every eligible subject ends
+`accepted`, `missing`, `excluded`, `ambiguous`, `quarantined`, or `unresolved`.
+Scoped evidence defaults to unresolved unless its policy names a compatible
+scope-binding strategy, preventing system or component facts from leaking onto
+the wrong star.
+
+The first v6 batch adds two measured policies without yet emitting the next
+large selected-fact artifact. UltracoolSheet contributes 5,282 direct/context
+classification facts from 5,335 uniquely bound subjects; 5,552 subjects absent
+from the canonical graph remain explicit `missing` outcomes. The policy keeps
+optical and infrared spectral/gravity classifications separate and retains age,
+literature, and youth values as categorical source evidence rather than numeric
+measurements. Focused two-pass verification matches logical hash
+`2c55c8fa8b8e48094370a8fcaa075714269db99e79d4c89d361d4201740e3f33`.
+
+The Gaia EDR3 white-dwarf policy applies the catalogue paper's general-purpose
+`Pwd > 0.75` threshold, yielding 164,425 accepted, 56,388 missing, and 1,992
+inapplicable/excluded bindings among 222,805 candidates with usable atmosphere
+quantities. It preselects exactly one complete H, He, or mixed Teff/log-g/mass
+model by minimum published fit chi-square and retains the alternatives in E4.
+The 164,425 models produce 493,275 focused source facts: 96,744 hydrogen,
+46,078 helium, and 21,603 mixed solutions. No generic Gaia value is spliced
+into these coherent specialized models. Two-pass verification reports zero
+scope, probability, completeness, fit-order, duplicate, or lineage failures and
+logical hash
+`89c6648d6a933d8bde53902b54033c1550c126674b5744c90c57b9fa14a7408f`.
 
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and

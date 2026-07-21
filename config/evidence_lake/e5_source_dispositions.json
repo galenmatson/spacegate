@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-21.e5-source-dispositions.1",
+  "disposition_version": "2026-07-21.e5-source-dispositions.2",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "deferred_pending_identity_scope",
@@ -25,12 +25,6 @@
       "owner": "E5",
       "blocks_e5": true,
       "reason": "Pulsar timing, spin, position, association, and classification contexts require compact-object applicability and coherent-context selection."
-    },
-    "compact.gaia_edr3_white_dwarf": {
-      "disposition": "deferred_pending_applicability_policy",
-      "owner": "E5",
-      "blocks_e5": true,
-      "reason": "White-dwarf candidate probability and fidelity must govern selection among H, He, and mixed atmosphere solutions; alternatives cannot be flattened field by field."
     },
     "compact.mcgill_magnetar": {
       "disposition": "deferred_pending_applicability_policy",
@@ -181,12 +175,6 @@
       "owner": "E5",
       "blocks_e5": true,
       "reason": "Gaia ultracool sample measurements and membership context require applicability policy; sample membership alone cannot invent a classification."
-    },
-    "ultracool.ultracoolsheet": {
-      "disposition": "deferred_pending_identity_scope",
-      "owner": "E2/E5",
-      "blocks_e5": true,
-      "reason": "Optical and infrared classifications, gravity, astrometry, and photometry need unique Gaia/object binding plus an explicit object-or-component applicability decision."
     }
   }
 }

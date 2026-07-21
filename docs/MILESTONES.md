@@ -1955,13 +1955,28 @@ Foundation checkpoint (July 21, 2026):
   clean reproduction matches logical hash
   `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
   with no differing section and removes its scratch tree
-- source-disposition ledger `2026-07-21.e5-source-dispositions.1` accounts all
-  38 accepted E4 sources as seven actively selected sources, three explicit
-  non-selectable evidence roles, and 28 owned E5 blockers; the audit fails on
+- source-disposition ledger `2026-07-21.e5-source-dispositions.2` accounts all
+  38 accepted E4 sources as nine actively selected sources, three explicit
+  non-selectable evidence roles, and 26 owned E5 blockers; the audit fails on
   omissions, stale rows, conflicts, invalid dispositions, or incomplete reasons
 - the compiler hashes that ledger into build identity and records its status and
   blockers in each report; the next large compile is deferred until compatible
   classification/applicability work is batched into the same storage cycle
+- policy/compiler v6 binds eligible evidence subjects rather than assuming one
+  unscoped subject per source record; classification rows and scoped parameter
+  sets retain explicit scope, applicability, parent-record, and outcome lineage
+- UltracoolSheet focused verification selects 5,282 categorical classification
+  facts from 5,335 accepted subjects, records 5,552 missing subjects, and
+  deterministically matches logical hash
+  `2c55c8fa8b8e48094370a8fcaa075714269db99e79d4c89d361d4201740e3f33`
+- the Gaia EDR3 white-dwarf policy applies `Pwd > 0.75`, accepts 164,425 of
+  222,805 usable-model subjects, records 56,388 missing and 1,992 excluded
+  outcomes, and chooses one complete H/He/mixed model by minimum published
+  chi-square; focused two-pass verification selects 493,275 facts with zero
+  probability, scope, completeness, fit-order, duplicate, or lineage failures
+- the classification and white-dwarf policies are queued for the next batched
+  selected-fact build; the current accepted artifact remains
+  `d3f255b55e4573676347b206` until full audit and clean reproduction pass
 
 Deliverables:
 
