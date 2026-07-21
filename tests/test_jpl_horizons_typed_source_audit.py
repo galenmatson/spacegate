@@ -32,7 +32,7 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
     typed_root = tmp_path / "typed"
     raw_root = tmp_path / "raw"
     (typed_root / "tables").mkdir(parents=True)
-    response_root = raw_root / "artifacts" / "sol_system_horizons_responses"
+    response_root = raw_root / "artifacts" / "sol_authority_horizons_responses"
     (response_root / "responses").mkdir(parents=True)
     response_bytes = b"JPL Horizons exact response\n"
     response_file = response_root / "responses" / "1_sun.txt"
@@ -75,7 +75,7 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
         "response_bytes": str(len(response_bytes)),
     }
     parsed_path = typed_root / "tables" / "sol_system_objects.parquet"
-    response_path = typed_root / "tables" / "sol_system_horizons_responses.parquet"
+    response_path = typed_root / "tables" / "sol_authority_horizons_responses.parquet"
     parsed_columns = write_parquet(parsed_path, parsed)
     response_columns = write_parquet(response_path, response)
     manifest = {
@@ -93,10 +93,10 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
                 "columns": parsed_columns,
             },
             {
-                "source_name": "sol_system_horizons_responses",
+                "source_name": "sol_authority_horizons_responses",
                 "status": "typed",
                 "row_count": 1,
-                "parquet_path": "tables/sol_system_horizons_responses.parquet",
+                "parquet_path": "tables/sol_authority_horizons_responses.parquet",
                 "columns": response_columns,
             },
         ],

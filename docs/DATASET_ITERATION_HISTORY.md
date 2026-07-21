@@ -2104,6 +2104,11 @@ Representative commits:
   immediate predecessors. This gives E4 a provenance-bearing parent target
   identifier and avoids treating operator-written parent names as source
   relation evidence.
+- Pre-cutover review found that the natural-source audit fixture called its
+  response artifact `sol_system_horizons_responses`, while the production
+  collector has always emitted `sol_authority_horizons_responses`. The audit
+  and fixture now use the production manifest name, preventing a scratch-only
+  naming convention from passing a gate the registered artifact could not.
 
 ### 70) Gaia DR3 Backbone Envelope Audit
 

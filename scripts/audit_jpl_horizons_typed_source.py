@@ -97,7 +97,7 @@ def audit(
         else "sol_artificial_objects"
     )
     expected_responses = (
-        "sol_system_horizons_responses"
+        "sol_authority_horizons_responses"
         if source_id.endswith("authority")
         else "sol_artificial_horizons_responses"
     )
