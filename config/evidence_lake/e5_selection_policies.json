@@ -1,12 +1,99 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.1",
-  "compiler_version": "selected_fact_compiler_v1",
+  "policy_version": "2026-07-21.e5-selection.2",
+  "compiler_version": "selected_fact_compiler_v2",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "selection_sources": [
+    {
+      "source_id": "gaia.dr3.gaia_source",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "storage": "coherent_array",
+      "selection_mode": "authoritative_direct",
+      "parameter_set_table": "stellar_source_parameter_sets",
+      "schema_table": "coherent_parameter_set_schemas",
+      "set_id_field": "evidence_id",
+      "values_field": "values_json",
+      "minimum_eligible_records": 30000000,
+      "minimum_accepted_bindings": 5800000,
+      "minimum_selected_facts": 50000000,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_astrometry",
+          "quantities": {
+            "ra": {"quantity_key": "ra_deg", "unit": "deg"},
+            "ra_error": {"quantity_key": "ra_error_mas", "unit": "mas"},
+            "dec": {"quantity_key": "dec_deg", "unit": "deg"},
+            "dec_error": {"quantity_key": "dec_error_mas", "unit": "mas"},
+            "parallax": {"quantity_key": "parallax_mas", "unit": "mas", "uncertainty_field": "parallax_error"},
+            "pmra": {"quantity_key": "pmra_mas_yr", "unit": "mas yr-1", "uncertainty_field": "pmra_error"},
+            "pmdec": {"quantity_key": "pmdec_mas_yr", "unit": "mas yr-1", "uncertainty_field": "pmdec_error"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_source_pipeline",
+              "reason": "Gaia DR3 source-native astrometric solution"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_photometry",
+          "quantities": {
+            "phot_g_mean_mag": {"quantity_key": "gaia_g_mag", "unit": "mag"},
+            "phot_bp_mean_mag": {"quantity_key": "gaia_bp_mag", "unit": "mag"},
+            "phot_rp_mean_mag": {"quantity_key": "gaia_rp_mag", "unit": "mag"},
+            "bp_rp": {"quantity_key": "gaia_bp_rp_mag", "unit": "mag"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_source_pipeline",
+              "reason": "Gaia DR3 source-native mean photometry"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_radial_velocity",
+          "quantities": {
+            "radial_velocity": {"quantity_key": "radial_velocity_km_s", "unit": "km s-1", "uncertainty_field": "radial_velocity_error"},
+            "vbroad": {"quantity_key": "spectral_broadening_km_s", "unit": "km s-1", "uncertainty_field": "vbroad_error"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_source_pipeline",
+              "reason": "Gaia DR3 source-native radial-velocity solution"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_source_diagnostics",
+          "quantities": {
+            "ruwe": {"quantity_key": "gaia_ruwe"},
+            "astrometric_excess_noise": {"quantity_key": "astrometric_excess_noise_mas", "unit": "mas"},
+            "phot_variable_flag": {"quantity_key": "gaia_variability_flag", "numeric": false},
+            "non_single_star": {"quantity_key": "gaia_non_single_star_status"}
+          },
+          "authorities": [
+            {
+              "rank": 10,
+              "method": "gaia_dr3_source_pipeline",
+              "reason": "Gaia DR3 source-native solution diagnostics and flags"
+            }
+          ]
+        }
+      ]
+    },
     {
       "source_id": "gaia.dr3.astrophysical_parameters",
       "object_type": "star",

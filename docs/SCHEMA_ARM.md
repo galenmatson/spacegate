@@ -63,6 +63,12 @@ Evidence Lake v2 staging rule:
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
+- Large selected-fact exports are deterministically partitioned by
+  `quantity_key`; decision exports are partitioned by `quantity_group`. The
+  artifact gate requires every expected partition and verifies its Parquet row
+  count before hashing or promotion. DuckDB remains the queryable compiler
+  form, while the partitions are the stable reproduction and downstream
+  projection interface.
 - `source_field_dispositions.source_field` is the legal typed-column name, while
   `source_native_field` retains the exact upstream spelling. They differ only
   when a source format requires an alias, including case-only VOTable collisions

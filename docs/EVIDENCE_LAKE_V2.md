@@ -1151,6 +1151,26 @@ policies remain to be compiled or explicitly assigned a non-selected evidence
 role. The complete legacy derivation/presentation-prior inventory and shared
 consumer migration also remain open before E6.
 
+The next accepted checkpoint, build `e8cb1529df6dbcc7c5baadee`, adds a bounded
+projection from the coherent Gaia DR3 source arrays without expanding all 125
+upstream fields. It selects astrometry and errors, Gaia mean photometry,
+radial velocity/broadening with errors, RUWE, excess noise, variability flag,
+and NSS status for 5,866,595 current stars. The full E5 artifact now contains
+101,363,315 facts, 27,602,864 decisions, and 8,737,106 accepted source-record
+bindings. Forty fact partitions and nine decision partitions account every row
+exactly; clean reproduction matches logical hash
+`330614599768f062123305aece47c7965f0ff5114a7f9c293498869145e9327c`
+with no differing section and removes 48 GB of scratch.
+
+Two diagnostics were rejected before this checkpoint. Build
+`a8a74dbc173b9566fc4d5e5c` treated Gaia's source-solution scope label as a
+component and selected zero Gaia-source facts; per-source eligible, binding,
+and selected-fact floors now make that failure fatal. Build
+`b68c1e6b5649588175854701` proved its DuckDB content but emitted no partition
+files because a prepared `COPY TO` path was not materialized; explicit
+partition existence and row-accounting gates now prevent such an artifact from
+passing. Neither diagnostic is an accepted input or rollback.
+
 ### E6. Reproducible Product Projections and Shadow Build
 
 CORE, ARM, canonical hierarchy, DISC, search indexes, public slices, map tiles,

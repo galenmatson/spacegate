@@ -1909,6 +1909,14 @@ Foundation checkpoint (July 21, 2026):
 - this checkpoint does not close E5: remaining evidence domains, exhaustive
   legacy fallback inventory, shared consumer migration, and E6 shadow review
   remain mandatory
+- coherent Gaia-source checkpoint `e8cb1529df6dbcc7c5baadee` adds 89,068,940
+  selected astrometry, photometry, radial-velocity, and diagnostic facts for
+  5,866,595 current stars without copying all 125 source fields; total E5 output
+  is 101,363,315 facts and 27,602,864 decisions
+- 40 deterministic fact partitions and nine decision partitions account every
+  output row, and a clean `/mnt/space` reproduction matches logical hash
+  `330614599768f062123305aece47c7965f0ff5114a7f9c293498869145e9327c`
+  with no differing section and complete scratch removal
 
 Deliverables:
 

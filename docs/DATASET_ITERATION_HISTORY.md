@@ -2376,6 +2376,33 @@ Representative commits:
   derivation/prior inventory, shared consumer cutover, and the E6 scientific
   A/B build remain open.
 
+### 79) Coherent Gaia Source Selection and Scale Gates
+
+- The E5 compiler reads Gaia's 125-field ordered coherent arrays through their
+  E4 schemas and selects only 17 currently required astrometry, photometry,
+  radial-velocity, and diagnostic quantities. It retains the full source row in
+  E4, verifies field position/type/unit agreement across both envelope schemas,
+  and avoids a second 32-million-row scalar evidence expansion.
+- The first diagnostic, `a8a74dbc173b9566fc4d5e5c`, selected no Gaia rows
+  because `component_scope='gaia_source'` is a source-solution scope label, not
+  an unresolved physical component. The active policy no longer applies that
+  filter and requires at least 30 million eligible source rows, 5.8 million
+  accepted bindings, and 50 million selected facts.
+- A global candidate sort reached 338 GB spill after 33 minutes and was stopped.
+  Authoritative, noncompeting Gaia source groups now use a direct path. The
+  measured complete build took 18:41; partitioned export reduced it to 16:35
+  while preserving 101,363,315 facts and 27,602,864 decisions.
+- A second diagnostic, `b68c1e6b5649588175854701`, exposed that prepared
+  `COPY TO` paths had not created partition files. The compiler now uses bounded
+  literal paths and verifies existence plus exact row counts for all 40 fact
+  and nine decision partitions before promotion.
+- Accepted build `e8cb1529df6dbcc7c5baadee` selects 89,068,940 Gaia-source
+  facts for 5,866,595 current stars and passes all identity, duplicate,
+  lineage, authority, coverage, partition, and row-accounting gates. Independent
+  clean reproduction matches logical hash
+  `330614599768f062123305aece47c7965f0ff5114a7f9c293498869145e9327c`
+  with no differing section and removes all scratch output.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

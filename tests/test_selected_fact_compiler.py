@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import compile_selected_facts as compiler  # noqa: E402
+import verify_selected_fact_reproduction as reproduction  # noqa: E402
 
 
 def write_json(path: Path, value: object) -> None:
@@ -81,7 +82,38 @@ def make_e4_artifact(
         );
         """
     )
-    if object_type == "star":
+    if object_type == "coherent":
+        schema = json.dumps(
+            {
+                "fields": [
+                    {"name": "parallax", "position": 0, "datatype": "double", "unit": "mas"},
+                    {"name": "parallax_error", "position": 1, "datatype": "float", "unit": "mas"},
+                    {"name": "variable_flag", "position": 2, "datatype": "char", "unit": ""},
+                ]
+            },
+            separators=(",", ":"),
+        )
+        con.execute(
+            """
+            CREATE TABLE coherent_parameter_set_schemas (schema_json JSON);
+            CREATE TABLE stellar_source_parameter_sets (
+              evidence_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR,
+              values_json JSON, method VARCHAR, model VARCHAR, reference_raw VARCHAR,
+              normalization_version VARCHAR, quality_json JSON
+            );
+            INSERT INTO source_records VALUES ('coherent-record', 'gaia_source', '{}');
+            INSERT INTO identifier_claim_evidence VALUES
+              ('coherent-record', 'gaia_dr3_source_id', 'Gaia DR3 123');
+            INSERT INTO stellar_source_parameter_sets VALUES
+              ('coherent-set', 'coherent-record', NULL, '[20.0,0.5,"VARIABLE"]',
+               'coherent-method', NULL, 'coherent-ref', 'norm-v1', '{}');
+            """
+        )
+        con.execute(
+            "INSERT INTO coherent_parameter_set_schemas VALUES (?::JSON)",
+            [schema],
+        )
+    elif object_type == "star":
         con.execute(
             """
             CREATE TABLE stellar_parameter_sets (
@@ -171,6 +203,13 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
         release_id="nasa-release",
         object_type="planet",
     )
+    coherent = make_e4_artifact(
+        state,
+        build_id="coherent-test",
+        source_id="source.coherent",
+        release_id="coherent-release",
+        object_type="coherent",
+    )
     release_id = "release-set-test"
     release_sha = "a" * 64
     write_json(
@@ -179,7 +218,7 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             "release_set_id": release_id,
             "release_set_sha256": release_sha,
             "status": "pass",
-            "members": [gaia, nasa],
+            "members": [gaia, nasa, coherent],
         },
     )
     policy = tmp_path / "policy.json"
@@ -194,6 +233,39 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
             "identity_graph_id": identity_id,
             "canonical_reference_build_id": core_id,
             "selection_sources": [
+                {
+                    "source_id": "source.coherent",
+                    "object_type": "star",
+                    "binding_scope": "star",
+                    "binding": {
+                        "strategy": "canonical_identifier",
+                        "claim_namespace": "gaia_dr3_source_id",
+                        "canonical_namespace": "gaia_dr3",
+                        "normalization": "unsigned_decimal",
+                    },
+                    "storage": "coherent_array",
+                    "selection_mode": "authoritative_direct",
+                    "parameter_set_table": "stellar_source_parameter_sets",
+                    "schema_table": "coherent_parameter_set_schemas",
+                    "quantity_groups": [
+                        {
+                            "group_key": "astrometry",
+                            "quantities": {
+                                "parallax": {
+                                    "quantity_key": "parallax_mas",
+                                    "uncertainty_field": "parallax_error",
+                                },
+                                "variable_flag": {
+                                    "quantity_key": "variability_flag",
+                                    "numeric": False,
+                                },
+                            },
+                            "authorities": [
+                                {"rank": 10, "method": "coherent-method", "reason": "direct"}
+                            ],
+                        }
+                    ],
+                },
                 {
                     "source_id": "source.gaia",
                     "object_type": "star",
@@ -283,8 +355,12 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     )
 
     assert report["status"] == "pass"
-    assert report["table_counts"]["selected_facts"] == 4
+    assert report["table_counts"]["selected_facts"] == 6
     artifact = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
+    assert (artifact / "selected_facts__teff_k.parquet").is_file()
+    assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
+    assert sum(report["partition_exports"]["selected_facts"].values()) == 6
+    assert sum(report["partition_exports"]["selection_decisions"].values()) == 4
     con = duckdb.connect(str(artifact / "selected_facts.duckdb"), read_only=True)
     facts = con.execute(
         "SELECT quantity_key, normalized_value, value_lower, value_upper, fact_status "
@@ -301,6 +377,8 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
 
     assert ("teff_k", 5800.0, 5700.0, 5900.0, "source_selected") in facts
     assert ("orbital_period_days", 10.0, 9.8, 10.3, "source_selected") in facts
+    assert ("parallax_mas", 20.0, 19.5, 20.5, "source_selected") in facts
+    assert ("variability_flag", None, None, None, "source_selected") in facts
     assert any(row[0] == "luminosity_lsun" and row[4] == "derived" for row in facts)
     assert ("atmosphere", "hot-set", 10) in decisions
     assert ("orbit", "planet-default-set", 10) in decisions
@@ -311,10 +389,34 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 2
+    assert len(policy["selection_sources"]) == 3
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_reproduction_comparison_ignores_duckdb_bytes_but_not_parquet() -> None:
+    report = {
+        "status": "pass",
+        "build_id": "build",
+        "build_sha256": "build-sha",
+        "policy_version": "policy",
+        "evidence_release_set_id": "release",
+        "identity_graph_id": "identity",
+        "canonical_reference_build_id": "core",
+        "table_counts": {"selected_facts": 1},
+        "integrity_checks": {"duplicates": 0},
+        "logical_content_sha256": "logical",
+        "files": {
+            "selected_facts.duckdb": {"sha256": "runtime-specific"},
+            "selected_facts__teff_k.parquet": {"sha256": "deterministic"},
+        },
+    }
+    reproduced = json.loads(json.dumps(report))
+    reproduced["files"]["selected_facts.duckdb"]["sha256"] = "different"
+    assert reproduction.compare_reports(report, reproduced) == []
+    reproduced["files"]["selected_facts__teff_k.parquet"]["sha256"] = "different"
+    assert reproduction.compare_reports(report, reproduced) == ["parquet_files"]

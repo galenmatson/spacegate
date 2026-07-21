@@ -783,6 +783,13 @@ staging directory may be considered only after no compiler process is active;
 use an exact candidate dry run before deletion. DuckDB spill under
 `/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
+The active E5 checkpoint is `e8cb1529df6dbcc7c5baadee`; complete monolithic
+build `5c84220e408e8fea5f4da218` and foundation build
+`237158e09fce993f1b033414` are valid rollback/reference artifacts. Diagnostics
+`a8a74dbc173b9566fc4d5e5c` (zero Gaia-source coverage) and
+`b68c1e6b5649588175854701` (missing required partitions) are not rollback
+artifacts, but may be removed only through an independent failed-artifact audit
+and exact candidate-set dry-run/apply process.
 
 ## WISE Image Cache
 

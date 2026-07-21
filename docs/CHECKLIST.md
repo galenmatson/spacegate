@@ -1422,6 +1422,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E5 foundation: compile immutable Gaia AP/NASA selected facts with coherent
   parameter-set decisions, exact evidence/derivation lineage, per-quantity
   authority, uncertainty semantics, and lower-authority-winner gates
+- [x] E5 Gaia-source projection: select bounded coherent astrometry,
+  photometry, radial-velocity, and diagnostic fields for current stars; enforce
+  per-source coverage floors, partition existence/row accounting, and clean
+  logical-hash reproduction
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

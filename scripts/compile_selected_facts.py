@@ -106,13 +106,24 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
         raise ValueError("unsupported selected-fact policy schema")
     members = member_by_source(release_manifest)
     seen_groups: set[tuple[str, str]] = set()
-    seen_selected: set[tuple[str, str]] = set()
     for source in policy.get("selection_sources") or []:
         source_id = str(source.get("source_id") or "")
         if source_id not in members:
             raise ValueError(f"selection source absent from E4 release set: {source_id}")
         sql_identifier(str(source["parameter_set_table"]))
-        sql_identifier(str(source["parameter_evidence_table"]))
+        storage = str(source.get("storage") or "eav")
+        if storage not in {"eav", "coherent_array"}:
+            raise ValueError(f"unsupported selection storage: {source_id}:{storage}")
+        if storage == "eav":
+            sql_identifier(str(source["parameter_evidence_table"]))
+        else:
+            sql_identifier(str(source["schema_table"]))
+            sql_identifier(str(source.get("values_field") or "values_json"))
+        selection_mode = str(source.get("selection_mode") or "ranked_candidates")
+        if selection_mode not in {"ranked_candidates", "authoritative_direct"}:
+            raise ValueError(f"unsupported selection mode: {source_id}:{selection_mode}")
+        if selection_mode == "authoritative_direct" and storage != "coherent_array":
+            raise ValueError(f"authoritative-direct selection requires coherent arrays: {source_id}")
         binding = source.get("binding") or {}
         if binding.get("strategy") not in {"canonical_identifier", "canonical_unique_name"}:
             raise ValueError(f"unsupported selection binding strategy: {binding.get('strategy')}")
@@ -127,14 +138,18 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
             ranks = [int(item["rank"]) for item in authorities]
             if not authorities or any(rank <= 0 for rank in ranks):
                 raise ValueError(f"quantity group has no positive authority rules: {key}")
-            for source_quantity, selected_quantity in (group.get("quantities") or {}).items():
+            if selection_mode == "authoritative_direct" and len(authorities) != 1:
+                raise ValueError(f"authoritative-direct group requires one authority rule: {key}")
+            for source_quantity, selected_spec in (group.get("quantities") or {}).items():
                 if source_quantity in source_quantities:
                     raise ValueError(f"source quantity appears in multiple groups: {source_id}:{source_quantity}")
                 source_quantities.add(source_quantity)
-                selected_key = (str(source["object_type"]), str(selected_quantity))
-                if selected_key in seen_selected:
-                    raise ValueError(f"multiple policies select the same object quantity: {selected_key}")
-                seen_selected.add(selected_key)
+                if isinstance(selected_spec, dict):
+                    selected_quantity = str(selected_spec.get("quantity_key") or "")
+                    if storage != "coherent_array" or not selected_quantity:
+                        raise ValueError(f"invalid coherent quantity mapping: {source_id}:{source_quantity}")
+                elif not str(selected_spec):
+                    raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
 
 
 def authority_condition(rule: dict[str, Any], source_alias: str, set_alias: str) -> str:
@@ -164,13 +179,62 @@ def authority_case(group: dict[str, Any], *, value: str) -> str:
 def quantity_values(source: dict[str, Any]) -> str:
     rows: list[str] = []
     for group in source["quantity_groups"]:
-        for source_quantity, selected_quantity in group["quantities"].items():
+        for source_quantity, selected_spec in group["quantities"].items():
+            selected_quantity = (
+                selected_spec["quantity_key"] if isinstance(selected_spec, dict) else selected_spec
+            )
             rows.append(
                 "(" + ",".join(
                     [sql_literal(source_quantity), sql_literal(selected_quantity), sql_literal(group["group_key"])]
                 ) + ")"
             )
     return ",".join(rows)
+
+
+def coherent_field_specs(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+) -> dict[str, dict[str, Any]]:
+    schema_table = sql_identifier(str(source["schema_table"]))
+    rows = con.execute(
+        f"SELECT DISTINCT schema_json::VARCHAR FROM {source_alias}.{schema_table}"
+    ).fetchall()
+    if not rows:
+        raise ValueError(f"coherent source has no schemas: {source['source_id']}")
+    requested = {
+        source_quantity
+        for group in source["quantity_groups"]
+        for source_quantity in group["quantities"]
+    }
+    requested.update(
+        str(spec["uncertainty_field"])
+        for group in source["quantity_groups"]
+        for spec in group["quantities"].values()
+        if isinstance(spec, dict) and spec.get("uncertainty_field")
+    )
+    resolved: dict[str, dict[str, Any]] = {}
+    for (schema_raw,) in rows:
+        schema = json.loads(schema_raw)
+        fields = {str(field["name"]): field for field in schema.get("fields") or []}
+        missing = sorted(requested - set(fields))
+        if missing:
+            raise ValueError(f"coherent schema missing requested fields: {source['source_id']}:{missing}")
+        for field_name in requested:
+            projection = {
+                "position": int(fields[field_name]["position"]),
+                "datatype": str(fields[field_name].get("datatype") or ""),
+                "unit": str(fields[field_name].get("unit") or ""),
+            }
+            previous = resolved.get(field_name)
+            if previous is not None and previous != projection:
+                raise ValueError(
+                    f"coherent schema field changed across source tables: "
+                    f"{source['source_id']}:{field_name}:{previous}:{projection}"
+                )
+            resolved[field_name] = projection
+    return resolved
 
 
 def authority_sql(source: dict[str, Any]) -> tuple[str, str]:
@@ -317,24 +381,41 @@ def create_binding(
     source_id = str(source["source_id"])
     object_type = str(source["object_type"])
     binding = source["binding"]
-    evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
     set_table = sql_identifier(str(source["parameter_set_table"]))
-    quantity_rows = quantity_values(source)
     component_filter = ""
     if source.get("component_scope_field"):
         component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
-    con.execute(
-        f"""
-        CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
-        WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows})
-        SELECT DISTINCT pe.source_record_id
-        FROM {source_alias}.{evidence_table} pe
-        JOIN quantities q ON q.source_quantity = pe.quantity_key
-        JOIN {source_alias}.{set_table} ps ON ps.parameter_set_id = pe.parameter_set_id
-        WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
-          {component_filter}
-        """
-    )
+    if str(source.get("storage") or "eav") == "coherent_array":
+        values_field = sql_identifier(str(source.get("values_field") or "values_json"))
+        specs = coherent_field_specs(con, source=source, source_alias=source_alias)
+        present = " OR ".join(
+            f"json_extract(ps.{values_field}, '$[{specs[name]['position']}]') IS NOT NULL"
+            for group in source["quantity_groups"]
+            for name in group["quantities"]
+        )
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
+            SELECT DISTINCT ps.source_record_id
+            FROM {source_alias}.{set_table} ps
+            WHERE ({present}) {component_filter}
+            """
+        )
+    else:
+        evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
+        quantity_rows = quantity_values(source)
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
+            WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows})
+            SELECT DISTINCT pe.source_record_id
+            FROM {source_alias}.{evidence_table} pe
+            JOIN quantities q ON q.source_quantity = pe.quantity_key
+            JOIN {source_alias}.{set_table} ps ON ps.parameter_set_id = pe.parameter_set_id
+            WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
+              {component_filter}
+            """
+        )
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
     claim_namespace = sql_literal(binding["claim_namespace"])
@@ -412,6 +493,24 @@ def insert_candidates(
     member: dict[str, Any],
     release_id: str,
 ) -> None:
+    if str(source.get("selection_mode") or "ranked_candidates") == "authoritative_direct":
+        insert_coherent_direct(
+            con,
+            source=source,
+            source_alias=source_alias,
+            member=member,
+            release_id=release_id,
+        )
+        return
+    if str(source.get("storage") or "eav") == "coherent_array":
+        insert_coherent_candidates(
+            con,
+            source=source,
+            source_alias=source_alias,
+            member=member,
+            release_id=release_id,
+        )
+        return
     set_table = sql_identifier(str(source["parameter_set_table"]))
     evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
     quantity_rows = quantity_values(source)
@@ -455,6 +554,224 @@ def insert_candidates(
         FROM candidates WHERE authority_rank IS NOT NULL
         """
     )
+
+
+def insert_coherent_direct(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    set_table_name = str(source["parameter_set_table"])
+    set_table = sql_identifier(set_table_name)
+    set_id_field = sql_identifier(str(source.get("set_id_field") or "evidence_id"))
+    values_field = sql_identifier(str(source.get("values_field") or "values_json"))
+    specs = coherent_field_specs(con, source=source, source_alias=source_alias)
+    policy_version = sql_literal(source["_policy_version"])
+    source_id = sql_literal(source["source_id"])
+    release = sql_literal(release_id)
+    evidence_build = sql_literal(member["build_id"])
+
+    duplicate_sets = int(
+        con.execute(
+            f"""
+            SELECT COUNT(*) - COUNT(DISTINCT b.stable_object_key)
+            FROM {source_alias}.{set_table} ps
+            JOIN evidence_object_bindings b
+              ON b.source_id={source_id}
+             AND b.source_record_id=ps.source_record_id
+             AND b.binding_status='accepted'
+            """
+        ).fetchone()[0]
+    )
+    if duplicate_sets:
+        raise ValueError(
+            f"authoritative-direct source has duplicate object parameter sets: "
+            f"{source['source_id']}:{duplicate_sets}"
+        )
+
+    decision_selects: list[str] = []
+    value_rows: list[str] = []
+    for group in source["quantity_groups"]:
+        rule = group["authorities"][0]
+        condition = authority_condition(rule, "sr", "ps")
+        present_terms: list[str] = []
+        uncertainty_terms: list[str] = []
+        for source_field, selected_spec in group["quantities"].items():
+            if not isinstance(selected_spec, dict):
+                selected_spec = {"quantity_key": str(selected_spec)}
+            spec = specs[source_field]
+            raw = f"json_extract_string(ps.{values_field}, '$[{spec['position']}]')"
+            numeric = bool(selected_spec.get("numeric", True))
+            normalized = f"try_cast({raw} AS DOUBLE)" if numeric else "NULL::DOUBLE"
+            present_terms.append(f"CASE WHEN {raw} IS NOT NULL THEN 1 ELSE 0 END")
+            uncertainty_field = selected_spec.get("uncertainty_field")
+            if uncertainty_field:
+                uncertainty_spec = specs[str(uncertainty_field)]
+                uncertainty = (
+                    f"try_cast(json_extract_string(ps.{values_field}, "
+                    f"'$[{uncertainty_spec['position']}]') AS DOUBLE)"
+                )
+                uncertainty_lower = uncertainty
+                uncertainty_upper = uncertainty
+                bound_semantics = sql_literal("symmetric_error")
+                uncertainty_terms.append(
+                    f"CASE WHEN {raw} IS NOT NULL AND {uncertainty} IS NOT NULL THEN 1 ELSE 0 END"
+                )
+            else:
+                uncertainty_lower = "NULL::DOUBLE"
+                uncertainty_upper = "NULL::DOUBLE"
+                bound_semantics = "NULL::VARCHAR"
+            value_rows.append(
+                "(" + ",".join(
+                    [
+                        sql_literal(group["group_key"]),
+                        sql_literal(selected_spec["quantity_key"]),
+                        raw,
+                        normalized,
+                        sql_literal(selected_spec.get("unit", spec["unit"]) or None),
+                        uncertainty_lower,
+                        uncertainty_upper,
+                        bound_semantics,
+                    ]
+                ) + ")"
+            )
+        quantity_count = " + ".join(present_terms)
+        uncertainty_count = " + ".join(uncertainty_terms) if uncertainty_terms else "0"
+        group_key = sql_literal(group["group_key"])
+        decision_selects.append(
+            "SELECT "
+            f"sha256(concat_ws('|', b.object_type, b.stable_object_key, {group_key}, "
+            f"ps.{set_id_field}, {policy_version})), "
+            "b.object_type, b.stable_object_key, b.system_stable_object_key, "
+            f"{group_key}, ps.{set_id_field}, ps.source_record_id, {source_id}, "
+            f"{release}, {evidence_build}, {int(rule['rank'])}, {sql_literal(rule['reason'])}, "
+            f"({quantity_count})::INTEGER, ({uncertainty_count})::INTEGER, 1, "
+            f"NULL, NULL, {policy_version} "
+            f"FROM {source_alias}.{set_table} ps "
+            f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
+            "JOIN evidence_object_bindings b "
+            f"ON b.source_id={source_id} AND b.source_record_id=ps.source_record_id "
+            f"AND b.binding_status='accepted' WHERE {condition}"
+        )
+    con.execute(
+        "INSERT INTO parameter_set_selection_decisions " + " UNION ALL ".join(decision_selects)
+    )
+
+    con.execute(
+        f"""
+        INSERT INTO selected_facts
+        SELECT sha256(concat_ws('|', b.object_type, b.stable_object_key, v.quantity_key,
+                                ps.{set_id_field}, {policy_version})),
+               b.object_type, b.stable_object_key, b.system_stable_object_key,
+               v.quantity_group, v.quantity_key, v.value_raw, v.normalized_value,
+               v.normalized_unit,
+               CASE WHEN v.normalized_value IS NOT NULL AND v.uncertainty_lower IS NOT NULL
+                    THEN v.normalized_value - abs(v.uncertainty_lower) END,
+               CASE WHEN v.normalized_value IS NOT NULL AND v.uncertainty_upper IS NOT NULL
+                    THEN v.normalized_value + abs(v.uncertainty_upper) END,
+               v.bound_semantics, 'source_selected', {evidence_build},
+               {sql_literal(set_table_name)}, ps.{set_id_field}, ps.{set_id_field},
+               ps.source_record_id, {source_id}, {release}, ps.method, ps.model,
+               ps.reference_raw,
+               sha256(concat_ws('|', b.object_type, b.stable_object_key,
+                                v.quantity_group, ps.{set_id_field}, {policy_version})),
+               d.authority_rank, d.authority_reason, {policy_version},
+               ps.normalization_version, ps.quality_json
+        FROM {source_alias}.{set_table} ps
+        JOIN evidence_object_bindings b
+          ON b.source_id={source_id}
+         AND b.source_record_id=ps.source_record_id
+         AND b.binding_status='accepted'
+        CROSS JOIN LATERAL (
+          VALUES {','.join(value_rows)}
+        ) v(quantity_group, quantity_key, value_raw, normalized_value,
+            normalized_unit, uncertainty_lower, uncertainty_upper, bound_semantics)
+        JOIN parameter_set_selection_decisions d
+          ON d.object_type=b.object_type
+         AND d.stable_object_key=b.stable_object_key
+         AND d.quantity_group=v.quantity_group
+         AND d.selected_parameter_set_id=ps.{set_id_field}
+        WHERE v.value_raw IS NOT NULL
+        """
+    )
+
+
+def insert_coherent_candidates(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    set_table_name = str(source["parameter_set_table"])
+    set_table = sql_identifier(set_table_name)
+    set_id_field = sql_identifier(str(source.get("set_id_field") or "evidence_id"))
+    values_field = sql_identifier(str(source.get("values_field") or "values_json"))
+    specs = coherent_field_specs(con, source=source, source_alias=source_alias)
+    rows: list[str] = []
+    for group in source["quantity_groups"]:
+        group_key = str(group["group_key"])
+        for source_field, selected_spec in group["quantities"].items():
+            if not isinstance(selected_spec, dict):
+                selected_spec = {"quantity_key": str(selected_spec)}
+            spec = specs[source_field]
+            raw = f"json_extract_string(ps.{values_field}, '$[{spec['position']}]')"
+            numeric = bool(selected_spec.get("numeric", True))
+            normalized = f"try_cast({raw} AS DOUBLE)" if numeric else "NULL::DOUBLE"
+            uncertainty_field = selected_spec.get("uncertainty_field")
+            if uncertainty_field:
+                uncertainty_spec = specs[str(uncertainty_field)]
+                uncertainty = (
+                    f"try_cast(json_extract_string(ps.{values_field}, "
+                    f"'$[{uncertainty_spec['position']}]') AS DOUBLE)"
+                )
+                uncertainty_lower = uncertainty
+                uncertainty_upper = uncertainty
+                bound_semantics = sql_literal("symmetric_error")
+            else:
+                uncertainty_lower = "NULL::DOUBLE"
+                uncertainty_upper = "NULL::DOUBLE"
+                bound_semantics = "NULL::VARCHAR"
+            rank_clauses = [
+                f"WHEN {authority_condition(rule, 'sr', 'ps')} THEN {int(rule['rank'])}"
+                for rule in group["authorities"]
+            ]
+            reason_clauses = [
+                f"WHEN {authority_condition(rule, 'sr', 'ps')} THEN {sql_literal(rule['reason'])}"
+                for rule in group["authorities"]
+            ]
+            rows.append(
+                "SELECT "
+                "b.object_type, b.stable_object_key, b.system_stable_object_key, "
+                f"{sql_literal(group_key)} AS quantity_group, "
+                f"{sql_literal(selected_spec['quantity_key'])} AS quantity_key, "
+                f"{raw} AS value_raw, {normalized} AS normalized_value, "
+                f"{sql_literal(selected_spec.get('unit', spec['unit']) or None)} AS normalized_unit, "
+                f"{uncertainty_lower} AS uncertainty_lower, "
+                f"{uncertainty_upper} AS uncertainty_upper, "
+                f"{bound_semantics} AS bound_semantics, "
+                f"{sql_literal(member['build_id'])} AS evidence_build_id, "
+                f"{sql_literal(set_table_name)} AS evidence_table, "
+                f"ps.{set_id_field} AS evidence_id, ps.{set_id_field} AS parameter_set_id, "
+                "ps.source_record_id, "
+                f"{sql_literal(source['source_id'])} AS source_id, "
+                f"{sql_literal(release_id)} AS release_id, "
+                "ps.method, ps.model, ps.reference_raw, "
+                f"CASE {' '.join(rank_clauses)} ELSE NULL END AS authority_rank, "
+                f"CASE {' '.join(reason_clauses)} ELSE NULL END AS authority_reason, "
+                "ps.normalization_version, ps.quality_json "
+                f"FROM {source_alias}.{set_table} ps "
+                f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
+                "JOIN evidence_object_bindings b "
+                f"ON b.source_id={sql_literal(source['source_id'])} "
+                "AND b.source_record_id=ps.source_record_id AND b.binding_status='accepted' "
+                f"WHERE {raw} IS NOT NULL"
+            )
+    con.execute("INSERT INTO fact_candidates " + " UNION ALL ".join(rows))
 
 
 def create_candidate_table(con: duckdb.DuckDBPyConnection) -> None:
@@ -652,6 +969,12 @@ def table_counts(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     }
 
 
+def safe_partition_name(value: str) -> str:
+    if not re.fullmatch(r"[a-z0-9_]+", value):
+        raise ValueError(f"unsafe selected-fact partition key: {value!r}")
+    return value
+
+
 def compile_selected_facts(
     *,
     state_dir: Path,
@@ -725,7 +1048,9 @@ def compile_selected_facts(
         con.execute(f"ATTACH {sql_literal(str(identity_db))} AS identity (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(str(core_db))} AS core (READ_ONLY)")
         source_runtime: list[tuple[dict[str, Any], str, dict[str, Any], str, int, int]] = []
-        for index, source in enumerate(policy["selection_sources"]):
+        for index, configured_source in enumerate(policy["selection_sources"]):
+            source = dict(configured_source)
+            source["_policy_version"] = str(policy["policy_version"])
             source_id = str(source["source_id"])
             member = members[source_id]
             alias = f"e4_{index}"
@@ -746,6 +1071,16 @@ def compile_selected_facts(
                 member=member,
                 release_id=release_id,
             )
+            if eligible < int(source.get("minimum_eligible_records") or 1):
+                raise ValueError(
+                    f"selection source eligible-record floor failed: "
+                    f"{source_id}:{eligible}<{source.get('minimum_eligible_records', 1)}"
+                )
+            if accepted < int(source.get("minimum_accepted_bindings") or 1):
+                raise ValueError(
+                    f"selection source accepted-binding floor failed: "
+                    f"{source_id}:{accepted}<{source.get('minimum_accepted_bindings', 1)}"
+                )
             insert_candidates(
                 con,
                 source=source,
@@ -760,9 +1095,18 @@ def compile_selected_facts(
 
         for source, _alias, member, release_id, eligible, accepted in source_runtime:
             source_id = str(source["source_id"])
-            candidate_sets = int(
-                con.execute("SELECT COUNT(*) FROM candidate_sets WHERE source_id=?", [source_id]).fetchone()[0]
-            )
+            if str(source.get("selection_mode") or "ranked_candidates") == "authoritative_direct":
+                candidate_sets = int(
+                    con.execute(
+                        "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                        "WHERE selected_source_id=?",
+                        [source_id],
+                    ).fetchone()[0]
+                )
+            else:
+                candidate_sets = int(
+                    con.execute("SELECT COUNT(*) FROM candidate_sets WHERE source_id=?", [source_id]).fetchone()[0]
+                )
             selected_sets = int(
                 con.execute(
                     "SELECT COUNT(*) FROM parameter_set_selection_decisions WHERE selected_source_id=?",
@@ -775,6 +1119,11 @@ def compile_selected_facts(
                     [source_id],
                 ).fetchone()[0]
             )
+            if selected < int(source.get("minimum_selected_facts") or 1):
+                raise ValueError(
+                    f"selection source selected-fact floor failed: "
+                    f"{source_id}:{selected}<{source.get('minimum_selected_facts', 1)}"
+                )
             con.execute(
                 "INSERT INTO selection_source_accounting VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [
@@ -797,9 +1146,35 @@ def compile_selected_facts(
         )
         con.execute("CHECKPOINT")
         counts = table_counts(con)
+        fact_exports: dict[str, int] = {}
+        decision_exports: dict[str, int] = {}
+        for quantity_key, row_count in con.execute(
+            "SELECT quantity_key, COUNT(*) FROM selected_facts "
+            "GROUP BY quantity_key ORDER BY quantity_key"
+        ).fetchall():
+            partition = safe_partition_name(str(quantity_key))
+            output = staging / f"selected_facts__{partition}.parquet"
+            fact_exports[output.name] = int(row_count)
+            con.execute(
+                "COPY (SELECT * FROM selected_facts "
+                f"WHERE quantity_key={sql_literal(quantity_key)} ORDER BY selected_fact_id) "
+                f"TO {sql_literal(str(output))} "
+                "(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
+            )
+        for quantity_group, row_count in con.execute(
+            "SELECT quantity_group, COUNT(*) FROM parameter_set_selection_decisions "
+            "GROUP BY quantity_group ORDER BY quantity_group"
+        ).fetchall():
+            partition = safe_partition_name(str(quantity_group))
+            output = staging / f"selection_decisions__{partition}.parquet"
+            decision_exports[output.name] = int(row_count)
+            con.execute(
+                "COPY (SELECT * FROM parameter_set_selection_decisions "
+                f"WHERE quantity_group={sql_literal(quantity_group)} ORDER BY decision_id) "
+                f"TO {sql_literal(str(output))} "
+                "(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
+            )
         for table, order_key in [
-            ("selected_facts", "selected_fact_id"),
-            ("parameter_set_selection_decisions", "decision_id"),
             ("selected_fact_derivations", "derivation_id"),
             ("selection_source_accounting", "source_id"),
         ]:
@@ -814,6 +1189,32 @@ def compile_selected_facts(
         raise
     else:
         con.close()
+
+    expected_exports = {**fact_exports, **decision_exports}
+    missing_exports = sorted(name for name in expected_exports if not (staging / name).is_file())
+    if missing_exports:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise ValueError(f"selected-fact partition exports missing: {missing_exports}")
+    export_con = duckdb.connect(":memory:")
+    try:
+        export_counts = {
+            name: int(
+                export_con.execute(
+                    f"SELECT COUNT(*) FROM read_parquet({sql_literal(str(staging / name))})"
+                ).fetchone()[0]
+            )
+            for name in sorted(expected_exports)
+        }
+    finally:
+        export_con.close()
+    mismatched_exports = {
+        name: {"expected": expected_exports[name], "actual": export_counts[name]}
+        for name in expected_exports
+        if expected_exports[name] != export_counts[name]
+    }
+    if mismatched_exports:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise ValueError(f"selected-fact partition row accounting failed: {mismatched_exports}")
 
     files = {
         path.name: {"bytes": path.stat().st_size, "sha256": file_sha256(path)}
@@ -832,6 +1233,10 @@ def compile_selected_facts(
         "table_counts": counts,
         "integrity_checks": checks,
         "logical_content_sha256": logical_sha,
+        "partition_exports": {
+            "selected_facts": fact_exports,
+            "selection_decisions": decision_exports,
+        },
         "files": files,
     }
     manifest = {
