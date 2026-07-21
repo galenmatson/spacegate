@@ -1326,6 +1326,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E4 remaining registered adapter tail: materialize Gaia source, coherent
   Gaia variability/rotation, VSX, natural JPL Horizons, and separately scoped
   artificial JPL Horizons evidence
+- [x] E1 JPL collector foundation: preserve exact Horizons response bodies,
+  queries, checksums, reviewed target seed, collector identity, and parsed CSV
+  in immutable atomic snapshots; pass isolated artificial-source raw/typed
+  accounting and response-integrity smoke verification
+- [ ] E3/E4 JPL cutover: collect a current natural snapshot and refresh the
+  stale artificial trajectory tail, register both response-index artifacts,
+  type and materialize scoped object/relation/orbit evidence, and keep operator
+  seed claims distinct from values parsed from Horizons responses
 - [x] E4 VSX pre-adapter audit: account all 10,304,568 pinned object rows;
   verify OID uniqueness, coordinates, statuses, flags, periods, field coverage,
   and public-name collisions without using names as source identity

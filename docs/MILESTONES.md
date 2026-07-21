@@ -1763,6 +1763,12 @@ Current status (July 19, 2026, in progress):
   because the current acquisition omits the source-documented `refs.dat`
   object-to-bibcode table; acquisition, typing, citation linkage, and E4
   materialization remain required
+- the shared Horizons snapshot writer closes the E1 raw-preservation gap in the
+  natural and artificial JPL collectors: exact response bytes, query records,
+  checksums, reviewed target seed, collector identity, and parsed projections
+  are immutable and atomically manifested. An isolated 11-target artificial
+  run passes two-artifact raw/typed accounting and all response checksum/size
+  checks; Photon registry cutover and E4 materialization remain pending
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

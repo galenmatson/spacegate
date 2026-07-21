@@ -584,7 +584,14 @@ Source endpoint:
 Implementation:
 
 - downloader: `scripts/fetch_sol_authority.py`
+- immutable acquisition helper: `scripts/horizons_snapshot.py`
 - contract doc: `docs/SOL_AUTHORITY.md`
+
+Evidence Lake collection preserves each exact Horizons response body, exact
+query parameters and URL, response checksum/size, the reviewed operator target
+seed and collector checksum, and the parsed CSV projection in one immutable
+content-addressed snapshot. The legacy `raw/sol_authority` CSV is an atomic
+compatibility projection; it is not the sole durable source artifact.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
@@ -603,8 +610,14 @@ Source endpoint:
 Implementation:
 
 - downloader: `scripts/fetch_sol_artificial.py`
+- immutable acquisition helper: `scripts/horizons_snapshot.py`
 - volatile refresh runbook: `scripts/refresh_sol_volatile.sh`
 - freshness monitor: `scripts/report_sol_volatile.py`
+
+Artificial-object snapshots use the same raw-response contract. Per-row
+freshness windows remain applicability evidence; an expired trajectory is not
+silently treated as a current orbit merely because its catalog snapshot still
+falls within the broader feed refresh window.
 
 ## 3) Gaia DR3 astrophysical classifier probabilities
 

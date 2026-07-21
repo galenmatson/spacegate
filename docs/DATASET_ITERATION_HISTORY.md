@@ -2047,6 +2047,24 @@ Representative commits:
   and exactly linked before the VSX adapter can satisfy the naming and
   bibliography source role; no catalog-wide reference will be fabricated.
 
+### 69) Immutable Horizons Response Acquisition
+
+- The former Sol collectors retained only a parsed CSV and query URL. Exact JPL
+  Horizons response bodies were discarded, while reviewed operator target
+  metadata and parsed JPL values were merged in one row. That prevented clean
+  raw-to-typed reproduction and obscured field-level provenance.
+- `scripts/horizons_snapshot.py` now gives both bounded collectors one atomic,
+  content-addressed contract. Every target preserves the exact response bytes,
+  query parameters and URL, checksum and size, retrieval time, reviewed target
+  seed, collector checksum, response index, and parsed projection. The legacy
+  CSV is refreshed atomically from the immutable snapshot for compatibility.
+- An isolated artificial-source run at epoch 2026-07-21 captured 11 targets in
+  snapshot `a7aae9a4aa05c3f3fcaf3274`. Evidence Lake raw snapshot
+  `e65b57c609708b377045e9ae` accounts the parsed table plus 25 response/query/
+  seed metadata files; typed snapshot `122af4b07d09f9c9d81f6a28` contains two
+  11-row tables and passes the raw/typed verifier with zero response checksum or
+  size mismatches. Photon registry and active raw state were not changed.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

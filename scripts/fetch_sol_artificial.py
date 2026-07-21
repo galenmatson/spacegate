@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
 import math
@@ -13,9 +12,16 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from horizons_snapshot import (
+    ResponseCapture,
+    seed_sha256,
+    write_horizons_snapshot,
+)
+
 HORIZONS_API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 ORBITAL_PERIOD_SENTINEL_DAYS = 1e20
+OPERATOR_SEED_VERSION = "sol_artificial_bootstrap_v1"
 
 ARTIFICIAL_OBJECTS = [
     {
@@ -140,25 +146,16 @@ def parse_float_token(raw: str | None) -> float | None:
         return None
 
 
-def sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as handle:
-        while True:
-            chunk = handle.read(1024 * 1024)
-            if not chunk:
-                break
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def api_get_text(params: dict[str, str], *, timeout_s: int, retries: int) -> tuple[str, str]:
+def api_get_payload(
+    params: dict[str, str], *, timeout_s: int, retries: int
+) -> tuple[bytes, str]:
     url = f"{HORIZONS_API_URL}?{urllib.parse.urlencode(params)}"
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     last_exc: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
             with urllib.request.urlopen(request, timeout=timeout_s) as response:
-                payload = response.read().decode("utf-8", errors="replace")
+                payload = response.read()
             return payload, url
         except Exception as exc:
             last_exc = exc
@@ -315,10 +312,7 @@ def main() -> int:
         or (root / "data")
     )
     raw_rel = "raw/sol_artificial/sol_artificial_objects.csv"
-    out_path = state_dir / raw_rel
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path = state_dir / "reports" / "manifests" / "sol_artificial_manifest.json"
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
 
     log(
         "Sol artificial fetch start "
@@ -327,6 +321,9 @@ def main() -> int:
 
     retrieved_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     rows: list[dict[str, object]] = []
+    captures: list[ResponseCapture] = []
+    targets = [dict(obj) for obj in ARTIFICIAL_OBJECTS]
+    operator_seed_sha256 = seed_sha256(OPERATOR_SEED_VERSION, targets)
     for obj in ARTIFICIAL_OBJECTS:
         params = build_query_params(
             command=str(obj["command"]),
@@ -334,12 +331,25 @@ def main() -> int:
             start_time=str(args.start_time),
             stop_time=str(args.stop_time),
         )
-        payload, query_url = api_get_text(params, timeout_s=args.timeout_s, retries=args.retries)
+        payload_bytes, query_url = api_get_payload(
+            params, timeout_s=args.timeout_s, retries=args.retries
+        )
+        payload = payload_bytes.decode("utf-8", errors="replace")
         if "$$SOE" not in payload:
             raise RuntimeError(
                 f"Horizons response for {obj['name']} ({obj['command']}) missing ephemeris block."
             )
         elements = parse_elements(payload)
+        capture = ResponseCapture(
+            source_pk=str(obj["source_pk"]),
+            object_name=str(obj["name"]),
+            horizons_command=str(obj["command"]),
+            center_code=str(obj["center"]),
+            query_url=query_url,
+            query_parameters=params,
+            payload=payload_bytes,
+        )
+        captures.append(capture)
         row: dict[str, object] = {
             "source_pk": int(obj["source_pk"]),
             "object_name": str(obj["name"]),
@@ -358,6 +368,10 @@ def main() -> int:
             "freshness_window_days": int(obj["freshness_window_days"]),
             "target_body_name": parse_target_name(payload),
             "horizons_query_url": query_url,
+            "horizons_response_path": capture.response_path,
+            "horizons_response_sha256": capture.response_sha256,
+            "operator_seed_version": OPERATOR_SEED_VERSION,
+            "operator_seed_sha256": operator_seed_sha256,
             "retrieved_at": retrieved_at,
         }
         row_hash_payload = json.dumps(row, sort_keys=True, separators=(",", ":"))
@@ -382,37 +396,43 @@ def main() -> int:
         "freshness_window_days",
         "target_body_name",
         "horizons_query_url",
+        "horizons_response_path",
+        "horizons_response_sha256",
+        "operator_seed_version",
+        "operator_seed_sha256",
         "retrieved_at",
         "source_row_hash",
     ]
-    with out_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
-
-    manifest_payload = [
-        {
-            "source_name": "sol_artificial_objects",
-            "source_version": f"horizons_s4_{args.start_time}",
-            "url": HORIZONS_API_URL,
-            "dest_path": raw_rel,
-            "retrieved_at": retrieved_at,
-            "checked_at": retrieved_at,
-            "bytes_written": out_path.stat().st_size,
-            "row_count": len(rows),
-            "sha256": sha256_file(out_path),
-            "query_signature": {
-                "start_time": args.start_time,
-                "stop_time": args.stop_time,
-                "ephem_type": "ELEMENTS",
-                "objects": ",".join(str(obj["command"]) for obj in ARTIFICIAL_OBJECTS),
-            },
-        }
-    ]
-    manifest_path.write_text(json.dumps(manifest_payload, indent=2) + "\n", encoding="utf-8")
+    source_version = f"horizons_s4_{args.start_time}"
+    query_signature = {
+        "start_time": args.start_time,
+        "stop_time": args.stop_time,
+        "ephem_type": "ELEMENTS",
+        "objects": ",".join(str(obj["command"]) for obj in ARTIFICIAL_OBJECTS),
+    }
+    snapshot_path, manifest_payload = write_horizons_snapshot(
+        state_dir=state_dir,
+        family="sol_artificial",
+        table_source_name="sol_artificial_objects",
+        response_source_name="sol_artificial_horizons_responses",
+        parsed_filename="sol_artificial_objects.csv",
+        legacy_relative_path=raw_rel,
+        manifest_filename=manifest_path.name,
+        source_version=source_version,
+        source_url=HORIZONS_API_URL,
+        retrieved_at=retrieved_at,
+        rows=rows,
+        fieldnames=fieldnames,
+        captures=captures,
+        seed_version=OPERATOR_SEED_VERSION,
+        targets=targets,
+        collector_path=Path(__file__).resolve(),
+        query_signature=query_signature,
+    )
     log(
-        f"Sol artificial fetch complete (rows={len(rows):,}, bytes={out_path.stat().st_size:,}, manifest={manifest_path})"
+        f"Sol artificial fetch complete (rows={len(rows):,}, "
+        f"snapshot={snapshot_path.name}, artifacts={len(manifest_payload)}, "
+        f"manifest={manifest_path})"
     )
     return 0
 

@@ -939,6 +939,14 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   object-to-bibcode `refs.dat` table. VSX cannot pass E4 until a pinned
   bibliography artifact is acquired, typed, and linked without guessing
   references for rows that do not publish one.
+- JPL Horizons collection now has a shared immutable snapshot writer. It keeps
+  byte-identical API response bodies, exact query parameters/URLs, checksums,
+  sizes, retrieval time, reviewed operator-target seed and collector checksum,
+  plus the parsed CSV projection. The mutable legacy CSV remains only an atomic
+  compatibility projection. An 11-target artificial-object scratch run passed
+  raw/typed artifact accounting and per-response checksum verification. Photon
+  registry cutover, natural-source collection, current artificial refresh, and
+  both E4 adapters remain pending until the active Gaia build reproduces.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

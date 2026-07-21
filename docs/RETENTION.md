@@ -704,6 +704,18 @@ are reproducibility inputs, not disposable build output. Normal build-retention
 pruning must not remove them. Failed `out/<build_id>` and per-build reports use
 the standard retention policy after diagnostic evidence has been captured.
 
+## JPL Horizons Raw Responses
+
+Content-addressed directories below `raw/sol_authority/snapshots` and
+`raw/sol_artificial/snapshots` contain exact API response bodies, query records,
+operator seeds, collector metadata, response indexes, and parsed projections.
+They are durable raw science inputs, not cache or disposable build output.
+Never prune a snapshot referenced by a source manifest, Evidence Lake raw/typed
+snapshot, accepted or served build, report, rollback generation, or
+publication. The mutable legacy CSV paths beside them are compatibility
+projections and may be replaced atomically by the collector, but their
+referenced immutable source snapshot must remain.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and
