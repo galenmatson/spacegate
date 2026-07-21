@@ -59,7 +59,8 @@ Evidence Lake v2 staging rule:
   raw and normalized values, interval semantics, exact E4 evidence and
   parameter-set lineage, authority decision, policy, normalization, and
   quality metadata. `parameter_set_selection_decisions` records the selected
-  coherent set and runner-up authority; `selected_fact_derivations` records
+  coherent set, selected source-native quality score, runner-up authority, and
+  runner-up quality score; `selected_fact_derivations` records
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
@@ -75,6 +76,14 @@ Evidence Lake v2 staging rule:
   supplementary calibrated model estimates, not replacements for Gaia source
   parallax; their lower and upper values are exact 16th/84th-percentile
   endpoints rather than symmetric errors.
+- Ranked EAV selection may declare bounded quality conditions over evidence,
+  parameter-set, or source-record JSON plus one numeric ordering signal.
+  Conditions determine eligibility; ordering is authority rank, coherent-set
+  quantity completeness, uncertainty coverage, reference coverage, quality
+  score, then stable parameter-set ID. Scores are source-native and therefore
+  compare repeat observations only within an explicit authority tier; survey
+  precedence is expressed by per-quantity authority ranks, not by pretending
+  unlike instrument S/N values are calibrated to one scale.
 - Large selected-fact exports are deterministically partitioned by
   `quantity_key`; decision exports are partitioned by `quantity_group`. The
   artifact gate requires every expected partition and verifies its Parquet row

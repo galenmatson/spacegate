@@ -81,6 +81,18 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             "AND (canonical_object_node_key IS NOT NULL OR stable_object_key IS NOT NULL "
             "OR system_stable_object_key IS NOT NULL)",
         )
+        checks["nonfinite_selection_quality_scores"] = scalar(
+            con,
+            "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+            "WHERE selection_quality_score IS NOT NULL "
+            "AND NOT isfinite(selection_quality_score)",
+        )
+        checks["nonfinite_runner_up_quality_scores"] = scalar(
+            con,
+            "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+            "WHERE runner_up_quality_score IS NOT NULL "
+            "AND NOT isfinite(runner_up_quality_score)",
+        )
         for source in policy.get("selection_sources") or []:
             source_id = str(source["source_id"])
             row = con.execute(
@@ -113,6 +125,27 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
             checks[f"accepted_binding_accounting_{source_id}"] = abs(
                 int(row[1]) - int(outcomes.get("accepted", 0))
             )
+            for group in source.get("quantity_groups") or []:
+                for authority in group.get("authorities") or []:
+                    if not authority.get("quality_order"):
+                        continue
+                    check_key = (
+                        f"missing_selection_quality_score_{source_id}_"
+                        f"{group['group_key']}_{authority['rank']}"
+                    )
+                    checks[check_key] = scalar(
+                        con,
+                        "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                        "WHERE selected_source_id=? AND quantity_group=? "
+                        "AND authority_rank=? AND authority_reason=? "
+                        "AND selection_quality_score IS NULL",
+                        [
+                            source_id,
+                            str(group["group_key"]),
+                            int(authority["rank"]),
+                            str(authority["reason"]),
+                        ],
+                    )
 
         fact_rows = dict(
             con.execute(

@@ -1430,6 +1430,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Bailer-Jones geometric/photogeometric posterior estimates through an explicit
   EDR3-to-DR3 release contract; preserve exact interval semantics and record an
   accepted, missing, or ambiguous outcome for every eligible source record
+- [x] E5 spectroscopy atmosphere checkpoint: bind bounded APOGEE DR17, GALAH
+  DR4, and LAMOST DR11 evidence; apply official/source-native quality gates,
+  rank repeat observations deterministically, retain winner/runner-up quality
+  lineage, and pass independent audit plus clean reproduction
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

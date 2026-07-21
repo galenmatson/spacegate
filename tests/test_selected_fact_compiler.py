@@ -238,10 +238,14 @@ def make_e4_artifact(
               ('gaia-record', 'gaia_dr3_source_id', 'Gaia DR3 123');
             INSERT INTO stellar_parameter_sets VALUES
               ('hot-set', 'gaia-record', NULL, 'hot-method', NULL, 'hot-ref'),
+              ('hot-low-set', 'gaia-record', NULL, 'hot-method', NULL, 'hot-low-ref'),
+              ('hot-bad-set', 'gaia-record', NULL, 'hot-method', NULL, 'hot-bad-ref'),
               ('fallback-set', 'gaia-record', NULL, 'fallback-method', NULL, 'fallback-ref'),
               ('fundamental-set', 'gaia-record', NULL, 'fundamental-method', NULL, 'fund-ref');
             INSERT INTO stellar_parameter_evidence VALUES
-              ('teff-hot', 'hot-set', 'gaia-record', 'effective_temperature', '5800', 5800, 'K', 5700, 5900, 'interval_endpoints', 'hot-ref', 'norm-v1', '{}'),
+              ('teff-hot', 'hot-set', 'gaia-record', 'effective_temperature', '5800', 5800, 'K', 5700, 5900, 'interval_endpoints', 'hot-ref', 'norm-v1', '{"flag":0,"snr":50}'),
+              ('teff-hot-low', 'hot-low-set', 'gaia-record', 'effective_temperature', '5750', 5750, 'K', 5650, 5850, 'interval_endpoints', 'hot-low-ref', 'norm-v1', '{"flag":0,"snr":10}'),
+              ('teff-hot-bad', 'hot-bad-set', 'gaia-record', 'effective_temperature', '5900', 5900, 'K', 5800, 6000, 'interval_endpoints', 'hot-bad-ref', 'norm-v1', '{"flag":1,"snr":100}'),
               ('teff-fallback', 'fallback-set', 'gaia-record', 'effective_temperature', '5700', 5700, 'K', 100, 100, 'symmetric_error', 'fallback-ref', 'norm-v1', '{}'),
               ('radius-fund', 'fundamental-set', 'gaia-record', 'stellar_radius', '1.0', 1.0, 'solRad', 0.1, 0.1, 'symmetric_error', 'fund-ref', 'norm-v1', '{}');
             """
@@ -440,7 +444,24 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
                             "group_key": "atmosphere",
                             "quantities": {"effective_temperature": "teff_k"},
                             "authorities": [
-                                {"rank": 10, "method": "hot-method", "reason": "specialized"},
+                                {
+                                    "rank": 10,
+                                    "method": "hot-method",
+                                    "reason": "specialized",
+                                    "quality_conditions": [
+                                        {
+                                            "scope": "evidence_quality",
+                                            "path": "$.flag",
+                                            "operator": "eq",
+                                            "value": 0,
+                                        }
+                                    ],
+                                    "quality_order": {
+                                        "scope": "evidence_quality",
+                                        "path": "$.snr",
+                                        "direction": "desc",
+                                    },
+                                },
                                 {"rank": 20, "method": "fallback-method", "reason": "fallback"},
                             ],
                         },
@@ -531,7 +552,8 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
         "FROM selected_facts ORDER BY quantity_key"
     ).fetchall()
     decisions = con.execute(
-        "SELECT quantity_group, selected_parameter_set_id, authority_rank "
+        "SELECT quantity_group, selected_parameter_set_id, authority_rank, "
+        "selection_quality_score, runner_up_parameter_set_id, runner_up_quality_score "
         "FROM parameter_set_selection_decisions ORDER BY quantity_group"
     ).fetchall()
     supersedes = con.execute(
@@ -551,8 +573,8 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     assert ("distance_photogeometric_pc", 49.0, 46.0, 53.0, "source_selected") in facts
     assert ("variability_flag", None, None, None, "source_selected") in facts
     assert any(row[0] == "luminosity_lsun" and row[4] == "derived" for row in facts)
-    assert ("atmosphere", "hot-set", 10) in decisions
-    assert ("orbit", "planet-default-set", 10) in decisions
+    assert ("atmosphere", "hot-set", 10, 50.0, "hot-low-set", 10.0) in decisions
+    assert any(row[:3] == ("orbit", "planet-default-set", 10) for row in decisions)
     assert json.loads(supersedes) == ["old-path"]
     assert distance_bindings == [
         (
@@ -583,7 +605,7 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 4
+    assert len(policy["selection_sources"]) == 7
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
@@ -607,6 +629,37 @@ def test_release_equivalence_binding_requires_authoritative_contract(tmp_path: P
     del distance["binding"]["release_equivalence"]["source_list_identical"]
 
     with pytest.raises(ValueError, match="lacks authoritative contract"):
+        compiler.validate_policy(policy, release_manifest)
+
+
+def test_quality_policy_rejects_invalid_and_wrong_scope_rules(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    release_manifest = compiler.load_json(
+        state
+        / "derived/evidence_lake_v2/scientific_evidence_sets/release-set-test/manifest.json"
+    )
+    gaia = next(
+        source for source in policy["selection_sources"]
+        if source["source_id"] == "source.gaia"
+    )
+    rule = gaia["quantity_groups"][0]["authorities"][0]
+    rule["quality_conditions"][0]["path"] = "flag"
+    with pytest.raises(ValueError, match="invalid quality JSON path"):
+        compiler.validate_policy(policy, release_manifest)
+
+    policy = compiler.load_json(policy_path)
+    coherent = next(
+        source for source in policy["selection_sources"]
+        if source["source_id"] == "source.coherent"
+    )
+    coherent["quantity_groups"][0]["authorities"][0]["quality_order"] = {
+        "scope": "evidence_quality",
+        "path": "$.snr",
+        "direction": "desc",
+    }
+    with pytest.raises(ValueError, match="coherent-array quality rules cannot use evidence scope"):
         compiler.validate_policy(policy, release_manifest)
 
 

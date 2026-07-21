@@ -1198,6 +1198,30 @@ while the registered posterior-distance envelope did not select them. E6 must
 compare this population explicitly before any distance policy changes public
 membership or positions.
 
+Selected-fact build `d3f255b55e4573676347b206` adds quality-aware APOGEE
+DR17, GALAH DR4, and LAMOST DR11 atmosphere selection under policy
+`2026-07-21.e5-selection.4`. The compiler accepts a bounded JSON quality-rule
+DSL over evidence, parameter-set, or source-record context; conditions are
+applied before candidacy, while a numeric source-native quality score breaks
+ties only after authority, coherent-set completeness, uncertainty coverage,
+and reference coverage. Decisions retain both selected and runner-up quality
+scores. Gaia specialized and RVS atmosphere solutions remain authoritative;
+accepted high-resolution APOGEE/GALAH and source-published LAMOST solutions
+precede only Gaia's photometric fallback.
+
+The survey policies account 163,971 APOGEE, 116,549 GALAH, and 1,651,199
+LAMOST eligible records. They select 42,743, 14,198, and 208,764 coherent sets
+respectively, adding selected temperature and gravity for 40,647 stars that
+previously had no atmosphere decision. The coherent-set rule deliberately does
+not splice Gaia `[M/H]` into a two-field GALAH/LAMOST solution: selected
+`metallicity_m_h` therefore falls by 83,257 while all alternate Gaia evidence
+remains in E4. Source `[Fe/H]` is not relabeled as `[M/H]`; chemistry selection
+requires a distinct quantity policy. The accepted build has 110,369,250 facts,
+36,651,409 decisions, and 59,647,732 exhaustive binding outcomes. Independent
+audit passes with no failures, and clean reproduction matches logical hash
+`54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
+with no differing section and complete scratch removal.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

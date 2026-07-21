@@ -165,6 +165,20 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 raise ValueError(f"quantity group has no positive authority rules: {key}")
             if selection_mode == "authoritative_direct" and len(authorities) != 1:
                 raise ValueError(f"authoritative-direct group requires one authority rule: {key}")
+            for rule in authorities:
+                validate_quality_rule(rule, source_id=source_id, group_key=group_key)
+                if str(source.get("storage") or "eav") == "coherent_array":
+                    quality_scopes = {
+                        str(item.get("scope") or "")
+                        for item in rule.get("quality_conditions") or []
+                    }
+                    if rule.get("quality_order"):
+                        quality_scopes.add(str(rule["quality_order"].get("scope") or ""))
+                    if "evidence_quality" in quality_scopes:
+                        raise ValueError(
+                            "coherent-array quality rules cannot use evidence scope: "
+                            f"{source_id}:{group_key}"
+                        )
             for source_quantity, selected_spec in (group.get("quantities") or {}).items():
                 if source_quantity in source_quantities:
                     raise ValueError(f"source quantity appears in multiple groups: {source_id}:{source_quantity}")
@@ -177,7 +191,95 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                     raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
 
 
-def authority_condition(rule: dict[str, Any], source_alias: str, set_alias: str) -> str:
+def validate_quality_rule(
+    rule: dict[str, Any], *, source_id: str, group_key: str
+) -> None:
+    allowed_scopes = {
+        "evidence_quality", "parameter_set_quality", "source_context"
+    }
+    allowed_operators = {
+        "eq", "ne", "gt", "gte", "lt", "lte", "bitmask_none", "not_null"
+    }
+    for condition in rule.get("quality_conditions") or []:
+        scope = str(condition.get("scope") or "")
+        operator = str(condition.get("operator") or "")
+        path = str(condition.get("path") or "")
+        if scope not in allowed_scopes or operator not in allowed_operators:
+            raise ValueError(
+                f"invalid quality condition: {source_id}:{group_key}:{scope}:{operator}"
+            )
+        if not path.startswith("$.") or len(path) > 256:
+            raise ValueError(f"invalid quality JSON path: {source_id}:{group_key}:{path!r}")
+        if operator != "not_null" and "value" not in condition:
+            raise ValueError(
+                f"quality condition lacks value: {source_id}:{group_key}:{path}"
+            )
+        if operator == "bitmask_none" and int(condition.get("value") or 0) < 0:
+            raise ValueError(
+                f"quality bitmask must be nonnegative: {source_id}:{group_key}:{path}"
+            )
+    quality_order = rule.get("quality_order")
+    if quality_order is not None:
+        scope = str(quality_order.get("scope") or "")
+        path = str(quality_order.get("path") or "")
+        direction = str(quality_order.get("direction") or "desc")
+        if scope not in allowed_scopes or not path.startswith("$.") or len(path) > 256:
+            raise ValueError(
+                f"invalid quality order: {source_id}:{group_key}:{scope}:{path!r}"
+            )
+        if direction not in {"asc", "desc"}:
+            raise ValueError(
+                f"invalid quality order direction: {source_id}:{group_key}:{direction}"
+            )
+
+
+def quality_json_expression(
+    scope: str, *, source_alias: str, set_alias: str, evidence_alias: str
+) -> str:
+    if scope == "evidence_quality":
+        return f"{evidence_alias}.quality_json"
+    if scope == "parameter_set_quality":
+        return f"{set_alias}.quality_json"
+    if scope == "source_context":
+        return f"{source_alias}.source_context_json"
+    raise ValueError(f"unsupported quality JSON scope: {scope}")
+
+
+def quality_condition_sql(
+    condition: dict[str, Any], *, source_alias: str, set_alias: str,
+    evidence_alias: str,
+) -> str:
+    expression = quality_json_expression(
+        str(condition["scope"]), source_alias=source_alias,
+        set_alias=set_alias, evidence_alias=evidence_alias,
+    )
+    extracted = f"json_extract_string({expression}, {sql_literal(condition['path'])})"
+    operator = str(condition["operator"])
+    if operator == "not_null":
+        return f"{extracted} IS NOT NULL"
+    value = condition["value"]
+    value_type = str(condition.get("value_type") or "number")
+    if operator == "bitmask_none":
+        return f"(try_cast({extracted} AS UBIGINT) & {int(value)}) = 0"
+    if value_type == "string":
+        left = extracted
+        right = sql_literal(value)
+    elif value_type == "boolean":
+        left = f"try_cast({extracted} AS BOOLEAN)"
+        right = "TRUE" if bool(value) else "FALSE"
+    else:
+        left = f"try_cast({extracted} AS DOUBLE)"
+        right = repr(float(value))
+    sql_operator = {
+        "eq": "=", "ne": "<>", "gt": ">", "gte": ">=", "lt": "<", "lte": "<=",
+    }[operator]
+    return f"{left} {sql_operator} {right}"
+
+
+def authority_condition(
+    rule: dict[str, Any], source_alias: str, set_alias: str,
+    evidence_alias: str = "pe",
+) -> str:
     conditions: list[str] = []
     for field, alias in (("source_table", source_alias), ("method", set_alias), ("model", set_alias), ("parameter_set_kind", set_alias)):
         if rule.get(field) is not None:
@@ -190,7 +292,32 @@ def authority_condition(rule: dict[str, Any], source_alias: str, set_alias: str)
             f"json_extract_string({source_alias}.source_context_json, {sql_literal('$.' + context_field)}) "
             f"= {sql_literal(rule.get('context_value'))}"
         )
+    conditions.extend(
+        quality_condition_sql(
+            condition, source_alias=source_alias, set_alias=set_alias,
+            evidence_alias=evidence_alias,
+        )
+        for condition in rule.get("quality_conditions") or []
+    )
     return " AND ".join(conditions) if conditions else "TRUE"
+
+
+def quality_score_sql(
+    rule: dict[str, Any], *, source_alias: str = "sr", set_alias: str = "ps",
+    evidence_alias: str = "pe",
+) -> str:
+    quality_order = rule.get("quality_order")
+    if quality_order is None:
+        return "NULL::DOUBLE"
+    expression = quality_json_expression(
+        str(quality_order["scope"]), source_alias=source_alias,
+        set_alias=set_alias, evidence_alias=evidence_alias,
+    )
+    extracted = (
+        f"try_cast(json_extract_string({expression}, "
+        f"{sql_literal(quality_order['path'])}) AS DOUBLE)"
+    )
+    return f"-({extracted})" if quality_order.get("direction", "desc") == "asc" else extracted
 
 
 def authority_case(group: dict[str, Any], *, value: str) -> str:
@@ -198,6 +325,14 @@ def authority_case(group: dict[str, Any], *, value: str) -> str:
     for rule in group["authorities"]:
         condition = authority_condition(rule, "sr", "ps")
         clauses.append(f"WHEN {condition} THEN {sql_literal(rule[value])}")
+    return "CASE " + " ".join(clauses) + " ELSE NULL END"
+
+
+def quality_score_case(group: dict[str, Any]) -> str:
+    clauses: list[str] = []
+    for rule in group["authorities"]:
+        condition = authority_condition(rule, "sr", "ps", "pe")
+        clauses.append(f"WHEN {condition} THEN {quality_score_sql(rule)}")
     return "CASE " + " ".join(clauses) + " ELSE NULL END"
 
 
@@ -262,9 +397,10 @@ def coherent_field_specs(
     return resolved
 
 
-def authority_sql(source: dict[str, Any]) -> tuple[str, str]:
+def authority_sql(source: dict[str, Any]) -> tuple[str, str, str]:
     rank_clauses: list[str] = []
     reason_clauses: list[str] = []
+    quality_clauses: list[str] = []
     for group in source["quantity_groups"]:
         group_literal = sql_literal(group["group_key"])
         rank_clauses.append(
@@ -273,9 +409,13 @@ def authority_sql(source: dict[str, Any]) -> tuple[str, str]:
         reason_clauses.append(
             f"WHEN q.group_key = {group_literal} THEN {authority_case(group, value='reason')}"
         )
+        quality_clauses.append(
+            f"WHEN q.group_key = {group_literal} THEN {quality_score_case(group)}"
+        )
     return (
         "CASE " + " ".join(rank_clauses) + " ELSE NULL END",
         "CASE " + " ".join(reason_clauses) + " ELSE NULL END",
+        "CASE " + " ".join(quality_clauses) + " ELSE NULL END",
     )
 
 
@@ -337,11 +477,13 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           selected_evidence_build_id VARCHAR,
           authority_rank INTEGER,
           authority_reason VARCHAR,
+          selection_quality_score DOUBLE,
           selected_quantity_count INTEGER,
           selected_uncertainty_count INTEGER,
           candidate_parameter_set_count INTEGER,
           runner_up_parameter_set_id VARCHAR,
           runner_up_authority_rank INTEGER,
+          runner_up_quality_score DOUBLE,
           policy_version VARCHAR
         );
         CREATE TABLE selected_facts (
@@ -608,7 +750,7 @@ def insert_candidates(
     set_table = sql_identifier(str(source["parameter_set_table"]))
     evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
     quantity_rows = quantity_values(source)
-    rank_sql, reason_sql = authority_sql(source)
+    rank_sql, reason_sql, quality_sql = authority_sql(source)
     component_filter = ""
     if source.get("component_scope_field"):
         component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
@@ -625,7 +767,8 @@ def insert_candidates(
                  ps.method, ps.model, pe.reference_raw,
                  pe.normalization_version, pe.quality_json,
                  {rank_sql} AS authority_rank,
-                 {reason_sql} AS authority_reason
+                 {reason_sql} AS authority_reason,
+                 {quality_sql} AS selection_quality_score
           FROM {source_alias}.{evidence_table} pe
           JOIN quantities q ON q.source_quantity = pe.quantity_key
           JOIN {source_alias}.{set_table} ps ON ps.parameter_set_id = pe.parameter_set_id
@@ -644,7 +787,7 @@ def insert_candidates(
                evidence_id, parameter_set_id, source_record_id,
                {sql_literal(source['source_id'])}, {sql_literal(release_id)},
                method, model, reference_raw, authority_rank, authority_reason,
-               normalization_version, quality_json
+               selection_quality_score, normalization_version, quality_json
         FROM candidates WHERE authority_rank IS NOT NULL
         """
     )
@@ -714,7 +857,7 @@ def insert_measurement_bundle_direct(
             "COUNT(DISTINCT CASE WHEN nested.measurement.uncertainty_lower IS NOT NULL "
             "OR nested.measurement.uncertainty_upper IS NOT NULL "
             "THEN nested.measurement.quantity_key END)::INTEGER, "
-            f"1, NULL, NULL, {policy_version} "
+            f"NULL, 1, NULL, NULL, NULL, {policy_version} "
             f"FROM {source_alias}.{bundle_table} bundle "
             "JOIN evidence_object_bindings b "
             f"ON b.source_id={source_id} AND b.source_record_id=bundle.source_record_id "
@@ -839,6 +982,9 @@ def insert_coherent_direct(
     for group in source["quantity_groups"]:
         rule = group["authorities"][0]
         condition = authority_condition(rule, "sr", "ps")
+        selection_quality_score = quality_score_sql(
+            rule, source_alias="sr", set_alias="ps"
+        )
         present_terms: list[str] = []
         uncertainty_terms: list[str] = []
         for source_field, selected_spec in group["quantities"].items():
@@ -890,8 +1036,9 @@ def insert_coherent_direct(
             "b.object_type, b.stable_object_key, b.system_stable_object_key, "
             f"{group_key}, ps.{set_id_field}, ps.source_record_id, {source_id}, "
             f"{release}, {evidence_build}, {int(rule['rank'])}, {sql_literal(rule['reason'])}, "
+            f"{selection_quality_score}, "
             f"({quantity_count})::INTEGER, ({uncertainty_count})::INTEGER, 1, "
-            f"NULL, NULL, {policy_version} "
+            f"NULL, NULL, NULL, {policy_version} "
             f"FROM {source_alias}.{set_table} ps "
             f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
             "JOIN evidence_object_bindings b "
@@ -986,6 +1133,11 @@ def insert_coherent_candidates(
                 f"WHEN {authority_condition(rule, 'sr', 'ps')} THEN {sql_literal(rule['reason'])}"
                 for rule in group["authorities"]
             ]
+            quality_clauses = [
+                f"WHEN {authority_condition(rule, 'sr', 'ps')} "
+                f"THEN {quality_score_sql(rule, source_alias='sr', set_alias='ps')}"
+                for rule in group["authorities"]
+            ]
             rows.append(
                 "SELECT "
                 "b.object_type, b.stable_object_key, b.system_stable_object_key, "
@@ -1005,6 +1157,7 @@ def insert_coherent_candidates(
                 "ps.method, ps.model, ps.reference_raw, "
                 f"CASE {' '.join(rank_clauses)} ELSE NULL END AS authority_rank, "
                 f"CASE {' '.join(reason_clauses)} ELSE NULL END AS authority_reason, "
+                f"CASE {' '.join(quality_clauses)} ELSE NULL END AS selection_quality_score, "
                 "ps.normalization_version, ps.quality_json "
                 f"FROM {source_alias}.{set_table} ps "
                 f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
@@ -1028,6 +1181,7 @@ def create_candidate_table(con: duckdb.DuckDBPyConnection) -> None:
           parameter_set_id VARCHAR, source_record_id VARCHAR, source_id VARCHAR,
           release_id VARCHAR, method VARCHAR, model VARCHAR, reference_raw VARCHAR,
           authority_rank INTEGER, authority_reason VARCHAR,
+          selection_quality_score DOUBLE,
           normalization_version VARCHAR, quality_json JSON
         );
         """
@@ -1042,6 +1196,7 @@ def select_parameter_sets(con: duckdb.DuckDBPyConnection, policy_version: str) -
                parameter_set_id, source_record_id, source_id, release_id, evidence_build_id,
                MIN(authority_rank)::INTEGER AS authority_rank,
                MIN(authority_reason) AS authority_reason,
+               MAX(selection_quality_score) AS selection_quality_score,
                COUNT(DISTINCT quantity_key)::INTEGER AS quantity_count,
                COUNT(DISTINCT CASE WHEN uncertainty_lower IS NOT NULL OR uncertainty_upper IS NOT NULL THEN quantity_key END)::INTEGER AS uncertainty_count,
                COUNT(DISTINCT CASE WHEN NULLIF(TRIM(reference_raw), '') IS NOT NULL THEN quantity_key END)::INTEGER AS reference_count
@@ -1053,19 +1208,28 @@ def select_parameter_sets(con: duckdb.DuckDBPyConnection, policy_version: str) -
                ROW_NUMBER() OVER (
                  PARTITION BY object_type, stable_object_key, quantity_group
                  ORDER BY authority_rank, quantity_count DESC, uncertainty_count DESC,
-                          reference_count DESC, parameter_set_id
+                          reference_count DESC, selection_quality_score DESC NULLS LAST,
+                          parameter_set_id
                ) AS selection_rank,
                COUNT(*) OVER (PARTITION BY object_type, stable_object_key, quantity_group)::INTEGER AS candidate_count,
                LEAD(parameter_set_id) OVER (
                  PARTITION BY object_type, stable_object_key, quantity_group
                  ORDER BY authority_rank, quantity_count DESC, uncertainty_count DESC,
-                          reference_count DESC, parameter_set_id
+                          reference_count DESC, selection_quality_score DESC NULLS LAST,
+                          parameter_set_id
                ) AS runner_up_parameter_set_id,
                LEAD(authority_rank) OVER (
                  PARTITION BY object_type, stable_object_key, quantity_group
                  ORDER BY authority_rank, quantity_count DESC, uncertainty_count DESC,
-                          reference_count DESC, parameter_set_id
+                          reference_count DESC, selection_quality_score DESC NULLS LAST,
+                          parameter_set_id
                )::INTEGER AS runner_up_authority_rank
+               ,LEAD(selection_quality_score) OVER (
+                 PARTITION BY object_type, stable_object_key, quantity_group
+                 ORDER BY authority_rank, quantity_count DESC, uncertainty_count DESC,
+                          reference_count DESC, selection_quality_score DESC NULLS LAST,
+                          parameter_set_id
+               ) AS runner_up_quality_score
         FROM candidate_sets;
 
         INSERT INTO parameter_set_selection_decisions
@@ -1074,8 +1238,10 @@ def select_parameter_sets(con: duckdb.DuckDBPyConnection, policy_version: str) -
                object_type, stable_object_key, system_stable_object_key, quantity_group,
                parameter_set_id, source_record_id, source_id, release_id,
                evidence_build_id, authority_rank, authority_reason,
+               selection_quality_score,
                quantity_count, uncertainty_count, candidate_count,
                runner_up_parameter_set_id, runner_up_authority_rank,
+               runner_up_quality_score,
                {sql_literal(policy_version)}
         FROM ranked_sets WHERE selection_rank = 1;
 

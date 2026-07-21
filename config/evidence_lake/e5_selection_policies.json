@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.3",
-  "compiler_version": "selected_fact_compiler_v3",
+  "policy_version": "2026-07-21.e5-selection.4",
+  "compiler_version": "selected_fact_compiler_v4",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -191,6 +191,190 @@
           "authorities": [
             {"rank": 10, "method": "gaia_dr3_flame", "reason": "Gaia FLAME coherent physical/evolution solution"},
             {"rank": 20, "method": "gaia_dr3_gspphot", "reason": "Gaia GSP-Phot coherent atmosphere solution used only when FLAME is absent"}
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "spectroscopy.apogee_dr17",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "authoritative_release_equivalence",
+        "claim_namespace": "gaia_edr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal",
+        "release_equivalence": {
+          "source_release": "gaia_edr3",
+          "canonical_release": "gaia_dr3",
+          "relationship": "identical_source_list_and_astrometry_carried_forward",
+          "source_list_identical": true,
+          "authority_url": "https://gea.esac.esa.int/archive/documentation/GDR3/",
+          "authority_statement": "Gaia DR3 contains the astrometry and broad-band photometry already published in EDR3; the EDR3 source list was carried forward into DR3. This equivalence is specific to EDR3-to-DR3 and does not authorize equality across other Gaia releases."
+        }
+      },
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "minimum_eligible_records": 160000,
+      "minimum_accepted_bindings": 110000,
+      "minimum_selected_facts": 100000,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs",
+            "metallicity_m_h": "metallicity_m_h"
+          },
+          "authorities": [
+            {
+              "rank": 22,
+              "method": "apogee_dr17_aspcap_pipeline",
+              "model": "APOGEE_DR17_ASPCAP",
+              "reason": "APOGEE DR17 calibrated high-resolution H-band ASPCAP atmosphere solution without the ASPCAP STAR_BAD summary bit",
+              "quality_conditions": [
+                {
+                  "scope": "evidence_quality",
+                  "path": "$.source_quality.ASPCAPFLAG",
+                  "operator": "bitmask_none",
+                  "value": 8388608
+                },
+                {
+                  "scope": "evidence_quality",
+                  "path": "$.source_quality.SNR",
+                  "operator": "gt",
+                  "value": 0
+                }
+              ],
+              "quality_order": {
+                "scope": "evidence_quality",
+                "path": "$.source_quality.SNR",
+                "direction": "desc"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "spectroscopy.galah_dr4",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "minimum_eligible_records": 110000,
+      "minimum_accepted_bindings": 65000,
+      "minimum_selected_facts": 20000,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs"
+          },
+          "authorities": [
+            {
+              "rank": 23,
+              "method": "galah_dr4_spectrum_analysis_pipeline",
+              "model": "GALAH_DR4_allStar",
+              "reason": "GALAH DR4 high-resolution optical atmosphere solution meeting the official unflagged and CCD3 signal-to-noise guidance",
+              "quality_conditions": [
+                {
+                  "scope": "evidence_quality",
+                  "path": "$.source_quality.flag_sp",
+                  "operator": "eq",
+                  "value": 0
+                },
+                {
+                  "scope": "evidence_quality",
+                  "path": "$.source_quality.snr_px_ccd3",
+                  "operator": "gt",
+                  "value": 30
+                }
+              ],
+              "quality_order": {
+                "scope": "evidence_quality",
+                "path": "$.source_quality.snr_px_ccd3",
+                "direction": "desc"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "spectroscopy.lamost_dr11",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "minimum_eligible_records": 1600000,
+      "minimum_accepted_bindings": 840000,
+      "minimum_selected_facts": 300000,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "effective_temperature": "teff_k",
+            "log10_surface_gravity": "logg_cgs",
+            "metallicity_m_h": "metallicity_m_h"
+          },
+          "authorities": [
+            {
+              "rank": 24,
+              "method": "lamost_dr11_mstar_parameter_pipeline",
+              "model": "LAMOST_DR11_v2.0_MSTAR",
+              "reason": "LAMOST DR11 source-published M-star atmosphere solution; repeat observations ordered by i-band signal-to-noise",
+              "quality_conditions": [
+                {"scope": "evidence_quality", "path": "$.source_quality.snri", "operator": "gt", "value": 0}
+              ],
+              "quality_order": {"scope": "evidence_quality", "path": "$.source_quality.snri", "direction": "desc"}
+            },
+            {
+              "rank": 25,
+              "method": "lamost_dr11_lasp",
+              "model": "LAMOST_DR11_v2.0_MRS_LASP",
+              "reason": "LAMOST DR11 medium-resolution LASP atmosphere solution; repeat observations ordered by source-published signal-to-noise",
+              "quality_conditions": [
+                {"scope": "evidence_quality", "path": "$.source_quality.snr", "operator": "gt", "value": 0}
+              ],
+              "quality_order": {"scope": "evidence_quality", "path": "$.source_quality.snr", "direction": "desc"}
+            },
+            {
+              "rank": 26,
+              "method": "lamost_dr11_lasp",
+              "model": "LAMOST_DR11_v2.0_LASP",
+              "reason": "LAMOST DR11 low-resolution LASP atmosphere solution; repeat observations ordered by g-band signal-to-noise",
+              "quality_conditions": [
+                {"scope": "evidence_quality", "path": "$.source_quality.snrg", "operator": "gt", "value": 0}
+              ],
+              "quality_order": {"scope": "evidence_quality", "path": "$.source_quality.snrg", "direction": "desc"}
+            },
+            {
+              "rank": 27,
+              "method": "lamost_dr11_mrs_cnn",
+              "model": "LAMOST_DR11_v2.0_MRS_CNN",
+              "reason": "LAMOST DR11 medium-resolution CNN atmosphere fallback; repeat observations ordered by source-published signal-to-noise",
+              "quality_conditions": [
+                {"scope": "evidence_quality", "path": "$.source_quality.snr", "operator": "gt", "value": 0}
+              ],
+              "quality_order": {"scope": "evidence_quality", "path": "$.source_quality.snr", "direction": "desc"}
+            }
           ]
         }
       ]

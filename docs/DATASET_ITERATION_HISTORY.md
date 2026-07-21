@@ -2461,6 +2461,34 @@ Representative commits:
   `372cf0c7abf642684b46b2bf6590f6f3fd275d9f328e3e0aac6f15119525fda6`
   with no differing section and removes its 53-GB scratch tree.
 
+### 82) E5 Quality-Aware Spectroscopy Selection
+
+- Policy `2026-07-21.e5-selection.4` and compiler v4 add a general quality-rule
+  contract for EAV evidence. Bounded JSON predicates determine candidacy, and
+  one numeric source-native score orders repeats only after authority,
+  coherent-set completeness, uncertainty coverage, and reference coverage.
+  Both winner and runner-up scores are persisted in decision lineage.
+- APOGEE's 163,971 eligible records bind as 113,951 accepted and 50,020
+  missing through the explicit EDR3-to-DR3 source-list contract. Its unflagged
+  ASPCAP tier selects 42,743 atmosphere sets and 120,012 facts.
+- GALAH's 116,549 eligible records bind as 68,887 accepted and 47,662 missing.
+  Official `flag_sp=0` and CCD3 S/N greater than 30 guidance admits 47,146
+  candidates; 14,198 sets and 28,396 facts win.
+- LAMOST's 1,651,199 eligible records bind as 844,959 accepted, 806,226
+  missing, and 14 ambiguous. Source-native S/N resolves repeated M-star, MRS
+  LASP, LRS LASP, and MRS CNN observations; 208,764 sets and 524,803 facts win.
+- Gaia specialized and RVS atmosphere solutions remain authoritative. Survey
+  tiers precede Gaia GSP-Phot and add selected temperature/gravity for 40,647
+  stars. Coherent selection does not splice Gaia `[M/H]` into two-field survey
+  solutions, so selected `[M/H]` falls by 83,257 while all evidence remains in
+  E4. Source `[Fe/H]` is retained as a scientifically distinct future policy.
+- Accepted build `d3f255b55e4573676347b206` contains 110,369,250 facts,
+  36,651,409 decisions, 59,647,732 binding outcomes, and 65,204 derivations.
+  Independent audit passes with no failures. Clean reproduction matches
+  logical hash
+  `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
+  with no differing section and removes its scratch tree.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

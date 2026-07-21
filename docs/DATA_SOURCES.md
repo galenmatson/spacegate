@@ -274,10 +274,12 @@ Copied Gaia, 2MASS, and AllWISE values remain E1-preserved reviewed exclusions.
 The source descriptions define `r_med/r_lo/r_hi` as distance values used to
 calculate parallax gravity; the rejected v61 diagnostic mislabeled them as
 stellar radii, and v62 corrects this without rewriting either immutable source
-snapshot. All values retain source flags, model/method, reference, and lineage;
-E5 has not selected public winners. The allStar file supplies no source-native
-spectrum locator, so a registered GALAH spectra-index acquisition remains
-pending rather than deriving an unverified URL.
+snapshot. All values retain source flags, model/method, reference, and lineage.
+E5 policy `2026-07-21.e5-selection.4` admits only `flag_sp=0` atmosphere
+solutions with CCD3 S/N above 30, using S/N to order repeats after scientific
+authority and coherent-set completeness. The allStar file supplies no
+source-native spectrum locator, so a registered GALAH spectra-index acquisition
+remains pending rather than deriving an unverified URL.
 
 LAMOST E4 admission uses the same checksum-bound Gaia DR3 hard/uncertainty
 envelope without comparing DR2, EDR3, and DR3 identifiers as interchangeable.
@@ -288,8 +290,25 @@ and raw/zero-point-corrected arm/combined RV contexts remain separate.
 Official `obsid`/`mobsid` identifiers are on-demand spectrum-product locators;
 the compiler does not invent archive URLs. Copied Pan-STARRS/Gaia photometry is
 preserved in E1 and excluded from E4 competition. Generic and bounded LAMOST
-audits plus clean reproduction pass; object binding and public selection remain
-deferred to E5.
+audits plus clean reproduction pass. E5 now binds all eligible records through
+their release-scoped Gaia DR3 claims, accounts 844,959 accepted, 806,226
+missing, and 14 ambiguous records, and selects source-published M-star, MRS
+LASP, LRS LASP, then MRS CNN atmosphere tiers with the appropriate source S/N
+field used only to order repeats.
+
+APOGEE E5 binding uses the same explicit, release-specific EDR3-to-DR3
+source-list contract as the distance evidence; it does not introduce generic
+cross-release equality. ASPCAP atmosphere candidates must have positive S/N
+and no `STAR_BAD` summary bit, following the
+[official APOGEE DR17 bit definitions](https://www.sdss4.org/dr17/irspec/apogee-bitmasks/).
+The GALAH threshold follows its
+[official flag guidance](https://www.galah-survey.org/dr4/flags/) and
+[data-use recommendations](https://www.galah-survey.org/dr4/using_the_data/);
+LAMOST repeat ordering retains the quality fields defined by its
+[DR11 LRS production documentation](https://lamost.org/dr11/v2.0/doc/lr-data-production-description).
+Across the three spectroscopy releases, E5 selects 265,705 coherent atmosphere
+sets and adds temperature/gravity coverage for 40,647 stars. Elemental
+`[Fe/H]` remains distinct from global `[M/H]` and is not silently remapped.
 
 E4 source adapters are declared in
 `config/evidence_lake/e4_scientific_evidence.json`. They assign every upstream

@@ -1938,6 +1938,23 @@ Foundation checkpoint (July 21, 2026):
 - the inventory exposes duplicate runtime/map/coolness selection as explicit
   cutover or retirement work; it does not declare those paths authoritative or
   close the remaining domain-policy and shared-consumer gates
+- quality-aware spectroscopy checkpoint `d3f255b55e4573676347b206` binds the
+  bounded APOGEE DR17, GALAH DR4, and LAMOST DR11 releases and selects 42,743,
+  14,198, and 208,764 coherent atmosphere sets respectively; Gaia specialized
+  and RVS solutions remain ahead of the survey tiers, while the surveys may
+  replace only Gaia's photometric fallback
+- compiler v4 applies source-native quality predicates before candidacy and
+  uses numeric quality only after authority, coherent-set completeness,
+  uncertainty, and reference coverage; selected and runner-up scores remain
+  inspectable in each decision
+- selected temperature/gravity coverage increases by 40,647 stars; coherent
+  selection intentionally does not splice lower-authority Gaia `[M/H]` into
+  two-field survey sets, and source `[Fe/H]` remains a separate future quantity
+  rather than being mislabeled as `[M/H]`
+- the 110,369,250-fact, 36,651,409-decision artifact passes independent audit;
+  clean reproduction matches logical hash
+  `54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
+  with no differing section and removes its scratch tree
 
 Deliverables:
 

@@ -783,12 +783,15 @@ staging directory may be considered only after no compiler process is active;
 use an exact candidate dry run before deletion. DuckDB spill under
 `/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
-The active E5 checkpoint is `bfe3e1da9ddc5257f79b6838`; its 27,738,517,504-byte
-DuckDB, deterministic Parquet exports, manifest, independent audit, and clean-
-reproduction report are protected. The reproduction matched logical hash
-`372cf0c7abf642684b46b2bf6590f6f3fd275d9f328e3e0aac6f15119525fda6`
-and removed its external scratch tree. Prior coherent-source build
-`e8cb1529df6dbcc7c5baadee`, complete monolithic build
+The active E5 checkpoint is `d3f255b55e4573676347b206`; its
+28,307,894,272-byte DuckDB, deterministic Parquet exports, manifest,
+independent audit, and clean-reproduction report are protected. The
+reproduction matched logical hash
+`54cc5e9fb95ce52b8743be4336e6c0a6033a0729eb6147550aba3580613655dd`
+and removed its external scratch tree. Peak clean-build scratch usage was about
+126 GB on `/mnt/space`; future E5 runs must retain at least that measured margin
+plus operating headroom. Prior distance build `bfe3e1da9ddc5257f79b6838`,
+coherent-source build `e8cb1529df6dbcc7c5baadee`, complete monolithic build
 `5c84220e408e8fea5f4da218`, and foundation build
 `237158e09fce993f1b033414` are valid rollback/reference artifacts. Diagnostics
 `a8a74dbc173b9566fc4d5e5c` (zero Gaia-source coverage) and
