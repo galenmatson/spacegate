@@ -950,6 +950,18 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   pair. The report retains 2,072 OID links absent from the current object table
   and 54 noncanonical reference strings as missing-binding/raw-reference
   evidence rather than discarding or guessing them.
+- The July 21 production-shaped preview pins the current object table, identical
+  ReadMe, and official bibliography in raw snapshot
+  `64f0562ef64643076d77a153`. Typed snapshot
+  `c5446b6ab730ffe763af12f4` preserves 10,304,607 object rows, 715 document
+  lines, and all 830,415 OID/reference pairs. Its complete audit reports 586,530
+  referenced OIDs, 2,080 historical references whose OID is absent from the
+  current object table, and the same 54 noncanonical raw reference strings.
+  Raw/typed verification and clean reproduction pass with exact content hash
+  `d511776854e6578d53ec444f89e038f2beb616ed026f0a5fa5062575cb564000`.
+  A schema-aware typed-table delta separates 47 additions, 8 removals, and 243
+  scientifically revised retained OIDs from source-line reordering. Checked-in
+  registry cutover and E4 citation materialization remain open.
 - The source-native Gaia DR3 backbone now passes its independent pre-adapter
   audit. Its 31,987,126-row hard-parallax branch and 189,145-row uncertainty
   supplement have identical complete 152-field schemas, unique and disjoint

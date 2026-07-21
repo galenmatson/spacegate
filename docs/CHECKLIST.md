@@ -1366,6 +1366,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Extend the VSX audit through schema-driven bibliography typing: verify all
   830,415 exact pairs, report 2,072 historical OID links absent from the current
   object table, and preserve 54 noncanonical source reference strings
+- [x] Acquire and preview the July 21 three-artifact VSX release; pass complete
+  raw/typed accounting, source audit, clean reproduction, and a stable-OID delta
+  separating 47 additions, 8 removals, and 243 scientific revisions from
+  lineage-only source-line reordering
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

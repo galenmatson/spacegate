@@ -2063,6 +2063,18 @@ Representative commits:
   absent from the current object table and 54 source reference strings that are
   not canonical 19-character ADS bibcodes. These become explicit missing
   bindings and raw citation text, not fabricated object links or failed rows.
+- The July 21 three-artifact preview creates raw snapshot
+  `64f0562ef64643076d77a153` and typed snapshot
+  `c5446b6ab730ffe763af12f4`. It passes complete raw/typed accounting, the VSX
+  source audit, and clean reproduction with scratch removal. Current object
+  coverage is 10,304,607 rows; the unchanged 830,415-row bibliography now has
+  2,080 OIDs absent from that rolling inventory.
+- `scripts/report_typed_table_delta.py` adds a reusable release comparison keyed
+  by stable source identity. It validates key uniqueness and schema, bounds
+  identity samples, and separates scientific field changes from lineage-only
+  changes. For VSX it reports 47 additions, 8 removals, and 243 scientifically
+  revised retained OIDs without misreporting 9.67 million shifted source line
+  numbers as scientific changes.
 
 ### 69) Immutable Horizons Response Acquisition
 

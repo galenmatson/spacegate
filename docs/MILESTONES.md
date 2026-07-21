@@ -1771,6 +1771,14 @@ Current status (July 19, 2026, in progress):
 - schema-driven scratch typing and the expanded VSX audit pass all 830,415
   bibliography rows while retaining 2,072 historical missing-object bindings
   and 54 noncanonical reference strings as explicit evidence
+- the July 21 VSX preview pins all three official artifacts in raw snapshot
+  `64f0562ef64643076d77a153` and types 10,304,607 object rows, 715 ReadMe
+  lines, and 830,415 bibliography links in snapshot
+  `c5446b6ab730ffe763af12f4`. Raw/typed verification, the complete source
+  audit, and clean reproduction pass. Its source delta records 47 added OIDs,
+  8 removed OIDs, and only 243 scientifically revised retained OIDs; bulk
+  source-line movement remains lineage-only. Registry cutover and E4 citation
+  materialization remain pending
 - the shared Horizons snapshot writer closes the E1 raw-preservation gap in the
   natural and artificial JPL collectors: exact response bytes, query records,
   checksums, reviewed target seed, collector identity, and parsed projections
