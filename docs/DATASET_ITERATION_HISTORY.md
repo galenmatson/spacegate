@@ -2672,6 +2672,28 @@ Representative commits:
   compact or partitioned representation of exhaustive nonaccepted outcomes,
   never omission of their accounting or lineage.
 
+### 90) E5 Release Bridges, Naming Consensus, and Component Collision
+
+- Compiler v10 adds general same-release identifier-bridge and multi-identifier
+  consensus bindings plus categorical identifier-claim selection. These are
+  policy-driven contracts and contain no SIMBAD, WGSN, or named-star production
+  branches.
+- SIMBAD spectral classifications traverse basic-record OID to the bounded
+  release-native OID/Gaia bridge. Of 435,079 subjects, 321,584 bind, 8 remain
+  ambiguous multi-target bridges, and 113,487 remain missing. SIMBAD aliases,
+  astrometry, object types, and bibliography remain evidence-only.
+- WGSN selects 415 official proper names through convergent HIP/HD/HR/GJ claims.
+  The unique-source-target gate exposed Izar and Pulcherrima as two source
+  records converging on one current canonical star. Both remain ambiguous until
+  general component identity separates their HR/Bayer targets; no row-order or
+  benchmark exception chooses a winner.
+- Two focused compiles and independent audit pass with build
+  `501fd55a0994edd298210d91`, 321,999 exact-lineage facts, and logical hash
+  `d738419b1472b1dfc6bde733c734c5eda71ba2638cf61e8f21219267641605a5`.
+  Each pass takes about 40 seconds. Cached byte verification of the roughly
+  46-GiB SIMBAD database takes 24.8 seconds and bridge binding about 4.8 seconds,
+  so compatible identity policy work should be batched within one invocation.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

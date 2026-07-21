@@ -1449,6 +1449,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   selection, derivation, integrity, export, hash, and promotion phase; publish a
   machine-readable timing report and optimize measured bottlenecks before the
   required clean reproduction
+- [ ] E5/E6 end-to-end build performance report: rank every phase by wall and
+  CPU time, distinguish cold and cached input verification, compare supported
+  worker/memory profiles, retain query-plan evidence for the dominant costs,
+  and document measured optimizations before local cutover
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work
@@ -1470,6 +1474,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectral/extrema/bibliography channels as evidence, keep GCVS/NSV nonselected
   until its release-native cross-identifiers resolve broadly, and pass focused
   compile, reproduction, artifact, scope, and timing gates
+- [x] E5 identity/naming checkpoint: add reusable same-release identifier-bridge,
+  multi-identifier consensus, identifier-claim selection, and duplicate-target
+  ambiguity contracts; select 321,584 SIMBAD spectral classifications and 415
+  WGSN proper names while deferring the Izar/Pulcherrima component collision
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

@@ -373,11 +373,16 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
             raise ValueError(f"selection source absent from E4 release set: {source_id}")
         storage = str(source.get("storage") or "eav")
         if storage not in {
-            "eav", "coherent_array", "measurement_bundle", "classification"
+            "eav", "coherent_array", "measurement_bundle", "classification",
+            "identifier_claim",
         }:
             raise ValueError(f"unsupported selection storage: {source_id}:{storage}")
         if storage == "classification":
             sql_identifier(str(source["classification_evidence_table"]))
+        elif storage == "identifier_claim":
+            sql_identifier(
+                str(source.get("identifier_claim_evidence_table") or "identifier_claim_evidence")
+            )
         else:
             sql_identifier(str(source["parameter_set_table"]))
         if storage == "eav":
@@ -437,6 +442,8 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
             or expected_selected_facts < 0
         ):
             raise ValueError(f"invalid expected selected facts: {source_id}")
+        if source.get("require_unique_source_target") not in {None, True, False}:
+            raise ValueError(f"invalid unique-source-target policy: {source_id}")
         channel_dispositions = source.get("channel_dispositions")
         if channel_dispositions is not None:
             channel_names = [
@@ -518,6 +525,8 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
         if binding.get("strategy") not in {
             "canonical_identifier", "canonical_unique_name",
             "authoritative_release_equivalence",
+            "canonical_identifier_consensus",
+            "release_identifier_bridge",
         }:
             raise ValueError(f"unsupported selection binding strategy: {binding.get('strategy')}")
         if binding.get("strategy") == "authoritative_release_equivalence":
@@ -534,6 +543,36 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 raise ValueError(
                     f"release-equivalence binding must preserve distinct namespaces: {source_id}"
                 )
+        if binding.get("strategy") == "canonical_identifier_consensus":
+            namespaces = binding.get("identifier_namespaces") or []
+            if (
+                not isinstance(namespaces, list)
+                or not namespaces
+                or any(
+                    not isinstance(row, dict)
+                    or not str(row.get("claim_namespace") or "").strip()
+                    or not str(row.get("canonical_namespace") or "").strip()
+                    or row.get("normalization") != "unsigned_decimal"
+                    for row in namespaces
+                )
+                or len({str(row["claim_namespace"]) for row in namespaces})
+                != len(namespaces)
+            ):
+                raise ValueError(f"invalid consensus identifier binding: {source_id}")
+        if binding.get("strategy") == "release_identifier_bridge":
+            required = {
+                "claim_namespace",
+                "bridge_match_namespace",
+                "bridge_target_namespace",
+                "canonical_namespace",
+            }
+            if (
+                not required.issubset(binding)
+                or binding.get("normalization") != "unsigned_decimal"
+                or binding.get("claim_namespace")
+                != binding.get("bridge_match_namespace")
+            ):
+                raise ValueError(f"invalid release identifier bridge: {source_id}")
         source_quantities: set[str] = set()
         for group in source.get("quantity_groups") or []:
             group_key = str(group.get("group_key") or "")
@@ -590,11 +629,16 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 if isinstance(selected_spec, dict):
                     selected_quantity = str(selected_spec.get("quantity_key") or "")
                     if storage not in {
-                        "coherent_array", "measurement_bundle", "classification"
+                        "coherent_array", "measurement_bundle", "classification",
+                        "identifier_claim",
                     } or not selected_quantity:
                         raise ValueError(f"invalid structured quantity mapping: {source_id}:{source_quantity}")
                 elif not str(selected_spec):
                     raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
+        if source.get("require_unique_source_target") is True and len(source_quantities) != 1:
+            raise ValueError(
+                f"unique-source-target policy requires exactly one source quantity: {source_id}"
+            )
 
 
 def validate_quality_rule(
@@ -1107,7 +1151,7 @@ def create_binding(
     )
     set_table = (
         sql_identifier(str(source["parameter_set_table"]))
-        if storage != "classification"
+        if storage not in {"classification", "identifier_claim"}
         else None
     )
     if storage == "coherent_array":
@@ -1189,6 +1233,27 @@ def create_binding(
             WHERE NULLIF(TRIM(ce.classification_raw), '') IS NOT NULL
             """
         )
+    elif storage == "identifier_claim":
+        identifier_table = sql_identifier(
+            str(source.get("identifier_claim_evidence_table") or "identifier_claim_evidence")
+        )
+        quantity_rows = quantity_values(source)
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE eligible_{source_alias} AS
+            WITH quantities(source_quantity, selected_quantity, group_key) AS (VALUES {quantity_rows})
+            SELECT DISTINCT ic.source_record_id,
+                   'identifier_claim_evidence'::VARCHAR binding_subject_kind,
+                   ic.evidence_id binding_subject_id,
+                   ic.component_scope,
+                   TRUE applicability_pass,
+                   'no additional applicability predicate'::VARCHAR applicability_reason,
+                   NULL::VARCHAR applicability_evidence_id
+            FROM {source_alias}.{identifier_table} ic
+            JOIN quantities q ON q.source_quantity = ic.namespace
+            WHERE NULLIF(TRIM(ic.identifier_raw), '') IS NOT NULL
+            """
+        )
     else:
         evidence_table = sql_identifier(str(source["parameter_evidence_table"]))
         quantity_rows = quantity_values(source)
@@ -1227,7 +1292,18 @@ def create_binding(
         )
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
-    claim_namespace = sql_literal(binding["claim_namespace"])
+    if strategy == "canonical_identifier_consensus":
+        consensus_namespaces = binding["identifier_namespaces"]
+        binding_claim_namespaces = [
+            str(row["claim_namespace"]) for row in consensus_namespaces
+        ]
+    else:
+        binding_claim_namespaces = [str(binding["claim_namespace"])]
+    claim_namespace_predicate = (
+        "ic.namespace IN ("
+        + ",".join(sql_literal(value) for value in binding_claim_namespaces)
+        + ")"
+    )
     allowed_claim_scopes = source.get("allowed_claim_scopes") or []
     claim_scope_filter = (
         " AND ic.claim_scope IN ("
@@ -1265,13 +1341,84 @@ def create_binding(
           SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
                  b.object_node_key, b.stable_object_key, b.system_stable_object_key,
                  o.object_type target_object_type, ic.claim_scope identifier_claim_scope,
-                 {sql_literal(binding_method)} AS binding_method
+                 {sql_literal(binding_method)} AS binding_method,
+                 0::BIGINT bridge_target_claim_count
           FROM eligible_{source_alias} e
           JOIN {source_alias}.identifier_claim_evidence ic
-            ON ic.source_record_id = e.source_record_id AND ic.namespace = {claim_namespace}
+            ON ic.source_record_id = e.source_record_id
+            AND ic.namespace = {sql_literal(binding['claim_namespace'])}
             {claim_scope_filter} {component_claim_filter}
           JOIN identity.canonical_identifier_bindings b
             ON b.namespace = {canonical_namespace} AND b.id_value_norm = {normalized}
+          JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
+          WHERE TRUE {scope_candidate_filter}
+        """
+    elif strategy == "canonical_identifier_consensus":
+        namespace_rows = ",".join(
+            "(" + ",".join(
+                [
+                    sql_literal(str(row["claim_namespace"])),
+                    sql_literal(str(row["canonical_namespace"])),
+                ]
+            ) + ")"
+            for row in consensus_namespaces
+        )
+        candidate_sql = f"""
+          WITH namespace_map(claim_namespace, canonical_namespace) AS (
+            VALUES {namespace_rows}
+          )
+          SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+                 b.object_node_key, b.stable_object_key, b.system_stable_object_key,
+                 o.object_type target_object_type, ic.claim_scope identifier_claim_scope,
+                 'canonical_identifier_consensus' AS binding_method,
+                 0::BIGINT bridge_target_claim_count
+          FROM eligible_{source_alias} e
+          JOIN {source_alias}.identifier_claim_evidence ic
+            ON ic.source_record_id = e.source_record_id
+            {claim_scope_filter} {component_claim_filter}
+          JOIN namespace_map m ON m.claim_namespace = ic.namespace
+          JOIN identity.canonical_identifier_bindings b
+            ON b.namespace = m.canonical_namespace
+           AND b.id_value_norm = regexp_extract(ic.identifier_normalized, '([0-9]+)$', 1)
+          JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
+          WHERE TRUE {scope_candidate_filter}
+        """
+    elif strategy == "release_identifier_bridge":
+        candidate_sql = f"""
+          WITH bridge_target_stats AS (
+            SELECT bridge_match.identifier_normalized bridge_match_identifier,
+                   COUNT(DISTINCT bridge_target.identifier_normalized)::BIGINT
+                     bridge_target_claim_count
+            FROM {source_alias}.identifier_claim_evidence bridge_match
+            JOIN {source_alias}.identifier_claim_evidence bridge_target
+              ON bridge_target.source_record_id = bridge_match.source_record_id
+             AND bridge_target.namespace = {sql_literal(binding['bridge_target_namespace'])}
+            WHERE bridge_match.namespace = {sql_literal(binding['bridge_match_namespace'])}
+            GROUP BY bridge_match.identifier_normalized
+          )
+          SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+                 b.object_node_key, b.stable_object_key, b.system_stable_object_key,
+                 o.object_type target_object_type,
+                 source_claim.claim_scope identifier_claim_scope,
+                 'release_identifier_bridge' AS binding_method,
+                 bridge_stats.bridge_target_claim_count
+          FROM eligible_{source_alias} e
+          JOIN {source_alias}.identifier_claim_evidence source_claim
+            ON source_claim.source_record_id = e.source_record_id
+           AND source_claim.namespace = {sql_literal(binding['claim_namespace'])}
+          JOIN {source_alias}.identifier_claim_evidence bridge_match
+            ON bridge_match.namespace = {sql_literal(binding['bridge_match_namespace'])}
+           AND bridge_match.identifier_normalized = source_claim.identifier_normalized
+          JOIN {source_alias}.identifier_claim_evidence bridge_target
+            ON bridge_target.source_record_id = bridge_match.source_record_id
+           AND bridge_target.namespace = {sql_literal(binding['bridge_target_namespace'])}
+          JOIN bridge_target_stats bridge_stats
+            ON bridge_stats.bridge_match_identifier = source_claim.identifier_normalized
+          JOIN identity.canonical_identifier_bindings b
+            ON b.namespace = {sql_literal(binding['canonical_namespace'])}
+           AND b.id_value_norm = regexp_extract(
+                 bridge_target.identifier_normalized, '([0-9]+)$', 1
+               )
           JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
           WHERE TRUE {scope_candidate_filter}
         """
@@ -1289,10 +1436,12 @@ def create_binding(
           SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
                  o.object_node_key, n.stable_object_key, o.system_stable_object_key,
                  o.object_type target_object_type, ic.claim_scope identifier_claim_scope,
-                 'canonical_unique_name' AS binding_method
+                 'canonical_unique_name' AS binding_method,
+                 0::BIGINT bridge_target_claim_count
           FROM eligible_{source_alias} e
           JOIN {source_alias}.identifier_claim_evidence ic
-            ON ic.source_record_id = e.source_record_id AND ic.namespace = {claim_namespace}
+            ON ic.source_record_id = e.source_record_id
+            AND ic.namespace = {sql_literal(binding['claim_namespace'])}
             {claim_scope_filter} {component_claim_filter}
           JOIN canonical_names n
             ON n.name_count = 1 AND n.name_norm = TRIM(regexp_replace(lower(ic.identifier_normalized), '[^a-z0-9]+', ' ', 'g'))
@@ -1300,6 +1449,37 @@ def create_binding(
           WHERE TRUE {scope_candidate_filter}
         """
     con.execute(f"CREATE OR REPLACE TEMP TABLE binding_candidates_{source_alias} AS {candidate_sql}")
+    if strategy == "release_identifier_bridge":
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE binding_bridge_stats_{source_alias} AS
+            SELECT e.binding_subject_kind, e.binding_subject_id,
+                   COUNT(DISTINCT bridge_target.identifier_normalized)::BIGINT
+                     bridge_target_claim_count
+            FROM eligible_{source_alias} e
+            JOIN {source_alias}.identifier_claim_evidence source_claim
+              ON source_claim.source_record_id = e.source_record_id
+             AND source_claim.namespace = {sql_literal(binding['claim_namespace'])}
+            JOIN {source_alias}.identifier_claim_evidence bridge_match
+              ON bridge_match.namespace = {sql_literal(binding['bridge_match_namespace'])}
+             AND bridge_match.identifier_normalized = source_claim.identifier_normalized
+            JOIN {source_alias}.identifier_claim_evidence bridge_target
+              ON bridge_target.source_record_id = bridge_match.source_record_id
+             AND bridge_target.namespace = {sql_literal(binding['bridge_target_namespace'])}
+            GROUP BY e.binding_subject_kind, e.binding_subject_id
+            """
+        )
+        bridge_stats_join = (
+            f"LEFT JOIN binding_bridge_stats_{source_alias} bs "
+            "USING (binding_subject_kind, binding_subject_id)"
+        )
+        bridge_target_count_sql = (
+            "coalesce(bs.bridge_target_claim_count, "
+            "r.bridge_target_claim_count, 0)"
+        )
+    else:
+        bridge_stats_join = ""
+        bridge_target_count_sql = "coalesce(r.bridge_target_claim_count, 0)"
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE binding_claim_stats_{source_alias} AS
@@ -1308,7 +1488,7 @@ def create_binding(
                MIN(ic.claim_scope) identifier_claim_scope
         FROM eligible_{source_alias} e
         LEFT JOIN {source_alias}.identifier_claim_evidence ic
-          ON ic.source_record_id=e.source_record_id AND ic.namespace={claim_namespace}
+          ON ic.source_record_id=e.source_record_id AND {claim_namespace_predicate}
           {claim_scope_filter} {component_claim_filter}
         GROUP BY e.binding_subject_kind, e.binding_subject_id
         """
@@ -1325,6 +1505,12 @@ def create_binding(
     elif strategy == "canonical_identifier":
         configured_method = "canonical_identifier_graph"
         accepted_reason = "unique current canonical target"
+    elif strategy == "canonical_identifier_consensus":
+        configured_method = "canonical_identifier_consensus"
+        accepted_reason = "all matched source identifiers converge on one current canonical target"
+    elif strategy == "release_identifier_bridge":
+        configured_method = "release_identifier_bridge"
+        accepted_reason = "unique same-release bridge target and unique current canonical target"
     else:
         configured_method = "canonical_unique_name"
         accepted_reason = "unique normalized current canonical name"
@@ -1344,6 +1530,7 @@ def create_binding(
                  ) AS system_stable_object_key,
                  MIN(binding_method) AS binding_method,
                  MIN(identifier_claim_scope) identifier_claim_scope,
+                 MAX(bridge_target_claim_count)::BIGINT bridge_target_claim_count,
                  COUNT(DISTINCT stable_object_key) AS target_count,
                  COUNT(DISTINCT stable_object_key) FILTER (
                    WHERE target_object_type={sql_literal(object_type)}
@@ -1361,15 +1548,22 @@ def create_binding(
                e.applicability_reason,
                e.applicability_evidence_id,
                {sql_literal(object_type)},
-               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.object_node_key END,
-               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.stable_object_key END,
-               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN r.system_stable_object_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1
+                          AND {bridge_target_count_sql} <= 1
+                    THEN r.object_node_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1
+                          AND {bridge_target_count_sql} <= 1
+                    THEN r.stable_object_key END,
+               CASE WHEN r.target_count = 1 AND r.compatible_target_count = 1
+                          AND {bridge_target_count_sql} <= 1
+                    THEN r.system_stable_object_key END,
                CASE
                  WHEN NOT e.applicability_pass THEN 'excluded'
                  WHEN e.component_scope IS NOT NULL
                   AND {sql_literal(component_scope_policy)} = 'require_null' THEN 'unresolved'
                  WHEN e.component_scope IS NOT NULL AND cs.claim_count = 0
                    THEN 'unresolved'
+                 WHEN {bridge_target_count_sql} > 1 THEN 'ambiguous'
                  WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN 'accepted'
                  WHEN r.target_count > 1 THEN 'ambiguous'
                  WHEN r.target_count = 1 AND r.compatible_target_count = 0 THEN 'excluded'
@@ -1383,6 +1577,8 @@ def create_binding(
                  WHEN e.component_scope IS NOT NULL
                   AND {sql_literal(component_scope_policy)} = 'require_null'
                    THEN 'component scope requires an explicit compatible binding policy'
+                 WHEN {bridge_target_count_sql} > 1
+                   THEN 'same-release bridge has multiple target identifier claims'
                  WHEN r.target_count = 1 AND r.compatible_target_count = 1 THEN {sql_literal(accepted_reason)}
                  WHEN r.target_count > 1 THEN 'multiple current canonical targets'
                  WHEN r.target_count = 1 AND r.compatible_target_count = 0
@@ -1396,8 +1592,30 @@ def create_binding(
         LEFT JOIN resolved r USING (binding_subject_kind, binding_subject_id)
         LEFT JOIN binding_claim_stats_{source_alias} cs
           USING (binding_subject_kind, binding_subject_id)
+        {bridge_stats_join}
         """
     )
+    if source.get("require_unique_source_target") is True:
+        con.execute(
+            """
+            UPDATE evidence_object_bindings AS binding
+            SET canonical_object_node_key=NULL,
+                stable_object_key=NULL,
+                system_stable_object_key=NULL,
+                binding_status='ambiguous',
+                binding_reason='multiple source subjects for this quantity converge on one canonical target'
+            WHERE binding.source_id=?
+              AND binding.binding_status='accepted'
+              AND (binding.object_type, binding.stable_object_key) IN (
+                SELECT object_type, stable_object_key
+                FROM evidence_object_bindings
+                WHERE source_id=? AND binding_status='accepted'
+                GROUP BY object_type, stable_object_key
+                HAVING COUNT(*) > 1
+              )
+            """,
+            [source_id, source_id],
+        )
     accepted = int(
         con.execute(
             "SELECT COUNT(*) FROM evidence_object_bindings "
@@ -1535,6 +1753,15 @@ def insert_candidates(
             release_id=release_id,
         )
         return
+    if str(source.get("storage") or "eav") == "identifier_claim":
+        insert_identifier_claim_candidates(
+            con,
+            source=source,
+            source_alias=source_alias,
+            member=member,
+            release_id=release_id,
+        )
+        return
     if str(source.get("storage") or "eav") == "measurement_bundle":
         insert_measurement_bundle_direct(
             con,
@@ -1662,6 +1889,70 @@ def insert_classification_candidates(
            AND b.binding_subject_id=ce.evidence_id
            AND b.binding_status='accepted'
           WHERE NULLIF(TRIM(ce.classification_raw), '') IS NOT NULL
+        )
+        SELECT object_type, stable_object_key, system_stable_object_key,
+               group_key, quantity_key, value_raw, normalized_value,
+               normalized_unit, uncertainty_lower, uncertainty_upper,
+               bound_semantics, {sql_literal(member['build_id'])},
+               {sql_literal(table_name)}, evidence_id, parameter_set_id,
+               source_record_id, {sql_literal(source['source_id'])},
+               {sql_literal(release_id)}, method, model, reference_raw,
+               authority_rank, authority_reason, selection_quality_score,
+               normalization_version, quality_json, binding_id
+        FROM candidates WHERE authority_rank IS NOT NULL
+        """
+    )
+
+
+def insert_identifier_claim_candidates(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    table_name = str(
+        source.get("identifier_claim_evidence_table") or "identifier_claim_evidence"
+    )
+    evidence_table = sql_identifier(table_name)
+    quantity_rows = quantity_values(source)
+    rank_sql, reason_sql, quality_sql = authority_sql(
+        source, source_alias="sr", set_alias="ic", evidence_alias="ic"
+    )
+    claim_method = sql_literal(
+        str(source.get("identifier_claim_method") or "source_identifier_claim")
+    )
+    con.execute(
+        f"""
+        INSERT INTO fact_candidates
+        WITH quantities(source_quantity, selected_quantity, group_key) AS (
+          VALUES {quantity_rows}
+        ), candidates AS (
+          SELECT b.object_type, b.stable_object_key, b.system_stable_object_key,
+                 b.binding_id,
+                 q.group_key, q.selected_quantity quantity_key,
+                 ic.identifier_raw value_raw, NULL::DOUBLE normalized_value,
+                 NULL::VARCHAR normalized_unit, NULL::DOUBLE uncertainty_lower,
+                 NULL::DOUBLE uncertainty_upper, NULL::VARCHAR bound_semantics,
+                 ic.evidence_id, ic.evidence_id parameter_set_id,
+                 ic.source_record_id, {claim_method}::VARCHAR AS "method",
+                 NULL::VARCHAR AS "model", ic.reference_raw,
+                 'source_identifier_claim_v1'::VARCHAR normalization_version,
+                 ic.quality_json,
+                 {rank_sql} authority_rank,
+                 {reason_sql} authority_reason,
+                 {quality_sql} selection_quality_score
+          FROM {source_alias}.{evidence_table} ic
+          JOIN quantities q ON q.source_quantity=ic.namespace
+          JOIN {source_alias}.source_records sr
+            ON sr.source_record_id=ic.source_record_id
+          JOIN evidence_object_bindings b
+            ON b.source_id={sql_literal(source['source_id'])}
+           AND b.binding_subject_kind='identifier_claim_evidence'
+           AND b.binding_subject_id=ic.evidence_id
+           AND b.binding_status='accepted'
+          WHERE NULLIF(TRIM(ic.identifier_raw), '') IS NOT NULL
         )
         SELECT object_type, stable_object_key, system_stable_object_key,
                group_key, quantity_key, value_raw, normalized_value,

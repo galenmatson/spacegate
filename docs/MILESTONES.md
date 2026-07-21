@@ -1983,6 +1983,10 @@ Foundation checkpoint (July 21, 2026):
   and per-phase wall/CPU time, row volume, durable output, peak memory, and spill
   use; retain query plans for measured bottlenecks and optimize them before the
   clean reproduction rather than accepting opaque hour-scale phases
+- E5/E6 closeout must publish an end-to-end phase report that separates cold
+  artifact hashing from cached verification and scientific compilation, ranks
+  wall/CPU/I/O/memory/spill costs, compares supported Photon execution profiles,
+  and records before/after evidence for each accepted optimization
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys
@@ -2058,6 +2062,23 @@ Foundation checkpoint (July 21, 2026):
   exhaustive missing tail is materialized. A later compiler optimization may
   compact or partition nonaccepted outcomes, but may not drop their accounting
   or evidence lineage
+- compiler v10 closes the `identity_and_naming` batch with reusable contracts,
+  not SIMBAD/WGSN conditionals. A same-release identifier bridge resolves
+  separately stored source records through provenance-bearing crosswalk rows;
+  multi-identifier consensus requires all matched catalog identifiers to reach
+  one canonical target; identifier claims can become categorical selected facts
+- SIMBAD accounts 435,079 spectral-classification subjects as 321,584 accepted,
+  8 ambiguous, and 113,487 missing. WGSN accounts 597 official names as 415
+  accepted, 2 ambiguous, and 180 missing. The two ambiguous WGSN records are
+  Izar and Pulcherrima, whose component-specific HR/Bayer evidence currently
+  converges on one canonical star; neither is selected until component identity
+  is repaired generally
+- two focused identity builds and independent artifact audit pass with 321,999
+  exact-lineage facts and logical hash
+  `d738419b1472b1dfc6bde733c734c5eda71ba2638cf61e8f21219267641605a5`.
+  Each pass takes about 40 seconds: cold byte verification of the approximately
+  46-GiB SIMBAD evidence database takes 24.8 seconds from cache, while the
+  release bridge itself takes 4.7-4.8 seconds
 
 Deliverables:
 

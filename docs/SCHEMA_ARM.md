@@ -190,16 +190,20 @@ Evidence Lake v2 staging rule:
   citation expansion preserves the same exhaustive evidence relation under a
   16-GB DuckDB limit; 285 component-suffixed HIP aliases remain normalization
   rejections rather than empty claims. Independent audit and clean logical-hash
-  reproduction pass. This checkpoint is still pre-ARM evidence, not a selected
-  public-fact or canonical-inventory promotion.
+  reproduction pass. E5 policy v10 may select a source spectral classification
+  only after the basic record's SIMBAD OID traverses one same-release bridge to
+  one current Gaia DR3 star. SIMBAD aliases, astrometry, object types, and
+  bibliography remain evidence and cannot create canonical inventory.
 - WGSN checkpoint `0ff30b04008b93aafb3de66f` keeps official naming evidence
   source scoped. Proper-name/search-spelling aliases, source catalog records,
   observation-target identifiers, and Bayer system-or-component ambiguity are
   distinct claim scopes. Shared values remain multiple evidence rows and cannot
   merge objects or create containment. Coordinates and magnitude are retained
   as naming context, while source placeholders are not promoted as identifiers
-  or citations. E5 may select public names only through an explicit naming
-  authority policy over these claims.
+  or citations. E5 policy v10 selects the exact official name only when matched
+  HIP/HD/HR/GJ identifiers converge and no second WGSN name reaches the same
+  canonical star. Izar/Pulcherrima therefore remains an explicit two-record
+  component-scope ambiguity rather than an arbitrary winner.
 - GCVS checkpoint `a6f6669d2bd48eac5d6204d2` keeps variable-star identity,
   astrometry, variability, stellar classification, and bibliography evidence
   source scoped. Component-suffixed records do not claim base numeric identity;

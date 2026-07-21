@@ -205,7 +205,10 @@ E4 checkpoint `fc5bd4e6398d72bde50ba6d5` accounts every registered field,
 materializes identity, classification, astrometry, and bibliography evidence,
 and quarantines 285 component-suffixed HIP aliases that cannot normalize as
 numeric HIP claims. Its independent audit and clean logical-hash reproduction
-pass; SIMBAD remains evidence and does not create canonical inventory.
+pass. E5 policy v10 selects 321,584 source spectral classifications only through
+a unique same-release SIMBAD-OID-to-Gaia bridge. Eight multi-target bridges stay
+ambiguous and 113,487 classification subjects stay missing. All other SIMBAD
+channels remain evidence and SIMBAD does not create canonical inventory.
 
 Pinned HTML sources must declare their semantic table contract when one exists.
 The WGSN snapshot declares and validates all 16 catalog headers, preserves row
@@ -221,7 +224,11 @@ or-component scopes. Source coordinates and magnitude remain naming context,
 not astrometric or photometric authority. The `-` designation and 28 `--`
 reference placeholders remain raw context rather than fabricated identity or
 citation evidence. All 22 fields are accounted; artifact, scope, and clean-
-reproduction gates pass.
+reproduction gates pass. E5 policy v10 selects 415 exact official proper names
+whose HIP/HD/HR/GJ claims converge on one unique canonical star. It keeps 180
+missing names and the Izar/Pulcherrima two-record component collision explicit;
+search spellings, Bayer scope, provenance, coordinates, and imagery remain
+evidence rather than competing winners.
 
 GCVS uses a documented fixed-width lexical contract. Its registry explicitly
 declares `|` as a trailing layout delimiter, so parser v2 removes one trailing

@@ -1396,6 +1396,31 @@ its release-native designation/cross-identifier bridge currently resolves only
 19 canonical stars uniquely, which is insufficient grounds for a broad E5 name
 or coordinate binding policy.
 
+Compiler v10 adds three general identity-selection contracts. A
+`release_identifier_bridge` traverses two same-release source records through a
+shared identifier and rejects multiple bridge targets before considering local
+inventory. `canonical_identifier_consensus` permits multiple catalog namespaces
+only when their matched canonical targets converge. `identifier_claim` storage
+allows an authoritative name claim to become a categorical selected fact with
+the exact claim evidence ID. An optional unique-source-target gate marks every
+colliding subject ambiguous instead of selecting one by row order.
+
+The focused identity batch accounts 435,079 SIMBAD classification subjects as
+321,584 accepted, 8 ambiguous bridge targets, and 113,487 missing. It emits
+321,584 lower-authority `spectral_type_simbad` facts without promoting SIMBAD
+aliases, astrometry, object types, or bibliography. WGSN accounts 597 official
+proper-name claims as 415 accepted, 2 ambiguous, and 180 missing. The two
+ambiguous claims are Izar and Pulcherrima: component-specific source records
+currently converge on one canonical star, so neither becomes a selected winner.
+
+Two focused builds and independent artifact audit pass with build
+`501fd55a0994edd298210d91`, 321,999 facts, and logical hash
+`d738419b1472b1dfc6bde733c734c5eda71ba2638cf61e8f21219267641605a5`.
+Each run takes about 40 seconds. Byte verification of the approximately 46-GiB
+SIMBAD database takes 24.8 seconds from page cache, while release-bridge binding
+takes about 4.8 seconds. Machine evidence is in
+`e5_identity_selection_verification.json`.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

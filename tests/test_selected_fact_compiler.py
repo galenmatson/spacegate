@@ -955,7 +955,7 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 12
+    assert len(policy["selection_sources"]) == 14
     vsx = next(
         source
         for source in policy["selection_sources"]
@@ -977,6 +977,29 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     } == {
         "stellar_variability_classification",
         "stellar_variability_period",
+    }
+    simbad = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "identity.simbad"
+    )
+    assert simbad["binding"]["strategy"] == "release_identifier_bridge"
+    assert simbad["expected_binding_outcomes"] == {
+        "accepted": 321584,
+        "ambiguous": 8,
+        "missing": 113487,
+    }
+    wgsn = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "naming.iau_wgsn"
+    )
+    assert wgsn["storage"] == "identifier_claim"
+    assert wgsn["binding"]["strategy"] == "canonical_identifier_consensus"
+    assert wgsn["expected_binding_outcomes"] == {
+        "accepted": 415,
+        "ambiguous": 2,
+        "missing": 180,
     }
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
@@ -1000,6 +1023,33 @@ def test_policy_rejects_duplicate_source_channel_dispositions(tmp_path: Path) ->
     ]
     _, manifest = compiler.release_set_paths(state, policy)
     with pytest.raises(ValueError, match="invalid source channel dispositions"):
+        compiler.validate_policy(policy, manifest)
+
+
+def test_unique_source_target_policy_requires_one_quantity() -> None:
+    policy = compiler.load_json(compiler.DEFAULT_POLICY)
+    wgsn = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "naming.iau_wgsn"
+    )
+    wgsn["quantity_groups"].append(
+        {
+            "group_key": "invalid_second_name_channel",
+            "quantities": {
+                "iau_star_name_search_spelling": {
+                    "quantity_key": "official_name_search_spelling",
+                    "numeric": False,
+                }
+            },
+            "authorities": [{"rank": 1, "reason": "invalid fixture"}],
+        }
+    )
+    _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
+    with pytest.raises(
+        ValueError,
+        match="unique-source-target policy requires exactly one source quantity",
+    ):
         compiler.validate_policy(policy, manifest)
 
 

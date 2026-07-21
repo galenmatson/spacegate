@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.9",
-  "compiler_version": "selected_fact_compiler_v9",
+  "policy_version": "2026-07-21.e5-selection.10",
+  "compiler_version": "selected_fact_compiler_v10",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -611,6 +611,159 @@
               "reason": "mass from the same selected coherent Gaia EDR3 white-dwarf atmosphere solution"
             }
           ]
+        }
+      ]
+    },
+    {
+      "source_id": "identity.simbad",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "release_identifier_bridge",
+        "claim_namespace": "simbad_oid",
+        "bridge_match_namespace": "simbad_oid",
+        "bridge_target_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "component_scope_policy": "require_null",
+      "storage": "classification",
+      "classification_evidence_table": "stellar_classification_evidence",
+      "minimum_eligible_records": 430000,
+      "minimum_accepted_bindings": 320000,
+      "minimum_selected_facts": 320000,
+      "expected_binding_outcomes": {
+        "accepted": 321584,
+        "ambiguous": 8,
+        "missing": 113487
+      },
+      "expected_selected_facts": 321584,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_simbad_spectral_classification",
+          "quantities": {
+            "spectral_type": {
+              "quantity_key": "spectral_type_simbad",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 40,
+              "method": "simbad_basic_source_classification",
+              "reason": "SIMBAD source-compiled spectral classification linked through a unique same-release SIMBAD object-to-Gaia DR3 bridge"
+            }
+          ]
+        }
+      ],
+      "channel_dispositions": [
+        {
+          "channel": "stellar_classification_evidence.spectral_type",
+          "disposition": "selected",
+          "reason": "Source-compiled spectral class is a lower-authority fallback only when its SIMBAD object has one release-native Gaia DR3 bridge target."
+        },
+        {
+          "channel": "identifier_claim_evidence",
+          "disposition": "evidence_only",
+          "reason": "SIMBAD identifiers remain identity and alias evidence; selection of a spectral class does not independently promote every alias."
+        },
+        {
+          "channel": "astrometry_distance_evidence_bundles",
+          "disposition": "evidence_only",
+          "reason": "SIMBAD astrometry remains source context behind Gaia-native astrometry and distance policies."
+        },
+        {
+          "channel": "citations_and_bibliography",
+          "disposition": "evidence_only",
+          "reason": "Object bibliography remains inspectable provenance and future AAA research context."
+        },
+        {
+          "channel": "simbad_object_type_and_morphology",
+          "disposition": "evidence_only",
+          "reason": "Source object type and morphology require a separate public taxonomy and applicability projection."
+        }
+      ]
+    },
+    {
+      "source_id": "naming.iau_wgsn",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier_consensus",
+        "identifier_namespaces": [
+          {
+            "claim_namespace": "hip_id",
+            "canonical_namespace": "hip",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "hd_id",
+            "canonical_namespace": "hd",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "hr_id",
+            "canonical_namespace": "hr",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "gj_id",
+            "canonical_namespace": "gl",
+            "normalization": "unsigned_decimal"
+          }
+        ]
+      },
+      "component_scope_policy": "require_null",
+      "require_unique_source_target": true,
+      "storage": "identifier_claim",
+      "identifier_claim_evidence_table": "identifier_claim_evidence",
+      "identifier_claim_method": "iau_wgsn_official_proper_name",
+      "minimum_eligible_records": 590,
+      "minimum_accepted_bindings": 400,
+      "minimum_selected_facts": 400,
+      "expected_binding_outcomes": {
+        "accepted": 415,
+        "ambiguous": 2,
+        "missing": 180
+      },
+      "expected_selected_facts": 415,
+      "quantity_groups": [
+        {
+          "group_key": "official_stellar_proper_name",
+          "quantities": {
+            "iau_star_name": {
+              "quantity_key": "official_proper_name",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 1,
+              "reason": "Official IAU Working Group on Star Names proper name whose catalog identifiers converge on one canonical star"
+            }
+          ]
+        }
+      ],
+      "channel_dispositions": [
+        {
+          "channel": "identifier_claim_evidence.iau_star_name",
+          "disposition": "selected",
+          "reason": "The exact Unicode proper name is the official public-name value."
+        },
+        {
+          "channel": "identifier_claim_evidence.iau_star_name_search_spelling",
+          "disposition": "evidence_only",
+          "reason": "ASCII/search spelling is an alias aid, not a competing display-name winner."
+        },
+        {
+          "channel": "identifier_claim_evidence.bayer_designation",
+          "disposition": "evidence_only",
+          "reason": "Bayer designations remain system-or-component naming evidence and do not determine the proper-name target."
+        },
+        {
+          "channel": "source_context",
+          "disposition": "evidence_only",
+          "reason": "Adoption date, language, origin, coordinates, magnitude, and image references remain source context for public explanation and audit."
         }
       ]
     },
