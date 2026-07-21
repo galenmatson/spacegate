@@ -910,7 +910,9 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `c4a6b5fd297f8ef9cceb6340` now passes the source-specific and independent
   artifact audits with all 8,019,372 source records, 354 fields, and
   53,257,759 evidence/citation links accounted and no duplicate keys. Clean
-  scratch reproduction remains pending.
+  scratch reproduction matches logical hash
+  `a74eb79475a76af75d7a626adb56baf89de3f6978904e7c83e4619f46bf6e052`
+  with no differing report sections and removes its `/mnt/space` scratch tree.
 - Compiler/contract v71/v72 removes retained DuckDB primary-key and unique ART
   indexes from immutable analytical evidence tables. Those indexes enforced
   transient write-time uniqueness but occupied most of the accepted main AP

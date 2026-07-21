@@ -1990,7 +1990,9 @@ Representative commits:
   measurements, 10,942,232 astrometric/distance measurements, 905,314
   classifications, 12,904,333 coherent parameter sets, and 53,257,759 citation
   links. Source-specific and independent artifact verification pass with zero
-  discrepancies or duplicate keys. Clean scratch reproduction is in progress.
+  discrepancies or duplicate keys. Clean scratch reproduction matches logical
+  hash `a74eb79475a76af75d7a626adb56baf89de3f6978904e7c83e4619f46bf6e052`
+  with no differing report sections and removes its `/mnt/space` scratch tree.
 
 ### 66) Immutable Evidence Key Audits Replace Runtime Indexes
 

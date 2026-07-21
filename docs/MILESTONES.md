@@ -1744,7 +1744,9 @@ Current status (July 19, 2026, in progress):
   GSP-Spec ANN from spectroscopic FLAME parameter/evolution contexts. Immutable
   build `c4a6b5fd297f8ef9cceb6340`, the source audit, and the independent artifact
   audit now pass across all 8,019,372 source rows and 354 fields with no
-  duplicate keys; clean reproduction remains the last checkpoint
+  duplicate keys; clean reproduction matches logical hash
+  `a74eb79475a76af75d7a626adb56baf89de3f6978904e7c83e4619f46bf6e052`
+  with no differing sections and removes its USB scratch tree
 - compiler/contract v71/v72 replaces retained runtime uniqueness indexes with
   exact pre-promotion and independent key-integrity audits for every immutable
   evidence table. A representative same-row A/B has identical logical hashes,

@@ -1312,11 +1312,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and link every ordinary and nested evidence-reference table through 32
   deterministic source-record hash buckets; preserve identical primary keys and
   counts under the 32-GB Photon compiler cap
-- [ ] E4 Gaia AP supplementary checkpoint: the v71 contract and real-row smoke
+- [x] E4 Gaia AP supplementary checkpoint: the v71 contract and real-row smoke
   account all 354 fields while preserving four GSP-Phot library alternatives,
   GSP-Spec ANN, and spectroscopic FLAME without winner selection; immutable
   build `c4a6b5fd297f8ef9cceb6340` and source-specific/generic audits pass, with
-  clean reproduction still required
+  clean reproduction matching logical hash
+  `a74eb79475a76af75d7a626adb56baf89de3f6978904e7c83e4619f46bf6e052`
+  and removing its USB scratch tree
 - [x] E4 immutable analytical-storage guard: replace retained DuckDB PK/unique
   ART indexes with explicit binding deduplication plus exact compiler and
   independent-verifier key audits; preserve logical hashes in same-row A/B and
