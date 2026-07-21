@@ -592,6 +592,9 @@ query parameters and URL, response checksum/size, the reviewed operator target
 seed and collector checksum, and the parsed CSV projection in one immutable
 content-addressed snapshot. The legacy `raw/sol_authority` CSV is an atomic
 compatibility projection; it is not the sole durable source artifact.
+Parsed projections preserve both the exact Horizons `center_code` and its
+syntax-derived `center_target_command`; later relation binding must prefer that
+source identifier over the operator seed's human-readable parent name.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 

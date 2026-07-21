@@ -41,6 +41,14 @@ def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "_", value.lower()).strip("._-")
 
 
+def center_target_command(center_code: str) -> str:
+    """Extract the Horizons target command from a coordinate-center expression."""
+    match = re.fullmatch(r"\s*[^@\s]+\s*@\s*([^@\s]+)\s*", center_code)
+    if not match:
+        raise ValueError(f"invalid Horizons center expression: {center_code!r}")
+    return match.group(1)
+
+
 def tree_files(path: Path) -> list[Path]:
     return sorted(child for child in path.rglob("*") if child.is_file())
 

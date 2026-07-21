@@ -10,11 +10,26 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from horizons_snapshot import (  # noqa: E402
     ResponseCapture,
+    center_target_command,
     seed_sha256,
     sha256_file,
     tree_sha256,
     write_horizons_snapshot,
 )
+
+
+def test_center_target_command_parses_horizons_center_expression() -> None:
+    assert center_target_command("500@10") == "10"
+    assert center_target_command(" 500 @ 599 ") == "599"
+
+
+def test_center_target_command_rejects_ambiguous_expression() -> None:
+    for value in ("", "500", "500@", "500@10@399"):
+        try:
+            center_target_command(value)
+        except ValueError:
+            continue
+        raise AssertionError(f"expected invalid center expression: {value!r}")
 
 
 def test_horizons_snapshot_preserves_raw_response_and_atomic_projection(

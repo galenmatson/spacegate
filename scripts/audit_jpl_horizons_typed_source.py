@@ -40,6 +40,7 @@ PARSED_REQUIRED_FIELDS = {
     "parent_object_name",
     "horizons_command",
     "center_code",
+    "center_target_command",
     "epoch_tdb_jd",
     "eccentricity",
     "inclination_deg",
@@ -206,6 +207,14 @@ def audit(
                         "select count(*) from read_parquet(?) where "
                         "nullif(trim(operator_seed_version),'') is null or "
                         "not regexp_full_match(trim(operator_seed_sha256),'[0-9a-f]{64}')",
+                        [parsed_path],
+                    ),
+                    "invalid_center_target_command": scalar(
+                        con,
+                        "select count(*) from read_parquet(?) where "
+                        "nullif(trim(center_target_command),'') is null or "
+                        "trim(center_target_command) <> "
+                        "regexp_extract(trim(center_code),'^[^@[:space:]]+[[:space:]]*@[[:space:]]*([^@[:space:]]+)[[:space:]]*$',1)",
                         [parsed_path],
                     ),
                 }

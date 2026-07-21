@@ -14,6 +14,7 @@ from pathlib import Path
 
 from horizons_snapshot import (
     ResponseCapture,
+    center_target_command,
     seed_sha256,
     write_horizons_snapshot,
 )
@@ -358,6 +359,7 @@ def main() -> int:
             "parent_object_name": str(obj["parent_object_name"]),
             "horizons_command": str(obj["command"]),
             "center_code": str(obj["center"]),
+            "center_target_command": center_target_command(str(obj["center"])),
             "epoch_tdb_jd": elements.get("epoch_tdb_jd"),
             "eccentricity": elements.get("eccentricity"),
             "inclination_deg": elements.get("inclination_deg"),
@@ -386,6 +388,7 @@ def main() -> int:
         "parent_object_name",
         "horizons_command",
         "center_code",
+        "center_target_command",
         "epoch_tdb_jd",
         "eccentricity",
         "inclination_deg",

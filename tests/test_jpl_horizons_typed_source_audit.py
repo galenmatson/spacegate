@@ -43,6 +43,7 @@ def test_horizons_audit_binds_projection_to_exact_response(tmp_path: Path) -> No
         "object_name": "Sun",
         "horizons_command": "10",
         "center_code": "500@0",
+        "center_target_command": "0",
         "retrieved_at": "2026-07-21T00:00:00Z",
     }
     parsed = {

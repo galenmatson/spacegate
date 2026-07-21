@@ -2097,6 +2097,13 @@ Representative commits:
   and Triton have revised orbital values from current JPL solutions. All 11
   artificial trajectories change under the newer epoch as expected. Both
   reports pass with no added, removed, blank, or duplicate source keys.
+- The collectors now derive `center_target_command` from the general Horizons
+  center-expression grammar while retaining the exact `center_code`. Natural
+  snapshot `6ae83d9fce64f13783f05e59` and artificial snapshot
+  `17fd89afbd89e4b2303b832f` preserve the same identities and values as their
+  immediate predecessors. This gives E4 a provenance-bearing parent target
+  identifier and avoids treating operator-written parent names as source
+  relation evidence.
 
 ### 70) Gaia DR3 Backbone Envelope Audit
 

@@ -1780,7 +1780,10 @@ Current status (July 19, 2026, in progress):
 - current immutable Horizons acquisition preserves the same 60 natural and 11
   artificial target identities. Machine deltas isolate Neptune/Triton
   same-epoch solution revisions and expected changes across all 11 current
-  artificial trajectories; registry typing/cutover remains pending
+  artificial trajectories. Follow-up snapshots `6ae83d9fce64f13783f05e59`
+  and `17fd89afbd89e4b2303b832f` add a generic parsed
+  `center_target_command` beside the exact center expression; zero scientific
+  values changed, and registry typing/cutover remains pending
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,
