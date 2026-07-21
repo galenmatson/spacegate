@@ -2650,6 +2650,28 @@ Representative commits:
   invocations still byte-hash inputs, preserving the immutable-input gate while
   halving this focused two-pass checkpoint's elapsed time.
 
+### 89) E5 Variable-Star Selection and Measured Binding Cost
+
+- Policy v9 selects VSX variable class and period only through a unique Gaia DR3
+  identifier. Of 10,304,607 coherent source records, 226,017 bind and
+  10,078,590 remain explicit missing outcomes; selected output contains 226,017
+  source-native class facts and 22,695 period facts.
+- VSX spectral strings do not become preferred spectral classifications merely
+  because VSX identifies a variable. Photometric extrema, passbands, limits,
+  epoch, amplitude semantics, and bibliography remain coherent evidence for a
+  later bandpass-aware projection.
+- GCVS/NSV remains evidence-only. Its own designation-to-cross-identifier bridge
+  currently reaches only 19 current canonical stars uniquely, so no general
+  name guess, coordinate cone, benchmark exception, or system-to-component copy
+  was added to improve yield.
+- Two focused builds and independent artifact audit pass with build
+  `974303e465aff3555de85b2e` and logical hash
+  `40b95a458a9190a87e0118450f8340934a2468f194c8f33bd3f27fc1fd058fd9`.
+  Each build takes about 26 seconds; exact binding takes about 9.6 wall/54 CPU
+  seconds and peak RSS is about 11.3 GiB. The next optimization target is a
+  compact or partitioned representation of exhaustive nonaccepted outcomes,
+  never omission of their accounting or lineage.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

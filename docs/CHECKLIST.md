@@ -1465,6 +1465,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   E4 input against its expected SHA on each invocation, parallelize independent
   hashes, and reuse an attestation within that process only while full stat
   identity remains unchanged
+- [x] E5 variable-star classification checkpoint: select VSX source-native
+  variability class and period only for 226,017 exact Gaia DR3 bindings, retain
+  spectral/extrema/bibliography channels as evidence, keep GCVS/NSV nonselected
+  until its release-native cross-identifiers resolve broadly, and pass focused
+  compile, reproduction, artifact, scope, and timing gates
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence

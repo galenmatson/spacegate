@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-21.e5-policy-batches.2",
-  "disposition_version": "2026-07-21.e5-source-dispositions.4",
+  "batch_version": "2026-07-21.e5-policy-batches.3",
+  "disposition_version": "2026-07-21.e5-source-dispositions.5",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -17,10 +17,11 @@
     },
     {
       "batch_id": "variable_star_classification",
-      "status": "planned",
+      "status": "complete",
       "output_contract": "selected_classification_and_variability_projection",
       "depends_on": ["gaia_scalar_and_variability"],
-      "sources": ["classification.gcvs", "classification.vsx"]
+      "sources": [],
+      "completed_sources": ["classification.gcvs", "classification.vsx"]
     },
     {
       "batch_id": "compact_objects",

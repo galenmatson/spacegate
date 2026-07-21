@@ -1373,6 +1373,29 @@ Scientific compile phases take about 48 and 45 seconds, reducing the complete
 two-pass checkpoint from roughly eight minutes to four while retaining exact
 input integrity.
 
+Policy v9 closes the variable-star classification batch through an explicit
+identity boundary. VSX variability class and period may enter the selected-fact
+projection only when the source row carries a Gaia DR3 identifier that resolves
+uniquely in the current canonical graph. This accounts all 10,304,607 coherent
+records as 226,017 accepted and 10,078,590 missing; accepted rows emit 226,017
+source-native class facts and 22,695 period facts. Spectral strings remain
+classification evidence, and extrema, passbands, limits, amplitude semantics,
+epochs, and references remain one coherent inspectable source record pending a
+bandpass-aware summary policy.
+
+Two focused compiles and the independent artifact audit pass with build ID
+`974303e465aff3555de85b2e` and logical hash
+`40b95a458a9190a87e0118450f8340934a2468f194c8f33bd3f27fc1fd058fd9`.
+Each run takes about 26 seconds. Exact binding takes about 9.6 wall seconds and
+54 CPU-seconds and drives peak RSS to roughly 11.3 GiB because exhaustive
+missing outcomes remain materialized. The measured optimization target is a
+compact or partitioned nonaccepted-outcome representation, not deletion of the
+missing tail. Machine evidence is in
+`e5_vsx_selection_verification.json`. GCVS/NSV remains source-scoped evidence:
+its release-native designation/cross-identifier bridge currently resolves only
+19 canonical stars uniquely, which is insufficient grounds for a broad E5 name
+or coordinate binding policy.
+
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and
 simulation fallbacks, map and planet-category policy, coolness features, and

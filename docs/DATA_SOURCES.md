@@ -945,9 +945,13 @@ rolling export are lineage changes only.
 The checked-in registry now selects this release. E4 build
 `d9780b76333132c0a05098b7` materializes exact OID/name/Gaia DR3 claims,
 coordinates, source spectral classifications, one coherent 16-field
-variability record per object, and exact object bibliography links. All object
-bindings remain unresolved for E2/E5 reconciliation; E4 does not create
-canonical variable stars or promote names merely because VSX publishes them.
+variability record per object, and exact object bibliography links. E5 policy
+v9 resolves only the 226,017 rows carrying a unique current Gaia DR3 binding
+and selects their source-native variability class plus 22,695 usable periods.
+The remaining 10,078,590 rows stay explicit missing outcomes. Spectral strings,
+photometric extrema and context, and bibliography remain evidence-only; neither
+E4 nor E5 creates canonical variable stars or promotes names merely because VSX
+publishes them.
 
 ## 11) UltracoolSheet
 

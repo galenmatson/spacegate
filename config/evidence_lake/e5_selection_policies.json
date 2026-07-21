@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-21.e5-selection.8",
+  "policy_version": "2026-07-21.e5-selection.9",
   "compiler_version": "selected_fact_compiler_v9",
   "evidence_release_set_id": "a188a3adc6207d3a217d54a9",
   "evidence_release_set_sha256": "a188a3adc6207d3a217d54a9078bdb25360b925dcd20f8bacaeffbefd8cda12a",
@@ -843,6 +843,94 @@
               "reason": "Gaia DR3 variability table membership flags; false remains explicit negative context"
             }
           ]
+        }
+      ]
+    },
+    {
+      "source_id": "classification.vsx",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal"
+      },
+      "storage": "coherent_array",
+      "selection_mode": "authoritative_direct",
+      "parameter_set_table": "variability_activity_rotation_parameter_sets",
+      "schema_table": "coherent_parameter_set_schemas",
+      "set_id_field": "evidence_id",
+      "values_field": "values_json",
+      "minimum_eligible_records": 10000000,
+      "minimum_accepted_bindings": 220000,
+      "minimum_selected_facts": 240000,
+      "expected_binding_outcomes": {
+        "accepted": 226017,
+        "missing": 10078590
+      },
+      "expected_selected_facts": 248712,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_variability_classification",
+          "parameter_set_kinds": ["vsx_variability_catalog_record"],
+          "quantities": {
+            "Type": {
+              "quantity_key": "variability_class_source_native",
+              "numeric": false
+            }
+          },
+          "authorities": [
+            {
+              "rank": 20,
+              "method": "vsx_catalog_compilation",
+              "reason": "AAVSO VSX source-native variability classification on a uniquely bound Gaia DR3 source"
+            }
+          ]
+        },
+        {
+          "group_key": "stellar_variability_period",
+          "parameter_set_kinds": ["vsx_variability_catalog_record"],
+          "quantities": {
+            "Period": {
+              "quantity_key": "variability_period_days",
+              "unit": "d"
+            }
+          },
+          "authorities": [
+            {
+              "rank": 20,
+              "method": "vsx_catalog_compilation",
+              "reason": "AAVSO VSX source-native variability period on a uniquely bound Gaia DR3 source"
+            }
+          ]
+        }
+      ],
+      "channel_dispositions": [
+        {
+          "channel": "variability_activity_rotation_parameter_sets.Type",
+          "disposition": "selected",
+          "reason": "Source-native variable class is selected only for exact Gaia DR3 bindings."
+        },
+        {
+          "channel": "variability_activity_rotation_parameter_sets.Period",
+          "disposition": "selected",
+          "reason": "Source-native variability period is selected only for exact Gaia DR3 bindings."
+        },
+        {
+          "channel": "variability_activity_rotation_parameter_sets.photometric_extrema_and_epoch",
+          "disposition": "evidence_only",
+          "reason": "Maximum, minimum, passband, limit, uncertainty, amplitude, and epoch fields remain one coherent inspectable record pending a bandpass-aware light-curve summary projection."
+        },
+        {
+          "channel": "stellar_classification_evidence.spectral_type",
+          "disposition": "evidence_only",
+          "reason": "VSX spectral strings remain inspectable source classifications; variable-star identity does not make VSX a preferred spectral authority."
+        },
+        {
+          "channel": "vsx_references",
+          "disposition": "evidence_only",
+          "reason": "Object bibliography remains provenance and citation evidence for the selected source record."
         }
       ]
     },

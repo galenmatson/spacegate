@@ -212,8 +212,10 @@ Evidence Lake v2 staging rule:
   schema-backed 16-field source record per OID, spectral strings remain stellar
   classification evidence, and historical bibliography binds only through
   exact OID/reference pairs. Missing current OIDs and structurally invalid ADS
-  strings stay unresolved/raw evidence. No VSX row creates ARM or CORE
-  inventory before E5 selection and E6 review.
+  strings stay unresolved/raw evidence. E5 policy v9 selects only source-native
+  `variability_class_source_native` and `variability_period_days` for exact,
+  unique Gaia DR3 bindings; it does not create ARM or CORE inventory. All other
+  VSX channels retain their source-record lineage for E6 review.
 - Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86` keeps cluster physical
   contexts, probability-bearing membership claims, literature crossmatches,
   and both cluster/member endpoint identities source scoped. Cross-table

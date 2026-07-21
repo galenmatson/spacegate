@@ -2042,6 +2042,22 @@ Foundation checkpoint (July 21, 2026):
   unchanged. The AP verifier measures 151.76 seconds for first-pass hashing and
   0.001 seconds for safe second-pass reuse, cutting the two-pass checkpoint from
   roughly eight minutes to four
+- policy v9 closes the `variable_star_classification` batch without weakening
+  identity scope. VSX contributes source-native variable class for 226,017
+  exactly Gaia-bound stars and period for 22,695 of them, totaling 248,712
+  selected facts. All 10,304,607 subjects end accepted or missing; two focused
+  builds match logical hash
+  `40b95a458a9190a87e0118450f8340934a2468f194c8f33bd3f27fc1fd058fd9`
+- VSX spectral strings, extrema/passbands/limits/epochs, and bibliography remain
+  inspectable evidence rather than being silently discarded. GCVS/NSV remains
+  evidence-only because its release-native designation-to-cross-identifier
+  bridge currently resolves only 19 canonical stars uniquely; E5 does not
+  substitute a name guess or coordinate proximity match
+- each VSX focused pass takes about 26 seconds. Exact binding is the dominant
+  live phase at 9.6 wall/54 CPU seconds and peaks near 11.3 GiB RSS because the
+  exhaustive missing tail is materialized. A later compiler optimization may
+  compact or partition nonaccepted outcomes, but may not drop their accounting
+  or evidence lineage
 
 Deliverables:
 

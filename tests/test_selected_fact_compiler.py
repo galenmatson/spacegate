@@ -955,7 +955,29 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 11
+    assert len(policy["selection_sources"]) == 12
+    vsx = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "classification.vsx"
+    )
+    assert vsx["binding"] == {
+        "strategy": "canonical_identifier",
+        "claim_namespace": "gaia_dr3_source_id",
+        "canonical_namespace": "gaia_dr3",
+        "normalization": "unsigned_decimal",
+    }
+    assert vsx["expected_binding_outcomes"] == {
+        "accepted": 226017,
+        "missing": 10078590,
+    }
+    assert vsx["expected_selected_facts"] == 248712
+    assert {
+        group["group_key"] for group in vsx["quantity_groups"]
+    } == {
+        "stellar_variability_classification",
+        "stellar_variability_period",
+    }
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
