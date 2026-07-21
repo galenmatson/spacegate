@@ -134,6 +134,31 @@ metadata references the retention script cannot safely infer on its own.
 Run retention only after successful promotion and verification. Do not run it
 during ingest or while diagnosing a failed build.
 
+Published database archives under `dl/db` have an independent rollback policy.
+Keep the current archive and at least two verified rollback archives with their
+matching `dl/reports` directories. Use the fail-closed dry-run/apply sequence;
+the current symlink must resolve inside `dl/db`, and apply requires the exact
+reviewed candidate hash:
+
+```bash
+.venv/bin/python scripts/prune_published_downloads.py \
+  --dl-root /data/spacegate/dl \
+  --keep-archives 3 \
+  --reason 'Retain current plus two verified rollback archives' \
+  --report /data/spacegate/state/reports/evidence_lake_v2/published_retention_dry_run.json
+
+.venv/bin/python scripts/prune_published_downloads.py \
+  --dl-root /data/spacegate/dl \
+  --keep-archives 3 \
+  --reason 'Retain current plus two verified rollback archives' \
+  --report /data/spacegate/state/reports/evidence_lake_v2/published_retention_applied.json \
+  --apply --expected-candidate-set-sha256 '<reviewed-hash>'
+```
+
+Refresh the Evidence Lake storage audit after published retention and before
+state-build retention. Protect every canonical/public/side dependency still
+referenced by the retained published reports.
+
 On July 20, 2026, an E0 storage audit found 621 GiB under `state/out` while the
 ordinary dry run returned zero candidates: 18 superseded builds used the
 legacy name form. No ingest/compiler process was active, LAMOST v63 had passed
@@ -642,6 +667,23 @@ sudo scripts/normalize_state_permissions.sh --apply
   authorized retirement of 128,089,096,192 allocated bytes. The refreshed E0
   storage audit again reported 440.7 GiB free and `acquisition_ready=true`; no
   raw, typed, accepted, served, rollback, or report artifact was selected.
+- Accepted Gaia AP checkpoint `393b08fa1268bbd42bb40225` occupies about 168
+  GiB and its clean reproduction used USB scratch, matched the reference logical
+  hash, and removed the scratch tree. After acceptance, published-download
+  retention kept current archive `20260717T0614Z_f452835_side` plus rollback
+  archives `20260717T0336Z_8bee500_side` and
+  `20260717T0057Z_868b4d9_side`, retiring ten older archives and matching report
+  directories under exact candidate hash
+  `4ea4af63377c533bc47c53cff8667140cc69d727e1408d39b54c3ab2bde28d01`
+  for 83,772,035,729 bytes.
+- A subsequent standard state-retention pass explicitly protected those three
+  side builds and their canonical/public dependency chains. After confirming
+  zero surviving references, exact candidate hash
+  `41619e24dbe0fa0243615f8e656fdfb20b04156ab0a9514f23b5282fcd60bc19`
+  retired five older superseded build trees and 32 matching report directories,
+  reclaiming about 93.46 GiB. The refreshed E0 audit reports 445.1 GiB free, no
+  alerts, and `acquisition_ready=true`; the 57.7-GB legacy scratch pool remains
+  intact for a separate report-preserving retention decision.
 
 ## Extended-Object Catalog Artifacts
 

@@ -1305,7 +1305,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 Gaia AP main contract: account all 482 hard/supplement source fields;
   preserve coherent DSC/ESP, GSP-Phot, FLAME, GSP-Spec, MSC component/system,
   and OA contexts; validate source-native units and real-row materialization
-- [ ] E4 Gaia AP main build: materialize the 51,164,425-row bounded release and
+- [x] E4 Gaia AP main build: materialize the 51,164,425-row bounded release and
   pass source-specific, generic artifact, clean-reproduction, storage, scope,
   probability, interval, and zero-pending-field gates
 - [x] E4 Gaia AP scale guard: materialize unresolved bindings per source table

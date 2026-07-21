@@ -881,9 +881,19 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   astrometry-bundle citations used the existing 32-bucket execution policy, so
   a single evidence-table join reached the 32-GB cap. Compiler/contract v70
   applies deterministic source-record hash buckets to every evidence-reference
-  table while preserving the same citation keys and counts. All 66 focused
-  compiler tests pass; the immutable AP retry and independent audits remain
-  pending.
+  table while preserving the same citation keys and counts. Accepted checkpoint
+  `393b08fa1268bbd42bb40225` accounts all 51,164,425 rows and 482 fields with
+  zero pending mappings, exclusions, duplicates, or normalization rejections;
+  it links 134,743,089 evidence citations under the bounded policy. The
+  source-specific and generic artifact audits pass. Clean reproduction on USB
+  scratch matches logical hash
+  `b84be6a482e90bd4527f498f87f4381f1439b0e67a7ec5762c19530976ec6596`
+  and removes its scratch tree.
+- The source audit also pins 271,975 source-native non-bracketing intervals:
+  271,968 hard-envelope and four uncertainty-supplement FLAME luminosities plus
+  three GSP-Spec Mg/Fe measurements. Direct typed-Parquet counts match the
+  evidence artifact exactly. These published values and endpoints remain
+  unchanged and visible as anomalies; reversed endpoints remain fatal.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

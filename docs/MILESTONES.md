@@ -1733,9 +1733,11 @@ Current status (July 19, 2026, in progress):
   table under the same 32-GB limit. A tmux-isolated retry proved that fix and
   then exposed a separate unbounded ordinary evidence-citation join.
   Compiler/contract v70 applies the existing deterministic 32-bucket policy to
-  every evidence-reference table without changing scientific keys or counts;
-  failed manifestless staging trees were retired by exact-hash retention and
-  the immutable retry remains pending
+  every evidence-reference table without changing scientific keys or counts.
+  Checkpoint `393b08fa1268bbd42bb40225` passes source, artifact, and clean
+  reproduction gates for all 51,164,425 rows and 482 fields at logical hash
+  `b84be6a482e90bd4527f498f87f4381f1439b0e67a7ec5762c19530976ec6596`;
+  failed manifestless staging trees were retired by exact-hash retention
 - the complete-envelope SIMBAD v37 diagnostic failed closed, without host OOM
   or artifact promotion, when one bundled-astrometry citation join reached the
   configured 16-GB DuckDB cap. Compiler/contract v38 partitions that general

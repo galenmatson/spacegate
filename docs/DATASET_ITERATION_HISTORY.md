@@ -1949,6 +1949,21 @@ Representative commits:
   tests preserve exact link keys and counts. Exact candidate hash
   `a546c331f63e4c09e9a7b8afdeb9a46058a5d3261acde897f36449be851aa79e`
   authorized retirement of the sole 128,089,096,192-byte failed staging tree.
+- Accepted compiler/contract v70 checkpoint `393b08fa1268bbd42bb40225`
+  preserves all 51,164,425 source rows, all 482 field occurrences, and
+  134,743,089 citation links with zero pending mappings, duplicate rows,
+  exclusions, or identifier-normalization rejections. Source-specific and
+  generic artifact audits pass. Clean reproduction on USB scratch matches
+  logical hash
+  `b84be6a482e90bd4527f498f87f4381f1439b0e67a7ec5762c19530976ec6596`
+  and records `scratch_removed=true`.
+- The first source audit revealed 271,975 non-bracketing but non-reversed source
+  intervals. Direct queries of the pinned typed Parquet reproduce exactly
+  271,968 hard and four supplement FLAME luminosity cases plus three hard
+  GSP-Spec Mg/Fe cases. Most FLAME rows expose the source's `0.01 L_sun` lower
+  floor with `flags_flame=20` while retaining a lower central luminosity. The
+  audit now reports and pins source-native non-bracketing intervals while still
+  failing reversed endpoints; no value or uncertainty is rewritten.
 
 ## Recurrent Defect Classes and Mitigations
 
