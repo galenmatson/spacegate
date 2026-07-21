@@ -221,6 +221,17 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert wgsn["source_citation_links"][0]["identifier_claim_field"] == (
         "proper_name"
     )
+    vsx = contract["source_adapters"]["classification.vsx"]
+    assert vsx["table_order"] == ["vsx_readme", "vsx_references", "vsx_dat"]
+    assert vsx["tables"]["vsx_references"]["citation_catalog"][
+        "bibcode_pattern"
+    ] == r"^(?:18|19|20)\d{2}\S{15}$"
+    assert vsx["tables"]["vsx_dat"]["conditional_identifier_claims"][0][
+        "namespace"
+    ] == "gaia_dr3_source_id"
+    assert vsx["tables"]["vsx_dat"]["coherent_parameter_set"][
+        "destination"
+    ] == "variability_activity_rotation_parameter_sets"
     gcvs = contract["source_adapters"]["classification.gcvs"]
     assert set(gcvs["tables"]) == {
         "gcvs_catalog",
@@ -3412,6 +3423,57 @@ def test_authoritative_citation_catalog_validates_compact_references(
         2025,
     )
     assert summary == {"citations": 1, "evidence_links": 1}
+
+
+def test_citation_catalog_preserves_noncanonical_bibcode_as_raw_text(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "references.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            "copy (select * from (values ('2024A&A...686A..42H'),"
+            "('not-a-bibcode')) t(Bibcode)) to ? (format parquet)",
+            [str(parquet)],
+        )
+        hashes = con.execute(
+            "select sha256(to_json(source_row)) from read_parquet(?) source_row",
+            [str(parquet)],
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'classification.vsx', 'r1', 'references', "
+            "'source_reference', '{}', '{}', ?, 1, 'raw', 'typed', "
+            "'raw-tree', 'typed-table', timestamp '2026-07-21 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(hashes)],
+        )
+        compiler.materialize_citation_catalog(
+            con,
+            source_id="classification.vsx",
+            release_id="r1",
+            table_name="references",
+            path=parquet,
+            citation_catalog={
+                "reference_key_field": "Bibcode",
+                "citation_text_field": "Bibcode",
+                "bibcode_field": "Bibcode",
+                "bibcode_pattern": r"^(?:18|19|20)\d{2}\S{15}$",
+            },
+            fields=[{"column_name": "Bibcode"}],
+            available_fields={"Bibcode"},
+        )
+        rows = con.execute(
+            "select citation_text_raw,bibcode,citation_url,parsed_json "
+            "from citations order by citation_text_raw"
+        ).fetchall()
+    valid, invalid = rows
+    assert invalid[0:3] == ("not-a-bibcode", None, None)
+    assert json.loads(invalid[3])["bibcode_validation"]["status"] == (
+        "preserved_noncanonical"
+    )
+    assert valid[0] == "2024A&A...686A..42H"
+    assert valid[1] == "2024A&A...686A..42H"
+    assert valid[2].endswith("/2024A&A...686A..42H/abstract")
 
 
 def test_citation_materialization_matches_key_or_text_without_duplicate_links(

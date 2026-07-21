@@ -1067,6 +1067,12 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 separator = citation_catalog.get("line_separator")
                 if separator is not None and not str(separator):
                     errors.append(f"{prefix}.line_separator must be non-empty")
+                bibcode_pattern = citation_catalog.get("bibcode_pattern")
+                if bibcode_pattern is not None:
+                    try:
+                        re.compile(str(bibcode_pattern))
+                    except re.error as error:
+                        errors.append(f"{prefix}.bibcode_pattern is invalid: {error}")
             for index, link in enumerate(table.get("source_citation_links") or []):
                 prefix = f"{source_id}.{table_name}.source_citation_links[{index}]"
                 for field in (
@@ -4390,6 +4396,7 @@ def materialize_citation_catalog(
     bibcode_field = citation_catalog.get("bibcode_field")
     doi_field = citation_catalog.get("doi_field")
     publication_year_field = citation_catalog.get("publication_year_field")
+    bibcode_pattern = citation_catalog.get("bibcode_pattern")
     aggregate_lines = bool(citation_catalog.get("aggregate_repeated_key_lines"))
     line_order_field = citation_catalog.get("line_order_field")
     line_separator = str(citation_catalog.get("line_separator") or " ")
@@ -4491,6 +4498,27 @@ def materialize_citation_catalog(
         parsed = parse_reference_fragment(str(citation_text))
         parsed["source_context"] = json.loads(str(context_json))
         bibcode = str(source_bibcode).strip() if source_bibcode else parsed["bibcode"]
+        bibcode_is_noncanonical = (
+            bibcode_pattern
+            and bibcode
+            and re.fullmatch(str(bibcode_pattern), bibcode) is None
+        )
+        if bibcode_is_noncanonical:
+            parsed["bibcode_validation"] = {
+                "pattern": str(bibcode_pattern),
+                "source_value": bibcode,
+                "status": "preserved_noncanonical",
+            }
+            if not citation_url:
+                parsed_url = str(parsed.get("url") or "")
+                if "/abs/" in parsed_url:
+                    parsed["url"] = None
+            bibcode = None
+        elif bibcode_pattern and bibcode:
+            parsed["bibcode_validation"] = {
+                "pattern": str(bibcode_pattern),
+                "status": "valid",
+            }
         doi = str(source_doi).strip() if source_doi else parsed["doi"]
         publication_year = (
             int(source_year)

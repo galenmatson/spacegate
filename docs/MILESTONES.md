@@ -1756,30 +1756,33 @@ Current status (July 19, 2026, in progress):
   audited indexless contract before additional large source families land
 - the E4 source-scope ledger accounts all 44 registry releases without silently
   treating identity-only, superseded, disabled, or transitional inputs as
-  scientific adapters. Thirty-one adapters exist; four blocking adapter
-  families remain explicit: Gaia source, VSX, and separate natural and
-  artificial JPL Horizons evidence
-- the current VSX preview accounts all 10,304,607 object rows, 715 ReadMe lines,
-  and 830,415 bibliography links. Source and reproduction audits pass; checked-
-  in registry cutover and E4 domain/citation materialization remain open
-  object-to-bibcode table; acquisition, typing, citation linkage, and E4
-  materialization remain required
-- the VSX collector now declares the official CDS `refs.dat.gz` endpoint for
-  the next pinned snapshot. Its 830,415 exact OID/bibcode links are a historical
+  scientific adapters. Thirty-two adapters now exist; the three remaining
+  blockers are Gaia source and separately scoped natural/artificial JPL
+  Horizons evidence
+- VSX release `rolling_snapshot_20260721` is checked into the registry with all
+  three official artifacts. Build `d9780b76333132c0a05098b7` accounts
+  11,135,737 source records and all 29 fields; it materializes 29,456,421
+  release-scoped identifier claims, 10,304,607 coherent variability sets,
+  5,152,350 spectral classifications, and 36,896,586 exact citation links.
+  Source and artifact audits pass at logical hash
+  `1aa9577c875d2efcd6f11f59428c61f5197e184986ebd3e6ee2d372bb8891e36`;
+  clean reproduction matches it with no differing sections and removes its
+  USB scratch tree
+- the VSX collector declares the official CDS `refs.dat.gz` endpoint. Its
+  830,415 exact OID/bibcode links are a historical
   partial relation covering 586,530 OIDs through OID 683,950, not complete
   bibliography for the 10.3-million-row 2026 object table; uncovered rows must
   remain reported rather than receiving inferred citations
-- schema-driven scratch typing and the expanded VSX audit pass all 830,415
-  bibliography rows while retaining 2,072 historical missing-object bindings
-  and 54 noncanonical reference strings as explicit evidence
-- the July 21 VSX preview pins all three official artifacts in raw snapshot
+- the July 21 VSX release pins all three official artifacts in raw snapshot
   `64f0562ef64643076d77a153` and types 10,304,607 object rows, 715 ReadMe
   lines, and 830,415 bibliography links in snapshot
   `c5446b6ab730ffe763af12f4`. Raw/typed verification, the complete source
   audit, and clean reproduction pass. Its source delta records 47 added OIDs,
   8 removed OIDs, and only 243 scientifically revised retained OIDs; bulk
-  source-line movement remains lineage-only. Registry cutover and E4 citation
-  materialization remain pending
+  source-line movement remains lineage-only. E4 preserves 2,080 historical
+  bibliography links for 1,833 OIDs absent from the current object inventory;
+  56 structurally noncanonical links across 9 distinct strings remain raw
+  citation evidence with no fabricated ADS URL
 - the shared Horizons snapshot writer closes the E1 raw-preservation gap in the
   natural and artificial JPL collectors: exact response bytes, query records,
   checksums, reviewed target seed, collector identity, and parsed projections

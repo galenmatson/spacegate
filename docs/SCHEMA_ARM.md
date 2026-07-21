@@ -86,6 +86,14 @@ Evidence Lake v2 staging rule:
   variable classes and spectral classes occupy separate typed domains; repeated
   source-key bibliography lines aggregate deterministically. All bindings stay
   unresolved until the E2/E5 identity and selection policies adjudicate them.
+- VSX checkpoint `d9780b76333132c0a05098b7` applies the same boundary at the
+  rolling-catalog scale. VSX OID is release-scoped identity; public names and
+  embedded Gaia DR3 names are separate claims. Variability values remain one
+  schema-backed 16-field source record per OID, spectral strings remain stellar
+  classification evidence, and historical bibliography binds only through
+  exact OID/reference pairs. Missing current OIDs and structurally invalid ADS
+  strings stay unresolved/raw evidence. No VSX row creates ARM or CORE
+  inventory before E5 selection and E6 review.
 - Hunt/Reffert checkpoint `7e66e0690aa962c837d43a86` keeps cluster physical
   contexts, probability-bearing membership claims, literature crossmatches,
   and both cluster/member endpoint identities source scoped. Cross-table

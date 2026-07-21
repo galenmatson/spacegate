@@ -927,24 +927,25 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   (41.1%). This changes storage and integrity enforcement, not scientific
   content.
 - `config/evidence_lake/e4_source_scope.json` now accounts every one of the 44
-  registered source releases at the E4 boundary. Thirty have scientific-
+  registered source releases at the E4 boundary. Thirty-two have scientific-
   evidence adapters; official DR2/DR3 neighbourhood products remain E2-only
   identity edges; disabled lossy projections and transitional AT-HYG remain E6
   stability/identity references; and legacy Cantat-Gaudin DR2 cluster evidence
   is retained source-native while Hunt/Reffert is the active E4 cluster
   authority. No registered source is unaccounted. The machine audit remains
-  `in_progress` on five real adapter requirements: Gaia source, Gaia
-  variability, VSX, natural JPL Horizons, and artificial JPL Horizons.
-- The pinned VSX object table now has a machine-readable pre-adapter audit. It
+  `in_progress` on three real adapter requirements: Gaia source, natural JPL
+  Horizons, and artificial JPL Horizons.
+- The prior two-artifact VSX object table has a machine-readable pre-adapter
+  audit. It
   accounts all 10,304,568 rows, verifies unique source OIDs, valid coordinates,
   status/limit/uncertainty flag domains, and positive published periods, and
   records the two duplicated public-name strings without treating names as
-  identity keys. The audit remains `incomplete`: the registered acquisition
+  identity keys. That audit remained `incomplete`: the registered acquisition
   preserves `vsx.dat` and its ReadMe but omits the source-documented
   object-to-bibcode `refs.dat` table. VSX cannot pass E4 until a pinned
   bibliography artifact is acquired, typed, and linked without guessing
   references for rows that do not publish one.
-  The collector now includes that endpoint for the next pinned snapshot. The
+  The collector then added that endpoint for the next pinned snapshot. The
   available CDS artifact is a clean but historical partial relation (830,415
   unique OID/bibcode links, 586,530 OIDs, maximum OID 683,950, server-modified
   in 2022), so coverage gaps against the 2026 object table will remain explicit.
@@ -958,12 +959,26 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   `c5446b6ab730ffe763af12f4` preserves 10,304,607 object rows, 715 document
   lines, and all 830,415 OID/reference pairs. Its complete audit reports 586,530
   referenced OIDs, 2,080 historical references whose OID is absent from the
-  current object table, and the same 54 noncanonical raw reference strings.
+  current object table, and 56 structurally noncanonical reference links across
+  9 distinct raw strings.
   Raw/typed verification and clean reproduction pass with exact content hash
   `d511776854e6578d53ec444f89e038f2beb616ed026f0a5fa5062575cb564000`.
   A schema-aware typed-table delta separates 47 additions, 8 removals, and 243
-  scientifically revised retained OIDs from source-line reordering. Checked-in
-  registry cutover and E4 citation materialization remain open.
+  scientifically revised retained OIDs from source-line reordering.
+- Registry/contract v15/v74 now materializes that release as immutable build
+  `d9780b76333132c0a05098b7`. All 11,135,737 source records and 29 field
+  occurrences are accounted with zero pending fields. The build retains
+  29,456,421 identifier claims, 20,609,214 coordinate facts, 5,152,350 source
+  spectral classifications, 10,304,607 compact coherent variability records,
+  12,372 citations, and 36,896,586 evidence/citation links. Bibliography links
+  bind only through exact VSX OIDs; the 2,080 historical links for 1,833 absent
+  current OIDs remain explicit unresolved evidence. Structural ADS validation
+  preserves 56 links across 9 noncanonical strings as raw citation text and
+  emits no guessed URL. Source-specific and generic artifact audits pass at
+  logical hash
+  `1aa9577c875d2efcd6f11f59428c61f5197e184986ebd3e6ee2d372bb8891e36`.
+  Clean reproduction matches that hash with no differing sections and removes
+  its `/mnt/space` scratch tree.
 - The source-native Gaia DR3 backbone now passes its independent pre-adapter
   audit. Its 31,987,126-row hard-parallax branch and 189,145-row uncertainty
   supplement have identical complete 152-field schemas, unique and disjoint

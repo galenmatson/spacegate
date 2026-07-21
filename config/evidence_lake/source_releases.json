@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-20.14",
+  "registry_version": "2026-07-21.15",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -677,7 +677,7 @@
     },
     {
       "source_id": "classification.vsx",
-      "release_id": "rolling_snapshot_20260709",
+      "release_id": "rolling_snapshot_20260721",
       "state": "active",
       "authority_roles": {"naming": "variable_star_designation", "classification": "variability_type_and_period"},
       "publisher": "AAVSO",
@@ -689,14 +689,18 @@
       "retrieval": {"kind": "fixed_width", "implementation": "scripts/catalogs.sh"},
       "manifest_entries": [
         {"manifest": "vsx_manifest.json", "source_name": "vsx_dat"},
-        {"manifest": "vsx_manifest.json", "source_name": "vsx_readme"}
+        {"manifest": "vsx_manifest.json", "source_name": "vsx_readme"},
+        {"manifest": "vsx_manifest.json", "source_name": "vsx_references"}
       ],
       "storage_class": "internal_durable",
       "schema_policy": {
         "kind": "documented_fixed_width",
         "drift": "fail_until_reviewed",
         "default_disposition": "preserve",
-        "readme_bindings": {"vsx_dat": "vsx_readme"}
+        "readme_bindings": {
+          "vsx_dat": "vsx_readme",
+          "vsx_references": "vsx_readme"
+        }
       }
     },
     {

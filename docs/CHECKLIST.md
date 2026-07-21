@@ -1326,8 +1326,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 source-scope accounting: classify all 44 registered releases as an E4
   adapter or an explicit E2/E3/E6 boundary disposition; fail on unaccounted,
   stale, conflicting, or unregistered entries
-- [ ] E4 remaining registered adapter tail: materialize Gaia source, VSX,
-  natural JPL Horizons, and separately scoped artificial JPL Horizons evidence
+- [ ] E4 remaining registered adapter tail: materialize Gaia source, natural
+  JPL Horizons, and separately scoped artificial JPL Horizons evidence
 - [x] E4 Gaia source pre-adapter audit: verify all 32,176,271 source-native rows,
   identical complete 152-field branch schemas, unique/disjoint Gaia DR3 IDs,
   envelope polarity, epochs, solution release, and numeric validity domains;
@@ -1365,19 +1365,27 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E4 VSX pre-adapter audit: account all 10,304,568 pinned object rows;
   verify OID uniqueness, coordinates, statuses, flags, periods, field coverage,
   and public-name collisions without using names as source identity
-- [ ] E3/E4 VSX bibliography completion: pin and type the source-documented
+- [x] E3/E4 VSX bibliography completion: pin and type the source-documented
   `refs.dat` object-to-bibcode table, add it to the release contract, and link
   only exact OID references before VSX E4 promotion
 - [x] Add the official VSX `refs.dat.gz` endpoint to reproducible catalog
   acquisition and document that its 2022-era OID coverage is a partial
   historical bibliography rather than complete coverage of the 2026 objects
 - [x] Extend the VSX audit through schema-driven bibliography typing: verify all
-  830,415 exact pairs, report 2,072 historical OID links absent from the current
-  object table, and preserve 54 noncanonical source reference strings
+  830,415 exact pairs, preserve 2,080 historical links for 1,833 OIDs absent
+  from the current object table, and retain 56 structurally noncanonical links
+  across 9 distinct source strings without fabricated ADS URLs
 - [x] Acquire and preview the July 21 three-artifact VSX release; pass complete
   raw/typed accounting, source audit, clean reproduction, and a stable-OID delta
   separating 47 additions, 8 removals, and 243 scientific revisions from
   lineage-only source-line reordering
+- [x] E4 VSX checkpoint: cut over the checked-in registry, materialize all
+  11,135,737 source records and 29 fields with release-scoped identity,
+  astrometry, spectral classification, coherent variability, bibliography,
+  explicit unresolved scope outcomes, and zero pending fields; pass source and
+  generic artifact audits for build `d9780b76333132c0a05098b7`, then cleanly
+  reproduce logical hash
+  `1aa9577c875d2efcd6f11f59428c61f5197e184986ebd3e6ee2d372bb8891e36`
 - [x] E4 Bailer-Jones distance checkpoint: materialize all 17,310,560 EDR3
   rows as coherent geometric and photogeometric posterior bundles; preserve
   case-distinct percentile fields, explicit interval-endpoint semantics,

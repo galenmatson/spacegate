@@ -26,10 +26,12 @@ evidence APIs remain gated on E4/E5 contracts and the E6 shadow scientific A/B
 review; the later evidence inspector must not expose raw graph candidates as
 accepted canonical facts.
 
-E4 coherent parameter-set artifacts, including Gaia variability and rotation
-solutions, remain internal and unserved. Their schema-backed positional values
-must pass E5 selection and E6 scientific A/B review before any public API field
-or endpoint is introduced.
+E4 coherent parameter-set artifacts, including Gaia variability/rotation and
+VSX variability records, remain internal and unserved. VSX public names, Gaia
+aliases, historical bibliography, and unresolved binding outcomes do not alter
+search or detail responses merely because E4 preserved them. Schema-backed
+values and identity claims must pass E5 selection and E6 scientific A/B review
+before any public API field or endpoint is introduced.
 
 ## Common Types
 

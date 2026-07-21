@@ -2191,6 +2191,36 @@ Representative commits:
   `d98283bb5477211963902e072b4aaf7095740435efeff567950dbcfe934dea2b`
   with no differing sections and removes its scratch tree.
 
+### 72) VSX Three-Artifact E4 Cutover
+
+- The checked-in registry now selects `rolling_snapshot_20260721` and accounts
+  the official object table, ReadMe, and historical OID/reference relation.
+  E4 uses VSX OID as release-scoped source identity, preserves the public name
+  separately, and emits a Gaia DR3 claim only for the explicit `Gaia DR3 N`
+  designation form. No public-name collision can merge source records.
+- Compiler/contract v73/v74 materializes every one of the 11,135,737 source
+  records and all 29 field occurrences. The object table yields 20,609,214
+  J2000 coordinate facts, 5,152,350 spectral classifications, and 10,304,607
+  ordered 16-field variability parameter sets without repeating field names in
+  every row. It retains 29,456,421 source-scoped identifier claims and explicit
+  unresolved outcomes rather than promoting variable-star inventory.
+- Bibliography materialization creates 12,371 source entries plus one catalog
+  citation and links all 830,415 exact OID/reference pairs. The current rolling
+  inventory lacks 1,833 historical OIDs represented by 2,080 links; those links
+  remain inspectable unresolved evidence. Structural ADS validation identifies
+  56 links across 9 distinct noncanonical strings, preserves their exact text,
+  and does not invent an ADS URL.
+- Immutable build `d9780b76333132c0a05098b7` is 10,434,392,064 bytes and
+  passes source-specific and generic artifact audits with no pending fields,
+  normalization rejection, duplicate key, orphan, citation, scope, schema, or
+  arity defect. Its logical hash is
+  `1aa9577c875d2efcd6f11f59428c61f5197e184986ebd3e6ee2d372bb8891e36`.
+  Clean reproduction matches it with no differing report sections and removes
+  its USB scratch tree.
+  Source-scope version 3 now accounts 32 adapters and 12 explicit boundary
+  dispositions; the remaining blockers are Gaia source and the two separately
+  scoped JPL Horizons sources.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-21.e4-foundation.73",
-  "compiler_version": "scientific_evidence_compiler_v72",
+  "contract_version": "2026-07-21.e4-foundation.74",
+  "compiler_version": "scientific_evidence_compiler_v73",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1506,6 +1506,79 @@
       {"pattern": "^(gaia_g_mean_mag|gaia_bp_mean_mag|gaia_rp_mean_mag)$", "disposition": "exclude", "destination": "source_records", "reason": "copied Gaia photometry remains in E1; release-native Gaia owns competing E4 evidence"},
       {"pattern": ".*", "disposition": "context", "destination": "source_records", "reason": "remaining LAMOST medium-resolution observation, band, coadd, SNR, fiber, moon, epoch, and reduction context retained source-natively"}
     ],
+    "vsx_catalog": [
+      {
+        "pattern": "^(OID|Name)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped VSX OID and public variable-star designation"
+      },
+      {
+        "pattern": "^(RAdeg|DEdeg)$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-published J2000 position evidence"
+      },
+      {
+        "pattern": "^Sp$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "source-published spectral classification kept separate from variability type"
+      },
+      {
+        "pattern": "^(source_line_number|raw_row)$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "physical line and exact fixed-width row remain losslessly preserved in E1 and are redundant with E4 row-hash lineage"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "variability_activity_rotation_parameter_sets",
+        "reason": "coherent VSX variability type, brightness extrema, epoch, period, and source flags"
+      }
+    ],
+    "vsx_references": [
+      {
+        "pattern": "^OID$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "VSX object identity for the source bibliography link"
+      },
+      {
+        "pattern": "^Bibcode$",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "source-native bibliography key and raw reference text"
+      },
+      {
+        "pattern": "^source_line_number$",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "bibliography file line lineage"
+      },
+      {
+        "pattern": "^raw_row$",
+        "disposition": "exclude",
+        "destination": "source_records",
+        "reason": "exact bibliography row remains losslessly preserved in E1 and is redundant with E4 row-hash lineage"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "mapping_status": "declared_pending",
+        "reason": "unrecognized VSX bibliography field retained pending schema review"
+      }
+    ],
+    "vsx_readme": [
+      {
+        "pattern": ".*",
+        "disposition": "lineage",
+        "destination": "source_records",
+        "reason": "source format, field semantics, and document line lineage"
+      }
+    ],
     "gaia_variability_coherent_solution": [
       {
         "pattern": "^source_id$",
@@ -2086,6 +2159,62 @@
           "source_citation_links": [
             {"identifier_claim_field": "proper_name", "reference_key_field": "reference", "citation_role": "iau_official_name_reference", "excluded_reference_values": ["--"], "required": true}
           ]
+        }
+      }
+    },
+    "classification.vsx": {
+      "adapter_version": "vsx_scientific_evidence_v1",
+      "table_order": ["vsx_readme", "vsx_references", "vsx_dat"],
+      "tables": {
+        "vsx_readme": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_document_line",
+          "field_profile": "vsx_readme"
+        },
+        "vsx_references": {
+          "logical_key_fields": ["OID", "Bibcode"],
+          "object_scope": "source_reference_link",
+          "field_profile": "vsx_references",
+          "identifier_claims": {
+            "OID": {"namespace": "vsx_oid", "claim_scope": "variable_star_or_component"}
+          },
+          "citation_catalog": {
+            "reference_key_field": "Bibcode",
+            "citation_text_field": "Bibcode",
+            "bibcode_field": "Bibcode",
+            "bibcode_pattern": "^(?:18|19|20)\\d{2}\\S{15}$"
+          },
+          "source_citation_links": [
+            {"identifier_claim_field": "OID", "reference_key_field": "Bibcode", "citation_role": "vsx_object_bibliography", "required": true}
+          ]
+        },
+        "vsx_dat": {
+          "logical_key_fields": ["OID"],
+          "object_scope": "variable_star_or_component",
+          "field_profile": "vsx_catalog",
+          "identifier_claims": {
+            "OID": {"namespace": "vsx_oid", "claim_scope": "variable_star_or_component"},
+            "Name": {"namespace": "variable_star_name", "claim_scope": "variable_star_or_component"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "Name", "namespace": "gaia_dr3_source_id", "claim_scope": "star", "component_scope": "gaia_source", "sql_predicate": "regexp_full_match(Name, 'Gaia DR3 [0-9]+')", "strip_prefix": "Gaia DR3 ", "normalization": "unsigned_integer_decimal_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "RAdeg", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS J2000.0", "method": "vsx_catalog_position", "reference_raw": "https://www.aavso.org/vsx/", "normalization_version": "vsx_source_native_v1", "minimum_value": 0.0, "maximum_value": 360.0},
+            {"destination": "astrometry_distance_evidence", "value_field": "DEdeg", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "frame_raw": "ICRS J2000.0", "method": "vsx_catalog_position", "reference_raw": "https://www.aavso.org/vsx/", "normalization_version": "vsx_source_native_v1", "minimum_value": -90.0, "maximum_value": 90.0}
+          ],
+          "scoped_stellar_parameter_sets": [
+            {"scope_key": "vsx_source_object", "parameter_set_kind": "vsx_source_spectral_classification", "classification_field": "Sp", "classification_scheme": "spectral_type", "quality_fields": ["Type"], "measurements": [], "method": "vsx_source_classification", "reference_raw": "https://www.aavso.org/vsx/", "normalization_version": "vsx_source_native_lexical_v1"}
+          ],
+          "coherent_parameter_set": {
+            "destination": "variability_activity_rotation_parameter_sets",
+            "parameter_set_kind": "vsx_variability_catalog_record",
+            "component_scope": "source_object_or_component",
+            "expected_masked_vector_count": 0,
+            "method": "vsx_catalog_compilation",
+            "reference_raw": "https://www.aavso.org/vsx/",
+            "normalization_version": "vsx_source_native_v1"
+          }
         }
       }
     },

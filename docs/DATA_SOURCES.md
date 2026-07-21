@@ -855,13 +855,22 @@ whereas the pinned 2026 object table contains 10,304,568 OIDs. Spacegate keeps
 that lineage as a partial historical relation and reports uncovered current
 rows; it must not imply that absence from `refs.dat` means no publication exists.
 
-The July 21 preview updates the object inventory to 10,304,607 rows and pins the
+The July 21 release updates the object inventory to 10,304,607 rows and pins the
 bibliography in the same three-artifact Evidence Lake release. The complete
-source audit passes with 2,080 bibliography OIDs absent from the current object
-table and 54 noncanonical reference strings retained verbatim. Clean typed
+source audit passes with 2,080 bibliography links whose 1,833 distinct
+historical OIDs are absent from the current object table. E4's stricter
+structural ADS validation preserves 56 links across 9 distinct noncanonical
+reference strings verbatim and never fabricates their URLs. Clean typed
 reproduction passes. The release delta reports 47 added OIDs, 8 removed OIDs,
 and 243 scientifically changed retained rows; line-number shifts caused by the
 rolling export are lineage changes only.
+
+The checked-in registry now selects this release. E4 build
+`d9780b76333132c0a05098b7` materializes exact OID/name/Gaia DR3 claims,
+coordinates, source spectral classifications, one coherent 16-field
+variability record per object, and exact object bibliography links. All object
+bindings remain unresolved for E2/E5 reconciliation; E4 does not create
+canonical variable stars or promote names merely because VSX publishes them.
 
 ## 11) UltracoolSheet
 

@@ -19,14 +19,13 @@ def test_checked_in_e4_source_scope_accounts_every_registered_source() -> None:
     )
     assert report["status"] == "in_progress"
     assert report["summaries"]["registered_sources"] == 44
-    assert report["summaries"]["e4_adapters"] == 31
-    assert report["summaries"]["explicit_boundary_dispositions"] == 13
+    assert report["summaries"]["e4_adapters"] == 32
+    assert report["summaries"]["explicit_boundary_dispositions"] == 12
     assert report["checks"]["unaccounted_sources"] == []
     assert report["checks"]["adapter_disposition_conflicts"] == []
     assert report["checks"]["stale_explicit_dispositions"] == []
     assert report["checks"]["unregistered_adapters"] == []
     assert report["checks"]["blocking_sources"] == [
-        "classification.vsx",
         "gaia.dr3.gaia_source",
         "solar_system.jpl_horizons_artificial",
         "solar_system.jpl_horizons_authority",
