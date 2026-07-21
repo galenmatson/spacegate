@@ -1300,6 +1300,13 @@ peak spill allocation. The direct binding-lineage gate now takes 4.5 seconds.
 A reusable analyzer ranks Gaia direct fact materialization, immutable-input
 verification, exports, and Bailer-Jones binding/selection for bounded profiling
 experiments without relaxing determinism or scientific accounting.
+Clean reproduction produced the same 70-phase scientific projection and every
+Parquet hash, reported no differing sections, and removed its USB scratch tree.
+The isolated 12-thread/48-GB run took 1,331.7 wall seconds versus 1,441.5 for
+8-thread/32-GB, a 7.6% improvement at 6.5% more CPU and about 56.1 GiB peak RSS.
+It reduced peak spill from 150.5 to 124.5 GiB. Extra resources are therefore an
+operational option for isolated builds, not a substitute for profiling Gaia
+direct fact materialization.
 
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and

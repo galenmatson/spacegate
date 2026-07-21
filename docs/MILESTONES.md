@@ -1998,6 +1998,10 @@ Foundation checkpoint (July 21, 2026):
   exceeding 2 hours 25 minutes, while Gaia direct fact materialization (540.0
   seconds), input verification (238.5 seconds), exports (166.9 seconds), and
   Bailer-Jones binding/selection (230.2 seconds) are the next ranked targets
+- clean reproduction passed with no differing report sections or Parquet
+  hashes and removed its USB scratch tree; the isolated 12-thread/48-GB profile
+  took 1,331.7 wall seconds and 6,384.9 CPU-seconds, only 7.6% faster while using
+  6.5% more CPU, so 8 threads/32 GB remains the normal shared-host profile
 
 Deliverables:
 

@@ -2573,6 +2573,11 @@ Representative commits:
   formerly pathological accepted-binding check completed in 4.5 seconds. Its
   independent audit passes, and the machine-readable performance analysis ranks
   the remaining productive costs before clean reproduction.
+- Clean reproduction passed with identical logical and per-file Parquet hashes,
+  no differing report sections, and automatic scratch removal. Its
+  12-thread/48-GB profile improved wall time by 7.6% but increased CPU time by
+  6.5%; the result favors the 8-thread/32-GB shared-host default and a bounded
+  Gaia materialization query experiment over indiscriminate concurrency.
 
 ## Recurrent Defect Classes and Mitigations
 

@@ -784,9 +784,12 @@ use an exact candidate dry run before deletion. DuckDB spill under
 `/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
 The active E5 checkpoint is `f04aa4bc9c86d0c6f97a34da`; its compile,
-deterministic Parquet exports, manifest, independent audit, timing, and
-performance-analysis reports are protected pending clean reproduction. It
-peaked at 66,102,259,712 staging and 161,548,070,912 spill allocated bytes. The
+deterministic Parquet exports, manifest, independent audit, clean-reproduction,
+timing, and performance-analysis reports are protected. Clean reproduction
+matched every logical and per-file Parquet hash, reported no differing
+sections, and removed its external scratch tree. The reference compile peaked
+at 66,102,259,712 staging and 161,548,070,912 spill allocated bytes; reproduction
+peaked at 133,656,276,992 spill allocated bytes. The
 immediate verified rollback `d3f255b55e4573676347b206`, its
 28,307,894,272-byte DuckDB, deterministic Parquet exports, manifest,
 independent audit, and clean-reproduction report remain protected. That
@@ -826,15 +829,15 @@ inputs were excluded.
 The E5 source-disposition ledger and its machine-readable audit report are
 protected compiler-policy inputs. Current build `f04aa4bc9c86d0c6f97a34da`
 hashes the ledger; rollback `d3f255b55e4573676347b206` predates that identity
-input and remains protected until the current build passes clean reproduction.
+input and remains protected as the immediate rollback.
 
 Focused reports `e5_classification_selection_verification.json` and
 `e5_white_dwarf_selection_verification.json` are protected E5 policy evidence.
 They verify the v6 policy now materialized by current build
 `f04aa4bc9c86d0c6f97a34da` against immutable E4 shards and the identity graph.
-Their source E4 builds, identity graph, and reports remain protected through
-clean reproduction. The reports do not themselves authorize pruning any
-current or rollback artifact.
+Their source E4 builds, identity graph, and reports remain protected compiler
+inputs. The reports do not themselves authorize pruning any current or rollback
+artifact.
 
 ## WISE Image Cache
 
