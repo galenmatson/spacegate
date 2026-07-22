@@ -1247,6 +1247,11 @@ Rules:
 - `catwise_sources` and `allwise_sources` are filtered convenience tables over
   `wise_sources`.
 
+Evidence Lake v2 replacement `ec8e218402c3a4a3b55b2811` derives these source
+tables from source-native typed Parquet and preserves the raw response-member
+lineage. The stability-era CSV schema remains compatibility documentation until
+runtime cutover; it is not an authoritative clean input.
+
 ## `infrared_source_matches`
 
 Deterministic cross-reference decisions between existing Spacegate targets and
@@ -1275,6 +1280,11 @@ Rules:
   must not create new core objects.
 - Accepted matches attach to the correct object level when deterministic:
   system, member star, brown dwarf, compact object, or unresolved evidence row.
+- Clean v2 acceptance additionally requires a source to be the unique nearest
+  source/target pairing within 2.5 arcseconds. Competing target bindings are
+  retained as `duplicate_source_collision`, not accepted twice. Every targeted
+  catalog query also appears once in `wise_target_accounting` as `accepted`,
+  `ambiguous`, or `missing`.
 
 ## `infrared_photometry`
 

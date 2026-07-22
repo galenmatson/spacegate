@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.4",
+  "contract_version": "2026-07-22.e0-e7-acceptance.6",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -13,6 +13,21 @@
       "stage": "E1",
       "path": "e1_clean_reproduction.json",
       "expect": {"status": "pass", "clean_temporary_root_removed": true}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_targeted_wise_typed_cook.json",
+      "expect": {"status": "pass", "source_count": 2, "typed_table_count": 2, "incomplete_table_count": 0}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_targeted_wise_verification.json",
+      "expect": {"status": "pass"}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_targeted_wise_reproduction.json",
+      "expect": {"status": "pass", "source_count": 2, "clean_temporary_root_removed": true}
     },
     {
       "stage": "E2",
@@ -28,6 +43,11 @@
       "stage": "E3",
       "path": "e3_source_coverage_report.json",
       "expect": {"status": "pass"}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_source_scope_audit.json",
+      "expect": {"status": "pass", "scope_version": "2026-07-22.e4-source-scope.8"}
     },
     {
       "stage": "E5",
@@ -158,6 +178,16 @@
       "stage": "E7",
       "path": "e7_clean_science_reproduction.json",
       "expect": {"status": "pass", "build_id": "35eb29fa3b2a3ac518f5303a", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_wise_verification.json",
+      "expect": {"status": "pass", "build_id": "ec8e218402c3a4a3b55b2811", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_wise_reproduction.json",
+      "expect": {"status": "pass", "build_id": "ec8e218402c3a4a3b55b2811", "scratch_removed": true, "failing_checks": []}
     }
   ],
   "required_artifacts": [
@@ -170,7 +200,8 @@
     "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
-    "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json"
+    "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
+    "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json"
   ],
   "open_gates": [
     {

@@ -7,9 +7,10 @@ The active machine-readable source contract is
 domain-specific authority roles, retrieval implementation, license/citation,
 cadence, identifier namespace, frame/epoch context, schema policy, and storage
 class. `config/evidence_lake/schema_baseline.json` pins the current source schema
-and field-disposition baseline. The July 22 reviewed baseline contains 148
-active manifest entries and 6,227 fields; its 18-field delta is the complete
-JPL Horizons element set across the authority and artificial-object tables.
+and field-disposition baseline. The current July 22 baseline contains 150
+active manifest entries and 6,273 fields. It includes the reviewed complete
+JPL Horizons element set and the 22-field CatWISE2020 plus 24-field AllWISE
+targeted response contracts.
 
 Validate and audit before acquisition:
 
@@ -31,7 +32,8 @@ missing active artifacts, and schema changes fail until the registry and pinned
 baseline are reviewed. Planned sources may lack manifests until E3 acquisition;
 active sources may not.
 
-The current storage audit reports about 70.6 GiB free on `/data` and
+The current filesystem reports about 80 GiB free on `/data`; the stricter
+300-GiB Evidence Lake acquisition floor therefore remains unmet and
 `acquisition_ready=false`. Large acquisition or build work must wait for a
 reviewed retention action or added capacity. The unrecognized E6 build IDs are
 protected candidate/stability products that require explicit retention
@@ -1229,6 +1231,13 @@ Policy:
 
 Artifacts:
 
+- immutable raw response sets under
+  `state/raw/evidence_lake_v2_acquisition/infrared_*_targeted/`
+- source-native typed snapshots under
+  `state/typed/evidence_lake_v2/infrared.*_targeted/`
+- deterministic target-set report
+  `state/reports/evidence_lake_v2/e3_targeted_wise_target_set.json`
+- clean evidence build `state/derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811`
 - `state/cooked/wise/wise_sources.csv`
 - `state/cooked/wise/infrared_source_matches.csv`
 - `state/cooked/wise/infrared_photometry.csv`
@@ -1243,8 +1252,25 @@ Artifacts:
 
 Scripts:
 
+- `scripts/acquire_targeted_wise_evidence.py`
+- `scripts/compile_e7_clean_wise.py`
+- `scripts/verify_e7_clean_wise.py`
+- `scripts/verify_e7_clean_wise_reproduction.py`
 - `scripts/collect_wise_evidence.py`
 - `scripts/verify_wise_evidence.py`
+
+Evidence Lake v2 checkpoint (July 22, 2026):
+
+- The legacy collector is retained only until consumer cutover; its cooked CSV
+  products are not clean compiler inputs because it did not retain exact IRSA
+  responses.
+- The replacement release queries 500 deterministic targets in both catalogs,
+  preserves all 1,000 exact responses and query URLs, and carries the response
+  member into every typed row. Seven CatWISE density-limit responses are
+  retained together with deterministic 10/3-arcsec fallback lineage.
+- Clean build `ec8e218402c3a4a3b55b2811` contains 4,212 unique catalog sources,
+  4,404 scoped match rows, 210 candidate-review rows, and complete 1,000-row
+  target/catalog accounting. It creates no CORE inventory.
 
 ## Transitional Sources
 

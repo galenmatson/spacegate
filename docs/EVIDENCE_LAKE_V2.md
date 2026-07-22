@@ -17,17 +17,18 @@ The consolidated scientific decision record is
 
 E0 checkpoint:
 
-- `config/evidence_lake/source_releases.json` registers 47 active,
+- `config/evidence_lake/source_releases.json` registers 49 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
-- `config/evidence_lake/schema_baseline.json` pins 148 active manifest entries,
-  6,227 machine-enumerated fields, and exact format contracts for source formats
+- `config/evidence_lake/schema_baseline.json` pins 150 active manifest entries,
+  6,273 machine-enumerated fields, and exact format contracts for source formats
   whose schemas live in official source documents. Four superseded artifacts
   remain immutable but are separately checksum-declared rather than treated as
   active. The reviewed baseline fingerprint is
-  `6e244c8ebde90d9d0d69f11cd0bc54cfd00a2d5e90f05edece871a1e4cc96aa0`.
-  The 18-field increase is the reviewed complete-elements expansion across the
-  JPL Horizons authority and artificial-object tables, not unreviewed drift.
+  `6eeadfc9e02778e0fc9ba1695390e4bee540f160884431f0473a9b181d69f502`.
+  The latest 46-field increase is the reviewed CatWISE2020/AllWISE targeted
+  response schema; the earlier 18-field increase was the complete JPL Horizons
+  elements expansion. Neither is unreviewed drift.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
@@ -2051,6 +2052,37 @@ domain projection copy (13.6), physics pivot (13.3), and variability pivot
 (12.1). The isolated shared-cache run takes 165.23 seconds plus 10.9 seconds of
 independent verification. Its faster input/product hashing is recorded as a
 cache effect, not an algorithmic speedup.
+
+## E7 Clean Targeted WISE Evidence
+
+The stability-era targeted WISE collector retained derived CSVs but not the
+exact IRSA responses, so its seven ARM tables could not enter a clean Evidence
+Lake build. Release `spacegate_targeted_500_20260722_v1` replaces that boundary
+with a deterministic, quota-based 500-star target universe built from the clean
+foundation and selected science. The policy covers source-classified
+ultracools, nearby stars, planet hosts, multiple systems, compact objects, and a
+versioned operator evidence seed; seeds can request evidence but cannot create
+or alter canonical inventory.
+
+The acquisition preserves 500 CatWISE2020 and 500 AllWISE VOTable responses,
+exact query URLs, target/coordinate fact lineage, checksums, response-member
+identity, and source errors. Seven dense CatWISE fields exceeded the 30-arcsec
+IRSA output limit; those error responses remain raw evidence and deterministic
+10/3-arcsec fallbacks recovered the queries. Source-native typed cooking emits
+2,868 CatWISE and 1,536 AllWISE rows and reproduces from raw in clean scratch.
+
+Clean build `ec8e218402c3a4a3b55b2811` opens no stability database and reads no
+legacy WISE CSV. It emits 4,212 unique catalog sources, 4,404 match,
+photometry, and motion rows, 210 review candidates, and one outcome for every
+target/catalog pair: 710 accepted, 194 ambiguous, and 96 missing. A source may
+be accepted only for its unique nearest target within 2.5 arcseconds;
+collisions and wider candidates remain explicit. CatWISE parallax-like fields
+remain candidate evidence and no WISE row is promoted to CORE.
+
+All ten canonical Parquet products reproduce byte-for-byte and the DuckDB
+container passes logical verification. Runtime/API consumer cutover remains
+open, so this checkpoint replaces an evidence projection but does not change
+served responses or retire the legacy collector yet.
 
 ## Hard Gates
 

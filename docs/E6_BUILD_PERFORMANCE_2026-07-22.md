@@ -544,6 +544,30 @@ cache/I/O state, not an accepted code optimization. All canonical Parquet
 hashes reproduce, the query database passes logical verification, and scratch
 is removed.
 
+Targeted WISE source refresh is now measured separately from the normal build.
+The cold four-worker acquisition of 1,000 exact IRSA responses took 11:40.11,
+peaked at 7.15 GiB RSS, and used 126.8 CPU-seconds. CatWISE took 383.4 seconds;
+AllWISE took 310.9 seconds. A failed predecessor pass took 6:10.52 and exposed
+seven IRSA density-limit responses plus executor failure handling that waited
+for scheduled work. The accepted collector preserves those source errors,
+uses deterministic 10/3-arcsec fallbacks, records all member failures, and
+resumes completed responses.
+
+The first warm verification still recomputed the clean target universe: 5.77
+wall seconds, 102.9 CPU-seconds, and 7.06 GiB peak RSS. Reusing the pinned
+target-set artifact when policy and clean input manifests match reduces that to
+0.32 seconds, 2.41 CPU-seconds, and 91 MiB peak RSS, an 18x wall, 43x CPU, and
+79x memory improvement without weakening input attestation. Explicit
+`--rebuild-target-set` retains the full audit path.
+
+Raw snapshot materialization takes 0.30 seconds; source-native typed cooking
+takes 9.67 seconds at 221 MiB RSS; clean raw-to-typed reproduction takes 9.54
+seconds. Clean WISE build `ec8e218402c3a4a3b55b2811` takes 3.10 seconds at
+628 MiB RSS, and isolated compile plus independent verification takes 3.28
+seconds with byte-identical Parquet. Consequently WISE network acquisition is
+a release-refresh stage, while normal builds consume its immutable snapshot in
+seconds.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

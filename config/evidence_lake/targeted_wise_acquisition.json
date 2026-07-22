@@ -1,0 +1,74 @@
+{
+  "schema_version": "spacegate.targeted_wise_acquisition.v1",
+  "policy_version": "2026-07-22.targeted-wise.1",
+  "release_id": "spacegate_targeted_500_20260722_v1",
+  "foundation": {
+    "build_id": "9c2d08086275ead386f71bf7",
+    "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
+  },
+  "science": {
+    "build_id": "35eb29fa3b2a3ac518f5303a",
+    "manifest_sha256": "25de5551ecaf1191294dd891fba8ebcf8eb30a94c82aaf3d3d375aa827b9da58"
+  },
+  "target_limit": 500,
+  "target_quotas": {
+    "operator_seed": 20,
+    "source_ultracool": 260,
+    "planet_host": 100,
+    "multiple_system": 60,
+    "nearby_25ly": 50,
+    "compact_object": 20
+  },
+  "operator_seed_stable_object_keys": [
+    {
+      "stable_object_key": "canon:star:stable:star:ultracoolsheet:1403",
+      "reason": "nearby Y-dwarf identity and infrared-evidence coverage control"
+    }
+  ],
+  "selection_policy": {
+    "source_ultracool_classes": ["L", "T", "Y"],
+    "compact_classes": ["WD", "PULSAR", "WR"],
+    "maximum_distance_ly": 1000.0,
+    "rules": [
+      "only selected astrometry with both coordinates may enter the target set",
+      "source_ultracool requires a source-status selected display classification",
+      "quota pools are ordered by distance then permanent stable object key",
+      "a target selected by multiple pools is emitted once with every reason",
+      "operator seeds affect evidence acquisition only and cannot create or alter canonical objects",
+      "unfilled capacity is assigned to nearest remaining eligible stars"
+    ]
+  },
+  "query": {
+    "endpoint": "https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query",
+    "radius_arcsec": 30.0,
+    "overflow_fallback_radius_arcsec": [10.0, 3.0],
+    "outrows": 20,
+    "source_position_epoch_year": 2016.0,
+    "catalogs": [
+      {
+        "source_id": "infrared.catwise2020_targeted",
+        "source_name": "catwise2020_targeted_response_set_v1",
+        "catalog": "catwise_2020",
+        "release": "CatWISE2020",
+        "query_epoch_year": 2015.40,
+        "columns": [
+          "source_name", "source_id", "ra", "dec", "w1mpro", "w2mpro",
+          "w1snr", "w2snr", "pmra", "pmdec", "sigpmra", "sigpmdec",
+          "par_pm", "par_pmSig", "cc_flags", "ab_flags", "n_aw", "dist_cc"
+        ]
+      },
+      {
+        "source_id": "infrared.allwise_targeted",
+        "source_name": "allwise_targeted_response_set_v1",
+        "catalog": "allwise_p3as_psd",
+        "release": "AllWISE Source Catalog",
+        "query_epoch_year": 2010.50,
+        "columns": [
+          "designation", "ra", "dec", "w1mpro", "w2mpro", "w3mpro", "w4mpro",
+          "w1snr", "w2snr", "w3snr", "w4snr", "pmra", "pmdec", "sigpmra",
+          "sigpmdec", "cc_flags", "ph_qual", "ext_flg", "nb", "na"
+        ]
+      }
+    ]
+  }
+}

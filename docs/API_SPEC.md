@@ -46,6 +46,14 @@ cut over and A/B verified before these internal surfaces change responses. New
 consumer code must use these shared projections instead of selecting or
 inferring the same scientific quantity independently.
 
+E7 clean WISE build `ec8e218402c3a4a3b55b2811` is likewise internal and
+unserved. It replaces the seven infrared ARM compatibility projections from
+immutable CatWISE2020/AllWISE response sets and records accepted, ambiguous,
+duplicate-source, excluded, and missing outcomes. Existing infrared API
+responses do not change until runtime consumers are cut over and A/B verified;
+raw candidate matches and CatWISE parallax-like values must never be exposed as
+accepted identity or distance facts merely because the clean artifact exists.
+
 ## Common Types
 
 ### Provenance

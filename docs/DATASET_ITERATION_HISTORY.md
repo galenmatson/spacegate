@@ -3440,6 +3440,33 @@ Representative commits:
   unbuilt clean replacements and seven infrared blockers. All 60 remain open
   until their consumer or compiler gate closes.
 
+### 128) Targeted WISE Must Preserve Raw Responses and Negative Outcomes
+
+- Audit found the original targeted WISE path retained derived CSVs and query
+  metadata but not byte-identical IRSA responses. Those products remain useful
+  stability evidence but cannot be clean compiler inputs.
+- Release `spacegate_targeted_500_20260722_v1` replaces hard-coded in-code
+  golden priority with a versioned quota policy and a separately inspectable
+  operator evidence seed. It preserves 1,000 exact CatWISE2020/AllWISE response
+  members, their URLs/checksums, target-coordinate lineage, and all source
+  errors without bulk-mirroring either catalog.
+- Seven CatWISE 30-arcsec cones hit IRSA density limits. The error responses are
+  retained and declared 10/3-arcsec fallbacks recover them. A first failed run
+  also exposed executor behavior that hid one failure until all scheduled work
+  completed; the collector now accumulates every failed member and resumes only
+  missing responses.
+- Source-native typing carries the response-member filename into each row and
+  reproduces 2,868 CatWISE plus 1,536 AllWISE rows. Clean projection
+  `ec8e218402c3a4a3b55b2811` emits complete target accounting, permits only one
+  unique-nearest accepted target per source, retains ambiguous/collision/
+  excluded evidence, keeps CatWISE parallax-like values candidate-only, and
+  creates no CORE inventory.
+- Pinned target-set reuse reduced the warm acquisition check from 5.77 seconds,
+  102.9 CPU-seconds, and 7.06 GiB RSS to 0.32 seconds, 2.41 CPU-seconds, and 91
+  MiB. The stability ledger now marks all seven infrared tables as verified
+  artifacts pending consumer cutover, not clean-projection blockers; the total
+  open replacement count remains 60 until serving is migrated.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

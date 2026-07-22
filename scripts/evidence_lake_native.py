@@ -1512,7 +1512,7 @@ def write_fits_table_parquet(
 
 
 def write_votable_files_parquet(
-    paths: list[Path], output: Path
+    paths: list[Path], output: Path, *, member_lineage_field: str | None = None
 ) -> dict[str, Any]:
     """Preserve typed VOTable BINARY/BINARY2 response sets as one Parquet table."""
     import io
@@ -1529,7 +1529,15 @@ def write_votable_files_parquet(
             payload = path.read_bytes()
             if path.name.endswith(".gz"):
                 payload = gzip.decompress(payload)
-            table = parse_single_table(io.BytesIO(payload))
+            try:
+                table = parse_single_table(io.BytesIO(payload))
+            except ValueError as exc:
+                if member_lineage_field and "No table found" in str(exc):
+                    file_rows.append(
+                        {"path": path.name, "row_count": 0, "source_status": "no_table"}
+                    )
+                    continue
+                raise
             fields = list(table.fields)
             source_field_names = [
                 str(field.name or field.ID or field._unique_name) for field in fields
@@ -1546,6 +1554,13 @@ def write_votable_files_parquet(
                     occurrence += 1
                 casefold_names.add(name.casefold())
                 field_names.append(name)
+            if member_lineage_field:
+                if member_lineage_field.casefold() in casefold_names:
+                    raise ValueError(
+                        f"VOTable member lineage field collides with source field: "
+                        f"{member_lineage_field}"
+                    )
+                field_names.append(member_lineage_field)
             current_source_schema = [
                 {
                     "name": name,
@@ -1565,16 +1580,31 @@ def write_votable_files_parquet(
                     "description": field.description,
                 }
                 for name, source_name, field in zip(
-                    field_names, source_field_names, fields, strict=True
+                    field_names[: len(source_field_names)], source_field_names, fields, strict=True
                 )
             ]
+            if member_lineage_field:
+                current_source_schema.append(
+                    {
+                        "name": member_lineage_field,
+                        "id": None,
+                        "datatype": "char",
+                        "arraysize": "*",
+                        "unit": None,
+                        "ucd": None,
+                        "description": "Spacegate raw response member filename",
+                        "lineage_kind": "raw_artifact_member",
+                    }
+                )
             if source_schema is None:
                 source_schema = current_source_schema
             elif current_source_schema != source_schema:
                 raise ValueError(f"VOTable source schema drift: {path}")
 
             arrays: list[pa.Array] = []
-            for field, name in zip(fields, field_names, strict=True):
+            for field, name in zip(
+                fields, field_names[: len(source_field_names)], strict=True
+            ):
                 values = table.array[field._unique_name]
                 mask = np.ma.getmaskarray(values)
                 if values.ndim == 1:
@@ -1605,6 +1635,8 @@ def write_votable_files_parquet(
                             converted.append(row)
                     array = pa.array(converted)
                 arrays.append(array)
+            if member_lineage_field:
+                arrays.append(pa.array([path.name] * len(table.array), type=pa.string()))
 
             if arrow_schema is None:
                 arrow_schema = pa.schema(
@@ -1620,7 +1652,7 @@ def write_votable_files_parquet(
             writer.write_table(arrow_table, row_group_size=122880)
             rows = len(table.array)
             total_rows += rows
-            file_rows.append({"path": path.name, "row_count": rows})
+            file_rows.append({"path": path.name, "row_count": rows, "source_status": "table"})
     finally:
         if writer is not None:
             writer.close()
@@ -1631,4 +1663,5 @@ def write_votable_files_parquet(
         "source_schema": source_schema,
         "arrow_schema": [{"name": field.name, "type": str(field.type)} for field in arrow_schema],
         "file_row_accounting": file_rows,
+        "member_lineage_field": member_lineage_field,
     }

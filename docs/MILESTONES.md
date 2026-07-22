@@ -1202,7 +1202,7 @@ pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 35 checkpoint checks and
+in progress. The fail-closed completion audit passes 48 checkpoint checks and
 reports six open E7 gates rather than declaring the compiler cut over.
 
 Goal:
@@ -2435,12 +2435,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 41 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 48 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
-- the refreshed E0 schema audit passes 47 registered sources, 148 active
-  artifacts, 6,227 fields, and four retained superseded artifacts; the storage
+- the refreshed E0 schema audit passes 49 registered sources, 150 active
+  artifacts, 6,273 fields, and four retained superseded artifacts; the storage
   audit is intentionally not acquisition-ready at about 70.6 GiB free
 - permanent identity seed `5c878083872c738415971864` exports all 11,759,440
   hierarchy nodes and 5,886,947 unique relationships without scientific scalar
@@ -2468,6 +2468,17 @@ Pre-promotion planning checkpoint (July 22, 2026):
   exactly one lineage-bearing display class, and reproduces every canonical
   Parquet hash; 30 legacy ARM tables now have verified replacements whose
   runtime compatibility cutover remains explicit work
+- targeted CatWISE2020 and AllWISE release
+  `spacegate_targeted_500_20260722_v1` preserves 1,000 exact IRSA cone
+  responses for a deterministic 500-star evidence universe, including seven
+  retained density-limit responses and smaller-cone recoveries; raw-to-typed
+  reproduction passes with 2,868 CatWISE and 1,536 AllWISE rows
+- clean WISE build `ec8e218402c3a4a3b55b2811` replaces all seven legacy
+  infrared compatibility projections without reading their cooked CSVs or a
+  stability database. It accounts 710 accepted, 194 ambiguous, and 96 missing
+  target/catalog outcomes, prevents one infrared source from being accepted to
+  multiple targets, keeps CatWISE parallax-like values candidate-only, and
+  reproduces all ten canonical Parquet products
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

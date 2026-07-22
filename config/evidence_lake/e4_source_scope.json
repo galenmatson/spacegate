@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e4_source_scope.v1",
-  "scope_version": "2026-07-21.e4-source-scope.7",
+  "scope_version": "2026-07-22.e4-source-scope.8",
   "explicit_dispositions": {
     "gaia.dr3.dr2_neighbourhood": {
       "disposition": "identity_graph_only",
@@ -55,6 +55,18 @@
       "owner": "E2/E6",
       "blocks_e4": false,
       "reason": "AT-HYG remains transitional alias/crosswalk and served-stability context; it is not a scientific measurement authority and does not receive an E4 parameter adapter."
+    },
+    "infrared.catwise2020_targeted": {
+      "disposition": "e7_targeted_scientific_evidence",
+      "owner": "E7",
+      "blocks_e4": false,
+      "reason": "The bounded CatWISE2020 response set is preserved and typed through the shared E1 contract, then compiled by the independently verified E7 clean WISE projection without CORE promotion."
+    },
+    "infrared.allwise_targeted": {
+      "disposition": "e7_targeted_scientific_evidence",
+      "owner": "E7",
+      "blocks_e4": false,
+      "reason": "The bounded AllWISE response set is preserved and typed through the shared E1 contract, then compiled by the independently verified E7 clean WISE projection without CORE promotion."
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.3",
+  "contract_version": "2026-07-22.e7-stability-table-migration.4",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -124,8 +124,8 @@
         },
         {
           "group_id": "arm.infrared_compatibility",
-          "disposition": "clean_projection_blocker",
-          "replacement": "Source-native WISE/AllWISE/CatWISE evidence and selected-fact projection; image products remain runtime cache metadata",
+          "disposition": "verified_artifact_pending_consumer_cutover",
+          "replacement": "E7 clean WISE ec8e218402c3a4a3b55b2811 over immutable targeted CatWISE2020/AllWISE response sets; runtime compatibility consumers remain open and image products remain cache metadata",
           "tables": [
             "allwise_sources",
             "catwise_sources",

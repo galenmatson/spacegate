@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-21.18",
+  "registry_version": "2026-07-22.19",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -1212,6 +1212,78 @@
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "fits_columns", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "infrared.catwise2020_targeted",
+      "release_id": "spacegate_targeted_500_20260722_v1",
+      "state": "active",
+      "authority_roles": {
+        "identity": "targeted_infrared_counterpart_evidence",
+        "astrometry": "targeted_motion_and_candidate_parallax_evidence",
+        "stellar_parameters": "targeted_infrared_photometry"
+      },
+      "publisher": "NASA/IPAC Infrared Science Archive",
+      "citation_url": "https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/",
+      "license": {
+        "name": "NASA/IPAC archive data-use policy",
+        "url": "https://irsa.ipac.caltech.edu/docs/data_use.html"
+      },
+      "cadence": "published catalog release; Spacegate pins versioned target universes",
+      "identity_namespaces": ["catwise2020_source_name", "catwise2020_source_id"],
+      "frame_epoch": "CatWISE2020 source astrometry; target cones propagated to epoch 2015.40",
+      "retrieval": {
+        "kind": "bounded_targeted_cone_response_set",
+        "endpoint": "https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query",
+        "implementation": "scripts/acquire_targeted_wise_evidence.py"
+      },
+      "manifest_entries": [
+        {"manifest": "targeted_wise_manifest.json", "source_name": "catwise2020_targeted_response_set_v1"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "votable_binary_response_set",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "member_lineage_fields": {
+          "catwise2020_targeted_response_set_v1": "query_response_member"
+        }
+      }
+    },
+    {
+      "source_id": "infrared.allwise_targeted",
+      "release_id": "spacegate_targeted_500_20260722_v1",
+      "state": "active",
+      "authority_roles": {
+        "identity": "targeted_infrared_counterpart_evidence",
+        "astrometry": "targeted_motion_evidence",
+        "stellar_parameters": "targeted_four_band_infrared_photometry"
+      },
+      "publisher": "NASA/IPAC Infrared Science Archive",
+      "citation_url": "https://wise2.ipac.caltech.edu/docs/release/allwise/",
+      "license": {
+        "name": "NASA/IPAC archive data-use policy",
+        "url": "https://irsa.ipac.caltech.edu/docs/data_use.html"
+      },
+      "cadence": "published catalog release; Spacegate pins versioned target universes",
+      "identity_namespaces": ["allwise_designation"],
+      "frame_epoch": "AllWISE source astrometry; target cones propagated to epoch 2010.50",
+      "retrieval": {
+        "kind": "bounded_targeted_cone_response_set",
+        "endpoint": "https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query",
+        "implementation": "scripts/acquire_targeted_wise_evidence.py"
+      },
+      "manifest_entries": [
+        {"manifest": "targeted_wise_manifest.json", "source_name": "allwise_targeted_response_set_v1"}
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "votable_binary_response_set",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "member_lineage_fields": {
+          "allwise_targeted_response_set_v1": "query_response_member"
+        }
+      }
     }
   ]
 }

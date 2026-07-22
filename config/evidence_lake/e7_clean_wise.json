@@ -1,0 +1,49 @@
+{
+  "schema_version": "spacegate.e7_clean_wise_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-wise.1",
+  "compiler_version": "e7_clean_wise_compiler_v1",
+  "rules": {
+    "open_stability_databases": false,
+    "copy_legacy_wise_csv": false,
+    "accept_only_unique_nearest_source": true,
+    "candidate_only_parallax_like": true,
+    "no_core_inventory_promotion": true
+  },
+  "target_set": {
+    "path": "reports/evidence_lake_v2/e3_targeted_wise_target_set.json",
+    "policy_sha256": "f2e7b42dff1ed468d0221d8cd4728a0795f4787748cde529d1c27b0679ef4b42",
+    "targets_sha256": "57ce0cf820853fbf3451a2c8b6539280e631b35556ca009530d08f06999cf19c",
+    "target_count": 500
+  },
+  "sources": [
+    {
+      "catalog": "catwise",
+      "source_id": "infrared.catwise2020_targeted",
+      "release_id": "spacegate_targeted_500_20260722_v1",
+      "typed_manifest": "typed/evidence_lake_v2/infrared.catwise2020_targeted/spacegate_targeted_500_20260722_v1/01a2f94a7041df0bd09dcf50/452098dbbfcffd870c6de4cb/typed_manifest.json",
+      "typed_content_sha256": "97ea374b30beaa1fb66499dff90c7d9bdf61b212558f540c95805aad6f1f7558",
+      "table": "catwise2020_targeted_response_set_v1",
+      "table_sha256": "29f2b26de97dfccfd46fd334d381352d311cbb348d949f7ca791391d55226385",
+      "query_manifest": "raw/evidence_lake_v2_acquisition/infrared_catwise2020_targeted/spacegate_targeted_500_20260722_v1/snapshots/fea6f1aed22745188868fab3/catwise2020_targeted_response_set_v1/query_manifest.json",
+      "query_manifest_sha256": "2a91fbd3a3de3ae4ff20b70a2087ad0f917cf2f012fe9896a0a5a63521bbafbb"
+    },
+    {
+      "catalog": "allwise",
+      "source_id": "infrared.allwise_targeted",
+      "release_id": "spacegate_targeted_500_20260722_v1",
+      "typed_manifest": "typed/evidence_lake_v2/infrared.allwise_targeted/spacegate_targeted_500_20260722_v1/50b3ce9274cceb0ac8e95098/3c092db4c5ee0f166bef62a6/typed_manifest.json",
+      "typed_content_sha256": "31d474dd5ddbc3c9eb8fc8b9a5209df7056da73c2a1bf502f037831773ed5e62",
+      "table": "allwise_targeted_response_set_v1",
+      "table_sha256": "101971b32cda2e0caacf39dd9b5cb7268d2645f1c8f26c7dd644f6bb8b99ebfe",
+      "query_manifest": "raw/evidence_lake_v2_acquisition/infrared_allwise_targeted/spacegate_targeted_500_20260722_v1/snapshots/0a2d43b527339f92d063d394/allwise_targeted_response_set_v1/query_manifest.json",
+      "query_manifest_sha256": "676989d68902716d88950082b346fc8956d2372ba14e2716083ab7d547ae05c9"
+    }
+  ],
+  "matching": {
+    "accepted_separation_arcsec": 2.5,
+    "ambiguous_separation_arcsec": 10.0,
+    "candidate_color_w1_minus_w2_min": 0.75,
+    "candidate_motion_arcsec_yr_min": 0.15,
+    "candidate_w2_snr_min": 5.0
+  }
+}

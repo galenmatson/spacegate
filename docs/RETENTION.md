@@ -1116,6 +1116,15 @@ clean-science-aware dry-run must verify the accepted replacement, process
 liveness, reports, symlinks, shared files, and exact tree identities before
 removing the predecessor, failed tree, or their superseded state links.
 
+Targeted WISE release `spacegate_targeted_500_20260722_v1` is unique source
+evidence. Its CatWISE2020/AllWISE response sets, query/error manifests, generic
+Evidence Lake raw snapshots, typed Parquet, registry/verification reports, and
+clean build `ec8e218402c3a4a3b55b2811` are protected inputs or accepted
+artifacts. The two incomplete acquisition staging trees under
+`state/tmp/evidence_lake_v2_wise` and the stability-era cooked WISE CSVs are
+future exact-candidate retention work; do not delete them manually or before
+consumer cutover proves the clean replacement and rollback path.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

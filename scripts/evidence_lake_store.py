@@ -89,6 +89,8 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "extended.green_snr": "evidence_typed_cook_green_snr_v2",
     "exoplanet_lifecycle.open_exoplanet_catalogue": "evidence_typed_cook_oec_xml_v1",
     "compact.mcgill_magnetar": "evidence_typed_cook_mcgill_bundle_v4",
+    "infrared.catwise2020_targeted": "evidence_typed_cook_votable_member_lineage_v1",
+    "infrared.allwise_targeted": "evidence_typed_cook_votable_member_lineage_v1",
 }
 TABULAR_SUFFIXES = (".csv", ".csv.gz")
 VOTABLE_SUFFIXES = (".vot", ".vot.gz", ".votable", ".votable.gz")
@@ -1430,8 +1432,16 @@ def cook_artifact(
         )
         parser = "duckdb_read_csv_explicit_lexical_shape_checked_v4"
     elif votables:
-        source_schema = write_votable_files_parquet(votables, output)
-        parser = "astropy_votable_binary_arrow_v1"
+        source_schema = write_votable_files_parquet(
+            votables,
+            output,
+            member_lineage_field=member_lineage_field,
+        )
+        parser = (
+            "astropy_votable_binary_arrow_member_lineage_v2"
+            if member_lineage_field
+            else "astropy_votable_binary_arrow_v1"
+        )
         expected_fields = sorted(field["name"] for field in source_schema["source_schema"])
     elif fits_files:
         if len(fits_files) != 1:

@@ -441,3 +441,35 @@ def test_votable_writer_preserves_case_only_source_field_distinctions(
         assert con.execute(
             f'''select b_rgeo, "B_rgeo__source_case_2" from read_parquet('{output}')'''
         ).fetchone() == (10.0, 20.0)
+
+
+def test_votable_writer_can_preserve_response_member_lineage(tmp_path: Path) -> None:
+    import io
+    import numpy as np
+    from astropy.io.votable import from_table, writeto
+    from astropy.table import Table
+
+    sources = []
+    for name, source_id in (("0001_alpha.vot", 11), ("0002_beta.vot", 22)):
+        payload = io.BytesIO()
+        writeto(
+            from_table(Table({"source_id": np.array([source_id], dtype=np.int64)})),
+            payload,
+            tabledata_format="binary2",
+        )
+        source = tmp_path / name
+        source.write_bytes(payload.getvalue())
+        sources.append(source)
+
+    output = tmp_path / "lineage.parquet"
+    report = write_votable_files_parquet(
+        sources,
+        output,
+        member_lineage_field="query_response_member",
+    )
+    assert report["member_lineage_field"] == "query_response_member"
+    with duckdb.connect() as con:
+        assert con.execute(
+            f"select source_id, query_response_member from read_parquet('{output}') "
+            "order by source_id"
+        ).fetchall() == [(11, "0001_alpha.vot"), (22, "0002_beta.vot")]
