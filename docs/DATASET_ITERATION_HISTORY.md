@@ -3578,6 +3578,23 @@ Representative commits:
   all fourteen canonical Parquet products. Failed staging directories are now
   removed automatically.
 
+### 135) Build Performance Is Part of Reproducibility
+
+- E7 now has a pinned, fail-closed stage graph and timing runner rather than
+  relying on terminal timestamps. Every executed stage retains its exact
+  command, wall and CPU time, peak RSS, filesystem I/O, logs, artifact bytes,
+  configuration hash, repository state, and expected build identity.
+- Verification mode never reports a skipped compiler as free work. It labels a
+  pre-existing artifact as attested reuse and requires its independent verifier
+  to pass. Full compiler execution is an explicit mode and remains required for
+  end-to-end closeout.
+- The first storage-reading verification pass took 45.42 seconds; an immediate
+  hot-cache pass took 16.54 seconds. The difference is retained as cache-state
+  evidence and is not represented as a code optimization.
+- Deployment, remote mutation, Git push, and promotion commands are prohibited
+  in the timing graph. Promotion and rollback will receive dedicated measured
+  operator steps only after the clean authoritative runtime entrypoint passes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

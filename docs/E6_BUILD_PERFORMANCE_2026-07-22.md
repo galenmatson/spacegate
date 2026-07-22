@@ -616,6 +616,46 @@ critical-path target. Two failed attempts are recorded separately: one SQL parse
 failure at 10.00 seconds and one invariant failure at 10.95 seconds. Both removed
 their incomplete staging data.
 
+## E7 Timed Pipeline Checkpoint
+
+The E7 timing harness is checked in as
+`config/evidence_lake/e7_timed_pipeline.json` and
+`scripts/run_e7_timed_pipeline.py`. It treats compiler reuse and verifier work
+as separate rows, validates every reported build ID against the accepted pin,
+and preserves per-stage GNU-time, stdout, and stderr logs under
+`/mnt/space/spacegate/e7-build-runs`. Atomic machine summaries live under
+`/data/spacegate/state/reports/evidence_lake_v2/e7_build_runs`.
+
+The first verification-only pass after implementing the runner is a
+storage-reading baseline, not a controlled cold-cache benchmark:
+
+| Stage | Wall s | CPU s | Peak RSS | Filesystem input blocks |
+|---|---:|---:|---:|---:|
+| Clean science verification | 29.95 | 23.03 | 571 MiB | 29,014,128 |
+| Clean foundation verification | 14.76 | 40.25 | 2,201 MiB | 13,558,440 |
+| Clean clusters verification | 0.34 | 2.42 | 158 MiB | 0 |
+| Clean extended-object verification | 0.16 | 0.21 | 90 MiB | 0 |
+| Clean WISE verification | 0.12 | 0.14 | 77 MiB | 0 |
+| Completion preflight and closeout | 0.10 | 0.07 | 23 MiB | 0 |
+| **Measured total** | **45.42** | **66.12** | **2,201 MiB max** | **42,572,568** |
+
+An immediate hot-cache pass took 16.54 seconds and reported zero filesystem
+input blocks. Clean science took 10.03 seconds and clean foundation 5.79; all
+other stages remained below 0.34 seconds. The hot pass is 28.9 seconds faster,
+but no optimization is claimed because the commands and scientific artifacts
+are identical and only cache state changed.
+
+The accepted clean artifact products represented by this verification total
+approximately 25.2 GiB before filesystem allocation overhead. The runner does
+not yet close the end-to-end gate: full compiler execution, the clean runtime
+composer, shadow/public products, local promotion, container restart and smoke,
+rollback, and re-promotion still require measured rows. Existing measurements
+continue to rank E5 selected facts (about 24.8 minutes), clean selected science
+(190.81 seconds), clean foundation (68.23), and selected system placement
+(63.24) ahead of the small clean-domain compilers. Optimization work should
+therefore begin with E5 reusable intermediates and redundant immutable export
+and hashing passes, subject to unchanged logical hashes and coverage.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

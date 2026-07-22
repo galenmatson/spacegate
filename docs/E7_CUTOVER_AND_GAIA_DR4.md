@@ -120,6 +120,29 @@ The measured optimization order is:
 Every accepted optimization requires unchanged scientific logical hashes,
 coverage/accounting reports, and a measured before/after row.
 
+The checked-in `config/evidence_lake/e7_timed_pipeline.json` and
+`scripts/run_e7_timed_pipeline.py` now provide the E7 timing harness. The
+default `--mode verify` skips compilers only when their pinned manifests are
+present, runs the independent verifier for every clean domain, validates the
+reported build ID and scientific status, and labels the compiler row as
+attested reuse rather than zero-cost work. `--mode full` is explicit because it
+may rerun expensive compilers. The runner records command, repository state,
+configuration hash, wall and CPU time, peak RSS, filesystem input/output,
+declared product bytes, stdout/stderr, and GNU-time output for each stage. It
+writes the aggregate report atomically after every stage and refuses concurrent
+runs, deployment, remote mutation, Git push, and promotion commands.
+
+The first storage-reading verification pass took 45.43 seconds for measured
+stages and read 42,572,568 filesystem blocks. It is not called a cold-cache run
+because the kernel cache was not deliberately flushed. Clean-science
+verification led at 29.95 seconds; clean-foundation verification took 14.76
+seconds. The immediate hot-cache pass took 16.54 seconds with zero filesystem
+input blocks: 10.03 seconds for clean science and 5.79 seconds for clean
+foundation. Both pass all pinned build-ID and scientific-status gates. This
+28.9-second spread is cache state, not a code speedup. The end-to-end timing
+gate remains open until full compiler, shadow, public-product, promotion,
+rollback, and re-promotion rows are recorded.
+
 The first E7 clean-compiler optimization is accepted for selected system
 placements. Baseline build `9ccc087defca7aebc5b77d6a` took 103.10 seconds and
 peaked at 26.16 GiB. Reading deterministic per-quantity Parquet projections and

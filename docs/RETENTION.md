@@ -48,6 +48,16 @@ Keep the served build's directory during normal operation; directories for
 build IDs no longer retained in `out/` or referenced by `served/` may be pruned
 as a separate cache cleanup after promotion verification.
 
+E7 timed-pipeline logs live under
+`/mnt/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries
+live under
+`$SPACEGATE_STATE_DIR/reports/evidence_lake_v2/e7_build_runs/<run_id>.json`.
+Retain runs cited by the canonical performance report, the accepted promotion,
+rollback, or an optimization comparison. Uncited failed-development and
+superseded hot-cache runs are regenerable diagnostics, but remove them only by
+an explicit enumerated retention dry-run. They are not raw science inputs and
+must never be copied into served build artifacts.
+
 ## Default Policy
 
 - Keep the currently served build (`served/current`) regardless of age.

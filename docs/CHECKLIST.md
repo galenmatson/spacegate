@@ -1761,6 +1761,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   bytes, cache state, and named phase timings for every compiler, verifier,
   shadow build, promotion, rollback, and re-promotion step; rank the critical
   path and preserve before/after evidence for accepted or rejected speedups
+- [x] E7 build-time instrumentation checkpoint: add a fail-closed pinned stage
+  graph and runner with per-stage GNU-time logs, atomic machine reports,
+  concurrent-run exclusion, explicit warm/cold artifact state, and deployment
+  and promotion command rejection; validate the accepted clean artifacts in
+  verification-only mode before running the full compiler path
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
