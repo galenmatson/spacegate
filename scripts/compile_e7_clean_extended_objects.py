@@ -178,6 +178,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "promote_unselected_cluster_distance": False,
         "promote_selected_cluster_distance": True,
         "promote_associated_star_distance_without_selected_binding": False,
+        "promote_associated_star_distance_with_selected_binding": True,
     }
     if policy.get("rules") != expected:
         raise ValueError("unsafe clean extended-object rules")
@@ -190,6 +191,8 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
     seed = state / "derived/evidence_lake_v2/extended_identity_seed" / policy["identity_seed"]["seed_id"]
     selected = state / "derived/evidence_lake_v2/selected_extended_objects" / policy["selected_extended_objects"]["build_id"]
     clusters = state / "derived/evidence_lake_v2/clean_clusters" / policy["clean_clusters"]["build_id"]
+    vocabulary = state / "derived/evidence_lake_v2/permanent_identity_vocabulary" / policy["permanent_identity_vocabulary"]["build_id"]
+    placements = state / "derived/evidence_lake_v2/selected_system_placements" / policy["selected_system_placements"]["build_id"]
     paths = {
         "seed_manifest": seed / "manifest.json",
         "nodes": seed / "extended_identity_nodes.parquet",
@@ -203,6 +206,10 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
         "cluster_manifest": clusters / "manifest.json",
         "cluster_bindings": clusters / "parquet/cluster_identity_bindings.parquet",
         "cluster_evidence": clusters / "parquet/cluster_evidence_projection.parquet",
+        "vocabulary_manifest": vocabulary / "manifest.json",
+        "identity_aliases": vocabulary / "aliases.parquet",
+        "placement_manifest": placements / "manifest.json",
+        "system_placements": placements / "selected_system_placements.parquet",
     }
     for path in paths.values():
         if not path.is_file():
@@ -215,6 +222,10 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
         "cluster_manifest": policy["clean_clusters"]["manifest_sha256"],
         "cluster_bindings": policy["clean_clusters"]["bindings_sha256"],
         "cluster_evidence": policy["clean_clusters"]["evidence_sha256"],
+        "vocabulary_manifest": policy["permanent_identity_vocabulary"]["manifest_sha256"],
+        "identity_aliases": policy["permanent_identity_vocabulary"]["aliases_sha256"],
+        "placement_manifest": policy["selected_system_placements"]["manifest_sha256"],
+        "system_placements": policy["selected_system_placements"]["placements_sha256"],
     }
     for key, digest in expected.items():
         if file_hash(paths[key]) != digest:
@@ -358,6 +369,99 @@ def append_cluster_geometry_candidates(
     return len(output)
 
 
+def build_relation_claims(
+    con: duckdb.DuckDBPyConnection, policy: dict[str, Any],
+) -> int:
+    con.execute(
+        """
+        CREATE TABLE extended_object_relation_claims(
+          relation_claim_id BIGINT,extended_object_id BIGINT,stable_object_key VARCHAR,
+          evidence_id VARCHAR,source_record_id VARCHAR,source_id VARCHAR,release_id VARCHAR,
+          source_table VARCHAR,source_record_key VARCHAR,relation_kind VARCHAR,
+          target_namespace VARCHAR,target_value_raw VARCHAR,target_value_norm VARCHAR,
+          source_claim_status VARCHAR,claim_expansion_method VARCHAR,reference_raw VARCHAR,
+          method VARCHAR,normalization_version VARCHAR
+        )
+        """
+    )
+    supported = set(policy["relation_policy"]["supported_sources"])
+    rows = con.execute(
+        """
+        SELECT canonical_extended_object_id,canonical_stable_object_key,evidence_id,
+               source_record_id,source_id,release_id,source_table,source_record_key,
+               parameter_set_raw,reference_raw,method,normalization_version
+        FROM selected_evidence
+        WHERE projection_status='eligible_for_extended_quantity_selection'
+          AND canonical_extended_object_id IS NOT NULL
+          AND source_table IN ('magakian_2003','vdb_vii_21')
+        ORDER BY source_table,source_record_key,evidence_id
+        """
+    ).fetchall()
+    output: list[tuple[Any, ...]] = []
+    maximum_expansion = int(policy["relation_policy"]["maximum_hd_range_expansion"])
+    for row in rows:
+        source_table = str(row[6])
+        if source_table not in supported:
+            raise ValueError(f"unsupported relation source: {source_table}")
+        parameters = json.loads(str(row[8])) if row[8] is not None else {}
+        if source_table == "magakian_2003":
+            raw = str(parameters.get("HD") or "").strip()
+        else:
+            raw = (
+                str(parameters.get("HD") or "").strip()
+                + str(parameters.get("HD2") or "").strip()
+            )
+        if not raw:
+            continue
+        matches = list(re.finditer(r"(?<!\d)(\d{3,6})(?:-(\d{1,6}))?", raw))
+        expanded: list[int] = []
+        invalid_range = False
+        for match in matches:
+            start = int(match.group(1))
+            end = start
+            if match.group(2):
+                suffix = match.group(2)
+                end = (
+                    int(str(start)[:-len(suffix)] + suffix)
+                    if len(suffix) < len(str(start)) else int(suffix)
+                )
+            if end < start or end - start > maximum_expansion:
+                invalid_range = True
+                continue
+            expanded.extend(range(start, end + 1))
+        if not expanded:
+            output.append((
+                len(output) + 1,row[0],row[1],row[2],row[3],row[4],row[5],row[6],
+                row[7],"illuminated_by","hd",raw,None,
+                "excluded_invalid_range" if invalid_range else "excluded_source_null_marker",
+                "hd_range_expansion_v1",row[9],row[10],row[11],
+            ))
+            continue
+        status = "source_uncertain" if "?" in raw else "candidate"
+        for hd_id in sorted(set(expanded)):
+            output.append((
+                len(output) + 1,row[0],row[1],row[2],row[3],row[4],row[5],row[6],
+                row[7],"illuminated_by","hd",raw,f"hd {hd_id}",status,
+                "hd_range_expansion_v1",row[9],row[10],row[11],
+            ))
+    columns = [
+        "relation_claim_id","extended_object_id","stable_object_key","evidence_id",
+        "source_record_id","source_id","release_id","source_table",
+        "source_record_key","relation_kind","target_namespace","target_value_raw",
+        "target_value_norm","source_claim_status","claim_expansion_method",
+        "reference_raw","method","normalization_version",
+    ]
+    batch = pa.Table.from_pydict(
+        {name: [row[index] for row in output] for index, name in enumerate(columns)}
+    )
+    con.register("relation_claim_batch", batch)
+    try:
+        con.execute("INSERT INTO extended_object_relation_claims SELECT * FROM relation_claim_batch")
+    finally:
+        con.unregister("relation_claim_batch")
+    return len(output)
+
+
 def compile_extended(
     policy_path: Path, state: Path, output_root: Path, *, link_into_state: bool,
 ) -> dict[str, Any]:
@@ -389,6 +493,7 @@ def compile_extended(
     parquet = staging / "parquet"
     parquet.mkdir()
     con = duckdb.connect(str(db), config={"threads": "4", "memory_limit": "4GB"})
+    compile_succeeded = False
     try:
         phase_started = time.monotonic()
         phase_cpu_started = time.process_time()
@@ -398,11 +503,14 @@ def compile_extended(
         con.execute(f"CREATE VIEW selected_evidence AS SELECT * FROM read_parquet({sql_literal(paths['evidence'])})")
         con.execute(f"CREATE VIEW cluster_bindings AS SELECT * FROM read_parquet({sql_literal(paths['cluster_bindings'])})")
         con.execute(f"CREATE VIEW cluster_evidence AS SELECT * FROM read_parquet({sql_literal(paths['cluster_evidence'])})")
+        con.execute(f"CREATE VIEW identity_aliases AS SELECT * FROM read_parquet({sql_literal(paths['identity_aliases'])})")
+        con.execute(f"CREATE VIEW system_placements AS SELECT * FROM read_parquet({sql_literal(paths['system_placements'])})")
         candidate_count = build_candidates(con, policy)
         cluster_candidate_count = append_cluster_geometry_candidates(
             con, policy, starting_id=candidate_count,
         )
         candidate_count += cluster_candidate_count
+        relation_claim_count = build_relation_claims(con, policy)
         phase_timings.append({
             "phase": "load_inputs_and_compile_geometry_candidates",
             "wall_seconds": round(time.monotonic() - phase_started, 6),
@@ -421,6 +529,91 @@ def compile_extended(
                 source_record_key,evidence_id) choice
               FROM extended_object_geometry_candidates
             ) WHERE choice=1 ORDER BY extended_object_id;
+
+            CREATE TABLE extended_object_relation_bindings AS
+            WITH endpoint_summary AS (
+              SELECT c.relation_claim_id,c.extended_object_id,c.stable_object_key,
+                     c.evidence_id,c.source_record_id,c.source_id,c.release_id,
+                     c.source_table,c.source_record_key,c.relation_kind,
+                     c.target_namespace,c.target_value_raw,c.target_value_norm,
+                     c.source_claim_status,c.claim_expansion_method,c.reference_raw,
+                     count(DISTINCT a.stable_object_key) target_star_count,
+                     count(DISTINCT a.system_stable_object_key) target_system_count,
+                     CASE WHEN count(DISTINCT a.stable_object_key)=1
+                       THEN min(a.stable_object_key) END target_star_stable_object_key,
+                     CASE WHEN count(DISTINCT a.system_stable_object_key)=1
+                       THEN min(a.system_stable_object_key) END target_system_stable_object_key,
+                     coalesce(to_json(list(DISTINCT a.stable_object_key ORDER BY a.stable_object_key)
+                       FILTER (WHERE a.stable_object_key IS NOT NULL)),'[]') target_star_candidates_json,
+                     coalesce(to_json(list(DISTINCT a.system_stable_object_key ORDER BY a.system_stable_object_key)
+                       FILTER (WHERE a.system_stable_object_key IS NOT NULL)),'[]') target_system_candidates_json
+              FROM extended_object_relation_claims c
+              LEFT JOIN identity_aliases a
+                ON c.target_value_norm=a.alias_norm
+               AND a.target_type='star' AND a.alias_kind='hd_id'
+              GROUP BY c.relation_claim_id,c.extended_object_id,c.stable_object_key,
+                       c.evidence_id,c.source_record_id,c.source_id,c.release_id,
+                       c.source_table,c.source_record_key,c.relation_kind,
+                       c.target_namespace,c.target_value_raw,c.target_value_norm,
+                       c.source_claim_status,c.claim_expansion_method,c.reference_raw
+            )
+            SELECT sha256(concat_ws('|',relation_claim_id::VARCHAR,
+                     coalesce(target_value_norm,'missing'),{sql_literal(policy['policy_version'])})) relation_binding_id,
+                   *,CASE WHEN source_claim_status LIKE 'excluded_%' THEN source_claim_status
+                          WHEN source_claim_status='source_uncertain' THEN 'excluded_source_uncertain'
+                          WHEN target_system_count=0 THEN 'missing'
+                          WHEN target_system_count>1 THEN 'ambiguous'
+                          ELSE 'accepted' END binding_status,
+                   CASE WHEN source_claim_status LIKE 'excluded_%' THEN 'source field is not an actionable HD relation claim'
+                          WHEN source_claim_status='source_uncertain' THEN 'source marks the HD relation uncertain'
+                          WHEN target_system_count=0 THEN 'HD claim has no clean permanent identity endpoint'
+                          WHEN target_system_count>1 THEN 'HD claim resolves to multiple canonical systems'
+                          WHEN target_star_count=1 THEN 'HD claim resolves to one canonical star and system'
+                          ELSE 'HD claim resolves to one canonical system with component scope retained as ambiguous' END binding_reason,
+                   {sql_literal(policy['policy_version'])} policy_version
+            FROM endpoint_summary ORDER BY relation_claim_id;
+
+            CREATE TABLE extended_object_relation_distance_candidates AS
+            SELECT row_number() OVER(ORDER BY b.extended_object_id,b.target_system_stable_object_key)::BIGINT
+                     relation_distance_candidate_id,
+                   b.extended_object_id,b.stable_object_key,
+                   b.target_system_stable_object_key,
+                   p.representative_object_key,p.distance_pc,p.dist_ly,
+                   p.placement_source,p.placement_method,p.policy_version placement_policy_version,
+                   count(*) relation_claim_count,
+                   to_json(list(b.relation_claim_id ORDER BY b.relation_claim_id)) relation_claim_ids_json,
+                   to_json(list(b.relation_binding_id ORDER BY b.relation_claim_id)) relation_binding_ids_json,
+                   to_json(list(b.evidence_id ORDER BY b.relation_claim_id)) relation_evidence_ids_json
+            FROM extended_object_relation_bindings b
+            JOIN system_placements p
+              ON p.system_stable_object_key=b.target_system_stable_object_key
+             AND p.placement_status='selected' AND p.distance_pc IS NOT NULL
+            WHERE b.binding_status='accepted'
+            GROUP BY b.extended_object_id,b.stable_object_key,b.target_system_stable_object_key,
+                     p.representative_object_key,p.distance_pc,p.dist_ly,
+                     p.placement_source,p.placement_method,p.policy_version
+            ORDER BY b.extended_object_id,b.target_system_stable_object_key;
+
+            CREATE TABLE selected_extended_object_relation_distance AS
+            WITH grouped AS (
+              SELECT extended_object_id,min(stable_object_key) stable_object_key,
+                     count(*) target_system_count,median(distance_pc) dist_pc,
+                     min(distance_pc) distance_low_pc,max(distance_pc) distance_high_pc,
+                     (max(distance_pc)-min(distance_pc))/median(distance_pc) distance_spread_fraction,
+                     sum(relation_claim_count)::BIGINT relation_claim_count,
+                     to_json(list(relation_distance_candidate_id ORDER BY relation_distance_candidate_id))
+                       relation_distance_candidate_ids_json,
+                     to_json(list(target_system_stable_object_key ORDER BY target_system_stable_object_key))
+                       target_system_keys_json
+              FROM extended_object_relation_distance_candidates GROUP BY extended_object_id
+            )
+            SELECT *,CASE WHEN target_system_count=1 THEN 'associated_system_selected_placement_v1'
+                          ELSE 'coherent_associated_system_median_v1' END AS method,
+                   'accepted_relation_selected_placement' AS distance_confidence,
+                   CASE WHEN target_system_count=1 OR distance_spread_fraction<={float(policy['relation_policy']['maximum_coherent_distance_spread_fraction'])}
+                        THEN 'selected' ELSE 'conflicting_system_distances' END AS selection_status,
+                   {sql_literal(policy['policy_version'])} AS policy_version
+            FROM grouped ORDER BY extended_object_id;
 
             CREATE TABLE extended_object_distance_candidates AS
             SELECT row_number() OVER(ORDER BY canonical_extended_object_id,authority_rank,evidence_id)::BIGINT
@@ -460,6 +653,30 @@ def compile_extended(
                   END IS NOT NULL
             ORDER BY extended_object_id,authority_rank,evidence_id;
 
+            INSERT INTO extended_object_distance_candidates
+            SELECT (SELECT coalesce(max(distance_candidate_id),0) FROM extended_object_distance_candidates)
+                     + row_number() OVER(ORDER BY extended_object_id),
+                   extended_object_id,stable_object_key,
+                   sha256(concat_ws('|','extended_relation_distance',extended_object_id::VARCHAR,
+                     relation_distance_candidate_ids_json,{sql_literal(policy['policy_version'])})),
+                   sha256(concat_ws('|','extended_relation_source',extended_object_id::VARCHAR,
+                     target_system_keys_json)),
+                   'derived.extended_object_relation',{sql_literal(policy['policy_version'])},
+                   'selected_extended_object_relation_distance',
+                   'accepted_relation_selected_system_placement',150,
+                   dist_pc,distance_low_pc,distance_high_pc,method,
+                   'selected_system_placement_projection','source_relation_and_selected_placement',
+                   json_object('target_system_count',target_system_count,
+                     'distance_spread_fraction',distance_spread_fraction,
+                     'relation_claim_count',relation_claim_count),
+                   distance_confidence,
+                   json_object('relation_distance_candidate_ids',relation_distance_candidate_ids_json,
+                     'target_system_keys',target_system_keys_json,
+                     'placement_build_id',{sql_literal(policy['selected_system_placements']['build_id'])}),
+                   {sql_literal(policy['compiler_version'])}
+            FROM selected_extended_object_relation_distance
+            WHERE selection_status='selected' ORDER BY extended_object_id;
+
             CREATE TABLE selected_extended_object_distance AS
             SELECT * EXCLUDE(choice) FROM (
               SELECT *,row_number() OVER(PARTITION BY extended_object_id ORDER BY
@@ -486,9 +703,11 @@ def compile_extended(
                    CASE WHEN n.object_family='galaxy' THEN 'extragalactic_sky'
                         WHEN n.object_type='globular_cluster' THEN 'deep_galactic'
                         WHEN d.dist_pc IS NULL THEN 'sky_only'
+                        WHEN g.ra_deg IS NULL OR g.dec_deg IS NULL THEN 'sky_only'
                         WHEN d.dist_pc*{LY_PER_PC}>{float(policy['local_3d_maximum_ly'])} THEN 'deep_galactic'
                         ELSE 'local_3d' END map_domain,
-                   CASE WHEN d.dist_pc IS NULL OR d.dist_pc*{LY_PER_PC}>{float(policy['local_3d_maximum_ly'])}
+                   CASE WHEN d.dist_pc IS NULL OR g.ra_deg IS NULL OR g.dec_deg IS NULL
+                          OR d.dist_pc*{LY_PER_PC}>{float(policy['local_3d_maximum_ly'])}
                           OR n.object_family='galaxy' OR n.object_type='globular_cluster' THEN NULL
                         WHEN d.dist_pc*{LY_PER_PC}<=100 THEN 100
                         WHEN d.dist_pc*{LY_PER_PC}<=250 THEN 250
@@ -554,11 +773,16 @@ def compile_extended(
             "selected_extended_object_geometry",
             "extended_object_distance_candidates",
             "selected_extended_object_distance",
+            "extended_object_relation_claims",
+            "extended_object_relation_bindings",
+            "extended_object_relation_distance_candidates",
+            "selected_extended_object_relation_distance",
         ]
         counts = {table: int(con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]) for table in tables}
         checks = {
             "identity_inventory_delta": counts["extended_objects"] - int(con.execute("SELECT count(*) FROM seed_nodes").fetchone()[0]),
             "geometry_candidate_delta": counts["extended_object_geometry_candidates"] - candidate_count,
+            "relation_claim_delta": counts["extended_object_relation_claims"] - relation_claim_count,
             "duplicate_object_ids": int(con.execute("SELECT count(*) FROM (SELECT extended_object_id FROM extended_objects GROUP BY 1 HAVING count(*)>1)").fetchone()[0]),
             "duplicate_stable_keys": int(con.execute("SELECT count(*) FROM (SELECT stable_object_key FROM extended_objects GROUP BY 1 HAVING count(*)>1)").fetchone()[0]),
             "orphan_geometry": int(con.execute("SELECT count(*) FROM extended_object_geometry_candidates g LEFT JOIN extended_objects o USING(extended_object_id) WHERE o.extended_object_id IS NULL").fetchone()[0]),
@@ -569,6 +793,9 @@ def compile_extended(
             "local_3d_missing_cartesian": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND (x_helio_ly IS NULL OR y_helio_ly IS NULL OR z_helio_ly IS NULL)").fetchone()[0]),
             "cartesian_norm_mismatch": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND abs(sqrt(x_helio_ly*x_helio_ly+y_helio_ly*y_helio_ly+z_helio_ly*z_helio_ly)-dist_ly)>greatest(1e-9,dist_ly*1e-12)").fetchone()[0]),
             "galaxy_family_wrong_map_domain": int(con.execute("SELECT count(*) FROM extended_objects WHERE object_family='galaxy' AND map_domain<>'extragalactic_sky'").fetchone()[0]),
+            "accepted_relation_without_system": int(con.execute("SELECT count(*) FROM extended_object_relation_bindings WHERE binding_status='accepted' AND target_system_stable_object_key IS NULL").fetchone()[0]),
+            "selected_relation_without_placement": int(con.execute("SELECT count(*) FROM selected_extended_object_relation_distance WHERE selection_status='selected' AND dist_pc IS NULL").fetchone()[0]),
+            "relation_distance_without_accepted_binding": int(con.execute("SELECT count(*) FROM extended_object_relation_distance_candidates c WHERE NOT EXISTS (SELECT 1 FROM extended_object_relation_bindings b WHERE b.extended_object_id=c.extended_object_id AND b.target_system_stable_object_key=c.target_system_stable_object_key AND b.binding_status='accepted')").fetchone()[0]),
             "stability_database_reads": 0,
         }
         if any(checks.values()):
@@ -585,8 +812,11 @@ def compile_extended(
             "wall_seconds": round(time.monotonic() - phase_started, 6),
             "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
         })
+        compile_succeeded = True
     finally:
         con.close()
+        if not compile_succeeded:
+            shutil.rmtree(staging, ignore_errors=True)
     phase_started = time.monotonic()
     phase_cpu_started = time.process_time()
     products = {}
@@ -610,6 +840,8 @@ def compile_extended(
         "inputs": {
             "selected_extended_objects_build_id": policy["selected_extended_objects"]["build_id"],
             "clean_clusters_build_id": policy["clean_clusters"]["build_id"],
+            "permanent_identity_vocabulary_build_id": policy["permanent_identity_vocabulary"]["build_id"],
+            "selected_system_placements_build_id": policy["selected_system_placements"]["build_id"],
         },
         "counts": counts, "verification": checks, "products": products,
         "timing": {

@@ -960,7 +960,7 @@ Supporting tables are `extended_object_aliases`,
 `extended_object_identity_quarantine`. Every targeted source record must have an
 explicit reconciliation outcome and reason. See `docs/EXTENDED_OBJECTS.md`.
 
-Clean candidate build `95f5f1ff8f2ddee405b39104` additionally preserves
+Clean candidate build `c203e4f451890660ec02086a` additionally preserves
 `extended_object_geometry_candidates` and
 `extended_object_distance_candidates`, with one deterministic winner per object
 in `selected_extended_object_geometry` and
@@ -968,6 +968,14 @@ in `selected_extended_object_geometry` and
 release-scoped cluster identity and eligible quantity evidence; relation-derived
 associated-star placement requires a separate accepted relation binding. These
 tables are not yet the served CORE projection.
+
+Relation provenance remains inspectable in
+`extended_object_relation_claims`, `extended_object_relation_bindings`,
+`extended_object_relation_distance_candidates`, and
+`selected_extended_object_relation_distance`. An HD claim may resolve to a
+system while component scope remains ambiguous. Multiple illuminating systems
+produce a distance only when their selected placements satisfy the versioned
+coherence tolerance.
 
 ## QC Requirements
 

@@ -3553,6 +3553,31 @@ Representative commits:
   batching source geometry; this is documented for later optimization after
   the full E7 critical path is measured.
 
+### 134) Associated-Star Distance Is a Relation Selection Problem
+
+- Clean build `c203e4f451890660ec02086a` parses Magakian and van den Bergh HD
+  fields into 849 inspectable relation claims. It retains 467 source null
+  markers, excludes three source-marked uncertain claims, records 284 missing
+  endpoint outcomes, and accepts 95 claims through the permanent identity
+  vocabulary. No claim binds by display name.
+- Accepted relations join only to the pinned selected-system placement artifact.
+  Fifty-eight objects resolve to one target system. IC 4601a has two independent
+  illuminating systems whose distances agree within the versioned 5% coherence
+  tolerance, so its selected relation distance is their median. Conflicting
+  multi-system placements would remain unselected.
+- The compiler selects 59 relation distances, recovers 34 of 35 prior
+  associated-star distances, and adds 25 supported rows omitted by the old
+  parallax-quality shortcut. HD 97472 has no permanent identity endpoint and
+  remains the sole relation-distance identity tail; it receives no special-case
+  transform.
+- One selected distance lacks selected geometry and therefore remains
+  `sky_only`; distance alone cannot manufacture Cartesian placement. Galaxy
+  pairs, triplets, and groups are guarded at the family level so all remain in
+  `extragalactic_sky`.
+- V3 compiles in 10.75 wall seconds at 942 MiB peak RSS and exactly reproduces
+  all fourteen canonical Parquet products. Failed staging directories are now
+  removed automatically.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -2474,17 +2474,20 @@ Pre-promotion planning checkpoint (July 22, 2026):
   decisions. Its five Parquet products contain no geometry, coordinates, or
   distance and reproduce byte-for-byte; four more stability tables therefore
   move from clean-compiler blockers to verified permanent identity artifacts
-- clean extended-object build `95f5f1ff8f2ddee405b39104` consumes the identity
+- clean extended-object build `c203e4f451890660ec02086a` consumes the identity
   seed, accepted E5 geometry, and clean multi-release cluster selection. It
   preserves 20,160 geometry candidates, selects geometry for 18,271 objects,
-  and materializes 1,850 selected cluster distances from 1,906 candidates
-  without opening the stability database
+  and materializes 1,909 selected distances from 1,965 candidates: 1,850
+  cluster distances and 59 relation-bound selected-system placements, without
+  opening the stability database
 - scientific A/B preserves every identity and populated geometry row. The 374
   coordinate changes are all higher-priority accepted Hunt/Reffert or
-  Cantat-Gaudin cluster centers. Of 54 stability-only distances, 19 were
-  attached to ineligible non-cluster scopes and remain rejected; the remaining
-  35 associated-star distances require selected relation bindings. Search
-  identity for M 45, IC 4592, and LBN 1113 continues to pass
+  Cantat-Gaudin cluster centers. Of the original 54 stability-only distances,
+  19 were attached to ineligible non-cluster scopes and remain rejected. The
+  relation compiler recovers 34 of 35 prior associated-star distances and adds
+  25 defensible rows that the old parallax shortcut omitted. HD 97472 is the
+  sole remaining identity tail. Search identity for M 45, IC 4592, and LBN 1113
+  continues to pass
 - Cantat-Gaudin artifact `03a28284466d6821e8d5693e` now provides the clean
   lower-authority input for that cluster tail: 2,017 coherent source contexts,
   234,128 UPMASK membership claims, 470,273 release-scoped identifiers, and all

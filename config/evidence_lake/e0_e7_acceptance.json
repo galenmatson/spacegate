@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.12",
+  "contract_version": "2026-07-22.e0-e7-acceptance.13",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -232,22 +232,22 @@
     {
       "stage": "E7",
       "path": "e7_clean_extended_objects_build.json",
-      "expect": {"status": "pass", "build_id": "95f5f1ff8f2ddee405b39104", "stability_databases_opened": [], "identity_seed_scientific_authority": false}
+      "expect": {"status": "pass", "build_id": "c203e4f451890660ec02086a", "stability_databases_opened": [], "identity_seed_scientific_authority": false}
     },
     {
       "stage": "E7",
       "path": "e7_clean_extended_objects_verification.json",
-      "expect": {"status": "pass", "build_id": "95f5f1ff8f2ddee405b39104", "failing_checks": {}}
+      "expect": {"status": "pass", "build_id": "c203e4f451890660ec02086a", "failing_checks": {}}
     },
     {
       "stage": "E7",
       "path": "e7_clean_extended_objects_reproduction.json",
-      "expect": {"status": "pass", "build_id": "95f5f1ff8f2ddee405b39104", "scratch_removed": true, "failing_checks": []}
+      "expect": {"status": "pass", "build_id": "c203e4f451890660ec02086a", "scratch_removed": true, "failing_checks": []}
     },
     {
       "stage": "E7",
       "path": "e7_clean_extended_objects_ab.json",
-      "expect": {"status": "pass", "distance_cutover_status": "selected_cluster_complete_relation_tail_deferred", "failing_checks": []}
+      "expect": {"status": "pass", "distance_cutover_status": "selected_cluster_and_relation_complete_one_identity_tail_deferred", "failing_checks": []}
     },
     {
       "stage": "E7",
@@ -280,7 +280,7 @@
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
     "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
     "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json",
-    "derived/evidence_lake_v2/clean_extended_objects/95f5f1ff8f2ddee405b39104/manifest.json",
+    "derived/evidence_lake_v2/clean_extended_objects/c203e4f451890660ec02086a/manifest.json",
     "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b/manifest.json"
   ],
   "open_gates": [
@@ -288,7 +288,7 @@
       "gate_id": "clean_pinned_input_authoritative_entrypoint",
       "stage": "E7",
       "status": "open",
-      "reason": "Clean foundation 9c2d08086275ead386f71bf7, clean science 35eb29fa3b2a3ac518f5303a, clean WISE ec8e218402c3a4a3b55b2811, extended identity seed 555fa1890943b97dd0e4ef3d, and clean extended-object build 95f5f1ff8f2ddee405b39104 now replace permanent inventory/search/hierarchy, selected science, infrared evidence, extended identity, selected extended geometry, and selected cluster distance without stability science. Runtime compatibility consumers, associated-star relation distance, serving/search cutover, final CORE/DISC metadata, hierarchy leaves, animation/barycenter surfaces, and public products remain open."
+      "reason": "Clean foundation 9c2d08086275ead386f71bf7, clean science 35eb29fa3b2a3ac518f5303a, clean WISE ec8e218402c3a4a3b55b2811, extended identity seed 555fa1890943b97dd0e4ef3d, and clean extended-object build c203e4f451890660ec02086a now replace permanent inventory/search/hierarchy, selected science, infrared evidence, extended identity, selected extended geometry, cluster distance, and relation-bound distance without stability science. Runtime compatibility consumers, the HD 97472 identity tail, serving/search cutover, final CORE/DISC metadata, hierarchy leaves, animation/barycenter surfaces, and public products remain open."
     },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",

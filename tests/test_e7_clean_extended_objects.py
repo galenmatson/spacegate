@@ -25,11 +25,20 @@ def test_clean_extended_policy_is_fail_closed() -> None:
     assert value["rules"]["identity_seed_is_scientific_authority"] is False
     assert value["rules"]["promote_unselected_cluster_distance"] is False
     assert value["rules"]["promote_selected_cluster_distance"] is True
+    assert value["rules"]["promote_associated_star_distance_without_selected_binding"] is False
+    assert value["rules"]["promote_associated_star_distance_with_selected_binding"] is True
 
 
 def test_clean_extended_policy_rejects_unselected_distance() -> None:
     value = copy.deepcopy(policy())
     value["rules"]["promote_unselected_cluster_distance"] = True
+    with pytest.raises(ValueError, match="unsafe clean extended-object"):
+        compiler.validate_policy(value)
+
+
+def test_clean_extended_policy_rejects_unbound_relation_distance() -> None:
+    value = copy.deepcopy(policy())
+    value["rules"]["promote_associated_star_distance_without_selected_binding"] = True
     with pytest.raises(ValueError, match="unsafe clean extended-object"):
         compiler.validate_policy(value)
 

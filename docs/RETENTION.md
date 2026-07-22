@@ -1131,10 +1131,13 @@ artifacts. They contain no replaceable scientific geometry or distance, but
 must remain available to reproduce stable public IDs, aliases, reconciliation,
 and quarantine decisions through clean serving cutover and rollback.
 
-Clean extended-object build `95f5f1ff8f2ddee405b39104`, its selected E5 and
-clean-cluster inputs, ten Parquet products, and verification/A/B/reproduction
+Clean extended-object build `c203e4f451890660ec02086a`, its selected E5,
+clean-cluster, identity-vocabulary, and system-placement inputs, fourteen
+Parquet products, and verification/A/B/reproduction
 reports are protected unserved candidate artifacts. Its predecessor
-`a4b521d1e1de52e14afac0da` and rejected row-wise baseline
+`7136d500da80993c761ab4bb`, cluster-only predecessor
+`95f5f1ff8f2ddee405b39104`, earlier geometry-only build
+`a4b521d1e1de52e14afac0da`, and rejected row-wise baseline
 `c7c3a96578e8341ec83d6b05` are exact future retention candidates, not manual
 deletion targets; retain them until a dry-run proves the accepted replacement
 and all report references are accounted.

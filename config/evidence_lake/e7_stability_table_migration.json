@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.7",
+  "contract_version": "2026-07-22.e7-stability-table-migration.8",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -41,7 +41,7 @@
         {
           "group_id": "core.extended_object_search",
           "disposition": "verified_artifact_pending_consumer_cutover",
-          "replacement": "E7 clean extended-object build 95f5f1ff8f2ddee405b39104 deterministic search projection from permanent aliases and selected cluster geometry/distance; serving and associated-star relation-distance cutover remain open",
+          "replacement": "E7 clean extended-object build c203e4f451890660ec02086a deterministic search projection from permanent aliases, selected cluster geometry/distance, and relation-bound selected system placements; serving cutover and one HD 97472 identity tail remain open",
           "tables": ["extended_object_search_terms"]
         },
         {

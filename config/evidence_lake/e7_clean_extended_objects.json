@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_extended_objects_policy.v1",
-  "policy_version": "2026-07-22.e7-clean-extended.2",
-  "compiler_version": "e7_clean_extended_objects_compiler_v2",
+  "policy_version": "2026-07-22.e7-clean-extended.3",
+  "compiler_version": "e7_clean_extended_objects_compiler_v3",
   "rules": {
     "open_stability_databases": false,
     "identity_seed_is_scientific_authority": false,
@@ -9,7 +9,8 @@
     "preserve_missing_geometry_objects": true,
     "promote_unselected_cluster_distance": false,
     "promote_selected_cluster_distance": true,
-    "promote_associated_star_distance_without_selected_binding": false
+    "promote_associated_star_distance_without_selected_binding": false,
+    "promote_associated_star_distance_with_selected_binding": true
   },
   "identity_seed": {
     "seed_id": "555fa1890943b97dd0e4ef3d",
@@ -26,6 +27,21 @@
     "manifest_sha256": "287475f92614bb9d9ba2727bd20153a9eb81dd2170119d37a0f6b8bded13d2f5",
     "bindings_sha256": "285925b5624fe08a078a1040c4dd48ce2c686b1a3754dd7d23c5077b9d4ebe79",
     "evidence_sha256": "2f423e47b9765e7b9e6eeb894360bdca158613d3f0238572e5f65830c4e3927b"
+  },
+  "permanent_identity_vocabulary": {
+    "build_id": "6b4fb210e1b1bcf61299fe7f",
+    "manifest_sha256": "d8dd2cf86758fc9316b3612fc23d4214d594716badfb7c91dbf4407c96c3de31",
+    "aliases_sha256": "8004eb6d114d157783b229542d0e63d456981cfcf7249bb349956ff523225ac9"
+  },
+  "selected_system_placements": {
+    "build_id": "22e9a59dd02484454a629df7",
+    "manifest_sha256": "7503e7f4b52b243ad0bf89f9ce0b8425b2085bfba1f7742b59e101c070f9cde7",
+    "placements_sha256": "342eb2d6fd8bc36152a9ba425c2a7c8c226383994b859294ed9e765933b3b3d1"
+  },
+  "relation_policy": {
+    "supported_sources": ["magakian_2003", "vdb_vii_21"],
+    "maximum_hd_range_expansion": 25,
+    "maximum_coherent_distance_spread_fraction": 0.05
   },
   "source_priority": {
     "hunt_reffert_2024_clusters": -2,

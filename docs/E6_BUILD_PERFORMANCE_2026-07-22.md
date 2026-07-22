@@ -605,6 +605,17 @@ hashing 0.03 seconds. Exact reproduction takes about 9.9 seconds. The Python/Ast
 normalization phase is the local optimization target, but the end-to-end E7
 report must rank hour-scale stages before further work is justified here.
 
+Clean extended-object v3 build `c203e4f451890660ec02086a` adds permanent-HD
+endpoint resolution and selected-system placement joins. It takes 10.75 wall
+seconds, 11.56 CPU-seconds, and 942 MiB peak RSS, writing 34.6 MiB. Input hashing
+adds 0.51 seconds, geometry/claim batching 8.88 seconds, selection 1.04 seconds,
+export 0.24 seconds, and hashing 0.03 seconds. Exact reproduction takes 10.83
+seconds. The join raises peak RSS because it scans the permanent vocabulary and
+placement Parquet, but adds under one second to wall time; it is not a full-build
+critical-path target. Two failed attempts are recorded separately: one SQL parse
+failure at 10.00 seconds and one invariant failure at 10.95 seconds. Both removed
+their incomplete staging data.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

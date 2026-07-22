@@ -2100,21 +2100,24 @@ orphans or duplicate IDs/keys. A subsequent clean compiler must obtain extended
 object geometry and distance from the accepted E5 evidence projection, never
 from this migration seed or the stability database.
 
-Clean geometry/distance/search build `95f5f1ff8f2ddee405b39104` consumes that
+Clean geometry/distance/search build `c203e4f451890660ec02086a` consumes that
 seed, deterministic E5 extended-object evidence, and clean multi-release
 cluster selection. It preserves 20,160 geometry candidates, selects one
 geometry context for every identity (18,271 populated and six explicitly
-missing), and selects 1,850 cluster distances from 1,906 candidates without a
-stability read. M 45, IC 4592, and LBN 1113 search controls pass.
+missing), and selects 1,909 distances from 1,965 candidates without a stability
+read. These comprise 1,850 cluster distances and 59 relation-bound selected
+system placements. M 45, IC 4592, and LBN 1113 search controls pass.
 
 Scientific A/B preserves every identity and every populated geometry row. Its
 374 coordinate changes are exclusively accepted Hunt/Reffert or Cantat-Gaudin
-cluster centers replacing lower-authority generic catalog positions. Fifty-four
-stability distances are deliberately absent: 19 cluster-distance claims resolve
-only to ineligible non-cluster scopes, while 35 associated-star distances await
-accepted relation endpoints. Two current Hunt/Reffert distances fill previous
-nulls. This is selected evidence and explicit deferral, not copied stability
-science; serving cutover remains open.
+cluster centers replacing lower-authority generic catalog positions. Twenty
+stability distances remain deliberately absent: 19 cluster-distance claims resolve
+only to ineligible non-cluster scopes, and HD 97472 lacks a clean permanent
+identity endpoint. The relation compiler preserves 849 outcomes, accepts 95 HD
+bindings, selects 59 object distances, recovers 34 of 35 old relation distances,
+and adds 25 supported by clean selected-system placements. This is selected
+evidence and explicit deferral, not copied stability science; serving cutover
+remains open.
 
 The first corrective input is clean E4 artifact `03a28284466d6821e8d5693e`.
 It compiles the immutable Cantat-Gaudin release into 2,017 coherent cluster

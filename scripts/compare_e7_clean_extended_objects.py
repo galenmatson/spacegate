@@ -14,7 +14,7 @@ import duckdb
 
 DEFAULT_STATE = Path("/data/spacegate/state")
 DEFAULT_STABILITY = "20260717T0614Z_f452835_side"
-DEFAULT_CLEAN = "95f5f1ff8f2ddee405b39104"
+DEFAULT_CLEAN = "c203e4f451890660ec02086a"
 
 
 def sql_literal(value: Path) -> str:
@@ -42,6 +42,8 @@ def compare(stability: Path, clean: Path) -> dict[str, Any]:
             "stability_only_distance_rows": int(con.execute("SELECT count(*) FROM stability.extended_objects o JOIN clean.extended_objects n USING(extended_object_id) WHERE o.dist_pc IS NOT NULL AND n.dist_pc IS NULL").fetchone()[0]),
             "selected_distance_candidates": int(con.execute("SELECT count(*) FROM clean.extended_object_distance_candidates").fetchone()[0]),
             "selected_distance_rows": int(con.execute("SELECT count(*) FROM clean.selected_extended_object_distance").fetchone()[0]),
+            "selected_relation_distance_rows": int(con.execute("SELECT count(*) FROM clean.selected_extended_object_relation_distance WHERE selection_status='selected'").fetchone()[0]),
+            "accepted_relation_bindings": int(con.execute("SELECT count(*) FROM clean.extended_object_relation_bindings WHERE binding_status='accepted'").fetchone()[0]),
             "geometry_changes_without_selected_cluster_evidence": int(con.execute(
                 "SELECT count(*) FROM stability.extended_objects o JOIN clean.extended_objects n USING(extended_object_id) "
                 "WHERE o.ra_deg IS NOT NULL AND n.ra_deg IS NOT NULL "
@@ -78,11 +80,12 @@ def compare(stability: Path, clean: Path) -> dict[str, Any]:
             "geometry_changes_are_selected_cluster_evidence": metrics["geometry_changes_without_selected_cluster_evidence"] == 0,
             "no_unexplained_geometry_additions": metrics["clean_only_geometry_rows"] == 0,
             "geometry_inventory_complete": metrics["stability_only_geometry_rows"] == 0,
-            "selected_cluster_distances_materialized": metrics["clean_distance_rows"] == metrics["selected_distance_rows"] == 1850,
+            "selected_distances_materialized": metrics["clean_distance_rows"] == metrics["selected_distance_rows"] == 1909,
+            "selected_relation_distances_materialized": metrics["selected_relation_distance_rows"] == 59,
             "clean_distances_have_selected_evidence": metrics["clean_distances_without_selected_evidence"] == 0,
             "distance_tail_fully_accounted": sum(distance_tail.values()) == metrics["stability_only_distance_rows"],
             "distance_tail_is_invalid_scope_or_relation_deferred": distance_tail == {
-                "associated_star_gaia_dr3_v1": 35,
+                "associated_star_gaia_dr3_v1": 1,
                 "cantat_gaudin_2020_cluster_distance": 19,
             },
         }
@@ -94,7 +97,7 @@ def compare(stability: Path, clean: Path) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "status": "pass" if not failing else "fail",
         "geometry_cutover_status": "selected_cluster_evidence_complete",
-        "distance_cutover_status": "selected_cluster_complete_relation_tail_deferred",
+        "distance_cutover_status": "selected_cluster_and_relation_complete_one_identity_tail_deferred",
         "checks": checks, "failing_checks": failing, "metrics": metrics,
         "deferred_geometry_by_source": geometry_tail,
         "deferred_distance_by_method": distance_tail,

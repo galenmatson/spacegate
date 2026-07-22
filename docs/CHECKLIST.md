@@ -1746,10 +1746,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   cluster distances from 1,906 candidates, replace generic catalog positions
   only with accepted current/supplementary cluster centers, and retain 19
   ineligible-scope distance claims as rejected evidence in clean build
-  `95f5f1ff8f2ddee405b39104`
-- [ ] E7 associated-star extended-object distance completion: resolve the 35
-  remaining relation-derived distances through accepted relation endpoints;
-  do not copy stability distances or bind by display name
+  `c203e4f451890660ec02086a`
+- [x] E7 general associated-star distance compiler: preserve 849 source claim
+  outcomes, accept 95 HD-to-system bindings, combine only coherent multiple
+  illuminators, and select 59 relation-derived distances from clean system
+  placements without display-name matching or stability science
+- [ ] E7 extended relation identity tail: account HD 97472 through the normal
+  permanent identity recovery/adjudication path; do not add a named-object fix
 - [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
   process to retire only superseded unserved v5 shadow
   `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its

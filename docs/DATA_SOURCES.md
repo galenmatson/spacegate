@@ -1277,12 +1277,13 @@ Extended-object permanent identity is retained separately in seed
 identifiers, reconciliation outcomes, and quarantine only; source-native E4/E5
 evidence remains the required authority for geometry and distance.
 
-Clean build `95f5f1ff8f2ddee405b39104` selects geometry, cluster distance, and
+Clean build `c203e4f451890660ec02086a` selects geometry, cluster distance, and
 search from accepted E5 evidence plus clean multi-release cluster bindings. It
-retains 20,160 geometry and 1,906 distance candidates, selects 1,850 distances,
-and opens no stability database. Nineteen distance claims bound only to
-ineligible non-cluster scopes remain rejected; 35 associated-star distances
-remain deferred pending accepted relation endpoints. The artifact remains
+retains 20,160 geometry and 1,965 distance candidates, selects 1,909 distances,
+and opens no stability database. Its source-native HD relation projection
+preserves 849 outcomes and selects 59 distances through permanent identity and
+clean system placements. Nineteen ineligible non-cluster scope claims remain
+rejected and HD 97472 remains an explicit missing identity. The artifact remains
 unserved until consumer A/B and local promotion pass.
 
 Cantat-Gaudin is now an active supplementary E4 adapter rather than only a
