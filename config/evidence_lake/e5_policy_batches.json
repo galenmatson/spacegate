@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-22.e5-policy-batches.12",
-  "disposition_version": "2026-07-22.e5-source-dispositions.14",
+  "batch_version": "2026-07-22.e5-policy-batches.13",
+  "disposition_version": "2026-07-22.e5-source-dispositions.15",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -45,7 +45,6 @@
       "output_contract": "relation_endpoint_and_orbit_projection",
       "depends_on": ["identity_and_naming"],
       "sources": [
-        "gaia.dr3.non_single_star",
         "tess.villanova_eb"
       ],
       "completed_sources": [
@@ -55,7 +54,8 @@
         "multiplicity.orb6",
         "multiplicity.sb9",
         "multiplicity.sbx",
-        "multiplicity.wds"
+        "multiplicity.wds",
+        "gaia.dr3.non_single_star"
       ]
     },
     {

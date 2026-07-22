@@ -109,6 +109,10 @@ Evidence Lake v2 staging rule:
   `wds_pair_relation_bindings` applies the same documented pair parser directly
   to every WDS summary row; WDS classification, photometry, and astrometry
   projections remain contextual even when an exact MSC relation resolves.
+  `gaia_nss_solution_bindings` targets the exact canonical Gaia observation
+  source while `gaia_nss_orbital_solution_projection` retains each coherent fit
+  as context with `relation_adjudication_required=true`; it cannot emit a
+  component, relation, containment edge, selected scalar, or simulation orbit.
   It is an E6 compiler input, not an
   independently served or canonical database.
 - `evidence_object_bindings` contains exactly one outcome per eligible evidence
@@ -363,6 +367,11 @@ Evidence Lake v2 staging rule:
   set, correlation vector, fit diagnostics, frame, and reference stay together
   in one coherent solution row. Later adjudication may bind a solution to a
   reviewed relation; E4 does not manufacture companions or containment.
+- E5 may bind that coherent solution to the exact canonical Gaia observation
+  target and its containing system, but this is scope context rather than a
+  physical-binary endpoint. The full solution remains indivisible, carries no
+  `relation_claim_id`, and requires later relation adjudication before any
+  orbital parameter can drive a hierarchy or simulation.
 - SBX uses the same general contracts with source-native `primary`/`secondary`
   component endpoints and separate `child_subsystem`/`parent_subsystem`
   hierarchy endpoints. Only configuration rows with an asserted parent emit a

@@ -857,10 +857,11 @@ ordered Parquet files, manifest, independent audit, and clean-reproduction
 report. Never prune a DuckDB inspection database or individual Parquet member
 from a retained artifact.
 
-Artifact `33f2a90275378a35be21a704` is the protected checkpoint. It passes
-independent audit and clean reproduction across the combined six-source
-component artifact, including exhaustive SBX and WDS projections. Its
-predecessors `079ac01403b8971e12c99228`, `7ae9b19a56212bfdc4f44d3b`,
+Artifact `9e59131b92205068f7246a94` is the protected checkpoint. It passes
+independent audit and clean reproduction across the combined seven-source
+component artifact, including exhaustive SBX, WDS, and Gaia NSS projections.
+Its predecessors `33f2a90275378a35be21a704`,
+`079ac01403b8971e12c99228`, `7ae9b19a56212bfdc4f44d3b`,
 `bbc7f0083646dfd5a602467b`,
 `6def85dff374034cfe125b6b`, and `1dddf975f24d9bba9590d046` predate the WDS,
 SBX, full MSC, or ORB6 projections and are no longer ledger-current. Earlier

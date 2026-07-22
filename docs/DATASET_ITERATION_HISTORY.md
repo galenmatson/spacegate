@@ -2888,6 +2888,23 @@ Representative commits:
   magnitude rows, and 1,779,163 astrometry/history rows in 18.9 wall seconds,
   38.0 CPU-seconds, and 4.78 GiB peak RSS.
 
+### 101) Gaia NSS Fits Are Not Component Identities
+
+- Component policy v7 accounts all 87,075 coherent Gaia NSS source/model
+  solutions for 84,572 Gaia sources. Exact DR3 identity anchors 56,617 solution
+  rows on 54,794 current canonical observation targets; 30,458 rows for 29,778
+  sources remain outside the current reference, with zero ambiguous bindings.
+- Each accepted solution preserves its source model, complete fitted
+  parameter/error set, correlation vector, diagnostics, frame, and reference as
+  one context. Multiple models for one Gaia source remain distinct.
+- NSS has no inspectable physical-component endpoints. All 87,075 relation
+  claims therefore remain null and every solution is marked for relation
+  adjudication. No companion, containment edge, canonical relation, selected
+  scalar, or simulation-ready orbit is manufactured.
+- Combined artifact `9e59131b92205068f7246a94` passes independent audit. The
+  seven-source component build takes 23.0 wall seconds, 45.5 CPU-seconds, and
+  5.27 GiB peak RSS before clean reproduction.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-22.e5-component-scope.6",
-  "compiler_version": "selected_component_evidence_compiler_v6",
+  "policy_version": "2026-07-22.e5-component-scope.7",
+  "compiler_version": "selected_component_evidence_compiler_v7",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -224,6 +224,30 @@
       "expected_photometry_context_only": 10388,
       "expected_astrometry_evidence": 1779163,
       "expected_astrometry_context_only": 57572
+    }
+  },
+  "gaia_nss": {
+    "source_id": "gaia.dr3.non_single_star",
+    "release_id": "gaia_dr3_1250ly_nss_v2",
+    "evidence_build_id": "1881e02d8e9f1d33a1d9b64a",
+    "binding_method": "exact_release_scoped_gaia_dr3_observation_target",
+    "binding_semantics": "Bind the exact Gaia DR3 source identifier to its canonical Gaia object and system. The NSS source does not expose inspectable physical component endpoints, so no relation, companion, containment, or simulation orbit may be created from the fitted solution alone.",
+    "solution_authority": "gaia_dr3_coherent_nss_fitted_solution_context",
+    "solution_semantics": "Preserve the complete source-native model, fitted parameter/error set, correlation vector, diagnostics, frame, and reference as one coherent observation-target solution. Every accepted solution remains context requiring relation adjudication and is not eligible for scalar quantity or orbit-edge selection.",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_solution_bindings": 87075,
+      "expected_solutions_accepted": 56617,
+      "expected_solutions_missing_canonical": 30458,
+      "expected_solutions_ambiguous_canonical": 0,
+      "expected_solutions_missing_source_identifier": 0,
+      "expected_solutions_ambiguous_source_identifier": 0,
+      "expected_canonical_sources_accepted": 54794,
+      "expected_canonical_sources_missing": 29778,
+      "expected_orbital_solutions": 87075,
+      "expected_orbital_solutions_context_only": 56617,
+      "expected_orbital_solutions_selectable": 0,
+      "expected_solutions_without_relation_claim": 87075
     }
   }
 }

@@ -2007,7 +2007,7 @@ Foundation checkpoint (July 21, 2026):
   endpoints, including 95,045 `R_chance_align < 0.1` high-confidence evidence
   rows and 3,043 shifted-sky negative controls. Independent audit and clean
   reproduction pass with identical Parquet hashes in about 15 seconds
-- component-scope artifact `33f2a90275378a35be21a704` anchors 24,671 of
+- component-scope artifact `9e59131b92205068f7246a94` anchors 24,671 of
   32,790 release-scoped MSC component identities to 5,369 exact canonical WDS
   systems, retains 8,119 missing components and three invalid source
   self-relations, and creates no canonical star or containment assertion
@@ -2047,8 +2047,17 @@ Foundation checkpoint (July 21, 2026):
   5,282 pairs, retains 152,016 missing and one ambiguous relation, and keeps all
   73,779 spectral strings, 312,727 unspecified-band magnitudes, and 1,779,163
   astrometry/history rows contextual rather than inventing component facts.
-  Combined artifact `33f2a90275378a35be21a704` independently audits and
+  WDS checkpoint `33f2a90275378a35be21a704` independently audits and
   reproduces in 18.9 seconds wall time with about 4.78 GiB peak RSS
+- component policy v7 accounts 87,075 coherent Gaia NSS source/model
+  solutions. Exact DR3 identity anchors 56,617 rows on 54,794 canonical Gaia
+  observation targets; 30,458 rows remain outside the current reference. All
+  solutions retain their complete fitted parameter/error sets, correlations,
+  diagnostics, frame, and references as context requiring relation
+  adjudication. None creates a companion, relation, containment edge, selected
+  scalar, or simulation orbit. Combined artifact
+  `9e59131b92205068f7246a94` independently audits and reproduces in about 23
+  seconds wall time with about 5.27 GiB peak RSS
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

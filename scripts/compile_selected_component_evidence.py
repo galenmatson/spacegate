@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds"):
+    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -240,6 +240,17 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           primary_source_component_key VARCHAR, secondary_source_component_key VARCHAR,
           canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
           binding_method VARCHAR, binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE gaia_nss_solution_bindings (
+          solution_binding_id VARCHAR, orbit_evidence_id VARCHAR,
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, source_table VARCHAR,
+          gaia_identifier_evidence_id VARCHAR, gaia_dr3_source_id VARCHAR,
+          nss_solution_type VARCHAR, canonical_candidate_count BIGINT,
+          canonical_stable_object_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_method VARCHAR, binding_reason VARCHAR,
+          relation_adjudication_required BOOLEAN, policy_version VARCHAR
         );
         """
     )
@@ -1806,6 +1817,128 @@ def compile_wds(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_gaia_nss(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["binding_method"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE gaia_nss_solution_subjects AS
+        WITH source_identifiers AS (
+          SELECT source_record_id,
+                 min(evidence_id) gaia_identifier_evidence_id,
+                 min(identifier_normalized) gaia_dr3_source_id,
+                 count(DISTINCT identifier_normalized) source_identifier_count
+          FROM nss.identifier_claim_evidence
+          WHERE namespace='gaia_dr3_source_id'
+          GROUP BY source_record_id
+        )
+        SELECT o.evidence_id orbit_evidence_id,o.source_record_id,r.source_table,
+               i.gaia_identifier_evidence_id,i.gaia_dr3_source_id,
+               i.source_identifier_count,o.model nss_solution_type
+        FROM nss.orbital_solution_evidence o
+        JOIN nss.source_records r USING(source_record_id)
+        LEFT JOIN source_identifiers i USING(source_record_id)
+        WHERE r.source_id={source_id} AND r.release_id={release_id};
+
+        INSERT INTO gaia_nss_solution_bindings
+        WITH candidates AS (
+          SELECT s.*,
+                 count(DISTINCT b.stable_object_key) canonical_candidate_count,
+                 min(b.stable_object_key) candidate_object_key,
+                 min(b.system_stable_object_key) candidate_system_key
+          FROM gaia_nss_solution_subjects s
+          LEFT JOIN identity.canonical_identifier_bindings b
+            ON b.namespace='gaia_dr3' AND b.id_value_norm=s.gaia_dr3_source_id
+          GROUP BY ALL
+        )
+        SELECT sha256(concat_ws('|',{source_id},orbit_evidence_id,'solution',{policy_sql})),
+               orbit_evidence_id,source_record_id,{source_id},{release_id},
+               {evidence_build_id},source_table,gaia_identifier_evidence_id,
+               gaia_dr3_source_id,nss_solution_type,canonical_candidate_count,
+               CASE WHEN source_identifier_count=1 AND canonical_candidate_count=1
+                    THEN candidate_object_key END,
+               CASE WHEN source_identifier_count=1 AND canonical_candidate_count=1
+                    THEN candidate_system_key END,
+               CASE WHEN source_identifier_count IS NULL OR source_identifier_count=0
+                      THEN 'missing_source_identifier'
+                    WHEN source_identifier_count>1 THEN 'ambiguous_source_identifier'
+                    WHEN canonical_candidate_count=0 THEN 'missing_canonical_source'
+                    WHEN canonical_candidate_count>1 THEN 'ambiguous_canonical_source'
+                    ELSE 'accepted' END,
+               {method},
+               CASE WHEN source_identifier_count IS NULL OR source_identifier_count=0
+                      THEN 'NSS solution has no release-scoped Gaia DR3 source identifier'
+                    WHEN source_identifier_count>1
+                      THEN 'NSS solution has multiple release-scoped Gaia DR3 source identifiers'
+                    WHEN canonical_candidate_count=0
+                      THEN 'exact Gaia DR3 source is outside the current canonical reference'
+                    WHEN canonical_candidate_count>1
+                      THEN 'exact Gaia DR3 source resolves to multiple canonical objects'
+                    ELSE 'exact Gaia DR3 source identifies one canonical observation target; component endpoints remain absent' END,
+               true,{policy_sql}
+        FROM candidates;
+
+        CREATE TABLE gaia_nss_orbital_solution_projection AS
+        SELECT o.*,b.solution_binding_id,b.gaia_identifier_evidence_id,
+               b.gaia_dr3_source_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_gaia_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['solution_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'coherent Gaia NSS fitted solution on the exact Gaia observation target; relation endpoints require adjudication'
+                    ELSE b.binding_reason END projection_reason,
+               true relation_adjudication_required,{policy_sql} policy_version
+        FROM nss.orbital_solution_evidence o
+        JOIN gaia_nss_solution_bindings b ON b.orbit_evidence_id=o.evidence_id;
+        """
+    )
+
+    binding_counts = dict(con.execute(
+        "SELECT binding_status,count(*) FROM gaia_nss_solution_bindings GROUP BY 1"
+    ).fetchall())
+    observed = {
+        "solution_bindings": sum(binding_counts.values()),
+        "solutions_accepted": binding_counts.get("accepted", 0),
+        "solutions_missing_canonical": binding_counts.get("missing_canonical_source", 0),
+        "solutions_ambiguous_canonical": binding_counts.get("ambiguous_canonical_source", 0),
+        "solutions_missing_source_identifier": binding_counts.get("missing_source_identifier", 0),
+        "solutions_ambiguous_source_identifier": binding_counts.get("ambiguous_source_identifier", 0),
+        "canonical_sources_accepted": int(con.execute(
+            "SELECT count(DISTINCT gaia_dr3_source_id) FROM gaia_nss_solution_bindings WHERE binding_status='accepted'"
+        ).fetchone()[0]),
+        "canonical_sources_missing": int(con.execute(
+            "SELECT count(DISTINCT gaia_dr3_source_id) FROM gaia_nss_solution_bindings WHERE binding_status='missing_canonical_source'"
+        ).fetchone()[0]),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM gaia_nss_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_context_only": int(con.execute(
+            "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence'"
+        ).fetchone()[0]),
+        "orbital_solutions_selectable": int(con.execute(
+            "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
+        ).fetchone()[0]),
+        "solutions_without_relation_claim": int(con.execute(
+            "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NULL"
+        ).fetchone()[0]),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"Gaia NSS acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -1872,6 +2005,13 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "context_wds_classifications_without_targets": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "context_wds_photometry_without_targets": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "context_wds_astrometry_without_targets": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "duplicate_gaia_nss_solution_binding_ids": "SELECT count(*)-count(DISTINCT solution_binding_id) FROM gaia_nss_solution_bindings",
+        "accepted_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE binding_status='accepted' AND (canonical_stable_object_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_gaia_nss_solutions_with_targets": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE binding_status<>'accepted' AND (canonical_stable_object_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "gaia_nss_solutions_not_requiring_adjudication": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE relation_adjudication_required IS DISTINCT FROM true",
+        "selectable_gaia_nss_solutions": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence' AND (target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "gaia_nss_solutions_with_fabricated_relations": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -1899,7 +2039,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
     identity_report_sha = sha256_file(identity_report)
     source_build_ids = [
         policy[name]["evidence_build_id"]
-        for name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds")
+        for name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss")
     ]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
@@ -1930,6 +2070,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("orb6", "evidence_build_id", "orb6"),
             ("sbx", "evidence_build_id", "sbx"),
             ("wds", "evidence_build_id", "wds"),
+            ("nss", "evidence_build_id", "gaia_nss"),
         ):
             source_db = evidence_root / policy[name][build_id_key] / "scientific_evidence.duckdb"
             if not source_db.is_file():
@@ -1943,6 +2084,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             compile_orb6(con, source=policy["orb6"], policy_version=policy["policy_version"]),
             compile_sbx(con, source=policy["sbx"], policy_version=policy["policy_version"]),
             compile_wds(con, source=policy["wds"], policy_version=policy["policy_version"]),
+            compile_gaia_nss(con, source=policy["gaia_nss"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -1989,6 +2131,8 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("wds_classification_projection", "evidence_id"),
             ("wds_photometry_projection", "evidence_id"),
             ("wds_astrometry_projection", "evidence_id"),
+            ("gaia_nss_solution_bindings", "solution_binding_id"),
+            ("gaia_nss_orbital_solution_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -2007,7 +2151,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v6",
+            "schema_version": "spacegate.e5_selected_components.v7",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

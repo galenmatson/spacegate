@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v6"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v7"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -128,6 +128,13 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "context_wds_classifications_without_target": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "context_wds_photometry_without_target": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "context_wds_astrometry_without_target": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "duplicate_gaia_nss_solution_binding_ids": "SELECT count(*)-count(DISTINCT solution_binding_id) FROM gaia_nss_solution_bindings",
+        "accepted_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE binding_status='accepted' AND (canonical_stable_object_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_gaia_nss_solutions_with_targets": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE binding_status<>'accepted' AND (canonical_stable_object_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "gaia_nss_solutions_not_requiring_adjudication": "SELECT count(*) FROM gaia_nss_solution_bindings WHERE relation_adjudication_required IS DISTINCT FROM true",
+        "selectable_gaia_nss_solutions": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence' AND (target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "gaia_nss_solutions_with_fabricated_relations": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -294,6 +301,26 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     wds_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["wds"]["acceptance"].items()}
     failures["wds_acceptance_mismatch"] = int(wds_observed != wds_expected)
+
+    nss_bindings = dict(con.execute(
+        "SELECT binding_status,count(*) FROM gaia_nss_solution_bindings GROUP BY 1"
+    ).fetchall())
+    nss_observed = {
+        "solution_bindings": sum(nss_bindings.values()),
+        "solutions_accepted": nss_bindings.get("accepted", 0),
+        "solutions_missing_canonical": nss_bindings.get("missing_canonical_source", 0),
+        "solutions_ambiguous_canonical": nss_bindings.get("ambiguous_canonical_source", 0),
+        "solutions_missing_source_identifier": nss_bindings.get("missing_source_identifier", 0),
+        "solutions_ambiguous_source_identifier": nss_bindings.get("ambiguous_source_identifier", 0),
+        "canonical_sources_accepted": int(con.execute("SELECT count(DISTINCT gaia_dr3_source_id) FROM gaia_nss_solution_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "canonical_sources_missing": int(con.execute("SELECT count(DISTINCT gaia_dr3_source_id) FROM gaia_nss_solution_bindings WHERE binding_status='missing_canonical_source'").fetchone()[0]),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM gaia_nss_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_context_only": int(con.execute("SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "orbital_solutions_selectable": int(con.execute("SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'").fetchone()[0]),
+        "solutions_without_relation_claim": int(con.execute("SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NULL").fetchone()[0]),
+    }
+    nss_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["gaia_nss"]["acceptance"].items()}
+    failures["gaia_nss_acceptance_mismatch"] = int(nss_observed != nss_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -307,6 +334,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
             {"source_id": policy["orb6"]["source_id"], "observed": orb6_observed, "expected": orb6_expected},
             {"source_id": policy["sbx"]["source_id"], "observed": sbx_observed, "expected": sbx_expected},
             {"source_id": policy["wds"]["source_id"], "observed": wds_observed, "expected": wds_expected},
+            {"source_id": policy["gaia_nss"]["source_id"], "observed": nss_observed, "expected": nss_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

@@ -1500,6 +1500,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   preserve opaque spectra, unspecified-band magnitudes, relative astrometry,
   epochs, positions, and source-convention proper motion as scoped context only
   and reject positional, system-level, and canonical-containment fallbacks
+- [x] E5 Gaia NSS solution-context projection: account all 87,075 coherent
+  source/model fits through exact Gaia DR3 observation-target identity; retain
+  complete models, errors, correlations, diagnostics, frames, and references,
+  require relation adjudication, and emit no fabricated companion, relation,
+  containment edge, selected scalar, or simulation-ready orbit
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

@@ -1424,8 +1424,8 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.12` records 16 completed sources and 10
-remaining blockers after the WDS relation-context projection.
+Ledger `2026-07-22.e5-policy-batches.13` records 17 completed sources and nine
+remaining blockers after the Gaia NSS solution-context projection.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1448,9 +1448,21 @@ one remains ambiguous. WDS spectral text stays opaque pair context; 312,727
 unspecified-band component magnitudes and 1,779,163 epoch/relative-astrometry,
 position, and source-convention proper-motion rows remain contextual rather
 than selectable facts. The CDS two-arcsecond candidate bridge does not become
-identity. Combined artifact `33f2a90275378a35be21a704` passes independent
-audit and byte-identical reproduction in 18.9 seconds wall time with 4.78 GiB
-peak RSS and creates no canonical component, containment, or hierarchy.
+identity. WDS checkpoint `33f2a90275378a35be21a704` passes independent audit
+and byte-identical reproduction in 18.9 seconds wall time with 4.78 GiB peak
+RSS and creates no canonical component, containment, or hierarchy.
+
+Component policy v7 accounts all 87,075 Gaia NSS source/model solutions as
+coherent records rather than flattening fitted parameters. Exact Gaia DR3
+identity anchors 56,617 solutions on 54,794 current canonical observation
+targets; 30,458 solutions for 29,778 sources remain outside the reference, with
+no ambiguity. Every accepted row retains its model, fitted values/errors,
+correlation vector, diagnostics, frame, and reference as context. NSS provides
+no inspectable component endpoints, so all 87,075 rows require later relation
+adjudication and none becomes a companion, containment edge, relation, selected
+scalar, or simulation-ready orbit. Combined artifact
+`9e59131b92205068f7246a94` independently audits and reproduces in 23.0 seconds
+wall time with 5.27 GiB peak RSS.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

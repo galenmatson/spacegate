@@ -28,11 +28,11 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         """
         CREATE TABLE canonical_identifier_bindings (
           namespace VARCHAR, id_value_raw VARCHAR, id_value_norm VARCHAR,
-          system_stable_object_key VARCHAR
+          stable_object_key VARCHAR, system_stable_object_key VARCHAR
         );
         INSERT INTO canonical_identifier_bindings VALUES
-          ('wds','00001+0001','00001 0001','system-1'),
-          ('gaia_dr3','123','123','system-1');
+          ('wds','00001+0001','00001 0001','star-wds-1','system-1'),
+          ('gaia_dr3','123','123','canon:star:gaia:123','system-1');
         CREATE TABLE dr2_release_outcomes (
           dr2_source_id VARCHAR, outcome VARCHAR,
           canonical_system_stable_object_key VARCHAR
@@ -393,6 +393,37 @@ def make_fixture(state: Path, policy_path: Path) -> None:
     )
     con.close()
 
+    nss_id = "nss-test"
+    nss_dir = state / "derived/evidence_lake_v2/scientific_evidence" / nss_id
+    nss_dir.mkdir(parents=True)
+    con = duckdb.connect(str(nss_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE source_records (
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          source_table VARCHAR
+        );
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_normalized VARCHAR
+        );
+        CREATE TABLE orbital_solution_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, relation_claim_id VARCHAR,
+          solution_key JSON, model VARCHAR
+        );
+        INSERT INTO source_records VALUES
+          ('nss-s1','gaia.dr3.non_single_star','nss-test-release','nss_full'),
+          ('nss-s2','gaia.dr3.non_single_star','nss-test-release','nss_supplement');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('nss-i1','nss-s1','gaia_dr3_source_id','123'),
+          ('nss-i2','nss-s2','gaia_dr3_source_id','999');
+        INSERT INTO orbital_solution_evidence VALUES
+          ('nss-o1','nss-s1',NULL,'{"source_id":"123","nss_solution_type":"SB1"}','SB1'),
+          ('nss-o2','nss-s2',NULL,'{"source_id":"999","nss_solution_type":"Orbital"}','Orbital');
+        """
+    )
+    con.close()
+
     write_json(
         policy_path,
         {
@@ -604,6 +635,28 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_astrometry_context_only": 2,
                 },
             },
+            "gaia_nss": {
+                "source_id": "gaia.dr3.non_single_star",
+                "release_id": "nss-test-release",
+                "evidence_build_id": nss_id,
+                "binding_method": "test-exact-gaia-source",
+                "solution_authority": "test-nss-solution-context",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_solution_bindings": 2,
+                    "expected_solutions_accepted": 1,
+                    "expected_solutions_missing_canonical": 1,
+                    "expected_solutions_ambiguous_canonical": 0,
+                    "expected_solutions_missing_source_identifier": 0,
+                    "expected_solutions_ambiguous_source_identifier": 0,
+                    "expected_canonical_sources_accepted": 1,
+                    "expected_canonical_sources_missing": 1,
+                    "expected_orbital_solutions": 2,
+                    "expected_orbital_solutions_context_only": 1,
+                    "expected_orbital_solutions_selectable": 0,
+                    "expected_solutions_without_relation_claim": 2,
+                },
+            },
         },
     )
 
@@ -722,6 +775,15 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     ).fetchone()[0] == 2
     assert con.execute(
         "SELECT count(*) FROM wds_classification_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 0
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM gaia_nss_solution_bindings GROUP BY 1"
+    ).fetchall()) == {"accepted": 1, "missing_canonical_source": 1}
+    assert con.execute(
+        "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence' AND target_key='canon:star:gaia:123'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL OR projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 0
     con.close()
 
