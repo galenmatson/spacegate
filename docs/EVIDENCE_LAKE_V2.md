@@ -1746,6 +1746,19 @@ Compare at minimum:
 - cluster, variability, compact-object, and extended-object evidence
 - API/search behavior, public slice integrity, storage, and performance
 
+Foundation checkpoint `e6_994a6301c335ac385f5dc052_shadow` (July 22, 2026)
+materializes all 69 selected stellar and 16 selected planet quantities into
+domain ARM projections with exact fact IDs, then updates only explicitly mapped
+CORE scalars. It preserves the complete stability-reference inventory and
+hierarchy, keeps official WGSN names as non-primary aliases, and makes zero
+candidate, lifecycle, relation, or containment promotions. Independent audit
+and isolated reproduction pass. Reproduction compares cryptographic logical
+row-multiset hashes for generated/mutated tables because DuckDB database bytes
+are runtime containers rather than a canonical serialization; copied evidence
+tables remain pinned by source database hashes and exact table counts. DISC,
+public products, consumer migration, compact-object identity, and the complete
+scientific A/B remain open, so the checkpoint is not promotable or served.
+
 ### E7. Promotion, Cutover, and Legacy Retirement
 
 After the E6 scientific review is accepted, promote atomically while retaining

@@ -2255,6 +2255,32 @@ Exit criteria:
 
 #### M8.3c-E6. Shadow Canonical Build and Scientific A/B Review
 
+Foundation checkpoint (July 22, 2026):
+
+- policy `2026-07-22.e6-shadow.1` and compiler v1 produce immutable, unserved
+  shadow foundation `e6_994a6301c335ac385f5dc052_shadow` from stability build
+  `20260717T0614Z_f452835_side` and all seven accepted E5 projections
+- the shadow preserves exactly 5,869,091 systems, 5,874,636 stars, 6,311
+  planets, and every hierarchy node/edge; it adds 65 non-primary official-name
+  aliases and makes no relation, containment, candidate, status, or inventory
+  promotion
+- shared ARM projections cover all 69 selected stellar and 16 selected planet
+  quantities with exact fact IDs; the independent audit caught and the general
+  type policy fixed twelve Boolean Gaia variability fields before acceptance
+- CORE gains 193,923 measured/selected stellar temperatures, 1,004 planet
+  equilibrium temperatures, 1,078 insolation values, and small current-source
+  orbit/mass revisions while preserving canonical planet lifecycle integrity
+- the 12-thread/48-GB Photon build takes 128.0 wall seconds and peaks at 35.1
+  GiB RSS without spill; independent audit takes 35.7 seconds and isolated
+  logical-hash reproduction passes in 247.7 seconds
+- DuckDB physical files are not treated as canonical serialization: hierarchy
+  and DISC reproduced byte-identically, CORE/ARM differed physically, and all
+  fifteen generated or mutated table multisets matched cryptographic logical
+  hashes. Details are in `docs/E6_BUILD_PERFORMANCE_2026-07-22.md`
+- this is not E6 completion: DISC rescore, classification/HZ/category consumer
+  migration, public slice, API/search/map/simulation artifacts, compact-object
+  identity, full scientific A/B, and performance acceptance remain open
+
 Deliverables:
 
 - deterministic shadow CORE/ARM/hierarchy/DISC build and public slice

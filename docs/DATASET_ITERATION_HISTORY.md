@@ -3052,6 +3052,34 @@ Representative commits:
   score. The pre-gate intermediate was independently rejected and exactly one
   74,069,770,240-byte artifact was reclaimed through fail-closed retention.
 
+### 110) E6 Shadow Foundation Uses Typed Selected-Fact Projections
+
+- E6 policy `2026-07-22.e6-shadow.1` pins the stability product and all seven
+  accepted E5 artifacts. Build `e6_994a6301c335ac385f5dc052_shadow` copies the
+  stability CORE/ARM/hierarchy/DISC, adds source-projection tables and 69
+  stellar/16 planet selected-fact projections, and applies only explicit CORE
+  scalar mappings. Every projected value retains its exact selected-fact ID.
+- The first independent audit exposed a general Boolean routing defect: twelve
+  Gaia variability membership facts store `true`/`false` in `value_raw`, so a
+  numeric-only projection retained fact IDs but emitted null values. The type
+  contract now projects these quantities as Boolean; no source- or object-name
+  exception was added.
+- The accepted shadow preserves 5,869,091 systems, 5,874,636 stars, 6,311
+  planets, and every hierarchy row. It adds 65 non-primary official-name
+  aliases, fills 193,923 stellar temperatures, 1,004 planet equilibrium
+  temperatures, and 1,078 insolation values, and creates no canonical
+  inventory, status, relation, containment, or candidate promotion.
+- Independent audit passes every product-integrity, inventory, hierarchy,
+  lineage, selected-value, alias, and lifecycle gate. Clean reproduction uses
+  order-independent cryptographic row-multiset hashes for fifteen generated or
+  mutated tables and matches every logical hash. CORE/ARM physical DuckDB bytes
+  differ between runs, confirming that runtime database layout is diagnostic,
+  not scientific content identity.
+- The accepted foundation compiles in 128.0 wall seconds at 12 threads/48 GB,
+  peaks at 35.1 GiB RSS without spill, audits in 35.7 seconds, and completes
+  isolated compile/audit/logical reproduction in 247.7 seconds. DISC/public
+  regeneration and the complete E6 scientific A/B remain open.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1578,6 +1578,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E5: make HZ, classifications, planet categories, simulations, search,
   map, API, tags, and future AAA packets consume the shared selected-fact
   projection rather than independent scientific fallback logic
+- [x] E6 shadow foundation: materialize all seven accepted E5 projections into
+  an immutable unserved CORE/ARM/hierarchy/DISC candidate; preserve exact
+  inventory/hierarchy/planet lifecycle, attach fact lineage, pass independent
+  audit, and pass isolated cryptographic logical-hash reproduction
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports

@@ -981,6 +981,26 @@ Their source E4 builds, identity graph, and reports remain protected compiler
 inputs. The reports do not themselves authorize pruning any current or rollback
 artifact.
 
+## E6 Shadow Product Checkpoint
+
+Unserved shadow `out/e6_994a6301c335ac385f5dc052_shadow`, its manifest,
+independent audit, reproduction report, E6 policy/compiler/auditor, stability
+reference, and all seven pinned E5 artifacts are protected E6 inputs. The
+shadow occupies approximately 16 GiB and is not a served/current build.
+Reproduction scratch is created on `/mnt/space/spacegate/e6-reproduction` and
+removed after the comparison, whether it passes or fails.
+
+Earlier E6 experiments `e6_878b7fc1d46108f4180df8d5_shadow` and
+`e6_461e794f1d4afa971cf7b089_shadow` are unserved, superseded diagnostics. The
+latter failed independent audit because Boolean variability facts projected as
+null numeric values; the former predates that independent gate. They are not
+manual deletion targets. Add an E6-aware exact-candidate retention dry-run that
+checks manifests, reports, process liveness, links, served/current/rollback
+references, and transitive inputs before retiring either whole directory. The
+accepted E6 shadow and its source artifacts must never enter that candidate
+set. A third superseded physical-reproducibility diagnostic may also be present;
+retain it until the logical-hash report and exact candidate set account for it.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

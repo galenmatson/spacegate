@@ -1,0 +1,142 @@
+{
+  "schema_version": "spacegate.e6_shadow_build_policy.v1",
+  "policy_version": "2026-07-22.e6-shadow.1",
+  "compiler_version": "e6_shadow_compiler_v1",
+  "stability_reference_build_id": "20260717T0614Z_f452835_side",
+  "selected_artifacts": [
+    {"family": "selected_facts", "build_id": "0a57f778ce13de1c2c800103", "database": "selected_facts.duckdb", "arm_prefix": "e6_fact", "acceptance_mode": "report_status_pass"},
+    {"family": "selected_relations", "build_id": "c59bf6664db0b60960dc36a1", "database": "selected_relations.duckdb", "arm_prefix": "e6_relation", "acceptance_mode": "legacy_zero_verification"},
+    {"family": "selected_components", "build_id": "f5358c0a0983958e5d4f76c5", "database": "selected_components.duckdb", "arm_prefix": "e6_component", "acceptance_mode": "legacy_zero_verification"},
+    {"family": "selected_clusters", "build_id": "a6169c9ec351db81104e8518", "database": "selected_clusters.duckdb", "arm_prefix": "e6_cluster", "acceptance_mode": "top_level_status_pass"},
+    {"family": "selected_extended_objects", "build_id": "3790054572476ea189aaff06", "database": "selected_extended_objects.duckdb", "arm_prefix": "e6_extended", "acceptance_mode": "top_level_status_pass"},
+    {"family": "selected_planet_evidence", "build_id": "86aa5553053db35d81ff26e0", "database": "selected_planet_evidence.duckdb", "arm_prefix": "e6_planet_evidence", "acceptance_mode": "top_level_status_pass"},
+    {"family": "selected_solar_system", "build_id": "d61c6890588ee40c46ea7d56", "database": "selected_solar_system.duckdb", "arm_prefix": "e6_solar", "acceptance_mode": "top_level_status_pass"}
+  ],
+  "selected_fact_compact_tables": [
+    "evidence_build",
+    "selection_source_accounting",
+    "source_parameter_set_preselections",
+    "selected_fact_derivations"
+  ],
+  "copy_all_projection_tables_for_families": [
+    "selected_relations",
+    "selected_components",
+    "selected_clusters",
+    "selected_extended_objects",
+    "selected_planet_evidence",
+    "selected_solar_system"
+  ],
+  "star_projection_groups": [
+    {
+      "table": "e6_selected_stellar_astrometry",
+      "quantities": [
+        "ra_deg", "ra_error_mas", "dec_deg", "dec_error_mas", "parallax_mas",
+        "pmra_mas_yr", "pmdec_mas_yr", "radial_velocity_km_s",
+        "spectral_broadening_km_s", "gaia_ruwe", "astrometric_excess_noise_mas",
+        "gaia_non_single_star_status"
+      ]
+    },
+    {
+      "table": "e6_selected_stellar_physics",
+      "quantities": [
+        "teff_k", "logg_cgs", "metallicity_m_h", "alpha_fe", "radius_rsun",
+        "mass_msun", "luminosity_lsun", "age_gyr", "distance_geometric_pc",
+        "distance_photogeometric_pc", "projected_rotation_velocity_km_s",
+        "rotation_period_days", "gravitational_redshift_velocity_km_s"
+      ]
+    },
+    {
+      "table": "e6_selected_stellar_photometry",
+      "quantities": ["gaia_g_mag", "gaia_bp_mag", "gaia_rp_mag", "gaia_bp_rp_mag"]
+    },
+    {
+      "table": "e6_selected_stellar_variability",
+      "quantities": [
+        "gaia_variability_flag", "variability_class_source_native",
+        "variability_period_days", "gaia_g_activity_index_mag",
+        "gaia_variability_classified", "gaia_variability_agn_member",
+        "gaia_variability_cepheid_member", "gaia_variability_compact_companion_member",
+        "gaia_variability_eclipsing_binary_member", "gaia_variability_long_period_member",
+        "gaia_variability_microlensing_member", "gaia_variability_ms_oscillator_member",
+        "gaia_variability_planetary_transit_member", "gaia_variability_rotation_modulation_member",
+        "gaia_variability_rr_lyrae_member", "gaia_variability_short_timescale_member",
+        "gaia_g_variability_iqr_mag", "gaia_g_variability_mad_mag",
+        "gaia_g_variability_range_mag", "gaia_g_variability_stddev_mag",
+        "gaia_g_variability_stetson_index", "gaia_bp_variability_iqr_mag",
+        "gaia_bp_variability_mad_mag", "gaia_bp_variability_range_mag",
+        "gaia_bp_variability_stddev_mag", "gaia_bp_variability_stetson_index",
+        "gaia_rp_variability_iqr_mag", "gaia_rp_variability_mad_mag",
+        "gaia_rp_variability_range_mag", "gaia_rp_variability_stddev_mag",
+        "gaia_rp_variability_stetson_index"
+      ]
+    },
+    {
+      "table": "e6_selected_stellar_classification",
+      "quantities": [
+        "official_proper_name", "spectral_type_simbad", "spectral_type_optical",
+        "spectral_type_infrared", "gravity_class_optical", "gravity_class_infrared",
+        "ultracool_age_category", "ultracool_literature_flag", "ultracool_youth_evidence"
+      ]
+    }
+  ],
+  "planet_projection": {
+    "table": "e6_selected_planet_parameters",
+    "quantities": [
+      "orbital_period_days", "semi_major_axis_au", "eccentricity",
+      "inclination_deg", "argument_of_periastron_deg", "radius_earth",
+      "radius_jup", "best_mass_earth", "best_mass_jup", "mass_earth",
+      "mass_jup", "minimum_mass_earth", "minimum_mass_jup", "density_g_cm3",
+      "eq_temp_k", "insol_earth"
+    ]
+  },
+  "categorical_quantities": [
+    "gaia_non_single_star_status", "gaia_variability_flag",
+    "variability_class_source_native", "official_proper_name",
+    "spectral_type_simbad", "spectral_type_optical", "spectral_type_infrared",
+    "gravity_class_optical", "gravity_class_infrared", "ultracool_age_category",
+    "ultracool_literature_flag", "ultracool_youth_evidence"
+  ],
+  "boolean_quantities": [
+    "gaia_variability_classified", "gaia_variability_agn_member",
+    "gaia_variability_cepheid_member", "gaia_variability_compact_companion_member",
+    "gaia_variability_eclipsing_binary_member", "gaia_variability_long_period_member",
+    "gaia_variability_microlensing_member", "gaia_variability_ms_oscillator_member",
+    "gaia_variability_planetary_transit_member",
+    "gaia_variability_rotation_modulation_member", "gaia_variability_rr_lyrae_member",
+    "gaia_variability_short_timescale_member"
+  ],
+  "core_scalar_updates": [
+    {"object_type": "star", "quantity": "ra_deg", "column": "ra_deg", "absolute_tolerance": 1e-10},
+    {"object_type": "star", "quantity": "dec_deg", "column": "dec_deg", "absolute_tolerance": 1e-10},
+    {"object_type": "star", "quantity": "parallax_mas", "column": "parallax_mas", "absolute_tolerance": 1e-6},
+    {"object_type": "star", "quantity": "pmra_mas_yr", "column": "pm_ra_mas_yr", "absolute_tolerance": 1e-5},
+    {"object_type": "star", "quantity": "pmdec_mas_yr", "column": "pm_dec_mas_yr", "absolute_tolerance": 1e-5},
+    {"object_type": "star", "quantity": "radial_velocity_km_s", "column": "radial_velocity_kms", "absolute_tolerance": 1e-4},
+    {"object_type": "star", "quantity": "gaia_ruwe", "column": "ruwe", "absolute_tolerance": 1e-5},
+    {"object_type": "star", "quantity": "teff_k", "column": "teff_k", "absolute_tolerance": 0.1},
+    {"object_type": "planet", "quantity": "orbital_period_days", "column": "orbital_period_days", "absolute_tolerance": 1e-9},
+    {"object_type": "planet", "quantity": "semi_major_axis_au", "column": "semi_major_axis_au", "absolute_tolerance": 1e-9},
+    {"object_type": "planet", "quantity": "eccentricity", "column": "eccentricity", "absolute_tolerance": 1e-9},
+    {"object_type": "planet", "quantity": "inclination_deg", "column": "inclination_deg", "absolute_tolerance": 1e-9},
+    {"object_type": "planet", "quantity": "radius_earth", "column": "radius_earth", "absolute_tolerance": 1e-8},
+    {"object_type": "planet", "quantity": "radius_jup", "column": "radius_jup", "absolute_tolerance": 1e-8},
+    {"object_type": "planet", "quantity": "mass_earth", "column": "mass_earth", "absolute_tolerance": 1e-8},
+    {"object_type": "planet", "quantity": "mass_jup", "column": "mass_jup", "absolute_tolerance": 1e-8},
+    {"object_type": "planet", "quantity": "eq_temp_k", "column": "eq_temp_k", "absolute_tolerance": 1e-6},
+    {"object_type": "planet", "quantity": "insol_earth", "column": "insol_earth", "absolute_tolerance": 1e-8}
+  ],
+  "official_name_alias_policy": {
+    "enabled": true,
+    "alias_kind": "iau_official_proper_name",
+    "alias_priority": 5,
+    "is_primary": false
+  },
+  "nonpromotion_invariants": {
+    "preserve_system_inventory": true,
+    "preserve_star_inventory": true,
+    "preserve_planet_inventory": true,
+    "preserve_hierarchy": true,
+    "canonical_relation_promotions": 0,
+    "candidate_planet_promotions": 0
+  }
+}
