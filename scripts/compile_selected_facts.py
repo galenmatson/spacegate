@@ -366,9 +366,19 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
     if policy.get("schema_version") != "spacegate.selected_fact_policy.v1":
         raise ValueError("unsupported selected-fact policy schema")
     members = member_by_source(release_manifest)
-    seen_groups: set[tuple[str, str]] = set()
+    seen_programs: set[tuple[str, str, str]] = set()
+    seen_groups: set[tuple[str, str, str]] = set()
     for source in policy.get("selection_sources") or []:
         source_id = str(source.get("source_id") or "")
+        object_type = str(source.get("object_type") or "")
+        binding_scope = str(source.get("binding_scope") or "")
+        program_key = (source_id, object_type, binding_scope)
+        if not object_type or not binding_scope or program_key in seen_programs:
+            raise ValueError(
+                "duplicate or incomplete selection program: "
+                f"{source_id}:{object_type}:{binding_scope}"
+            )
+        seen_programs.add(program_key)
         if source_id not in members:
             raise ValueError(f"selection source absent from E4 release set: {source_id}")
         storage = str(source.get("storage") or "eav")
@@ -576,7 +586,7 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
         source_quantities: set[str] = set()
         for group in source.get("quantity_groups") or []:
             group_key = str(group.get("group_key") or "")
-            key = (source_id, group_key)
+            key = (source_id, object_type, group_key)
             if not group_key or key in seen_groups:
                 raise ValueError(f"missing or duplicate quantity group: {key}")
             seen_groups.add(key)
@@ -1619,8 +1629,9 @@ def create_binding(
     accepted = int(
         con.execute(
             "SELECT COUNT(*) FROM evidence_object_bindings "
-            "WHERE source_id = ? AND binding_status = 'accepted'",
-            [source_id],
+            "WHERE source_id = ? AND object_type = ? "
+            "AND binding_status = 'accepted'",
+            [source_id, object_type],
         ).fetchone()[0]
     )
     return eligible_count, accepted
@@ -1677,6 +1688,7 @@ def create_parameter_set_preselection(
             ON pe.parameter_set_id=ps.parameter_set_id
           JOIN evidence_object_bindings b
             ON b.source_id={sql_literal(source['source_id'])}
+           AND b.object_type={sql_literal(source['object_type'])}
            AND b.binding_subject_kind='source_record'
            AND b.source_record_id=ps.source_record_id
            AND b.binding_status='accepted'
@@ -1826,6 +1838,7 @@ def insert_candidates(
           JOIN {source_alias}.source_records sr ON sr.source_record_id = pe.source_record_id
           JOIN evidence_object_bindings b
             ON b.source_id = {sql_literal(source['source_id'])}
+           AND b.object_type = {sql_literal(source['object_type'])}
            AND b.binding_subject_kind = 'source_record'
            AND b.source_record_id = pe.source_record_id
            AND b.binding_status = 'accepted'
@@ -1885,6 +1898,7 @@ def insert_classification_candidates(
             ON sr.source_record_id=ce.source_record_id
           JOIN evidence_object_bindings b
             ON b.source_id={sql_literal(source['source_id'])}
+           AND b.object_type={sql_literal(source['object_type'])}
            AND b.binding_subject_kind='classification_evidence'
            AND b.binding_subject_id=ce.evidence_id
            AND b.binding_status='accepted'
@@ -1949,6 +1963,7 @@ def insert_identifier_claim_candidates(
             ON sr.source_record_id=ic.source_record_id
           JOIN evidence_object_bindings b
             ON b.source_id={sql_literal(source['source_id'])}
+           AND b.object_type={sql_literal(source['object_type'])}
            AND b.binding_subject_kind='identifier_claim_evidence'
            AND b.binding_subject_id=ic.evidence_id
            AND b.binding_status='accepted'
@@ -1983,6 +1998,7 @@ def insert_measurement_bundle_direct(
     bundle_id_field = sql_identifier(str(source.get("bundle_id_field") or "bundle_id"))
     measurements_field = sql_identifier(str(source.get("measurements_field") or "measurements"))
     source_id = sql_literal(source["source_id"])
+    object_type = sql_literal(source["object_type"])
     release = sql_literal(release_id)
     evidence_build = sql_literal(member["build_id"])
     policy_version = sql_literal(source["_policy_version"])
@@ -1995,6 +2011,7 @@ def insert_measurement_bundle_direct(
               FROM {source_alias}.{bundle_table} bundle
               JOIN evidence_object_bindings b
                 ON b.source_id={source_id}
+               AND b.object_type={object_type}
                AND b.binding_subject_kind='source_record'
                AND b.source_record_id=bundle.source_record_id
                AND b.binding_status='accepted'
@@ -2036,7 +2053,8 @@ def insert_measurement_bundle_direct(
             f"NULL, 1, NULL, NULL, NULL, {policy_version} "
             f"FROM {source_alias}.{bundle_table} bundle "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            f"ON b.source_id={source_id} AND b.object_type={object_type} "
+            "AND b.binding_subject_kind='source_record' "
             "AND b.source_record_id=bundle.source_record_id "
             "AND b.binding_status='accepted' "
             f"CROSS JOIN UNNEST(bundle.{measurements_field}) AS nested(measurement) "
@@ -2103,6 +2121,7 @@ def insert_measurement_bundle_direct(
         FROM {source_alias}.{bundle_table} bundle
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
+         AND b.object_type={object_type}
          AND b.binding_subject_kind='source_record'
          AND b.source_record_id=bundle.source_record_id
          AND b.binding_status='accepted'
@@ -2134,6 +2153,7 @@ def insert_coherent_direct(
     specs = coherent_field_specs(con, source=source, source_alias=source_alias)
     policy_version = sql_literal(source["_policy_version"])
     source_id = sql_literal(source["source_id"])
+    object_type = sql_literal(source["object_type"])
     release = sql_literal(release_id)
     evidence_build = sql_literal(member["build_id"])
 
@@ -2149,7 +2169,8 @@ def insert_coherent_direct(
             "SELECT COUNT(*) n "
             f"FROM {source_alias}.{set_table} ps "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            f"ON b.source_id={source_id} AND b.object_type={object_type} "
+            "AND b.binding_subject_kind='source_record' "
             "AND b.source_record_id=ps.source_record_id "
             "AND b.binding_status='accepted' "
             f"WHERE ps.parameter_set_kind IN ({kind_values}) "
@@ -2160,7 +2181,8 @@ def insert_coherent_direct(
             "SELECT COUNT(*) - COUNT(DISTINCT b.stable_object_key) "
             f"FROM {source_alias}.{set_table} ps "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            f"ON b.source_id={source_id} AND b.object_type={object_type} "
+            "AND b.binding_subject_kind='source_record' "
             "AND b.source_record_id=ps.source_record_id "
             "AND b.binding_status='accepted'"
         )
@@ -2240,7 +2262,8 @@ def insert_coherent_direct(
             f"FROM {source_alias}.{set_table} ps "
             f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
             "JOIN evidence_object_bindings b "
-            f"ON b.source_id={source_id} AND b.binding_subject_kind='source_record' "
+            f"ON b.source_id={source_id} AND b.object_type={object_type} "
+            "AND b.binding_subject_kind='source_record' "
             "AND b.source_record_id=ps.source_record_id "
             f"AND b.binding_status='accepted' "
             f"WHERE ({condition}) AND ({kind_condition})"
@@ -2272,6 +2295,7 @@ def insert_coherent_direct(
         FROM {source_alias}.{set_table} ps
         JOIN evidence_object_bindings b
           ON b.source_id={source_id}
+         AND b.object_type={object_type}
          AND b.binding_subject_kind='source_record'
          AND b.source_record_id=ps.source_record_id
          AND b.binding_status='accepted'
@@ -2365,6 +2389,7 @@ def insert_coherent_candidates(
                 f"JOIN {source_alias}.source_records sr ON sr.source_record_id=ps.source_record_id "
                 "JOIN evidence_object_bindings b "
                 f"ON b.source_id={sql_literal(source['source_id'])} "
+                f"AND b.object_type={sql_literal(source['object_type'])} "
                 "AND b.binding_subject_kind='source_record' "
                 "AND b.source_record_id=ps.source_record_id AND b.binding_status='accepted' "
                 f"WHERE {raw} IS NOT NULL"
@@ -2616,7 +2641,7 @@ def verify_keys(
         "duplicate_object_quantities": "SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT COUNT(*) n FROM selected_facts GROUP BY object_type, stable_object_key, quantity_key HAVING COUNT(*) > 1)",
         "selected_source_facts_without_evidence": "SELECT COUNT(*) FROM selected_facts WHERE fact_status='source_selected' AND (evidence_build_id IS NULL OR evidence_id IS NULL OR parameter_set_id IS NULL)",
         "selected_source_facts_without_binding_id": "SELECT COUNT(*) FROM selected_facts WHERE fact_status='source_selected' AND binding_id IS NULL",
-        "selected_source_facts_without_accepted_subject_binding": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND NOT EXISTS (SELECT 1 FROM evidence_object_bindings b WHERE b.binding_id=f.binding_id AND b.source_id=f.source_id AND b.binding_status='accepted')",
+        "selected_source_facts_without_accepted_subject_binding": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND NOT EXISTS (SELECT 1 FROM evidence_object_bindings b WHERE b.binding_id=f.binding_id AND b.source_id=f.source_id AND b.object_type=f.object_type AND b.binding_status='accepted')",
         "selected_source_facts_outside_required_preselection": "SELECT COUNT(*) FROM selected_facts f WHERE f.fact_status='source_selected' AND f.source_id IN (SELECT DISTINCT source_id FROM source_parameter_set_preselections) AND NOT EXISTS (SELECT 1 FROM source_parameter_set_preselections p WHERE p.source_id=f.source_id AND p.source_record_id=f.source_record_id AND p.selected_parameter_set_id=f.parameter_set_id)",
         "derived_facts_without_derivation": "SELECT COUNT(*) FROM selected_facts f LEFT JOIN selected_fact_derivations d ON d.output_selected_fact_id=f.selected_fact_id WHERE f.fact_status='derived' AND d.derivation_id IS NULL",
         "lower_authority_winner": "SELECT COUNT(*) FROM parameter_set_selection_decisions WHERE runner_up_authority_rank IS NOT NULL AND runner_up_authority_rank < authority_rank",
@@ -2829,8 +2854,8 @@ def compile_selected_facts(
                 str(status): int(count)
                 for status, count in con.execute(
                     "SELECT binding_status,COUNT(*) FROM evidence_object_bindings "
-                    "WHERE source_id=? GROUP BY 1 ORDER BY 1",
-                    [source_id],
+                    "WHERE source_id=? AND object_type=? GROUP BY 1 ORDER BY 1",
+                    [source_id, source["object_type"]],
                 ).fetchall()
             }
             expected_outcomes = source.get("expected_binding_outcomes")
@@ -2959,24 +2984,30 @@ def compile_selected_facts(
                 candidate_sets = int(
                     con.execute(
                         "SELECT COUNT(*) FROM parameter_set_selection_decisions "
-                        "WHERE selected_source_id=?",
-                        [source_id],
+                        "WHERE selected_source_id=? AND object_type=?",
+                        [source_id, source["object_type"]],
                     ).fetchone()[0]
                 )
             else:
                 candidate_sets = int(
-                    con.execute("SELECT COUNT(*) FROM candidate_sets WHERE source_id=?", [source_id]).fetchone()[0]
+                    con.execute(
+                        "SELECT COUNT(*) FROM candidate_sets "
+                        "WHERE source_id=? AND object_type=?",
+                        [source_id, source["object_type"]],
+                    ).fetchone()[0]
                 )
             selected_sets = int(
                 con.execute(
-                    "SELECT COUNT(*) FROM parameter_set_selection_decisions WHERE selected_source_id=?",
-                    [source_id],
+                    "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                    "WHERE selected_source_id=? AND object_type=?",
+                    [source_id, source["object_type"]],
                 ).fetchone()[0]
             )
             selected = int(
                 con.execute(
-                    "SELECT COUNT(*) FROM selected_facts WHERE source_id=? AND fact_status='source_selected'",
-                    [source_id],
+                    "SELECT COUNT(*) FROM selected_facts WHERE source_id=? "
+                    "AND object_type=? AND fact_status='source_selected'",
+                    [source_id, source["object_type"]],
                 ).fetchone()[0]
             )
             if selected < int(source.get("minimum_selected_facts") or 1):
@@ -3019,6 +3050,7 @@ def compile_selected_facts(
         recorder.start("summary_accounting")
         counts = table_counts(con)
         binding_outcomes: dict[str, dict[str, int]] = {}
+        binding_outcomes_by_object_type: dict[str, dict[str, dict[str, int]]] = {}
         for source_id, binding_status, row_count in con.execute(
             "SELECT source_id, binding_status, COUNT(*) "
             "FROM evidence_object_bindings GROUP BY 1,2 ORDER BY 1,2"
@@ -3026,8 +3058,19 @@ def compile_selected_facts(
             binding_outcomes.setdefault(str(source_id), {})[str(binding_status)] = int(
                 row_count
             )
+        for source_id, object_type, binding_status, row_count in con.execute(
+            "SELECT source_id, object_type, binding_status, COUNT(*) "
+            "FROM evidence_object_bindings GROUP BY 1,2,3 ORDER BY 1,2,3"
+        ).fetchall():
+            binding_outcomes_by_object_type.setdefault(str(source_id), {}).setdefault(
+                str(object_type), {}
+            )[str(binding_status)] = int(row_count)
         recorder.finish(
-            details={"table_counts": counts, "binding_outcomes": binding_outcomes}
+            details={
+                "table_counts": counts,
+                "binding_outcomes": binding_outcomes,
+                "binding_outcomes_by_object_type": binding_outcomes_by_object_type,
+            }
         )
         fact_exports: dict[str, int] = {}
         decision_exports: dict[str, int] = {}
@@ -3154,6 +3197,7 @@ def compile_selected_facts(
         "canonical_reference_build_id": policy["canonical_reference_build_id"],
         "table_counts": counts,
         "binding_outcomes": binding_outcomes,
+        "binding_outcomes_by_object_type": binding_outcomes_by_object_type,
         "integrity_checks": checks,
         "logical_content_sha256": logical_sha,
         "partition_exports": {

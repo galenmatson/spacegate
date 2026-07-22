@@ -1778,6 +1778,15 @@ policy. A separate inverse-parallax distance tail must receive an explicit
 uncertainty-aware policy; neither issue may be hidden by an unlabeled runtime
 fallback.
 
+The reusable repair is now enforced by E5 policy v13 and the focused
+`verify_e5_nasa_host_selection.py` preflight. NASA host and planet programs may
+share one release artifact only when compiler joins, accounting, and binding
+checks include object type. Program identity is `(source_id, object_type,
+binding_scope)`; exact duplicate programs fail validation. The hash-verified
+preflight resolves all 132,578 eligible host records and selects 12,210
+lineage-complete stellar facts with zero planet leakage. This is a cheap policy
+gate, not a substitute for the global E5 authority competition and E6 A/B.
+
 ### E7. Promotion, Cutover, and Legacy Retirement
 
 After the E6 scientific review is accepted, promote atomically while retaining

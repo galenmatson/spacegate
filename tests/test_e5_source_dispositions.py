@@ -20,6 +20,7 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
     assert report["status"] == "pass"
     assert report["summaries"]["accepted_e4_sources"] == 38
     assert report["summaries"]["selected_sources"] == 14
+    assert report["summaries"]["selection_programs"] == 15
     assert report["summaries"]["explicit_dispositions"] == 24
     assert report["checks"]["selection_disposition_conflicts"] == []
     assert report["checks"]["metadata_errors"] == []
@@ -30,6 +31,44 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
     assert report["checks"]["invalid_dispositions"] == []
     assert report["checks"]["incomplete_dispositions"] == []
     assert report["checks"]["blocking_sources"] == []
+
+
+def test_e5_disposition_audit_allows_distinct_scopes_for_one_source() -> None:
+    release_set = {
+        "schema_version": "spacegate.scientific_evidence_release_set.v1",
+        "release_set_id": "set1",
+        "status": "pass",
+        "members": [{"source_ids": ["source"], "release_ids": {"source": "r1"}}],
+    }
+    selection = {
+        "schema_version": "spacegate.selected_fact_policy.v1",
+        "policy_version": "p1",
+        "selection_sources": [
+            {
+                "source_id": "source",
+                "object_type": "star",
+                "binding_scope": "host",
+                "quantity_groups": [{"group_key": "stellar"}],
+            },
+            {
+                "source_id": "source",
+                "object_type": "planet",
+                "binding_scope": "planet",
+                "quantity_groups": [{"group_key": "planet"}],
+            },
+        ],
+    }
+    dispositions = {
+        "schema_version": "spacegate.e5_source_dispositions.v1",
+        "disposition_version": "d1",
+        "explicit_dispositions": {},
+    }
+    report = disposition_audit.audit(release_set, selection, dispositions)
+    assert report["status"] == "pass"
+    assert report["checks"]["duplicate_selection_sources"] == []
+    assert report["summaries"]["selected_sources"] == 1
+    assert report["summaries"]["selection_programs"] == 2
+    assert report["sources"][0]["selection_programs"] == ["planet:planet", "star:host"]
 
 
 def test_e5_disposition_audit_fails_conflicts_and_omissions() -> None:

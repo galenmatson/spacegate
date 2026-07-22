@@ -128,6 +128,7 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
                 "WHERE f.fact_status='source_selected' AND NOT EXISTS ("
                 "SELECT 1 FROM evidence_object_bindings b "
                 "WHERE b.binding_id=f.binding_id AND b.source_id=f.source_id "
+                "AND b.object_type=f.object_type "
                 "AND b.binding_status='accepted')",
             )
         elif {"binding_subject_kind", "binding_subject_id"}.issubset(binding_columns):
@@ -199,35 +200,62 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
         )
         for source in policy.get("selection_sources") or []:
             source_id = str(source["source_id"])
+            object_type = str(source["object_type"])
+            check_scope = f"{source_id}_{object_type}"
+            accounting_rows = scalar(
+                con,
+                "SELECT COUNT(*) FROM selection_source_accounting "
+                "WHERE source_id=? AND object_type=?",
+                [source_id, object_type],
+            )
+            checks[f"source_accounting_row_count_{check_scope}"] = abs(
+                accounting_rows - 1
+            )
             row = con.execute(
                 f"SELECT {eligible_column},accepted_current_bindings,selected_facts "
-                "FROM selection_source_accounting WHERE source_id=?",
-                [source_id],
+                "FROM selection_source_accounting "
+                "WHERE source_id=? AND object_type=?",
+                [source_id, object_type],
             ).fetchone()
-            checks[f"missing_source_accounting_{source_id}"] = int(row is None)
+            checks[f"missing_source_accounting_{check_scope}"] = int(row is None)
             if row is None:
                 continue
-            checks[f"eligible_floor_{source_id}"] = int(
+            checks[f"eligible_floor_{check_scope}"] = int(
                 int(row[0]) < int(source.get("minimum_eligible_records") or 1)
             )
-            checks[f"binding_floor_{source_id}"] = int(
+            checks[f"binding_floor_{check_scope}"] = int(
                 int(row[1]) < int(source.get("minimum_accepted_bindings") or 1)
             )
-            checks[f"selected_fact_floor_{source_id}"] = int(
+            checks[f"selected_fact_floor_{check_scope}"] = int(
                 int(row[2]) < int(source.get("minimum_selected_facts") or 1)
+            )
+            expected_selected = source.get("expected_selected_facts")
+            checks[f"expected_selected_fact_count_{check_scope}"] = (
+                0
+                if expected_selected is None
+                else abs(int(row[2]) - int(expected_selected))
             )
             outcomes = dict(
                 con.execute(
                     "SELECT binding_status,COUNT(*) FROM evidence_object_bindings "
-                    "WHERE source_id=? GROUP BY 1",
-                    [source_id],
+                    "WHERE source_id=? AND object_type=? GROUP BY 1",
+                    [source_id, object_type],
                 ).fetchall()
             )
-            checks[f"binding_outcome_accounting_{source_id}"] = abs(
+            checks[f"binding_outcome_accounting_{check_scope}"] = abs(
                 int(row[0]) - sum(int(value) for value in outcomes.values())
             )
-            checks[f"accepted_binding_accounting_{source_id}"] = abs(
+            checks[f"accepted_binding_accounting_{check_scope}"] = abs(
                 int(row[1]) - int(outcomes.get("accepted", 0))
+            )
+            expected_outcomes = source.get("expected_binding_outcomes")
+            checks[f"expected_binding_outcomes_{check_scope}"] = (
+                0
+                if expected_outcomes is None
+                else sum(
+                    abs(int(outcomes.get(status, 0)) - int(expected_outcomes.get(status, 0)))
+                    for status in set(outcomes) | set(expected_outcomes)
+                )
             )
             for group in source.get("quantity_groups") or []:
                 for authority in group.get("authorities") or []:
@@ -243,13 +271,15 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
                     checks[check_key] = scalar(
                         con,
                         "SELECT COUNT(*) FROM parameter_set_selection_decisions "
-                        "WHERE selected_source_id=? AND quantity_group=? "
+                        "WHERE selected_source_id=? AND object_type=? "
+                        "AND quantity_group=? "
                         "AND authority_rank=? AND authority_reason=? "
                         "AND selection_quality_score IS NULL "
                         "AND candidate_parameter_set_count>1 "
                         "AND runner_up_authority_rank=authority_rank",
                         [
                             source_id,
+                            object_type,
                             str(group["group_key"]),
                             int(authority["rank"]),
                             str(authority["reason"]),

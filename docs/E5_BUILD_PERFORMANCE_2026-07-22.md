@@ -135,3 +135,54 @@ compile, and retention reports remain.
 - `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_reproduction_timing.json`
 - `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_reproduction_performance_analysis.json`
 - `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v11_retention_applied.json`
+
+## Policy v13 NASA Host Candidate
+
+Unserved USB-backed candidate `16708b8ed193aeae9b2ab995` adds a separately
+accounted star-scoped NASA host program while retaining the existing NASA planet
+program. The 103 instrumented phases pass with 94,546,790 binding outcomes,
+41,078,837 coherent decisions, 121,306,839 selected facts, and 66,834
+derivations. Independent artifact audit passes every scientific, lineage,
+partition, policy-hash, and source/object accounting gate. Clean reproduction
+and E6 A/B remain open, so this candidate is not the normal local `current`
+artifact or a served product.
+
+The compile took 1,733.725 measured phase seconds and 1,739.91 external wall
+seconds (29:00), used 7,153.146 CPU-seconds, and peaked at 35.96 GiB RSS, 69.01
+GiB staging, and 149.67 GiB spill. The independent audit took 30.24 seconds and
+peaked at 30.0 GiB RSS. The dedicated spill was empty after verification; the
+70-GiB candidate remains under `/mnt/space/spacegate/e5-selection-v13` while
+`/data` storage is reviewed.
+
+| Phase family | Wall s | Share |
+| --- | ---: | ---: |
+| Source candidate insertion | 835.052 | 48.17% |
+| Source binding | 228.265 | 13.17% |
+| Deterministic exports | 225.357 | 13.00% |
+| Immutable E4 input verification | 160.402 | 9.25% |
+| Global parameter-set selection | 118.654 | 6.84% |
+| Artifact finalization and hashing | 107.356 | 6.19% |
+| Integrity checks | 41.265 | 2.38% |
+
+Gaia direct fact materialization remains the first optimization target at
+571.078 seconds. Selected-fact and decision export is second at 225.357,
+followed by Bailer-Jones binding/materialization at 206.241 and full immutable
+input verification at 160.402. Artifact hashing varied from 57.5 seconds in the
+v12 reference to 107.3 here and needs repeated I/O evidence before redesign.
+
+The new focused NASA preflight closes the most expensive feedback-loop defect.
+It verifies the 4.50-GB input, identity outcomes, coherent selection, exact
+lineage, object-scope isolation, and expected v12 authority/count impact in 7.60
+seconds. It predicted the exact 415-fact supplementary-Gaia displacement that
+stopped an earlier 22:41 full attempt. Future scoped policy work must pass a
+reference-decision composition gate before the full compiler starts. The two
+rejected attempts retain incremental timing reports; their staging and spill
+were removed only after their processes exited.
+
+Additional machine reports:
+
+- `/data/spacegate/state/reports/evidence_lake_v2/e5_nasa_host_selection_verification.json`
+- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_compile.json`
+- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_compile_timing.json`
+- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_performance_analysis.json`
+- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_artifact_audit.json`

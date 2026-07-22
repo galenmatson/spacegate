@@ -126,3 +126,34 @@ selects NASA planet quantities but omitted a host-star selection program. The
 1,160 lost distances are legacy Gaia inverse-parallax values without a selected
 posterior estimate and require an explicit distance policy rather than silent
 fallback. Neither tail is hidden by the compatibility view.
+
+## NASA Host Policy Preflight
+
+Before paying for another full E5 compile, the star-scoped NASA host program is
+compiled alone by `scripts/verify_e5_nasa_host_selection.py`. The hash-verified
+run reads and attests the 4.50-GB E4 NASA shard, resolves host identities, inserts
+candidates, performs coherent parameter-set selection, and audits lineage and
+scope and compares the resulting authority decisions with accepted policy v12
+in 7.60 wall seconds and 20.38 CPU-seconds with 3.80-GiB peak RSS. Input hashing
+accounts for 3.62 seconds; reference authority-impact composition adds 1.19
+seconds.
+
+The preflight accounts for 132,578 eligible host records as 27,945 accepted,
+104,628 missing, and five ambiguous. It selects 12,210 facts for 4,308 coherent
+host parameter sets: 2,124 temperatures, 2,013 masses, 1,895 surface gravities,
+1,822 radii, 1,636 metallicities, 929 ages, 896 densities, and 895 log solar
+luminosities. Exactly 10,830 facts come from NASA default reference-specific
+rows and 1,380 from the reference-specific stellar-host table. Cross-object
+facts, duplicate selected quantities, missing binding lineage, and missing
+evidence lineage are all zero.
+
+The authority-impact gate reports 99 atmosphere and 248 fundamental fills,
+195 atmosphere and 1,814 fundamental replacements, 1,952 reference wins, and
+zero authority ties. It predicts exactly 6,320 displaced primary Gaia AP facts
+and 415 displaced supplementary AP facts before the global compiler runs.
+
+This preflight is now the required fast gate for NASA host-policy changes. It
+does not replace the complete E5 compile because the global compiler must still
+prove competition against all other stellar authorities and deterministic
+partition exports. Its machine report is
+`state/reports/evidence_lake_v2/e5_nasa_host_selection_verification.json`.

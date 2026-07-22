@@ -955,7 +955,31 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 14
+    assert len(policy["selection_sources"]) == 15
+    nasa_programs = [
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "nasa_exoplanet_archive.planetary_systems"
+    ]
+    assert {source["object_type"] for source in nasa_programs} == {"star", "planet"}
+    nasa_host = next(
+        source for source in nasa_programs if source["object_type"] == "star"
+    )
+    assert nasa_host["binding"]["strategy"] == "canonical_identifier_consensus"
+    assert nasa_host["expected_binding_outcomes"] == {
+        "accepted": 27945,
+        "ambiguous": 5,
+        "missing": 104628,
+    }
+    nasa_groups = {
+        group["group_key"]: group for group in nasa_host["quantity_groups"]
+    }
+    assert [
+        rule["rank"] for rule in nasa_groups["stellar_atmosphere"]["authorities"]
+    ] == [28, 29, 35]
+    assert [
+        rule["rank"] for rule in nasa_groups["stellar_fundamental"]["authorities"]
+    ] == [8, 18, 25]
     vsx = next(
         source
         for source in policy["selection_sources"]
@@ -1007,6 +1031,181 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_one_source_can_select_star_and_planet_scopes_without_leakage(
+    tmp_path: Path,
+) -> None:
+    e4_db = tmp_path / "e4.duckdb"
+    identity_db = tmp_path / "identity.duckdb"
+    core_db = tmp_path / "core.duckdb"
+    output_db = tmp_path / "selected.duckdb"
+
+    con = duckdb.connect(str(e4_db))
+    con.execute(
+        """
+        CREATE TABLE source_records(
+          source_record_id VARCHAR,source_table VARCHAR,source_context_json JSON
+        );
+        CREATE TABLE identifier_claim_evidence(
+          source_record_id VARCHAR,namespace VARCHAR,identifier_normalized VARCHAR,
+          claim_scope VARCHAR,component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_sets(
+          parameter_set_id VARCHAR,source_record_id VARCHAR,method VARCHAR,
+          model VARCHAR,reference_raw VARCHAR,quality_json JSON
+        );
+        CREATE TABLE stellar_parameter_evidence(
+          evidence_id VARCHAR,parameter_set_id VARCHAR,source_record_id VARCHAR,
+          quantity_key VARCHAR,value_raw VARCHAR,normalized_value DOUBLE,
+          normalized_unit VARCHAR,uncertainty_lower DOUBLE,uncertainty_upper DOUBLE,
+          bound_semantics VARCHAR,reference_raw VARCHAR,normalization_version VARCHAR,
+          quality_json JSON
+        );
+        CREATE TABLE planet_parameter_sets AS SELECT * FROM stellar_parameter_sets LIMIT 0;
+        CREATE TABLE planet_parameter_evidence AS SELECT * FROM stellar_parameter_evidence LIMIT 0;
+        INSERT INTO source_records VALUES ('shared','source_table','{}');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('shared','gaia_dr3_source_id','Gaia DR3 123','star',NULL),
+          ('shared','nasa_planet_name','Test 1 b','planet_or_candidate',NULL);
+        INSERT INTO stellar_parameter_sets VALUES
+          ('star-set','shared','host-method',NULL,'host-ref','{}');
+        INSERT INTO stellar_parameter_evidence VALUES
+          ('star-mass','star-set','shared','host_mass','1.0',1.0,'M_sun',
+           NULL,NULL,'measurement','host-ref','v1','{}');
+        INSERT INTO planet_parameter_sets VALUES
+          ('planet-set','shared','planet-method',NULL,'planet-ref','{}');
+        INSERT INTO planet_parameter_evidence VALUES
+          ('planet-radius','planet-set','shared','planet_radius','2.0',2.0,'R_earth',
+           NULL,NULL,'measurement','planet-ref','v1','{}');
+        """
+    )
+    con.close()
+
+    con = duckdb.connect(str(identity_db))
+    con.execute(
+        """
+        CREATE TABLE canonical_identifier_bindings(
+          namespace VARCHAR,id_value_norm VARCHAR,object_node_key VARCHAR,
+          stable_object_key VARCHAR,system_stable_object_key VARCHAR
+        );
+        CREATE TABLE canonical_object_nodes(
+          object_node_key VARCHAR,stable_object_key VARCHAR,
+          system_stable_object_key VARCHAR,object_type VARCHAR
+        );
+        INSERT INTO canonical_identifier_bindings VALUES
+          ('gaia_dr3','123','star-node','star-key','system-key');
+        INSERT INTO canonical_object_nodes VALUES
+          ('star-node','star-key','system-key','star'),
+          ('planet-node','planet-key','system-key','planet');
+        """
+    )
+    con.close()
+
+    con = duckdb.connect(str(core_db))
+    con.execute(
+        "CREATE TABLE planets(planet_name_norm VARCHAR,stable_object_key VARCHAR,"
+        "system_id BIGINT); INSERT INTO planets VALUES ('test 1 b','planet-key',1)"
+    )
+    con.close()
+
+    star_source = {
+        "source_id": "shared.source",
+        "object_type": "star",
+        "binding_scope": "host",
+        "binding": {
+            "strategy": "canonical_identifier",
+            "claim_namespace": "gaia_dr3_source_id",
+            "canonical_namespace": "gaia_dr3",
+            "normalization": "unsigned_decimal",
+        },
+        "parameter_set_table": "stellar_parameter_sets",
+        "parameter_evidence_table": "stellar_parameter_evidence",
+        "quantity_groups": [
+            {
+                "group_key": "stellar_fundamental",
+                "quantities": {"host_mass": "mass_msun"},
+                "authorities": [{"rank": 10, "reason": "host"}],
+            }
+        ],
+        "_policy_version": "test",
+    }
+    planet_source = {
+        "source_id": "shared.source",
+        "object_type": "planet",
+        "binding_scope": "planet",
+        "binding": {
+            "strategy": "canonical_unique_name",
+            "claim_namespace": "nasa_planet_name",
+            "canonical_table": "planets",
+            "canonical_name_field": "planet_name_norm",
+            "normalization": "spacegate_public_name_v1",
+        },
+        "parameter_set_table": "planet_parameter_sets",
+        "parameter_evidence_table": "planet_parameter_evidence",
+        "quantity_groups": [
+            {
+                "group_key": "planet_bulk",
+                "quantities": {"planet_radius": "radius_earth"},
+                "authorities": [{"rank": 10, "reason": "planet"}],
+            }
+        ],
+        "_policy_version": "test",
+    }
+
+    con = duckdb.connect(str(output_db))
+    compiler.create_schema(con)
+    compiler.create_candidate_table(con)
+    con.execute(f"ATTACH '{e4_db}' AS e4 (READ_ONLY)")
+    con.execute(f"ATTACH '{identity_db}' AS identity (READ_ONLY)")
+    con.execute(f"ATTACH '{core_db}' AS core (READ_ONLY)")
+    member = {"build_id": "e4-test"}
+    assert compiler.create_binding(
+        con,
+        source=star_source,
+        source_alias="e4",
+        member=member,
+        release_id="r1",
+    ) == (1, 1)
+    assert compiler.create_binding(
+        con,
+        source=planet_source,
+        source_alias="e4",
+        member=member,
+        release_id="r1",
+    ) == (1, 1)
+    compiler.insert_candidates(
+        con,
+        source=star_source,
+        source_alias="e4",
+        member=member,
+        release_id="r1",
+    )
+    compiler.insert_candidates(
+        con,
+        source=planet_source,
+        source_alias="e4",
+        member=member,
+        release_id="r1",
+    )
+    assert con.execute(
+        "SELECT object_type,stable_object_key,quantity_key FROM fact_candidates "
+        "ORDER BY object_type"
+    ).fetchall() == [
+        ("planet", "planet-key", "radius_earth"),
+        ("star", "star-key", "mass_msun"),
+    ]
+    con.close()
+
+
+def test_policy_rejects_duplicate_selection_program_scope(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    policy["selection_sources"].append(dict(policy["selection_sources"][0]))
+    _, manifest = compiler.release_set_paths(state, policy)
+    with pytest.raises(ValueError, match="duplicate or incomplete selection program"):
+        compiler.validate_policy(policy, manifest)
 
 
 def test_policy_rejects_duplicate_source_channel_dispositions(tmp_path: Path) -> None:

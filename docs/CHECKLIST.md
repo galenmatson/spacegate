@@ -1586,10 +1586,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   classification on selected facts, reconnect canonical and inferred leaves to
   release-scoped MSC component spectra/masses, retain legacy compatibility only
   for pre-E6 builds, and pass full A/B with zero known-to-unknown regressions
-- [ ] E5/E6 NASA host selection gap: bind preserved NASA reference-specific,
+- [x] E5 NASA host-policy preflight: bind preserved NASA reference-specific,
   stellarhosts, and composite host parameter sets to canonical stars through
   authoritative identifiers; select coherent atmosphere/fundamental facts and
-  log-luminosity semantics, then rerun E5/E6 without legacy-value loss
+  log-luminosity semantics; account for every host binding; and pass isolated
+  scope, lineage, and duplicate-selection gates
+- [x] E5 NASA host selected-fact candidate: pass all 103 instrumented compiler
+  phases and the object-scoped independent audit as unserved build
+  `16708b8ed193aeae9b2ab995`; preserve the per-step performance report and
+  exact v12 authority-impact accounting
+- [ ] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
+  clean E5 reproduction plus E6 shadow rebuild with the host policy, then verify that the legacy
+  temperature/mass/radius/luminosity loss tail is removed without
+  lower-authority regressions
 - [ ] E6 distance-loss review: account for 1,160 stability inverse-parallax
   distances lacking selected Bailer-Jones posteriors; choose an explicit,
   uncertainty-aware fallback or deliberate omission without treating reciprocal

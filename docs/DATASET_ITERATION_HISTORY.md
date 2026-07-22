@@ -3114,6 +3114,28 @@ Representative commits:
   because reciprocal parallax is a derivation with uncertainty/applicability
   constraints, not an interchangeable source distance measurement.
 
+### 113) Shared Source Artifacts Require Object-Scoped Selection Programs
+
+- NASA host-star and planet evidence intentionally share one release-scoped E4
+  artifact and source ID. E5 now treats their selection programs as distinct by
+  source ID, object type, and binding scope, and every binding-to-candidate join
+  includes object type. Exact duplicate programs remain invalid.
+- A synthetic compiler golden proves that a source record containing both host
+  and planet evidence emits only stellar mass on the star and planet radius on
+  the planet. The checked-in source-disposition audit likewise permits distinct
+  scoped programs while rejecting conflicting duplicate dispositions.
+- The final hash-verified NASA host preflight takes 7.60 seconds, including 3.62
+  seconds to attest the 4.50-GB evidence shard and 1.19 seconds to compose its
+  decisions against accepted v12. It selects 12,210 facts with
+  zero cross-object leakage, duplicate quantities, or missing lineage. Full E5
+  remains the authority-competition and deterministic-export acceptance gate.
+- The preflight predicted 6,320 primary and 415 supplementary Gaia AP facts
+  displaced by the targeted host policy with zero authority ties. The exact
+  323,018 supplementary count then passed in the global compiler. Candidate
+  `16708b8ed193aeae9b2ab995` contains 121,306,839 facts and passes the updated
+  independent object-scoped audit; it remains unserved pending reproduction
+  and E6 A/B.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

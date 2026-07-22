@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-22.e5-selection.12",
-  "compiler_version": "selected_fact_compiler_v11",
+  "policy_version": "2026-07-22.e5-selection.13",
+  "compiler_version": "selected_fact_compiler_v13",
   "evidence_release_set_id": "6c19de054e9b807674c37d3c",
   "evidence_release_set_sha256": "6c19de054e9b807674c37d3c2eb9476f4c57a82b425ed9378bf60104016f5aa1",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -242,7 +242,7 @@
         "accepted": 2715345,
         "missing": 5304027
       },
-      "expected_selected_facts": 323433,
+      "expected_selected_facts": 323018,
       "channel_dispositions": [
         {
           "channel": "stellar_parameter_evidence.gsp_spec_ann",
@@ -1084,6 +1084,83 @@
           "channel": "vsx_references",
           "disposition": "evidence_only",
           "reason": "Object bibliography remains provenance and citation evidence for the selected source record."
+        }
+      ]
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "object_type": "star",
+      "binding_scope": "host",
+      "binding": {
+        "strategy": "canonical_identifier_consensus",
+        "identifier_namespaces": [
+          {
+            "claim_namespace": "gaia_dr3_source_id",
+            "canonical_namespace": "gaia_dr3",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "hip_designation",
+            "canonical_namespace": "hip",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "hd_designation",
+            "canonical_namespace": "hd",
+            "normalization": "unsigned_decimal"
+          }
+        ]
+      },
+      "allowed_claim_scopes": ["star"],
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "minimum_eligible_records": 130000,
+      "minimum_accepted_bindings": 27000,
+      "expected_binding_outcomes": {
+        "accepted": 27945,
+        "ambiguous": 5,
+        "missing": 104628
+      },
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere",
+          "quantities": {
+            "nasa_exoplanet_archive.st_teff": "teff_k",
+            "nasa_exoplanet_archive.st_logg": "logg_cgs",
+            "nasa_exoplanet_archive.st_met": "metallicity_m_h"
+          },
+          "authorities": [
+            {"rank": 28, "source_table": "nasa_ps_reference_v2", "context_field": "default_flag", "context_value": "1", "reason": "NASA default reference-specific confirmed-planet host atmosphere set; targeted literature fallback behind specialist and calibrated spectroscopic solutions"},
+            {"rank": 29, "source_table": "nasa_stellarhosts_v2", "reason": "NASA reference-specific stellar-host atmosphere fallback behind specialist and calibrated spectroscopic solutions"},
+            {"rank": 35, "source_table": "nasa_pscomppars_v2", "reason": "NASA archive composite host atmosphere fallback"}
+          ]
+        },
+        {
+          "group_key": "stellar_fundamental",
+          "quantities": {
+            "nasa_exoplanet_archive.st_mass": "mass_msun",
+            "nasa_exoplanet_archive.st_rad": "radius_rsun",
+            "nasa_exoplanet_archive.st_age": "age_gyr",
+            "nasa_exoplanet_archive.st_dens": "density_g_cm3",
+            "nasa_exoplanet_archive.st_lum": "luminosity_log10_lsun"
+          },
+          "authorities": [
+            {"rank": 8, "source_table": "nasa_ps_reference_v2", "context_field": "default_flag", "context_value": "1", "reason": "NASA default reference-specific confirmed-planet host physical set; targeted coherent literature solution behind specialist compact-object physics and ahead of generic survey models"},
+            {"rank": 18, "source_table": "nasa_stellarhosts_v2", "reason": "NASA reference-specific stellar-host physical fallback behind primary Gaia physical solutions"},
+            {"rank": 25, "source_table": "nasa_pscomppars_v2", "reason": "NASA archive composite host physical fallback"}
+          ]
+        }
+      ],
+      "channel_dispositions": [
+        {
+          "channel": "stellar_parameter_evidence.host_atmosphere_and_fundamental",
+          "disposition": "selected",
+          "reason": "Reference-specific and composite NASA host parameters compete as coherent source parameter sets on exact canonical star bindings."
+        },
+        {
+          "channel": "stellar_parameter_evidence.host_counts_and_metallicity_ratio",
+          "disposition": "evidence_only",
+          "reason": "Observation counts and metallicity-ratio labels remain source context rather than public physical quantities."
         }
       ]
     },

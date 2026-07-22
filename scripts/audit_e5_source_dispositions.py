@@ -63,8 +63,17 @@ def audit(
 ) -> dict[str, Any]:
     accepted = release_sources(release_set)
     configured_rows = selection.get("selection_sources") or []
-    configured_counts = Counter(str(row["source_id"]) for row in configured_rows)
-    configured = {str(row["source_id"]): row for row in configured_rows}
+    configured: dict[str, list[dict[str, Any]]] = {}
+    for row in configured_rows:
+        configured.setdefault(str(row["source_id"]), []).append(row)
+    configured_scope_counts = Counter(
+        (
+            str(row["source_id"]),
+            str(row.get("object_type") or ""),
+            str(row.get("binding_scope") or ""),
+        )
+        for row in configured_rows
+    )
     explicit = dict(dispositions.get("explicit_dispositions") or {})
 
     metadata_errors = sorted(
@@ -82,7 +91,9 @@ def audit(
         if not valid
     )
     duplicate_selection_sources = sorted(
-        source_id for source_id, count in configured_counts.items() if count > 1
+        ":".join(scope)
+        for scope, count in configured_scope_counts.items()
+        if count > 1
     )
     conflicts = sorted(set(configured) & set(explicit))
     stale = sorted(set(explicit) - set(accepted))
@@ -94,7 +105,7 @@ def audit(
 
     for source_id, release_id in sorted(accepted.items()):
         if source_id in configured:
-            source = configured[source_id]
+            programs = configured[source_id]
             rows.append(
                 {
                     "source_id": source_id,
@@ -105,7 +116,14 @@ def audit(
                     "reason": "Source has one or more explicit quantity-group selection policies.",
                     "selected_quantity_groups": sorted(
                         str(group["group_key"])
+                        for source in programs
                         for group in source.get("quantity_groups") or []
+                    ),
+                    "selection_programs": sorted(
+                        {
+                            f"{source.get('object_type')}:{source.get('binding_scope')}"
+                            for source in programs
+                        }
                     ),
                 }
             )
@@ -221,6 +239,7 @@ def audit(
         "summaries": {
             "accepted_e4_sources": len(accepted),
             "selected_sources": len(configured),
+            "selection_programs": len(configured_rows),
             "explicit_dispositions": len(explicit),
             "disposition_counts": dict(sorted(disposition_counts.items())),
         },

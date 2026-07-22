@@ -2293,6 +2293,17 @@ Foundation checkpoint (July 22, 2026):
   of 193 lost radii and 195 lost luminosities. It must be fixed in the general
   source selection policy, not masked by a compatibility fallback. A separate
   1,160-row inverse-parallax distance tail remains an explicit policy review
+- the general star-scoped NASA host policy now passes a hash-verified fast
+  preflight: 132,578 eligible source records are exhaustively resolved as
+  27,945 accepted, 104,628 missing, and five ambiguous, producing 12,210
+  lineage-complete host facts in 6.42 seconds. The full E5/E6 cutover and A/B
+  remain open; the fast gate prevents another 25-minute compile from being the
+  first place host-policy defects appear
+- unserved E5 candidate `16708b8ed193aeae9b2ab995` passes all 103 compiler
+  phases and independent object-scoped artifact audit with 121,306,839 facts.
+  Its 29:00 measured run confirms Gaia direct materialization (571.1 seconds),
+  export (225.4), Bailer-Jones (206.2), and immutable verification (160.4) as
+  the ranked optimization targets. Clean reproduction and E6 A/B remain open
 
 Deliverables:
 
