@@ -110,6 +110,12 @@ compile, audit, byte-exact product comparison, report handling, and scratch
 cleanup take 1.18 seconds. Keeping authority selection in this compact artifact
 allows policy iteration without paying the 2.5-minute ARM assembly cost.
 
+Stellar-orbit endpoint bridge `5d9e530b307ad869142dcdaf` compiles in 1.52
+seconds. Independent audit takes 1.31 seconds, while clean rebuild, audit,
+byte-exact comparison, report handling, and scratch cleanup take 2.83 seconds
+with a 611,140 KiB peak. Like orbit selection, endpoint-policy iteration is
+therefore isolated from the large ARM assembly.
+
 Clean Solar ARM v2 build `376285dd79d73a52972d74fd` completes in 148.73 seconds
 of internal wall time and 2:28.91 under GNU `time -v`. It uses 430.19 CPU-seconds,
 peaks at 47,150,292 KiB RSS without swap, and writes a 13,716,172,800-byte

@@ -650,6 +650,11 @@ Rule:
   before ARM projection. Gaia NSS and TESS EB observation-target solutions
   require physical-relation adjudication. Exact system scope alone is not
   sufficient to manufacture companions or runtime edges.
+- A release-scoped MSC endpoint may bridge to a runtime hierarchy leaf only
+  when the WDS system is exact and the component label is unique in both the
+  case-significant source identity set and the casefolded runtime leaf set.
+  Missing leaves and case collisions remain evidence; they do not create
+  runtime components or orbit edges.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
 - Projected-separation support values computed from angular separation and

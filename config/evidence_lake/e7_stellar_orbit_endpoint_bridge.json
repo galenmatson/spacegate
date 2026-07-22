@@ -1,0 +1,48 @@
+{
+  "schema_version": "spacegate.e7_stellar_orbit_endpoint_bridge_policy.v1",
+  "policy_version": "2026-07-22.e7-stellar-orbit-endpoint-bridge.1",
+  "compiler_version": "e7_stellar_orbit_endpoint_bridge_compiler_v1",
+  "inputs": {
+    "selected_orbits": {
+      "build_id": "80099350ba26465252053885",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/80099350ba26465252053885",
+      "manifest_sha256": "b704eb145a8204b17b65e70f32f3f7f3e58c0f4691bca01c8b06807c7cf20b41"
+    },
+    "selected_components": {
+      "build_id": "67fea5f99500b57419ebdeb0",
+      "relative_path": "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0",
+      "manifest_sha256": "2e51b20b63351c4312947b592d9b5a147254c4bcdee35db130191be0e20204df",
+      "database_sha256": "dfbe081f2a5a024d31110276c3d6180349829e4502492829d13ddc180649116a"
+    },
+    "clean_runtime_core": {
+      "build_id": "92da8d31dc0e7dbd4d4d70a5",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5",
+      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224",
+      "hierarchy_sha256": "f63785f9a23751f44e5a81dcbee3f97adb60855b0737e40ffeaf43aeb9235148"
+    }
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "name_or_coordinate_endpoint_matching": false,
+    "casefold_matching_requires_unique_source_and_runtime_leaf": true,
+    "unresolved_endpoints_create_runtime_components": false,
+    "unresolved_relations_create_runtime_edges": false,
+    "source_relations_create_containment": false,
+    "simulation_requires_selected_coherent_solution": true
+  },
+  "acceptance": {
+    "endpoints": 22396,
+    "endpoints_accepted": 7643,
+    "endpoints_missing_runtime_leaf": 14318,
+    "endpoints_ambiguous_source_case": 435,
+    "relations": 11250,
+    "relations_runtime_eligible": 3238,
+    "relations_one_endpoint_unresolved": 1169,
+    "relations_both_endpoints_unresolved": 6843,
+    "preferred_relations": 3292,
+    "preferred_relations_runtime_eligible": 1899,
+    "preferred_relations_one_endpoint_unresolved": 696,
+    "preferred_relations_both_endpoints_unresolved": 697,
+    "containment_promotions": 0
+  }
+}

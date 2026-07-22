@@ -2575,6 +2575,15 @@ Pre-promotion planning checkpoint (July 22, 2026):
   adjudication, and 2,228 TESS EB timing solutions pending physical endpoints.
   It creates no containment or runtime edge. Compile, independent audit, and
   byte-exact isolated reproduction complete in less than 1.2 seconds
+- endpoint bridge `5d9e530b307ad869142dcdaf` accounts every one of 22,396
+  selected MSC source endpoints against clean canonical hierarchy leaves. The
+  only accepted bridge is an exact WDS scope plus a casefolded label that is
+  unique on both sides: 7,643 bind, 14,318 have no runtime leaf, and 435 remain
+  ambiguous because case-significant source identities collide when folded
+- both endpoints resolve for 3,238 of 11,250 selected relations and 1,899 of
+  3,292 preferred visual solutions. The unresolved tails remain evidence-only;
+  they create no runtime component, relation edge, simulation, or containment.
+  Independent audit and byte-exact clean reproduction pass
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

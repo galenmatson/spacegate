@@ -2208,6 +2208,21 @@ edge, synthetic companion, or containment. The 0.86-second compile passes a
 0.35-second independent audit and 1.18-second byte-exact isolated reproduction.
 ARM endpoint bridging and compatibility projection remain subsequent work.
 
+Endpoint bridge `5d9e530b307ad869142dcdaf` performs the next identity gate
+against clean hierarchy `92da8d31dc0e7dbd4d4d70a5`, not against ARM or the
+stability build. Every one of 22,396 selected source endpoints receives an
+outcome. An endpoint binds only when its exact WDS system and casefolded
+component label are unique among accepted case-significant source components
+and unique among clean inferred leaves. This accepts 7,643 endpoints, leaves
+14,318 without a runtime leaf, and quarantines 435 case-significant collisions.
+
+Both endpoints resolve for 3,238 of 11,250 selected relations. Of 3,292
+preferred coherent visual solutions, 1,899 become simulation-eligible, 696 have
+one unresolved endpoint, and 697 have two. Missing and ambiguous endpoints keep
+null runtime keys. The bridge creates no component, edge, or containment and
+uses no name or coordinate matching. Its 1.52-second compile, 1.31-second
+independent audit, and 2.83-second byte-exact isolated reproduction pass.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

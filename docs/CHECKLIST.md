@@ -1778,6 +1778,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectroscopic and eclipsing evidence as context, defer SBX/Gaia NSS/TESS EB
   until their required identity or relation adjudication exists, and pass
   independent audit plus byte-exact clean reproduction
+- [x] E7 stellar-orbit endpoint bridge: compile artifact
+  `5d9e530b307ad869142dcdaf`; account all 22,396 selected MSC endpoints against
+  the clean hierarchy, accept 7,643 exact unique WDS/casefold leaf bindings,
+  keep 14,318 missing and 435 case-significant collisions unresolved, make
+  3,238 relations and 1,899 preferred visual solutions runtime-eligible, create
+  no component, edge, or containment, and pass independent audit plus byte-exact
+  reproduction
 - [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
   including release-scoped endpoint bridging, and TESS candidate compatibility
   without relation-to-containment promotion or independent scientific fallback

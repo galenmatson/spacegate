@@ -786,6 +786,14 @@ accounts 17,170 eligible solutions and selects one complete visual set for
 3,292 of 11,250 exact endpoint relations. SBX, Gaia NSS, and TESS EB deferrals
 remain machine-readable and create no runtime relation or containment.
 
+Endpoint artifact `5d9e530b307ad869142dcdaf` then reconciles the selected MSC
+source endpoints against the clean runtime hierarchy. Exact WDS scope and a
+label unique before and after casefolding are mandatory; names and coordinates
+are not matching evidence. It accepts 7,643 of 22,396 endpoints and makes 3,238
+relations, including 1,899 preferred visual solutions, eligible for ARM. The
+14,318 missing leaves and 435 case-significant collisions remain explicit and
+cannot create runtime components or edges.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)

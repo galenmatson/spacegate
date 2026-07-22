@@ -3708,6 +3708,22 @@ Representative commits:
   byte-exact reproduction 1.18 seconds. This inexpensive selected artifact can
   be iterated independently before another 2.5-minute ARM assembly.
 
+### 141) A Selected Orbit Still Needs Two Physical Runtime Endpoints
+
+- Endpoint bridge `5d9e530b307ad869142dcdaf` accounts all 22,396 distinct MSC
+  endpoints used by selected orbit relations against the clean hierarchy.
+- Exact WDS scope is mandatory. Casefolded component labels bind only when the
+  accepted case-significant source set and clean runtime leaf set are each
+  unique. This accepts 7,643 endpoints, leaves 14,318 missing, and quarantines
+  435 source case collisions.
+- Both endpoints resolve for 3,238 relations and 1,899 preferred visual
+  solutions. Another 696 preferred solutions have one unresolved endpoint and
+  697 have two; their science remains selected evidence but they cannot drive a
+  runtime simulation.
+- The bridge does not add source-scoped pseudo-stars to make the numbers pass.
+  No unresolved endpoint creates a component, edge, or containment. Independent
+  audit and byte-exact reproduction pass.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
