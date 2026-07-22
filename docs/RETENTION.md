@@ -983,10 +983,10 @@ artifact.
 
 ## E6 Shadow Product Checkpoint
 
-Unserved shadow `out/e6_994a6301c335ac385f5dc052_shadow`, its manifest,
+Unserved shadow `out/e6_2da376053461c8220bee06ad_shadow`, its manifest,
 independent audit, reproduction report, E6 policy/compiler/auditor, stability
 reference, and all seven pinned E5 artifacts are protected E6 inputs. The
-shadow occupies approximately 16 GiB and is not a served/current build.
+shadow occupies approximately 18 GiB and is not a served/current build.
 Reproduction scratch is created on `/mnt/space/spacegate/e6-reproduction` and
 removed after the comparison, whether it passes or fails.
 
@@ -998,8 +998,17 @@ manual deletion targets. Add an E6-aware exact-candidate retention dry-run that
 checks manifests, reports, process liveness, links, served/current/rollback
 references, and transitive inputs before retiring either whole directory. The
 accepted E6 shadow and its source artifacts must never enter that candidate
-set. A third superseded physical-reproducibility diagnostic may also be present;
-retain it until the logical-hash report and exact candidate set account for it.
+set.
+
+Verified foundation `e6_994a6301c335ac385f5dc052_shadow` is now a superseded
+historical checkpoint. Candidate `e6_9147013123a439d7e9c2e4a5_shadow` is a
+scientific diagnostic only: consumer tables were added after its manifest and
+product hashes, so it is ineligible for promotion or reproduction. Together
+with the two earlier experiments, superseded E6 directories occupy about 66
+GiB on `/data`. Retain them until the E6-specific dry-run accounts for their
+reports and exact bytes; then reclaim only the reviewed candidate set using its
+hash. Human-readable timing and scientific A/B reports should be retained even
+when their reproducible product directory is retired.
 
 ## WISE Image Cache
 
