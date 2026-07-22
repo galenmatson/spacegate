@@ -176,6 +176,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "preserve_all_geometry_candidates": True,
         "preserve_missing_geometry_objects": True,
         "promote_unselected_cluster_distance": False,
+        "promote_selected_cluster_distance": True,
         "promote_associated_star_distance_without_selected_binding": False,
     }
     if policy.get("rules") != expected:
@@ -188,6 +189,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
 def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
     seed = state / "derived/evidence_lake_v2/extended_identity_seed" / policy["identity_seed"]["seed_id"]
     selected = state / "derived/evidence_lake_v2/selected_extended_objects" / policy["selected_extended_objects"]["build_id"]
+    clusters = state / "derived/evidence_lake_v2/clean_clusters" / policy["clean_clusters"]["build_id"]
     paths = {
         "seed_manifest": seed / "manifest.json",
         "nodes": seed / "extended_identity_nodes.parquet",
@@ -198,6 +200,9 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
         "selected_manifest": selected / "manifest.json",
         "bindings": selected / "parquet/extended_object_bindings.parquet",
         "evidence": selected / "parquet/extended_object_evidence_projection.parquet",
+        "cluster_manifest": clusters / "manifest.json",
+        "cluster_bindings": clusters / "parquet/cluster_identity_bindings.parquet",
+        "cluster_evidence": clusters / "parquet/cluster_evidence_projection.parquet",
     }
     for path in paths.values():
         if not path.is_file():
@@ -207,6 +212,9 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Path]:
         "selected_manifest": policy["selected_extended_objects"]["manifest_sha256"],
         "bindings": policy["selected_extended_objects"]["bindings_sha256"],
         "evidence": policy["selected_extended_objects"]["evidence_sha256"],
+        "cluster_manifest": policy["clean_clusters"]["manifest_sha256"],
+        "cluster_bindings": policy["clean_clusters"]["bindings_sha256"],
+        "cluster_evidence": policy["clean_clusters"]["evidence_sha256"],
     }
     for key, digest in expected.items():
         if file_hash(paths[key]) != digest:
@@ -279,11 +287,85 @@ def build_candidates(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> 
     return len(output)
 
 
+def normalized_cluster_context(source_id: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    if source_id == "clusters.hunt_reffert_2024":
+        ra = number(parameters.get("RA_ICRS"))
+        dec = number(parameters.get("DE_ICRS"))
+    elif source_id == "clusters.cantat_gaudin_2020":
+        ra = number(parameters.get("RAdeg"))
+        dec = number(parameters.get("DEdeg"))
+    else:
+        raise ValueError(f"unsupported selected cluster source: {source_id}")
+    if ra is not None:
+        ra %= 360.0
+    return {
+        "ra_deg": ra,
+        "dec_deg": dec,
+        "source_frame": "ICRS",
+        "source_epoch": "source_cluster_mean",
+        "shape_kind": "point" if ra is not None and dec is not None else "missing",
+    }
+
+
+def append_cluster_geometry_candidates(
+    con: duckdb.DuckDBPyConnection,
+    policy: dict[str, Any],
+    *,
+    starting_id: int,
+) -> int:
+    rows = con.execute(
+        """
+        SELECT canonical_extended_object_id,canonical_cluster_stable_object_key,
+               evidence_id,source_record_id,source_id,release_id,source_table,
+               cluster_identity_raw,authority_role,parameter_set_raw,reference_raw,
+               method,normalization_version
+        FROM cluster_evidence
+        WHERE projection_status='eligible_for_quantity_selection'
+          AND canonical_extended_object_id IS NOT NULL
+        ORDER BY authority_rank,canonical_extended_object_id,evidence_id
+        """
+    ).fetchall()
+    output = []
+    for offset, row in enumerate(rows, start=1):
+        parameters = json.loads(str(row[9])) if row[9] is not None else {}
+        normalized = normalized_cluster_context(str(row[4]), parameters)
+        output.append((
+            starting_id + offset,row[0],row[1],row[2],row[3],row[4],row[5],row[6],
+            f"{row[4]}:{row[7]}",row[8],int(policy["source_priority"][str(row[6])]),
+            normalized["ra_deg"],normalized["dec_deg"],normalized["source_frame"],
+            normalized["source_epoch"],normalized["shape_kind"],None,None,None,
+            str(row[9]) if row[9] is not None else None,row[10],row[11],row[12],
+        ))
+    columns = [
+        "geometry_candidate_id", "extended_object_id", "stable_object_key",
+        "evidence_id", "source_record_id", "source_id", "release_id",
+        "source_table", "source_record_key", "authority_role", "source_priority",
+        "ra_deg", "dec_deg", "source_frame", "source_epoch", "shape_kind",
+        "major_axis_arcmin", "minor_axis_arcmin", "position_angle_deg",
+        "geometry_raw", "reference_raw", "method", "normalization_version",
+    ]
+    batch = pa.Table.from_pydict(
+        {name: [row[index] for row in output] for index, name in enumerate(columns)}
+    )
+    con.register("cluster_geometry_batch", batch)
+    try:
+        con.execute(
+            "INSERT INTO extended_object_geometry_candidates "
+            "SELECT * FROM cluster_geometry_batch"
+        )
+    finally:
+        con.unregister("cluster_geometry_batch")
+    return len(output)
+
+
 def compile_extended(
     policy_path: Path, state: Path, output_root: Path, *, link_into_state: bool,
 ) -> dict[str, Any]:
     started = time.monotonic()
     cpu_started = time.process_time()
+    phase_timings: list[dict[str, Any]] = []
+    phase_started = time.monotonic()
+    phase_cpu_started = time.process_time()
     policy = load_object(policy_path)
     validate_policy(policy)
     paths = resolve_inputs(policy, state)
@@ -296,6 +378,11 @@ def compile_extended(
     final = output_root / build_id
     if (final / "manifest.json").is_file():
         return load_object(final / "manifest.json")
+    phase_timings.append({
+        "phase": "resolve_and_hash_inputs",
+        "wall_seconds": round(time.monotonic() - phase_started, 6),
+        "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
+    })
     output_root.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{build_id}.", dir=output_root))
     db = staging / "clean_extended_objects.duckdb"
@@ -303,11 +390,26 @@ def compile_extended(
     parquet.mkdir()
     con = duckdb.connect(str(db), config={"threads": "4", "memory_limit": "4GB"})
     try:
+        phase_started = time.monotonic()
+        phase_cpu_started = time.process_time()
         for name in ("nodes", "aliases", "identifiers", "reconciliation", "quarantine"):
             con.execute(f"CREATE VIEW seed_{name} AS SELECT * FROM read_parquet({sql_literal(paths[name])})")
         con.execute(f"CREATE VIEW selected_bindings AS SELECT * FROM read_parquet({sql_literal(paths['bindings'])})")
         con.execute(f"CREATE VIEW selected_evidence AS SELECT * FROM read_parquet({sql_literal(paths['evidence'])})")
+        con.execute(f"CREATE VIEW cluster_bindings AS SELECT * FROM read_parquet({sql_literal(paths['cluster_bindings'])})")
+        con.execute(f"CREATE VIEW cluster_evidence AS SELECT * FROM read_parquet({sql_literal(paths['cluster_evidence'])})")
         candidate_count = build_candidates(con, policy)
+        cluster_candidate_count = append_cluster_geometry_candidates(
+            con, policy, starting_id=candidate_count,
+        )
+        candidate_count += cluster_candidate_count
+        phase_timings.append({
+            "phase": "load_inputs_and_compile_geometry_candidates",
+            "wall_seconds": round(time.monotonic() - phase_started, 6),
+            "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
+        })
+        phase_started = time.monotonic()
+        phase_cpu_started = time.process_time()
         con.execute(
             f"""
             CREATE TABLE selected_extended_object_geometry AS
@@ -320,6 +422,51 @@ def compile_extended(
               FROM extended_object_geometry_candidates
             ) WHERE choice=1 ORDER BY extended_object_id;
 
+            CREATE TABLE extended_object_distance_candidates AS
+            SELECT row_number() OVER(ORDER BY canonical_extended_object_id,authority_rank,evidence_id)::BIGINT
+                     distance_candidate_id,
+                   canonical_extended_object_id extended_object_id,
+                   canonical_cluster_stable_object_key stable_object_key,
+                   evidence_id,source_record_id,source_id,release_id,source_table,
+                   authority_role,authority_rank,
+                   CASE source_id
+                     WHEN 'clusters.hunt_reffert_2024'
+                       THEN try_cast(json_extract_string(parameter_set_raw,'$.dist50') AS DOUBLE)
+                     WHEN 'clusters.cantat_gaudin_2020'
+                       THEN try_cast(json_extract_string(parameter_set_raw,'$.DistPc') AS DOUBLE)
+                   END dist_pc,
+                   CASE source_id
+                     WHEN 'clusters.hunt_reffert_2024'
+                       THEN try_cast(json_extract_string(parameter_set_raw,'$.dist16') AS DOUBLE)
+                   END distance_low_pc,
+                   CASE source_id
+                     WHEN 'clusters.hunt_reffert_2024'
+                       THEN try_cast(json_extract_string(parameter_set_raw,'$.dist84') AS DOUBLE)
+                   END distance_high_pc,
+                   method,model,reference_raw,quality_json,
+                   CASE source_id
+                     WHEN 'clusters.hunt_reffert_2024' THEN 'current_source_model'
+                     WHEN 'clusters.cantat_gaudin_2020' THEN 'supplementary_source_model'
+                   END distance_confidence,
+                   parameter_set_raw evidence_raw,normalization_version
+            FROM cluster_evidence
+            WHERE projection_status='eligible_for_quantity_selection'
+              AND canonical_extended_object_id IS NOT NULL
+              AND CASE source_id
+                    WHEN 'clusters.hunt_reffert_2024'
+                      THEN try_cast(json_extract_string(parameter_set_raw,'$.dist50') AS DOUBLE)
+                    WHEN 'clusters.cantat_gaudin_2020'
+                      THEN try_cast(json_extract_string(parameter_set_raw,'$.DistPc') AS DOUBLE)
+                  END IS NOT NULL
+            ORDER BY extended_object_id,authority_rank,evidence_id;
+
+            CREATE TABLE selected_extended_object_distance AS
+            SELECT * EXCLUDE(choice) FROM (
+              SELECT *,row_number() OVER(PARTITION BY extended_object_id ORDER BY
+                authority_rank,evidence_id) choice
+              FROM extended_object_distance_candidates
+            ) WHERE choice=1 ORDER BY extended_object_id;
+
             CREATE TABLE extended_objects AS
             SELECT n.extended_object_id,n.stable_object_key,n.canonical_name,n.display_name,
                    n.entity_kind,n.object_family,n.object_type,
@@ -329,11 +476,33 @@ def compile_extended(
                    CASE WHEN g.ra_deg IS NULL OR g.dec_deg IS NULL THEN 'missing'
                         WHEN g.shape_kind='equivalent_circle' THEN 'derived_area'
                         ELSE 'source' END geometry_status,
-                   NULL::DOUBLE dist_pc,NULL::DOUBLE dist_ly,NULL::DOUBLE distance_low_pc,
-                   NULL::DOUBLE distance_high_pc,'missing'::VARCHAR distance_method,
-                   'missing'::VARCHAR distance_confidence,'{{}}'::VARCHAR distance_evidence_json,
-                   'sky_only'::VARCHAR map_domain,NULL::DOUBLE nominal_radius_tier_ly,
-                   NULL::DOUBLE x_helio_ly,NULL::DOUBLE y_helio_ly,NULL::DOUBLE z_helio_ly,
+                   d.dist_pc,d.dist_pc*{LY_PER_PC} dist_ly,d.distance_low_pc,
+                   d.distance_high_pc,coalesce(d.method,'missing') distance_method,
+                   coalesce(d.distance_confidence,'missing') distance_confidence,
+                   CASE WHEN d.evidence_id IS NULL THEN '{{}}'
+                        ELSE json_object('evidence_id',d.evidence_id,'source_record_id',d.source_record_id,
+                          'source_id',d.source_id,'release_id',d.release_id,
+                          'reference',d.reference_raw,'authority_rank',d.authority_rank)::VARCHAR END distance_evidence_json,
+                   CASE WHEN n.object_family='galaxy' THEN 'extragalactic_sky'
+                        WHEN n.object_type='globular_cluster' THEN 'deep_galactic'
+                        WHEN d.dist_pc IS NULL THEN 'sky_only'
+                        WHEN d.dist_pc*{LY_PER_PC}>{float(policy['local_3d_maximum_ly'])} THEN 'deep_galactic'
+                        ELSE 'local_3d' END map_domain,
+                   CASE WHEN d.dist_pc IS NULL OR d.dist_pc*{LY_PER_PC}>{float(policy['local_3d_maximum_ly'])}
+                          OR n.object_family='galaxy' OR n.object_type='globular_cluster' THEN NULL
+                        WHEN d.dist_pc*{LY_PER_PC}<=100 THEN 100
+                        WHEN d.dist_pc*{LY_PER_PC}<=250 THEN 250
+                        WHEN d.dist_pc*{LY_PER_PC}<=500 THEN 500
+                        ELSE 1000 END::DOUBLE nominal_radius_tier_ly,
+                   CASE WHEN d.dist_pc IS NOT NULL AND d.dist_pc*{LY_PER_PC}<={float(policy['local_3d_maximum_ly'])}
+                          AND n.object_family<>'galaxy' AND n.object_type<>'globular_cluster' AND g.ra_deg IS NOT NULL
+                        THEN d.dist_pc*{LY_PER_PC}*cos(radians(g.dec_deg))*cos(radians(g.ra_deg)) END x_helio_ly,
+                   CASE WHEN d.dist_pc IS NOT NULL AND d.dist_pc*{LY_PER_PC}<={float(policy['local_3d_maximum_ly'])}
+                          AND n.object_family<>'galaxy' AND n.object_type<>'globular_cluster' AND g.ra_deg IS NOT NULL
+                        THEN d.dist_pc*{LY_PER_PC}*cos(radians(g.dec_deg))*sin(radians(g.ra_deg)) END y_helio_ly,
+                   CASE WHEN d.dist_pc IS NOT NULL AND d.dist_pc*{LY_PER_PC}<={float(policy['local_3d_maximum_ly'])}
+                          AND n.object_family<>'galaxy' AND n.object_type<>'globular_cluster' AND g.ra_deg IS NOT NULL
+                        THEN d.dist_pc*{LY_PER_PC}*sin(radians(g.dec_deg)) END z_helio_ly,
                    n.type_policy_version,g.source_id source_catalog,g.release_id source_version,
                    CASE g.source_id
                      WHEN 'extended.green_snr' THEN {sql_literal(policy['source_urls']['extended.green_snr'])}
@@ -346,7 +515,9 @@ def compile_extended(
                    NULL::INTEGER retrieval_etag,NULL::VARCHAR retrieval_checksum,
                    NULL::VARCHAR retrieved_at,NULL::VARCHAR ingested_at,
                    {sql_literal(policy['compiler_version'])}::VARCHAR transform_version
-            FROM seed_nodes n LEFT JOIN selected_extended_object_geometry g USING(extended_object_id)
+            FROM seed_nodes n
+            LEFT JOIN selected_extended_object_geometry g USING(extended_object_id)
+            LEFT JOIN selected_extended_object_distance d USING(extended_object_id)
             ORDER BY n.extended_object_id;
 
             CREATE TABLE extended_object_aliases AS SELECT * FROM seed_aliases ORDER BY extended_object_alias_id;
@@ -371,11 +542,18 @@ def compile_extended(
             CHECKPOINT;
             """
         )
+        phase_timings.append({
+            "phase": "select_and_materialize",
+            "wall_seconds": round(time.monotonic() - phase_started, 6),
+            "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
+        })
         tables = [
             "extended_objects", "extended_object_aliases", "extended_object_identifiers",
             "extended_object_source_reconciliation", "extended_object_identity_quarantine",
             "extended_object_search_terms", "extended_object_geometry_candidates",
             "selected_extended_object_geometry",
+            "extended_object_distance_candidates",
+            "selected_extended_object_distance",
         ]
         counts = {table: int(con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]) for table in tables}
         checks = {
@@ -385,24 +563,43 @@ def compile_extended(
             "duplicate_stable_keys": int(con.execute("SELECT count(*) FROM (SELECT stable_object_key FROM extended_objects GROUP BY 1 HAVING count(*)>1)").fetchone()[0]),
             "orphan_geometry": int(con.execute("SELECT count(*) FROM extended_object_geometry_candidates g LEFT JOIN extended_objects o USING(extended_object_id) WHERE o.extended_object_id IS NULL").fetchone()[0]),
             "selected_geometry_cardinality": int(con.execute("SELECT count(*) FROM (SELECT extended_object_id FROM selected_extended_object_geometry GROUP BY 1 HAVING count(*)<>1)").fetchone()[0]),
-            "unselected_distance_promotions": int(con.execute("SELECT count(*) FROM extended_objects WHERE dist_pc IS NOT NULL OR dist_ly IS NOT NULL").fetchone()[0]),
+            "selected_distance_cardinality": int(con.execute("SELECT count(*) FROM (SELECT extended_object_id FROM selected_extended_object_distance GROUP BY 1 HAVING count(*)<>1)").fetchone()[0]),
+            "distance_without_selected_candidate": int(con.execute("SELECT count(*) FROM extended_objects o WHERE o.dist_pc IS NOT NULL AND NOT EXISTS (SELECT 1 FROM selected_extended_object_distance d WHERE d.extended_object_id=o.extended_object_id AND d.dist_pc=o.dist_pc)").fetchone()[0]),
+            "nonpositive_distance": int(con.execute("SELECT count(*) FROM extended_objects WHERE dist_pc<=0").fetchone()[0]),
+            "local_3d_missing_cartesian": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND (x_helio_ly IS NULL OR y_helio_ly IS NULL OR z_helio_ly IS NULL)").fetchone()[0]),
+            "cartesian_norm_mismatch": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND abs(sqrt(x_helio_ly*x_helio_ly+y_helio_ly*y_helio_ly+z_helio_ly*z_helio_ly)-dist_ly)>greatest(1e-9,dist_ly*1e-12)").fetchone()[0]),
+            "galaxy_family_wrong_map_domain": int(con.execute("SELECT count(*) FROM extended_objects WHERE object_family='galaxy' AND map_domain<>'extragalactic_sky'").fetchone()[0]),
             "stability_database_reads": 0,
         }
         if any(checks.values()):
             raise ValueError(f"clean extended-object verification failed: {checks}")
+        phase_started = time.monotonic()
+        phase_cpu_started = time.process_time()
         for table in tables:
             con.execute(
                 f"COPY (SELECT * FROM {table}) TO {sql_literal(parquet / (table + '.parquet'))} "
                 "(FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 122880)"
             )
+        phase_timings.append({
+            "phase": "export_parquet",
+            "wall_seconds": round(time.monotonic() - phase_started, 6),
+            "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
+        })
     finally:
         con.close()
+    phase_started = time.monotonic()
+    phase_cpu_started = time.process_time()
     products = {}
     for path in [db, *sorted(parquet.glob("*.parquet"))]:
         products[str(path.relative_to(staging))] = {
             "bytes": path.stat().st_size, "sha256": file_hash(path),
             "determinism": "logical_tables" if path.suffix == ".duckdb" else "byte_exact",
         }
+    phase_timings.append({
+        "phase": "hash_products",
+        "wall_seconds": round(time.monotonic() - phase_started, 6),
+        "cpu_seconds": round(time.process_time() - phase_cpu_started, 6),
+    })
     manifest = {
         "schema_version": "spacegate.e7_clean_extended_objects_manifest.v1",
         "build_id": build_id, "status": "pass",
@@ -410,11 +607,17 @@ def compile_extended(
         "policy_version": policy["policy_version"], "compiler_version": policy["compiler_version"],
         "policy_sha256": policy_sha, "compiler_sha256": compiler_sha,
         "stability_databases_opened": [], "identity_seed_scientific_authority": False,
+        "inputs": {
+            "selected_extended_objects_build_id": policy["selected_extended_objects"]["build_id"],
+            "clean_clusters_build_id": policy["clean_clusters"]["build_id"],
+        },
         "counts": counts, "verification": checks, "products": products,
         "timing": {
             "wall_seconds": round(time.monotonic() - started, 6),
             "cpu_seconds": round(time.process_time() - cpu_started, 6),
             "peak_rss_kib": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss),
+            "phase_timings": phase_timings,
+            "artifact_bytes": sum(product["bytes"] for product in products.values()),
         },
     }
     (staging / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")

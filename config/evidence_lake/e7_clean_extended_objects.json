@@ -1,13 +1,14 @@
 {
   "schema_version": "spacegate.e7_clean_extended_objects_policy.v1",
-  "policy_version": "2026-07-22.e7-clean-extended.1",
-  "compiler_version": "e7_clean_extended_objects_compiler_v1",
+  "policy_version": "2026-07-22.e7-clean-extended.2",
+  "compiler_version": "e7_clean_extended_objects_compiler_v2",
   "rules": {
     "open_stability_databases": false,
     "identity_seed_is_scientific_authority": false,
     "preserve_all_geometry_candidates": true,
     "preserve_missing_geometry_objects": true,
     "promote_unselected_cluster_distance": false,
+    "promote_selected_cluster_distance": true,
     "promote_associated_star_distance_without_selected_binding": false
   },
   "identity_seed": {
@@ -20,7 +21,15 @@
     "bindings_sha256": "245ecf5cd8b0cfd08aca6c47260a97205bfd3adce3ffdd7f52f4937af036c016",
     "evidence_sha256": "bd032adda1feca5d88eb0ac7b4b610c2bcfac6f9f91f2efbc5f1b93adcd75223"
   },
+  "clean_clusters": {
+    "build_id": "171d3096b5cd7ad5f53a016b",
+    "manifest_sha256": "287475f92614bb9d9ba2727bd20153a9eb81dd2170119d37a0f6b8bded13d2f5",
+    "bindings_sha256": "285925b5624fe08a078a1040c4dd48ce2c686b1a3754dd7d23c5077b9d4ebe79",
+    "evidence_sha256": "2f423e47b9765e7b9e6eeb894360bdca158613d3f0238572e5f65830c4e3927b"
+  },
   "source_priority": {
+    "hunt_reffert_2024_clusters": -2,
+    "cantat_gaudin_2020_table1": -1,
     "green_snr_catalogue": 0,
     "openngc_ngc": 1,
     "openngc_addendum": 2,

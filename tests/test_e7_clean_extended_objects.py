@@ -24,6 +24,7 @@ def test_clean_extended_policy_is_fail_closed() -> None:
     assert value["rules"]["open_stability_databases"] is False
     assert value["rules"]["identity_seed_is_scientific_authority"] is False
     assert value["rules"]["promote_unselected_cluster_distance"] is False
+    assert value["rules"]["promote_selected_cluster_distance"] is True
 
 
 def test_clean_extended_policy_rejects_unselected_distance() -> None:
@@ -37,3 +38,11 @@ def test_coordinate_helpers() -> None:
     assert compiler.hms("12", "0", "0") == 180.0
     assert compiler.dms("-", "30", "0") == -30.0
     assert compiler.angular_size("3.5x2.5") == (3.5, 2.5)
+
+
+def test_cluster_coordinate_normalization_wraps_right_ascension() -> None:
+    normalized = compiler.normalized_cluster_context(
+        "clusters.cantat_gaudin_2020", {"RAdeg": "-0.387", "DEdeg": "61.21"},
+    )
+    assert normalized["ra_deg"] == pytest.approx(359.613)
+    assert normalized["dec_deg"] == 61.21

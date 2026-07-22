@@ -1131,12 +1131,13 @@ artifacts. They contain no replaceable scientific geometry or distance, but
 must remain available to reproduce stable public IDs, aliases, reconciliation,
 and quarantine decisions through clean serving cutover and rollback.
 
-Clean extended-object build `a4b521d1e1de52e14afac0da`, its selected E5
-inputs, eight Parquet products, and verification/A/B/reproduction reports are
-protected unserved candidate artifacts. Rejected row-wise baseline
-`c7c3a96578e8341ec83d6b05` is an exact future retention candidate, not a manual
-deletion target; retain it until a dry-run proves the accepted replacement and
-all report references are accounted.
+Clean extended-object build `95f5f1ff8f2ddee405b39104`, its selected E5 and
+clean-cluster inputs, ten Parquet products, and verification/A/B/reproduction
+reports are protected unserved candidate artifacts. Its predecessor
+`a4b521d1e1de52e14afac0da` and rejected row-wise baseline
+`c7c3a96578e8341ec83d6b05` are exact future retention candidates, not manual
+deletion targets; retain them until a dry-run proves the accepted replacement
+and all report references are accounted.
 
 Cantat-Gaudin E4 artifact `03a28284466d6821e8d5693e` is accepted, referenced,
 and stored under `/mnt/space/spacegate/e4-scientific-evidence` with a state

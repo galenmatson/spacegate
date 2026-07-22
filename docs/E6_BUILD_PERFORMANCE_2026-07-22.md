@@ -596,6 +596,15 @@ rows, and 285,145 membership outcomes. Named phases are 1.23 seconds for
 Hunt/Reffert, 3.07 seconds for Cantat-Gaudin, and 1.95 seconds for Parquet
 export. Clean reproduction takes 9.43 seconds and matches all four products.
 
+Clean extended-object v2 build `95f5f1ff8f2ddee405b39104` integrates those
+selected cluster contexts in 9.91 wall seconds, 10.10 CPU-seconds, and 374 MiB
+peak RSS. It writes 32.8 MiB of durable artifacts. Input geometry normalization
+and candidate batching consume 8.88 seconds (89.7% of wall time); selection and
+materialization take 0.71 seconds, Parquet export 0.24 seconds, and product
+hashing 0.03 seconds. Exact reproduction takes about 9.9 seconds. The Python/Astropy
+normalization phase is the local optimization target, but the end-to-end E7
+report must rank hour-scale stages before further work is justified here.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

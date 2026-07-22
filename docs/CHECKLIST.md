@@ -1742,10 +1742,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   membership endpoints through release-correct Gaia identity, retain collision
   and scope conflicts, prohibit containment, and reproduce artifact
   `171d3096b5cd7ad5f53a016b`
-- [ ] E7 clean extended-object distance completion: resolve 1,867 selected
-  cluster distances and 35 associated-star distances through accepted E5
-  identity/relation bindings before serving cutover; do not copy stability
-  distances or bypass ambiguous cluster identity
+- [x] E7 clean cluster geometry/distance completion: materialize 1,850 selected
+  cluster distances from 1,906 candidates, replace generic catalog positions
+  only with accepted current/supplementary cluster centers, and retain 19
+  ineligible-scope distance claims as rejected evidence in clean build
+  `95f5f1ff8f2ddee405b39104`
+- [ ] E7 associated-star extended-object distance completion: resolve the 35
+  remaining relation-derived distances through accepted relation endpoints;
+  do not copy stability distances or bind by display name
 - [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
   process to retire only superseded unserved v5 shadow
   `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its

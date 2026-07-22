@@ -54,11 +54,12 @@ responses do not change until runtime consumers are cut over and A/B verified;
 raw candidate matches and CatWISE parallax-like values must never be exposed as
 accepted identity or distance facts merely because the clean artifact exists.
 
-E7 clean extended-object build `a4b521d1e1de52e14afac0da` is also unserved.
-Its identity and selected geometry/search projections are verified, but
-distance remains intentionally null pending selected cluster and associated-
-star relation bindings. Runtime endpoints continue to use the stability
-projection until that scientific tail and the public A/B gate pass.
+E7 clean extended-object build `95f5f1ff8f2ddee405b39104` is also unserved.
+Its identity, selected geometry/search, and 1,850 selected cluster distances are
+verified. Thirty-five associated-star relation distances remain intentionally
+absent pending accepted relation endpoints, and 19 ineligible-scope cluster
+claims remain rejected. Runtime endpoints continue to use the stability
+projection until the relation tail and public A/B gate pass.
 
 ## Common Types
 

@@ -3530,6 +3530,29 @@ Representative commits:
 - The compiler records source and export phase timings, completes in about 9.4
   seconds, and exactly reproduces all four canonical Parquet products.
 
+### 133) Selected Cluster Evidence Replaces Projected Cluster Placement
+
+- Clean extended-object build `95f5f1ff8f2ddee405b39104` consumes accepted
+  cluster bindings rather than copying projected positions or distances from a
+  stability database. It retains 20,160 geometry candidates and 1,906 distance
+  candidates, selects 18,271 populated geometries and 1,850 distances, and
+  reproduces all ten canonical Parquet products exactly.
+- All 374 coordinate changes are accepted Hunt/Reffert or Cantat-Gaudin cluster
+  centers replacing lower-authority generic catalog positions. Two current
+  Hunt/Reffert distances fill prior nulls. Hunt/Reffert wins over the
+  supplementary catalog wherever both provide an accepted context.
+- Nineteen historical cluster distances attached to nebula, combined, or other
+  non-cluster scopes remain rejected. Thirty-five associated-star distances
+  remain deferred until the relation compiler accepts both endpoints. Neither
+  group is copied from the stability projection.
+- Independent verification caught two legitimate negative Cantat-Gaudin right
+  ascensions at the ICRS wrap boundary. Versioned normalization now maps right
+  ascension into `[0, 360)` and a regression test covers the boundary.
+- The compiler manifest records phase wall/CPU time, peak RSS, and durable
+  bytes. The measured 9.91-second build spends 8.88 seconds normalizing and
+  batching source geometry; this is documented for later optimization after
+  the full E7 critical path is measured.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -67,7 +67,14 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "orphan_search_terms": int(con.execute("SELECT count(*) FROM extended_object_search_terms t LEFT JOIN extended_objects e USING(extended_object_id) WHERE e.extended_object_id IS NULL").fetchone()[0]),
                 "invalid_coordinates": int(con.execute("SELECT count(*) FROM extended_objects WHERE ra_deg NOT BETWEEN 0 AND 360 OR dec_deg NOT BETWEEN -90 AND 90").fetchone()[0]),
                 "partial_coordinates": int(con.execute("SELECT count(*) FROM extended_objects WHERE (ra_deg IS NULL)<>(dec_deg IS NULL)").fetchone()[0]),
-                "unselected_distance_promotions": int(con.execute("SELECT count(*) FROM extended_objects WHERE dist_pc IS NOT NULL OR dist_ly IS NOT NULL").fetchone()[0]),
+                "distance_without_selected_evidence": int(con.execute("SELECT count(*) FROM extended_objects o WHERE o.dist_pc IS NOT NULL AND NOT EXISTS (SELECT 1 FROM selected_extended_object_distance d WHERE d.extended_object_id=o.extended_object_id AND d.dist_pc=o.dist_pc)").fetchone()[0]),
+                "distance_from_unapproved_source": int(con.execute("SELECT count(*) FROM selected_extended_object_distance WHERE source_id NOT IN ('clusters.hunt_reffert_2024','clusters.cantat_gaudin_2020')").fetchone()[0]),
+                "nonpositive_distance": int(con.execute("SELECT count(*) FROM extended_objects WHERE dist_pc<=0").fetchone()[0]),
+                "distance_unit_mismatch": int(con.execute("SELECT count(*) FROM extended_objects WHERE dist_pc IS NOT NULL AND abs(dist_ly-dist_pc*3.26156)>greatest(1e-9,dist_ly*1e-12)").fetchone()[0]),
+                "local_3d_missing_cartesian": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND (x_helio_ly IS NULL OR y_helio_ly IS NULL OR z_helio_ly IS NULL)").fetchone()[0]),
+                "local_3d_outside_policy_radius": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND dist_ly>1000").fetchone()[0]),
+                "cartesian_norm_mismatch": int(con.execute("SELECT count(*) FROM extended_objects WHERE map_domain='local_3d' AND abs(sqrt(x_helio_ly*x_helio_ly+y_helio_ly*y_helio_ly+z_helio_ly*z_helio_ly)-dist_ly)>greatest(1e-9,dist_ly*1e-12)").fetchone()[0]),
+                "galaxy_family_wrong_map_domain": int(con.execute("SELECT count(*) FROM extended_objects WHERE object_family='galaxy' AND map_domain<>'extragalactic_sky'").fetchone()[0]),
                 "missing_m45_search": int(con.execute("SELECT count(*)=0 FROM extended_object_search_terms WHERE term_norm='m 45'").fetchone()[0]),
                 "missing_ic4592_search": int(con.execute("SELECT count(*)=0 FROM extended_object_search_terms WHERE term_norm='ic 4592'").fetchone()[0]),
                 "missing_lbn1113_search": int(con.execute("SELECT count(*)=0 FROM extended_object_search_terms WHERE term_norm='lbn 1113'").fetchone()[0]),
@@ -85,6 +92,8 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "geometry_status": dict(con.execute("SELECT geometry_status,count(*) FROM extended_objects GROUP BY 1 ORDER BY 1").fetchall()),
                 "shape_kind": dict(con.execute("SELECT shape_kind,count(*) FROM extended_objects GROUP BY 1 ORDER BY 1").fetchall()),
                 "selected_sources": dict(con.execute("SELECT coalesce(source_catalog,'missing'),count(*) FROM extended_objects GROUP BY 1 ORDER BY 1").fetchall()),
+                "selected_distance_sources": dict(con.execute("SELECT source_id,count(*) FROM selected_extended_object_distance GROUP BY 1 ORDER BY 1").fetchall()),
+                "map_domains": dict(con.execute("SELECT map_domain,count(*) FROM extended_objects GROUP BY 1 ORDER BY 1").fetchall()),
             }
         finally:
             con.close()

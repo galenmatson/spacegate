@@ -960,6 +960,15 @@ Supporting tables are `extended_object_aliases`,
 `extended_object_identity_quarantine`. Every targeted source record must have an
 explicit reconciliation outcome and reason. See `docs/EXTENDED_OBJECTS.md`.
 
+Clean candidate build `95f5f1ff8f2ddee405b39104` additionally preserves
+`extended_object_geometry_candidates` and
+`extended_object_distance_candidates`, with one deterministic winner per object
+in `selected_extended_object_geometry` and
+`selected_extended_object_distance`. Cluster winners require accepted
+release-scoped cluster identity and eligible quantity evidence; relation-derived
+associated-star placement requires a separate accepted relation binding. These
+tables are not yet the served CORE projection.
+
 ## QC Requirements
 
 Build must fail on:
