@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 52 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 57 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2474,6 +2474,15 @@ Pre-promotion planning checkpoint (July 22, 2026):
   decisions. Its five Parquet products contain no geometry, coordinates, or
   distance and reproduce byte-for-byte; four more stability tables therefore
   move from clean-compiler blockers to verified permanent identity artifacts
+- clean extended-object build `a4b521d1e1de52e14afac0da` consumes only that
+  identity seed and accepted E5 evidence, retains 18,110 geometry candidates,
+  and selects 16,612 canonical geometry contexts. All 16,606 shared non-null
+  positions are bit-for-bit equal to the stability projection; the only 1,665
+  missing positions are fully accounted Cantat-Gaudin-only cluster rows
+- the same A/B gate deliberately leaves all 1,902 old distances unpromoted:
+  1,867 require selected current cluster identity and 35 require selected
+  associated-star relation bindings. Search identity for M 45, IC 4592, and
+  LBN 1113 passes now, but distance serving cutover remains open
 - targeted CatWISE2020 and AllWISE release
   `spacegate_targeted_500_20260722_v1` preserves 1,000 exact IRSA cone
   responses for a deterministic 500-star evidence universe, including seven

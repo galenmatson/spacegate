@@ -1131,6 +1131,13 @@ artifacts. They contain no replaceable scientific geometry or distance, but
 must remain available to reproduce stable public IDs, aliases, reconciliation,
 and quarantine decisions through clean serving cutover and rollback.
 
+Clean extended-object build `a4b521d1e1de52e14afac0da`, its selected E5
+inputs, eight Parquet products, and verification/A/B/reproduction reports are
+protected unserved candidate artifacts. Rejected row-wise baseline
+`c7c3a96578e8341ec83d6b05` is an exact future retention candidate, not a manual
+deletion target; retain it until a dry-run proves the accepted replacement and
+all report references are accounted.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

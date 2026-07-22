@@ -1277,6 +1277,12 @@ Extended-object permanent identity is retained separately in seed
 identifiers, reconciliation outcomes, and quarantine only; source-native E4/E5
 evidence remains the required authority for geometry and distance.
 
+Clean build `a4b521d1e1de52e14afac0da` now selects geometry and search from
+accepted E5 evidence without stability reads. Its A/B report accounts 1,665
+Cantat-only geometry rows plus 1,867 cluster and 35 associated-star distances
+as deferred; these values cannot enter serving output until their own selected
+identity/relation bindings pass.
+
 ## Transitional Sources
 
 ## 14) AT-HYG

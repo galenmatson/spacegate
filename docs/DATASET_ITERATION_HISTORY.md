@@ -3481,6 +3481,21 @@ Representative commits:
   than 60; selected extended-object geometry and distance remain deliberately
   open for an evidence-only compiler.
 
+### 130) Geometry Can Cut Over Before Extended-Object Distance
+
+- Clean build `a4b521d1e1de52e14afac0da` normalizes 18,110 accepted E5 geometry
+  rows and preserves all candidates before selecting 16,612 canonical contexts.
+  All 16,606 shared non-null coordinates equal the stability projection exactly.
+- The missing geometry tail is exactly 1,665 Cantat-Gaudin-only cluster rows.
+  The distance tail is 1,867 cluster distances plus 35 associated-star
+  distances. They remain null rather than treating a stability projection as
+  evidence or bypassing ambiguous current cluster/relation bindings.
+- Row-wise DuckDB insertion made the first implementation take 36.77 seconds
+  and caused about 188,000 voluntary context switches. A single Arrow batch
+  reduces accepted compile time to 9.71 seconds and CPU time by 64.9% while
+  reproducing every canonical Parquet hash. The rejected baseline remains an
+  exact-candidate retention item.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

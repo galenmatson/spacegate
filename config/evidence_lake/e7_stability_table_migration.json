@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.5",
+  "contract_version": "2026-07-22.e7-stability-table-migration.6",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -40,8 +40,8 @@
         },
         {
           "group_id": "core.extended_object_search",
-          "disposition": "clean_compiler_required",
-          "replacement": "Deterministic search projection from selected extended-object names, aliases, and identifiers",
+          "disposition": "verified_artifact_pending_consumer_cutover",
+          "replacement": "E7 clean extended-object build a4b521d1e1de52e14afac0da deterministic search projection from permanent extended-object aliases; serving cutover remains open",
           "tables": ["extended_object_search_terms"]
         },
         {

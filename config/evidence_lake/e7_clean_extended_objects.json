@@ -1,0 +1,40 @@
+{
+  "schema_version": "spacegate.e7_clean_extended_objects_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-extended.1",
+  "compiler_version": "e7_clean_extended_objects_compiler_v1",
+  "rules": {
+    "open_stability_databases": false,
+    "identity_seed_is_scientific_authority": false,
+    "preserve_all_geometry_candidates": true,
+    "preserve_missing_geometry_objects": true,
+    "promote_unselected_cluster_distance": false,
+    "promote_associated_star_distance_without_selected_binding": false
+  },
+  "identity_seed": {
+    "seed_id": "555fa1890943b97dd0e4ef3d",
+    "manifest_sha256": "5554b7679580f5b0447a74cddc8265a94cf37003b0bd08e79978fd5de00d9fff"
+  },
+  "selected_extended_objects": {
+    "build_id": "3790054572476ea189aaff06",
+    "manifest_sha256": "07c3e9f619b08d6ece03bf49612c76706e9beed09769eeddf7fdc9f8225743bf",
+    "bindings_sha256": "245ecf5cd8b0cfd08aca6c47260a97205bfd3adce3ffdd7f52f4937af036c016",
+    "evidence_sha256": "bd032adda1feca5d88eb0ac7b4b610c2bcfac6f9f91f2efbc5f1b93adcd75223"
+  },
+  "source_priority": {
+    "green_snr_catalogue": 0,
+    "openngc_ngc": 1,
+    "openngc_addendum": 2,
+    "lbn_vii_9": 3,
+    "ldn_vii_7a": 4,
+    "barnard_vii_220a": 5,
+    "magakian_2003": 6,
+    "vdb_vii_21": 7,
+    "sharpless_vii_20": 8,
+    "cederblad_vii_231": 9
+  },
+  "source_urls": {
+    "extended.green_snr": "https://www.mrao.cam.ac.uk/surveys/snrs/",
+    "extended.openngc_and_nebulae": "https://github.com/mattiaverga/OpenNGC"
+  },
+  "local_3d_maximum_ly": 1000.0
+}

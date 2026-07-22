@@ -574,6 +574,15 @@ Parquet products. Its isolated reproduction plus independent audit takes 2.41
 seconds and 121 MiB, with exact hashes and scratch removal. This migration-only
 step is retained in the final critical path but is not a meaningful bottleneck.
 
+The first clean extended-object compiler used row-wise DuckDB insertion for
+18,110 normalized geometry candidates. It took 36.77 wall seconds, 28.09
+CPU-seconds, 352 MiB peak RSS, and caused about 188,000 voluntary context
+switches. That artifact (`c7c3a96578e8341ec83d6b05`) is rejected and retained
+only as comparison evidence. One Arrow batch produces byte-identical geometry
+candidate and selected-geometry Parquet in 9.71 seconds, 9.86 CPU-seconds, and
+361 MiB for accepted build `a4b521d1e1de52e14afac0da`: 73.6% lower wall time
+and 64.9% lower CPU. Isolated compile plus independent audit takes 9.72 seconds.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

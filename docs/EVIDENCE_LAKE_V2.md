@@ -2100,6 +2100,20 @@ orphans or duplicate IDs/keys. A subsequent clean compiler must obtain extended
 object geometry and distance from the accepted E5 evidence projection, never
 from this migration seed or the stability database.
 
+Clean geometry/search build `a4b521d1e1de52e14afac0da` consumes that seed
+plus the deterministic E5 extended-object evidence Parquet. It retains all
+18,110 accepted source geometry candidates, selects one context for 16,612
+canonical objects, preserves all 18,277 identities and 71,855 search terms, and
+opens no stability database. M 45, IC 4592, and LBN 1113 search controls pass.
+
+Scientific A/B shows all 16,606 shared non-null coordinates are exactly equal
+to the stability projection. The 1,665 deferred geometry rows are exclusively
+Cantat-Gaudin cluster contexts absent from the selected extended evidence.
+Likewise, 1,867 cluster distances and 35 associated-star distances remain
+unpromoted until accepted E5 cluster/relation bindings exist. This is explicit
+missing evidence, not permission to copy stability science; extended-object
+distance cutover remains open.
+
 ## Hard Gates
 
 Evidence Lake v2 is not promotable until:

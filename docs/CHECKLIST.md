@@ -1691,7 +1691,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
-- [x] E7 completion audit checkpoint: verify 52 pinned reports/artifacts with no
+- [x] E7 completion audit checkpoint: verify 57 pinned reports/artifacts with no
   failures and expose six open or blocked gates without treating the stability-
   database-backed v7 candidate as a clean authoritative compiler
 - [x] E7 permanent identity seed: export 11,759,440 nodes and 5,886,947
@@ -1729,6 +1729,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or
   distance; independently audit and byte-reproduce all five Parquet products
+- [x] E7 clean extended-object geometry/search checkpoint: normalize all 18,110
+  accepted E5 geometry rows, select 16,612 canonical geometry contexts, retain
+  18,277 identities and 71,855 search terms, reproduce all eight canonical
+  Parquet products, and account the 1,665-object Cantat-only geometry tail
+- [ ] E7 clean extended-object distance completion: resolve 1,867 selected
+  cluster distances and 35 associated-star distances through accepted E5
+  identity/relation bindings before serving cutover; do not copy stability
+  distances or bypass ambiguous cluster identity
 - [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
   process to retire only superseded unserved v5 shadow
   `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its

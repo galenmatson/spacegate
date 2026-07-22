@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.7",
+  "contract_version": "2026-07-22.e0-e7-acceptance.8",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -203,6 +203,26 @@
       "stage": "E7",
       "path": "e7_clean_wise_reproduction.json",
       "expect": {"status": "pass", "build_id": "ec8e218402c3a4a3b55b2811", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_extended_objects_build.json",
+      "expect": {"status": "pass", "build_id": "a4b521d1e1de52e14afac0da", "stability_databases_opened": [], "identity_seed_scientific_authority": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_extended_objects_verification.json",
+      "expect": {"status": "pass", "build_id": "a4b521d1e1de52e14afac0da", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_extended_objects_reproduction.json",
+      "expect": {"status": "pass", "build_id": "a4b521d1e1de52e14afac0da", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_extended_objects_ab.json",
+      "expect": {"status": "pass", "distance_cutover_status": "open_pending_selected_cluster_and_relation_bindings", "failing_checks": []}
     }
   ],
   "required_artifacts": [
@@ -217,14 +237,15 @@
     "derived/evidence_lake_v2/extended_identity_seed/555fa1890943b97dd0e4ef3d/manifest.json",
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
     "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
-    "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json"
+    "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json",
+    "derived/evidence_lake_v2/clean_extended_objects/a4b521d1e1de52e14afac0da/manifest.json"
   ],
   "open_gates": [
     {
       "gate_id": "clean_pinned_input_authoritative_entrypoint",
       "stage": "E7",
       "status": "open",
-      "reason": "Clean foundation 9c2d08086275ead386f71bf7, clean science 35eb29fa3b2a3ac518f5303a, clean WISE ec8e218402c3a4a3b55b2811, and extended identity seed 555fa1890943b97dd0e4ef3d now replace permanent inventory/search/hierarchy, selected science, infrared evidence, and extended identity without stability science. Runtime compatibility consumers, extended-object geometry/search, final CORE/DISC metadata, hierarchy leaves, animation/barycenter surfaces, and public products remain open."
+      "reason": "Clean foundation 9c2d08086275ead386f71bf7, clean science 35eb29fa3b2a3ac518f5303a, clean WISE ec8e218402c3a4a3b55b2811, extended identity seed 555fa1890943b97dd0e4ef3d, and clean extended-object build a4b521d1e1de52e14afac0da now replace permanent inventory/search/hierarchy, selected science, infrared evidence, extended identity, and selected extended geometry without stability science. Runtime compatibility consumers, extended-object distance and serving/search cutover, final CORE/DISC metadata, hierarchy leaves, animation/barycenter surfaces, and public products remain open."
     },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",
