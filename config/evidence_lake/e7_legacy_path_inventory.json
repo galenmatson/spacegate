@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-22.e7-cutover-plan.3",
+  "inventory_version": "2026-07-22.e7-cutover-plan.4",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "pre_promotion": true,
@@ -59,6 +59,15 @@
         "scripts/ingest_core.py",
         "scripts/build_arm.py"
       ],
+      "verified_replacement_paths": [
+        "config/evidence_lake/e7_permanent_identity_seed.json",
+        "scripts/compile_permanent_identity_seed.py",
+        "config/evidence_lake/e5_system_placement_policies.json",
+        "scripts/compile_selected_system_placements.py",
+        "scripts/verify_selected_system_placements.py",
+        "scripts/verify_selected_system_placement_reproduction.py"
+      ],
+      "replacement_status": "Permanent identity and system placement pass clean pinned-input reproduction; remaining CORE, ARM, hierarchy, DISC, and shared-consumer projections keep this legacy path required.",
       "current_state": "required_stability_input",
       "target_state": "deprecated_stability_reproducer",
       "action": "Replace bootstrap inventory and scientific-value production with release-scoped identity, selected facts, and E6 projections. Do not retire while E6 still composes from the stability databases.",

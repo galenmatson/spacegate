@@ -468,6 +468,52 @@ CPU-seconds, peaks at 5.42 GiB RSS, and writes 402.2 MiB. An isolated USB-backed
 reproduction takes 30.63 seconds, matches both Parquet hashes and byte sizes,
 and removes its scratch tree.
 
+## E7 Build-Time Closeout Requirement
+
+The final E7 checkpoint will publish one machine-readable and human-readable
+critical-path report rather than only a total build duration. It must retain
+wall and CPU time, process peak RSS, durable input/output bytes, cache state,
+and named phase timings for each authoritative compiler, verifier, shadow
+build, local promotion, rollback, and re-promotion step. Accepted and rejected
+performance changes must include comparable before/after measurements and may
+not weaken content hashing, scientific accounting, or deterministic output.
+
+The first clean system-placement baseline is build
+`9ccc087defca7aebc5b77d6a`: 103.10 wall seconds, 297.89 CPU-seconds, 26.16 GiB
+peak RSS, and 1.48 GiB of durable Parquet. Its measured wall-time leaders are
+winner selection (36.46 seconds), selected-star extraction (26.18 seconds),
+immutable-input attestation (22.72 seconds), and deterministic Parquet export
+(12.89 seconds). These four phases are the first E7 optimization targets; the
+baseline artifact remains retained for exact scientific and performance
+comparison.
+
+The optimized compiler reads the parent compiler's deterministic
+per-quantity Parquet products, attests each product against that parent
+manifest, and evaluates precedence through reusable anti-join views rather
+than writing or sorting a full intermediate winner table. Production build
+provisional v3 build `4ec5b0e7f9f0aca4470cbe11` took 61.08 wall seconds and
+peaked at 17.19 GiB RSS with byte-identical products. Final lineage review then
+found the SBX fallback rows carried a provisional release label and uniform
+J2016 epoch. V4 build `22e9a59dd02484454a629df7` joins the registered SBX
+release and preserves the source position epoch. It takes 63.24 seconds and
+peaks at 17.42 GiB: a 38.7% wall-time reduction and 33.4% peak-memory reduction
+from baseline.
+
+An intermediate materialized-winner experiment took 84.91 seconds at 18.95
+GiB and was rejected. The isolated accepted reproduction plus independent
+audit takes 71.18 seconds, matches the build identity, policy/compiler/input
+attestations, source counts, verification, byte sizes, and both product hashes,
+then removes scratch. Shared-host filesystem cache state was warm for the final
+and reproduction runs and is recorded as such; the eventual E7 aggregate must
+not present these as cold-cache timings.
+
+The v3-to-v4 scientific A/B reports zero changes to geometry, representative
+objects, winner sources, evidence IDs, or derivation JSON. Eight of the ten SBX
+fallbacks change epoch metadata from J2016 to their actual J1991.25 or J2000
+position epoch; the other two were already J2016. All ten replace the invented
+`sbx_v2026_07_21` label with registered release
+`sbx_tap_full_rolling_snapshot_v1`.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

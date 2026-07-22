@@ -1,0 +1,50 @@
+{
+  "schema_version": "spacegate.system_placement_policy.v1",
+  "policy_version": "2026-07-22.e5-system-placement.1",
+  "compiler_version": "e5_system_placement_compiler_v4",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "permanent_identity_seed_id": "5c878083872c738415971864",
+  "selected_fact_build_id": "fa4aaed18aebcffb8632d978",
+  "selected_component_build_id": "67fea5f99500b57419ebdeb0",
+  "ultracoolsheet_evidence_build_id": "a328a9e13d6c2b44f8d57861",
+  "ultracoolsheet_typed": {
+    "source_id": "ultracool.ultracoolsheet",
+    "release_id": "rolling_snapshot_20260709",
+    "raw_snapshot_id": "14fd785307af12849666a603",
+    "typed_snapshot_id": "32d437d41bfdfa7242bd8a4a",
+    "table_path": "tables/ultracoolsheet_main.parquet"
+  },
+  "distance_precedence": [
+    "distance_geometric_pc",
+    "distance_photogeometric_pc",
+    "distance_gspphot_pc",
+    "inverse_selected_parallax"
+  ],
+  "placement_precedence": [
+    {"source": "selected_star", "rank": 10},
+    {"source": "msc_component", "rank": 20},
+    {"source": "sbx_system_context", "rank": 30},
+    {"source": "ultracoolsheet_system_context", "rank": 40},
+    {"source": "heliocentric_origin", "rank": 50}
+  ],
+  "coordinate_contract": {
+    "frame": "ICRS",
+    "preserve_source_epoch": true,
+    "parsec_to_light_year": 3.2615637771674333,
+    "sol_system_key": "canon:system:stable:system:sol"
+  },
+  "name_anchor": {
+    "enabled_for_system_context_only": true,
+    "require_exact_case_sensitive_match": true,
+    "require_unique_source_name": true,
+    "require_unique_permanent_system_label": true,
+    "promote_physical_identity": false
+  },
+  "expected_winner_counts": {
+    "heliocentric_origin": 1,
+    "msc_component": 2723,
+    "sbx_system_context": 10,
+    "selected_star": 5866306,
+    "ultracoolsheet_system_context": 51
+  }
+}

@@ -21,12 +21,16 @@ Machine contracts:
 - `config/evidence_lake/gaia_dr4_adapter_plan.json`
 - `config/evidence_lake/e0_e7_acceptance.json`
 - `config/evidence_lake/e7_permanent_identity_seed.json`
+- `config/evidence_lake/e5_system_placement_policies.json`
 - `scripts/verify_e7_cutover_plan.py`
 - `scripts/audit_evidence_lake_completion.py`
 - `scripts/compile_permanent_identity_seed.py`
 - `scripts/verify_permanent_identity_seed_reproduction.py`
+- `scripts/compile_selected_system_placements.py`
+- `scripts/verify_selected_system_placements.py`
+- `scripts/verify_selected_system_placement_reproduction.py`
 
-The current completion audit passes all 23 pinned checkpoint checks and reports
+The current completion audit passes all 30 pinned checkpoint checks and reports
 `incomplete`. Its six explicit gates are the clean pinned-input authoritative
 entrypoint, shared selected-fact consumer cutover, operator scientific A/B
 acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
@@ -101,6 +105,19 @@ The measured optimization order is:
 
 Every accepted optimization requires unchanged scientific logical hashes,
 coverage/accounting reports, and a measured before/after row.
+
+The first E7 clean-compiler optimization is accepted for selected system
+placements. Baseline build `9ccc087defca7aebc5b77d6a` took 103.10 seconds and
+peaked at 26.16 GiB. Reading deterministic per-quantity Parquet projections and
+removing repeated winner sorts produces build `22e9a59dd02484454a629df7`
+in 63.24 seconds at 17.42 GiB. The final lineage review also replaced a
+provisional SBX release label with the registered release and preserved source
+position epochs; geometry and winner identity are unchanged. Its isolated
+compile plus independent audit takes 71.18 seconds and leaves no USB scratch
+residue. The next measured compiler
+work should target shared selected-fact projection and output materialization;
+immutable attestation already fell from 22.72 to 6.25 seconds and is no longer
+the dominant placement phase.
 
 ## Gaia DR4 Adapter
 

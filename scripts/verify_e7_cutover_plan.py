@@ -45,7 +45,10 @@ def verify(repo_root: Path, legacy_path: Path, dr4_path: Path) -> dict[str, Any]
     missing_paths = sorted(
         path
         for item in entries
-        for path in item.get("paths") or []
+        for path in (
+            (item.get("paths") or [])
+            + (item.get("verified_replacement_paths") or [])
+        )
         if not (repo_root / str(path)).is_file()
     )
     check("legacy_paths_exist", not missing_paths, missing_paths)

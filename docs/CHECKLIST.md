@@ -1691,13 +1691,21 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
-- [x] E7 completion audit checkpoint: verify 26 pinned reports/artifacts with no
+- [x] E7 completion audit checkpoint: verify 30 pinned reports/artifacts with no
   failures and expose six open or blocked gates without treating the stability-
   database-backed v7 candidate as a clean authoritative compiler
 - [x] E7 permanent identity seed: export 11,759,440 nodes and 5,886,947
   relationships into identity-only content-addressed Parquet, deterministically
   rekey colliding legacy edge IDs, and reproduce both product hashes in isolated
   USB scratch without admitting scientific scalar columns
+- [x] E7 selected-system placement projection: place all 5,869,091 canonical
+  systems through selected stellar facts or explicitly scoped fallbacks, attest
+  each consumed quantity partition, independently verify the artifact, and
+  reproduce both ordered Parquet hashes without stability-database science
+- [ ] E7 end-to-end build-time report: retain wall/CPU time, peak RSS, durable
+  bytes, cache state, and named phase timings for every compiler, verifier,
+  shadow build, promotion, rollback, and re-promotion step; rank the critical
+  path and preserve before/after evidence for accepted or rejected speedups
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths

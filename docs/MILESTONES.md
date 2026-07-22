@@ -1202,7 +1202,7 @@ pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 26 checkpoint checks and
+in progress. The fail-closed completion audit passes 30 checkpoint checks and
 reports six open E7 gates rather than declaring the compiler cut over.
 
 Goal:
@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 26 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 30 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2446,6 +2446,14 @@ Pre-promotion planning checkpoint (July 22, 2026):
   hierarchy nodes and 5,886,947 unique relationships without scientific scalar
   columns; a clean USB-backed reproduction matches both Parquet hashes and
   removes scratch
+- selected-system-placement build `22e9a59dd02484454a629df7` accounts all
+  5,869,091 canonical systems once, preserves exact placement evidence and
+  derivation lineage, passes independent verification, and reproduces both
+  ordered Parquet hashes without reading stability-database science
+- E7 must publish one end-to-end build-time report with named-step wall/CPU
+  time, peak RSS, durable bytes, cache state, critical-path ranking, and
+  before/after evidence for every attempted optimization; promotion, rollback,
+  and re-promotion timings are part of the same report
 - local promotion, rollback timing, authoritative entrypoint replacement, and
   actual legacy retirement remain open; this checkpoint authorizes no cleanup
 

@@ -1883,7 +1883,7 @@ The executable pre-promotion plan is documented in
 `e7_legacy_path_inventory.json`, `gaia_dr4_adapter_plan.json`, and
 `e0_e7_acceptance.json` are verified by `scripts/verify_e7_cutover_plan.py` and
 `scripts/audit_evidence_lake_completion.py`. The completion audit distinguishes
-26 passing checkpoint checks from six open or blocked E7 gates. Permanent
+30 passing checkpoint checks from six open or blocked E7 gates. Permanent
 identity seed `5c878083872c738415971864` now preserves the exact hierarchy in
 two deterministic identity-only Parquet products without scientific scalar
 columns. The ledger
@@ -1953,6 +1953,32 @@ Before large acquisition or a full build:
   the only copy of irreplaceable inputs
 - keep spectra, light curves, and imagery out of hot served databases; store
   product indexes and bounded caches instead
+
+## E7 Clean System Placement Checkpoint
+
+Content-addressed build `22e9a59dd02484454a629df7` supplies one selected
+heliocentric placement for every canonical system without reading scientific
+values from a stability CORE or ARM. Selection precedence is quantity-policy
+output first: 5,866,306 systems use selected stellar astrometry/distance, 2,723
+use coherent MSC component astrometry, ten use SBX observation-target context,
+51 use explicitly scoped UltracoolSheet system context, and Sol uses the
+defined heliocentric origin. Component, release, epoch, and context scope remain
+in a separate lineage product.
+
+The compiler byte-verifies every input and attests all six consumed
+per-quantity selected-fact Parquets against their parent manifest. It preserves
+source epochs, never treats DR2 and DR3 identifiers as interchangeable, and
+uses the unique exact-name fallback only as non-identity system context. The
+independent verifier reports zero missing or duplicate systems, unknown
+systems, invalid coordinates, Cartesian mismatches, lineage mismatches, or
+source-count deviations. An isolated USB-backed reproduction matches the two
+ordered Parquet hashes and removes scratch.
+
+Measured optimization reduced shared-host wall time from 103.10 to 63.24
+seconds and peak RSS from 26.16 to 17.42 GiB. The isolated compile plus
+independent audit takes 71.18 seconds. The
+end-to-end E7 timing report remains open and must identify cache state for every
+step.
 
 ## Hard Gates
 

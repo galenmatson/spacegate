@@ -3349,6 +3349,35 @@ Representative commits:
   this retained identity seed but may not reopen stability databases for
   identity or scientific values.
 
+### 124) Selected System Placement Must Be Evidence-Backed and Measured
+
+- Build `22e9a59dd02484454a629df7` places all 5,869,091 permanent systems exactly
+  once without reading stability CORE/ARM science: 5,866,306 selected-star
+  placements, 2,723 coherent MSC component placements, ten SBX target-context
+  placements, 51 UltracoolSheet system-context placements, and the defined Sol
+  origin. Every fallback remains explicitly scoped and carries evidence or
+  derivation lineage.
+- The compiler consumes the E5 per-quantity Parquet contract and verifies each
+  file's bytes and hash against the parent selected-fact manifest. Its own
+  content identity pins policy, compiler source, all transitive input bytes,
+  and input attestation. An independent verifier reports zero inventory,
+  duplicate, coordinate, Cartesian, source-count, or lineage failures.
+- A 103.10-second, 26.16-GiB baseline exposed repeated broad scans and winner
+  materialization. The accepted general optimization reduces production to
+  63.24 seconds and 17.42 GiB. An intermediate
+  84.91-second materialized-winner variant is rejected. Isolated compilation
+  plus independent audit takes 71.18 seconds, matches both ordered Parquet
+  hashes, and removes scratch.
+- Final lineage review also caught a provisional SBX release label and a false
+  uniform J2016 epoch. The compiler now joins the registered SBX release and
+  retains source J1991.25, J2000, or J2016 position epochs. The correction
+  changes metadata for ten rows but no geometry, representative object,
+  placement winner, evidence ID, or derivation.
+- These measurements begin, but do not complete, the E7 end-to-end timing
+  report. The final report must include every compiler, verifier, shadow build,
+  promotion, rollback, and re-promotion step with explicit cache state and
+  ranked before/after optimization evidence.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
