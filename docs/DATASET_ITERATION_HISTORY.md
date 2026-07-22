@@ -3152,6 +3152,21 @@ Representative commits:
   GSP-Phot precedence. Supplementary AP library fits remain alternatives rather
   than being flattened into the main-source selection.
 
+### 116) E6 Diagnostics Are Retired Only Through a Reproducible Set Gate
+
+- A dedicated E6 retention tool verifies the replacement's declared product
+  bytes, independent audit, and clean reproduction, then rejects candidates
+  reached by pointers, retained manifests, live processes, symlinks, hardlinks,
+  or unacknowledged reports. Apply requires the exact current dry-run set hash.
+- Hash `e798e3104597e985ae7ae38dd163cadaf0364260e2f4af681d9075943721b674`
+  selected only four superseded unserved shadows and reclaimed 68,429,119,488
+  allocated bytes. Current candidate `e6_2da376053461c8220bee06ad_shadow`, its
+  transitive inputs, and all durable audit, A/B, reproduction, and performance
+  reports remain protected.
+- Retention reports identify retired artifacts for audit purposes but do not
+  make those artifacts live dependencies. A regression test enforces that
+  distinction and prevents a self-referential dry-run/apply candidate hash.
+
 ### 114) E6 Consumer Projections Belong Inside the Immutable Build
 
 - The first v2 E6 consumer experiment materialized selected display and leaf

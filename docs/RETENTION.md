@@ -1018,6 +1018,17 @@ reports and exact bytes; then reclaim only the reviewed candidate set using its
 hash. Human-readable timing and scientific A/B reports should be retained even
 when their reproducible product directory is retired.
 
+The E6-specific retention gate subsequently verified current candidate
+`e6_2da376053461c8220bee06ad_shadow` byte-for-byte against its manifest,
+independent audit, and clean reproduction, while excluding all served/current/
+rollback pointers, live processes, shared files, symlinks, and unacknowledged
+references. Exact candidate hash
+`e798e3104597e985ae7ae38dd163cadaf0364260e2f4af681d9075943721b674`
+authorized removal of only the four listed superseded shadows and reclaimed
+68,429,119,488 allocated bytes. Retention audit reports are protected records,
+not dependencies on the retired artifacts; the tool tests this distinction to
+avoid a dry-run/apply self-reference loop. `/data` fell from 93% to 89% used.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

@@ -1624,7 +1624,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   report for selected consumers, DISC, public slice, map tiles, simulation
   scenes, verification, promotion, and rollback; rank measured bottlenecks and
   record before/after evidence for every accepted optimization
-- [ ] E6 shadow retention: add an exact-candidate dry-run that protects the
+- [x] E6 shadow retention: add an exact-candidate dry-run that protects the
   current candidate, served/current/rollback links, live processes, transitive
   inputs, and reports; review its set hash before reclaiming approximately 66
   GiB of superseded E6 product directories from `/data`
