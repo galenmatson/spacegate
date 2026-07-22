@@ -2124,6 +2124,21 @@ permanent extended-object vocabulary and member endpoints through the official
 DR2-to-DR3 graph. Twenty-five name matches currently land on nebula or combined
 cluster/nebulosity identities and therefore remain scope conflicts.
 
+Clean selector `171d3096b5cd7ad5f53a016b` combines current Hunt/Reffert and
+supplementary Cantat-Gaudin evidence against the permanent extended identity
+seed, never the stability database. It accepts 58 current and 1,992 legacy
+cluster identities, retains all missing/ambiguous/collision/scope outcomes, and
+accounts 285,145 member claims through either canonical Gaia DR3 identifiers or
+official DR2-to-DR3 outcomes. No membership probability creates containment.
+The artifact reproduces all four canonical Parquet products exactly.
+
+E4 release set `e3d7795d5584a8bb51163f95` pins all 39 accepted source adapters.
+The release-set compiler now supports explicitly allowlisted bulk artifact
+roots for immutable state symlinks. Lexical paths must remain immediate state
+children and resolved targets must be immediate children of either the state
+artifact root or an operator-supplied bulk root; arbitrary symlink targets
+remain rejected.
+
 ## Hard Gates
 
 Evidence Lake v2 is not promotable until:

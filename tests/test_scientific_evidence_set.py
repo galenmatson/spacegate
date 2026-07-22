@@ -164,4 +164,22 @@ def test_checked_in_release_set_policy_accounts_every_e4_adapter() -> None:
     policy = release_set.load_json(release_set.DEFAULT_POLICY)
     contract = release_set.load_json(release_set.DEFAULT_CONTRACT)
     assert set(policy["members"]) == set(contract["source_adapters"])
-    assert len(policy["members"]) == 38
+    assert len(policy["members"]) == 39
+
+
+def test_contained_child_requires_explicit_bulk_symlink_root(tmp_path: Path) -> None:
+    root = tmp_path / "state-artifacts"
+    bulk = tmp_path / "bulk-artifacts"
+    root.mkdir()
+    target = bulk / ("a" * 24)
+    target.mkdir(parents=True)
+    link = root / target.name
+    link.symlink_to(target)
+
+    with pytest.raises(ValueError, match="immediate child"):
+        release_set.contained_child(root, link)
+    assert release_set.contained_child(
+        root,
+        link,
+        allowed_external_roots=(bulk,),
+    ) == target.resolve()

@@ -1290,6 +1290,12 @@ units/flags, and citation lineage. Hunt/Reffert remains the current cluster
 authority; Cantat-Gaudin may win only as a lower-authority fallback after clean
 cluster identity, scope, and official DR2-to-DR3 endpoint reconciliation.
 
+Clean selector `171d3096b5cd7ad5f53a016b` now performs that reconciliation
+jointly with Hunt/Reffert. It preserves every identity and member outcome,
+accepts only unique release-scoped cluster bindings of `open_cluster` scope,
+and creates no canonical containment. Its selected contexts are unserved until
+the clean extended-object and CORE/ARM cutovers consume them.
+
 ## Transitional Sources
 
 ## 14) AT-HYG

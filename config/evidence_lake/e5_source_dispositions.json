@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-22.e5-source-dispositions.21",
+  "disposition_version": "2026-07-22.e5-source-dispositions.22",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -9,19 +9,21 @@
       "reason": "GCVS and NSV rows, cross-identifiers, variable classes, periods, extrema, spectral strings, and bibliography remain complete inspectable evidence. Only 19 current canonical stars resolve uniquely through the release-native cross-identifier bridge, so E5 must not manufacture a broad name or coordinate crossmatch; later release-scoped identity work may promote uniquely reviewed bindings."
     },
     "clusters.cantat_gaudin_2020": {
-      "disposition": "supplementary_cluster_evidence_pending_clean_selection",
+      "disposition": "selected_cluster_evidence_projection",
       "owner": "E5/E7",
       "blocks_e5": false,
       "evidence_build_id": "03a28284466d6821e8d5693e",
-      "reason": "All 2,017 legacy cluster contexts and 234,128 probability-bearing Gaia DR2 membership claims are complete E4 evidence with 57/57 fields accounted. Clean E5/E7 selection must bind cluster identity through the permanent extended vocabulary, reconcile member endpoints through the official DR2-to-DR3 outcomes, prefer uniquely bound Hunt/Reffert context, and retain scope conflicts and ambiguous current claims."
+      "cluster_policy_version": "2026-07-22.e7-clean-clusters.1",
+      "cluster_artifact_id": "171d3096b5cd7ad5f53a016b",
+      "reason": "All 2,017 legacy cluster contexts and 234,128 probability-bearing Gaia DR2 membership claims are complete E4 evidence with 57/57 fields accounted. Clean selection binds 1,992 cluster identities through the permanent extended vocabulary, retains 25 scope conflicts, and accounts every member endpoint through official DR2-to-DR3 outcomes without creating containment."
     },
     "clusters.hunt_reffert_2024": {
       "disposition": "selected_cluster_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "cluster_policy_version": "2026-07-22.e5-clusters.1",
-      "cluster_artifact_id": "a6169c9ec351db81104e8518",
-      "reason": "All 465 bounded Hunt/Reffert clusters receive an exact source-designation outcome with an inverse collision safeguard: 62 bind one-to-one, 393 are absent from the current canonical reference, and 10 remain ambiguous. Coherent cluster posteriors are eligible only on accepted clusters. All 51,017 member claims preserve their published probabilities with independently resolved Gaia DR3 endpoints; none creates canonical containment."
+      "cluster_policy_version": "2026-07-22.e7-clean-clusters.1",
+      "cluster_artifact_id": "171d3096b5cd7ad5f53a016b",
+      "reason": "Clean permanent-identity selection accounts all 465 bounded Hunt/Reffert clusters: 58 bind one-to-one, 392 are absent, 11 remain ambiguous under inverse collision protection, and four resolve only to an ineligible object scope. All 51,017 member claims preserve published probabilities with independently resolved Gaia DR3 endpoints; none creates containment."
     },
     "compact.atnf": {
       "disposition": "identity_scope_evidence_only",

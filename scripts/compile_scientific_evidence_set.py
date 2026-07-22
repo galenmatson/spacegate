@@ -44,10 +44,18 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def contained_child(root: Path, child: Path) -> Path:
+def contained_child(
+    root: Path,
+    child: Path,
+    *,
+    allowed_external_roots: tuple[Path, ...] = (),
+) -> Path:
     resolved_root = root.resolve()
+    if child.parent.resolve() != resolved_root:
+        raise ValueError(f"artifact path is not an immediate child of {resolved_root}: {child}")
     resolved_child = child.resolve()
-    if resolved_child.parent != resolved_root:
+    allowed_parents = {resolved_root, *(path.resolve() for path in allowed_external_roots)}
+    if resolved_child.parent not in allowed_parents:
         raise ValueError(f"artifact must be an immediate child of {resolved_root}: {child}")
     return resolved_child
 
@@ -105,6 +113,7 @@ def compile_release_set(
     scope_path: Path,
     registry_path: Path,
     output_root: Path | None = None,
+    artifact_bulk_roots: tuple[Path, ...] = (),
     promote: bool = True,
     verify_database_checksums: bool = False,
 ) -> dict[str, Any]:
@@ -157,7 +166,12 @@ def compile_release_set(
     deterministic_dates: list[str] = []
 
     for build_id in sorted(build_to_expected_sources):
-        build_dir = contained_child(artifact_root, artifact_root / build_id)
+        logical_build_dir = artifact_root / build_id
+        build_dir = contained_child(
+            artifact_root,
+            logical_build_dir,
+            allowed_external_roots=artifact_bulk_roots,
+        )
         manifest_path = build_dir / "manifest.json"
         if not manifest_path.is_file():
             raise ValueError(f"accepted artifact lacks manifest: {build_id}")
@@ -233,7 +247,7 @@ def compile_release_set(
                 "build_id": build_id,
                 "source_ids": sorted(actual_sources),
                 "release_ids": {key: release_by_source[key] for key in sorted(actual_sources)},
-                "artifact_path": str(build_dir.relative_to(state_dir.resolve())),
+                "artifact_path": str(logical_build_dir.relative_to(state_dir.resolve())),
                 "manifest_sha256": manifest_sha,
                 "database": database_name,
                 "database_bytes": database_bytes,
@@ -292,6 +306,7 @@ def main() -> int:
     parser.add_argument("--scope", type=Path, default=DEFAULT_SCOPE)
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--artifact-bulk-root", type=Path, action="append", default=[])
     parser.add_argument("--report", type=Path)
     parser.add_argument("--no-promote", action="store_true")
     parser.add_argument("--verify-database-checksums", action="store_true")
@@ -304,6 +319,7 @@ def main() -> int:
         scope_path=args.scope,
         registry_path=args.registry,
         output_root=args.output_root,
+        artifact_bulk_roots=tuple(args.artifact_bulk_root),
         promote=not args.no_promote,
         verify_database_checksums=args.verify_database_checksums,
     )

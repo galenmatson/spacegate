@@ -15,7 +15,7 @@ DEFAULT_SELECTION = ROOT / "config/evidence_lake/e5_selection_policies.json"
 DEFAULT_DISPOSITIONS = ROOT / "config/evidence_lake/e5_source_dispositions.json"
 DEFAULT_RELEASE_SET = Path(
     "/data/spacegate/state/derived/evidence_lake_v2/scientific_evidence_sets/"
-    "6c19de054e9b807674c37d3c/manifest.json"
+    "e3d7795d5584a8bb51163f95/manifest.json"
 )
 DEFAULT_REPORT = Path(
     "/data/spacegate/state/reports/evidence_lake_v2/e5_source_disposition_audit.json"

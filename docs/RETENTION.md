@@ -1146,6 +1146,17 @@ removed automatically. Predecessor `fb0f20d00bf972cf8d8d948d` has identical
 logical science but stale contract/registry version labels; it is unserved and
 an exact future retention candidate, not a manual deletion target.
 
+Clean cluster artifact `171d3096b5cd7ad5f53a016b`, its four Parquet products,
+source E4 inputs, identity seed/graph, verification, reproduction, and external
+timing reports are protected unserved candidate evidence. It lives under
+`/mnt/space/spacegate/e7-clean-clusters` with a state symlink; reproduction
+scratch was removed automatically.
+
+E4 release-set manifest `e3d7795d5584a8bb51163f95` references 37 immutable
+artifacts covering 39 source adapters and is protected. It references the
+Cantat shard through its state symlink; do not copy that database back to
+`/data` merely to satisfy release-set composition.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

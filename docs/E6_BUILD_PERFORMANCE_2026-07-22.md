@@ -590,6 +590,12 @@ seconds and 26.27 CPU-seconds with 0.96 GiB peak RSS. The immutable DuckDB is
 0.95 GiB peak RSS, and matches the logical hash. Both runs use `/mnt/space` for
 artifact or scratch storage because `/data` is below its acquisition floor.
 
+Clean multi-release cluster selection takes 9.43 wall seconds, 15.56
+CPU-seconds, and 2.78 GiB peak RSS for 2,482 cluster outcomes, 2,933 context
+rows, and 285,145 membership outcomes. Named phases are 1.23 seconds for
+Hunt/Reffert, 3.07 seconds for Cantat-Gaudin, and 1.95 seconds for Parquet
+export. Clean reproduction takes 9.43 seconds and matches all four products.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

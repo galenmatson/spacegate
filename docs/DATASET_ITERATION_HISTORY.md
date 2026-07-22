@@ -3514,6 +3514,22 @@ Representative commits:
   DR2 member IDs must traverse the official DR2-to-DR3 outcome graph before any
   endpoint can be considered accepted.
 
+### 132) Cluster Selection Must Be Release-Aware and Scope-Aware
+
+- Clean selector `171d3096b5cd7ad5f53a016b` resolves both cluster releases
+  against permanent extended-object aliases and applies an inverse per-release
+  collision guard. It does not open a stability database.
+- Hunt/Reffert contributes 58 uniquely accepted current clusters; 392 remain
+  missing, 11 ambiguous, and four match only an ineligible object scope.
+  Cantat-Gaudin contributes 1,992 accepted fallback clusters and retains 25
+  nebula or combined cluster/nebulosity matches as scope conflicts.
+- All 51,017 Gaia DR3 and 234,128 Gaia DR2 membership claims retain their
+  source probabilities. DR3 endpoints use canonical release-scoped bindings;
+  DR2 endpoints use official crossmatch outcomes. No claim creates canonical
+  containment.
+- The compiler records source and export phase timings, completes in about 9.4
+  seconds, and exactly reproduces all four canonical Parquet products.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

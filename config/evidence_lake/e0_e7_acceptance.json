@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.9",
+  "contract_version": "2026-07-22.e0-e7-acceptance.11",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -68,6 +68,11 @@
       "stage": "E4",
       "path": "e4_cantat_gaudin_reproduction.json",
       "expect": {"status": "pass", "build_id": "03a28284466d6821e8d5693e", "scratch_removed": true, "differing_sections": []}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_release_set_v4.json",
+      "expect": {"status": "pass", "release_set_id": "e3d7795d5584a8bb51163f95", "adapter_source_count": 39, "artifact_count": 37}
     },
     {
       "stage": "E5",
@@ -243,6 +248,21 @@
       "stage": "E7",
       "path": "e7_clean_extended_objects_ab.json",
       "expect": {"status": "pass", "distance_cutover_status": "open_pending_selected_cluster_and_relation_bindings", "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_clusters_compile.json",
+      "expect": {"status": "pass", "build_id": "171d3096b5cd7ad5f53a016b", "stability_databases_opened": [], "verification": {"accepted_cluster_collisions_within_release": 0, "accepted_clusters_without_targets": 0, "accepted_members_without_targets": 0, "canonical_containment_rows": 0, "duplicate_cluster_binding_ids": 0, "duplicate_membership_binding_ids": 0, "eligible_unbound_cluster_context": 0, "membership_probability_outside_unit_interval": 0, "unaccepted_clusters_with_targets": 0, "unaccepted_members_with_targets": 0}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_clusters_verification.json",
+      "expect": {"status": "pass", "build_id": "171d3096b5cd7ad5f53a016b", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_clusters_reproduction.json",
+      "expect": {"status": "pass", "build_id": "171d3096b5cd7ad5f53a016b", "scratch_removed": true, "differing_files": []}
     }
   ],
   "required_artifacts": [
@@ -252,6 +272,7 @@
     "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
     "derived/evidence_lake_v2/scientific_evidence/03a28284466d6821e8d5693e/manifest.json",
+    "derived/evidence_lake_v2/scientific_evidence_sets/e3d7795d5584a8bb51163f95/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json",
     "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",
@@ -259,7 +280,8 @@
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
     "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
     "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json",
-    "derived/evidence_lake_v2/clean_extended_objects/a4b521d1e1de52e14afac0da/manifest.json"
+    "derived/evidence_lake_v2/clean_extended_objects/a4b521d1e1de52e14afac0da/manifest.json",
+    "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b/manifest.json"
   ],
   "open_gates": [
     {

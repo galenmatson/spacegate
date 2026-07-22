@@ -1,0 +1,64 @@
+{
+  "schema_version": "spacegate.e7_clean_cluster_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-clusters.1",
+  "compiler_version": "clean_cluster_evidence_compiler_v1",
+  "identity_seed_id": "555fa1890943b97dd0e4ef3d",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "designation_normalization": "lower_trim_space_hyphen_to_underscore_v1",
+  "eligible_object_types": ["open_cluster"],
+  "canonical_containment_promotion": false,
+  "sources": [
+    {
+      "source_id": "clusters.hunt_reffert_2024",
+      "release_id": "vizier_j_aa_686_a42",
+      "evidence_build_id": "7e66e0690aa962c837d43a86",
+      "designation_namespaces": ["cluster_name", "cluster_literature_designation"],
+      "characterization_tables": ["hunt_reffert_2024_clusters"],
+      "member_namespace": "gaia_dr3",
+      "member_bridge": "canonical_identifier_bindings_v1",
+      "cluster_authority": "current_hunt_reffert_2024_cluster_posterior",
+      "membership_authority": "current_hunt_reffert_2024_probability_bearing_membership",
+      "authority_rank": 100,
+      "acceptance": {
+        "cluster_bindings": 465,
+        "clusters_accepted": 58,
+        "clusters_missing": 392,
+        "clusters_ambiguous": 11,
+        "clusters_scope_conflict": 4,
+        "cluster_evidence": 916,
+        "cluster_characterizations_eligible": 58,
+        "memberships": 51017,
+        "member_endpoints_accepted": 17273,
+        "member_endpoints_missing": 33744,
+        "member_endpoints_ambiguous": 0,
+        "member_endpoints_excluded": 0
+      }
+    },
+    {
+      "source_id": "clusters.cantat_gaudin_2020",
+      "release_id": "aa_640_a1",
+      "evidence_build_id": "03a28284466d6821e8d5693e",
+      "designation_namespaces": ["cluster_name"],
+      "characterization_tables": ["cantat_gaudin_2020_table1"],
+      "member_namespace": "gaia_dr2",
+      "member_bridge": "official_dr2_to_dr3_outcomes_v1",
+      "cluster_authority": "supplementary_cantat_gaudin_2020_cluster_context",
+      "membership_authority": "supplementary_cantat_gaudin_2020_upmask_membership",
+      "authority_rank": 200,
+      "acceptance": {
+        "cluster_bindings": 2017,
+        "clusters_accepted": 1992,
+        "clusters_missing": 0,
+        "clusters_ambiguous": 0,
+        "clusters_scope_conflict": 25,
+        "cluster_evidence": 2017,
+        "cluster_characterizations_eligible": 1992,
+        "memberships": 234128,
+        "member_endpoints_accepted": 4314,
+        "member_endpoints_missing": 0,
+        "member_endpoints_ambiguous": 24145,
+        "member_endpoints_excluded": 205669
+      }
+    }
+  ]
+}
