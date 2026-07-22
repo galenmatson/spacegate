@@ -1582,9 +1582,25 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   an immutable unserved CORE/ARM/hierarchy/DISC candidate; preserve exact
   inventory/hierarchy/planet lifecycle, attach fact lineage, pass independent
   audit, and pass isolated cryptographic logical-hash reproduction
+- [x] E6 selected classification consumers: centralize canonical-star display
+  classification on selected facts, reconnect canonical and inferred leaves to
+  release-scoped MSC component spectra/masses, retain legacy compatibility only
+  for pre-E6 builds, and pass full A/B with zero known-to-unknown regressions
+- [ ] E5/E6 NASA host selection gap: bind preserved NASA reference-specific,
+  stellarhosts, and composite host parameter sets to canonical stars through
+  authoritative identifiers; select coherent atmosphere/fundamental facts and
+  log-luminosity semantics, then rerun E5/E6 without legacy-value loss
+- [ ] E6 distance-loss review: account for 1,160 stability inverse-parallax
+  distances lacking selected Bailer-Jones posteriors; choose an explicit,
+  uncertainty-aware fallback or deliberate omission without treating reciprocal
+  parallax as a source distance measurement
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports
+- [ ] E6/E7 build-time closeout: publish a per-step wall/CPU/memory/I/O/artifact
+  report for selected consumers, DISC, public slice, map tiles, simulation
+  scenes, verification, promotion, and rollback; rank measured bottlenecks and
+  record before/after evidence for every accepted optimization
 - [ ] E6: create or bind permanent non-Gaia compact-object identities within
   the uncertainty-aware ingestion envelope; keep pulsars/magnetars distinct
   from optical companions, then rerun the compact-scope audit and add typed

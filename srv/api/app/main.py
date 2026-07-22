@@ -4776,7 +4776,12 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             output["msc_system_details"] = {"count": len(rows), "items": rows[:120]}
-        if star_ids and _duckdb_has_table(con, "stellar_parameters"):
+        parameter_table = (
+            "e6_selected_stellar_parameters"
+            if _duckdb_has_table(con, "e6_selected_stellar_parameters")
+            else "stellar_parameters"
+        )
+        if star_ids and _duckdb_has_table(con, parameter_table):
             placeholders = ",".join(["?"] * len(star_ids))
             rows = _rows_to_dicts(
                 con.execute(
@@ -4784,7 +4789,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                     SELECT star_id, stable_object_key, parameter_source, teff_k, radius_rsun,
                            mass_msun, luminosity_log10_lsun, age_gyr, spectral_type_raw,
                            source_catalog
-                    FROM stellar_parameters
+                    FROM {parameter_table}
                     WHERE star_id IN ({placeholders})
                     ORDER BY parameter_source ASC, star_id ASC
                     LIMIT 80

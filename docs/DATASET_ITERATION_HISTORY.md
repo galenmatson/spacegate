@@ -3080,6 +3080,40 @@ Representative commits:
   isolated compile/audit/logical reproduction in 247.7 seconds. DISC/public
   regeneration and the complete E6 scientific A/B remain open.
 
+### 111) Shared Classifications Must Consume Selected Facts and Exact Scope
+
+- The stability CORE stored 5.53 million Gaia `spectral_type_raw` values that
+  were actually generated from temperature or BP-RP during ingest. Treating
+  these as source classifications hid provenance and made UI surfaces disagree
+  as they repeated different fallback orders.
+- E6 now selects one canonical-star display class from compact-object identity,
+  selected direct spectral evidence, source-native non-Gaia fallback, selected
+  temperature, selected BP-RP, then selected mass. Every selected-evidence prior
+  retains its fact ID; disagreements among lower-priority presentation priors
+  are not mislabeled as competing source conflicts.
+- Canonical and inferred hierarchy leaves bind to release-scoped MSC component
+  evidence through canonical system identity and normalized component label.
+  This replaces 5,683 component spectral and 8,314 component-mass legacy paths
+  without any system-name exception.
+- Against the stability leaf projection, 338,820 classes change, 929 unknowns
+  become classified, and zero known classes become unknown. The change remains
+  unserved pending the complete E6 scientific A/B and downstream rebuild.
+
+### 112) Preserved Evidence Is Not Useful Until Its Object Scope Is Selectable
+
+- The first E6 parameter A/B found 62 lost temperatures, 686 masses, 193 radii,
+  and 195 luminosities. All but one are NASA Exoplanet Archive host-star values.
+  E4 preserved the reference-specific, stellarhosts, and composite parameter
+  sets correctly, but E5 policy v12 included only a planet-scoped NASA selection
+  program.
+- This is not repaired with a UI fallback. The durable repair is a star-scoped
+  NASA host program with authoritative identifier binding, coherent parameter
+  set selection, exact evidence lineage, and correct log-luminosity semantics.
+- A separate 1,160-row distance loss consists of legacy Gaia inverse-parallax
+  values without selected posterior distances. It remains a policy review
+  because reciprocal parallax is a derivation with uncertainty/applicability
+  constraints, not an interchangeable source distance measurement.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

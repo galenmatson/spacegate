@@ -2280,6 +2280,19 @@ Foundation checkpoint (July 22, 2026):
 - this is not E6 completion: DISC rescore, classification/HZ/category consumer
   migration, public slice, API/search/map/simulation artifacts, compact-object
   identity, full scientific A/B, and performance acceptance remain open
+- the selected-consumer checkpoint centralizes canonical-star display classes
+  and parameter reads, binds both canonical and inferred hierarchy leaves to
+  release-scoped MSC component evidence, and retains exact fact/evidence IDs;
+  its full A/B changes 338,820 classes, fills 929 unknowns, and loses zero known
+  classes. Selected consumers take 8.56 seconds and the hierarchy projection
+  27.38 seconds on warm Photon scratch; downstream HZ/category/DISC/public
+  consumers remain open
+- the first parameter A/B exposed an E5 policy omission: NASA host-star evidence
+  is fully preserved in E4 but only NASA planet quantities were selectable.
+  This accounts for 62 lost temperatures, 685 of 686 lost masses, and every one
+  of 193 lost radii and 195 lost luminosities. It must be fixed in the general
+  source selection policy, not masked by a compatibility fallback. A separate
+  1,160-row inverse-parallax distance tail remains an explicit policy review
 
 Deliverables:
 

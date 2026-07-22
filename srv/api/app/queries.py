@@ -2394,7 +2394,22 @@ def _enrich_hierarchy_star_nodes(
             if star_id in core_by_star_id:
                 star_facts[node_key] = dict(core_by_star_id[star_id])
 
-        if arm_attached and _has_table(con, alias="arm_db", table_name="stellar_parameters"):
+        e6_parameter_projection = arm_attached and _has_table(
+            con, alias="arm_db", table_name="e6_selected_stellar_parameters"
+        )
+        legacy_parameter_projection = arm_attached and _has_table(
+            con, alias="arm_db", table_name="stellar_parameters"
+        )
+        if e6_parameter_projection:
+            param_rows = con.execute(
+                f"""
+                SELECT star_id,mass_msun,radius_rsun,luminosity_log10_lsun
+                FROM arm_db.e6_selected_stellar_parameters
+                WHERE star_id IN ({placeholders})
+                """,
+                star_ids,
+            ).fetchall()
+        elif legacy_parameter_projection:
             param_rows = con.execute(
                 f"""
                 WITH ranked AS (
@@ -2432,6 +2447,9 @@ def _enrich_hierarchy_star_nodes(
                 """,
                 star_ids,
             ).fetchall()
+        else:
+            param_rows = []
+        if param_rows:
             params_by_star_id = {
                 int(star_id): {
                     "mass_msun": float(mass_msun) if mass_msun is not None else None,

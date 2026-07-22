@@ -24,6 +24,16 @@ def sql_literal(value: str | Path) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def table_exists(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
+    return bool(
+        con.execute(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema='main' AND table_name=?",
+            [table_name],
+        ).fetchone()[0]
+    )
+
+
 def spectral_class_sql(raw: str, spectral_class: str, object_type: str) -> str:
     return f"""
       case
@@ -68,9 +78,123 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
         con.execute(f"attach {sql_literal(hierarchy_db)} as hierarchy (read_only)")
         con.execute("drop table if exists stellar_leaf_display_classifications")
 
+        has_e6_display = table_exists(
+            con, "e6_selected_stellar_display_classifications"
+        )
+        has_e6_msc = all(
+            table_exists(con, table_name)
+            for table_name in (
+                "e6_component_msc_component_entities",
+                "e6_component_msc_classification_projection",
+                "e6_component_msc_stellar_parameter_projection",
+            )
+        )
+
         core_class = spectral_class_sql("s.spectral_type_raw", "s.spectral_class", "s.object_type")
         raw_primary_class = spectral_class_sql("r.spectral_type_primary", "null", "'star'")
         raw_primary_mass_class = mass_class_sql("r.mass_primary_msun")
+        e6_core_candidates = ""
+        legacy_core_candidates = f"""
+              select l.hierarchy_node_key, 0 as evidence_rank, l.core_class_token as class_token,
+                     'source'::varchar as classification_status,
+                     'core_leaf_source_class_v1'::varchar as evidence_basis,
+                     cast(null as varchar) as selected_fact_id,
+                     l.core_source_catalog as source_catalog, cast(null as varchar) as source_version,
+                     l.core_source_pk as source_pk, cast(null as varchar) as retrieval_checksum,
+                     cast(null as varchar) as retrieved_at,
+                     l.core_spectral_type_raw as source_value, 0.95::double as confidence_score
+              from leaves l where l.core_class_token is not null
+              union all
+        """
+        canonical_legacy_guard = ""
+        if has_e6_display:
+            legacy_core_candidates = ""
+            canonical_legacy_guard = " and l.star_id is null"
+            e6_core_candidates = """
+              select l.hierarchy_node_key,
+                     case d.evidence_basis
+                       when 'canonical_object_type' then 0
+                       when 'selected_spectral_type_optical' then 1
+                       when 'selected_spectral_type_infrared' then 1
+                       when 'selected_spectral_type_simbad' then 1
+                       when 'stability_core_source_class_fallback' then 2
+                       when 'selected_teff_visual_class_prior' then 3
+                       when 'selected_bp_rp_visual_class_prior' then 4
+                       when 'selected_mass_main_sequence_prior' then 5
+                       else 6
+                     end as evidence_rank,
+                     d.classification_value as class_token,
+                     d.classification_status,
+                     d.evidence_basis,
+                     d.selected_fact_id,
+                     'evidence_lake_v2'::varchar as source_catalog,
+                     d.projection_version as source_version,
+                     d.selected_display_classification_id::varchar as source_pk,
+                     cast(null as varchar) as retrieval_checksum,
+                     cast(null as varchar) as retrieved_at,
+                     d.source_value,
+                     d.confidence_score
+              from leaves l
+              join e6_selected_stellar_display_classifications d using (star_id)
+              where l.star_id is not null and d.classification_value <> 'UNKNOWN'
+              union all
+            """
+
+        e6_msc_candidates = ""
+        if has_e6_msc:
+            e6_msc_class = spectral_class_sql(
+                "cp.classification_raw", "cp.classification_normalized", "'star'"
+            )
+            e6_msc_candidates = f"""
+              select l.hierarchy_node_key, 1 as evidence_rank,
+                     {e6_msc_class}::varchar as class_token,
+                     'source'::varchar as classification_status,
+                     'e6_msc_component_spectral_type_v1'::varchar as evidence_basis,
+                     cp.evidence_id as selected_fact_id,
+                     ce.source_id as source_catalog,
+                     ce.release_id as source_version,
+                     cp.evidence_id as source_pk,
+                     cast(null as varchar) as retrieval_checksum,
+                     cast(null as varchar) as retrieved_at,
+                     cp.classification_raw as source_value,
+                     0.90::double as confidence_score
+              from leaves l
+              join e6_component_msc_component_entities ce
+                on ce.canonical_system_stable_object_key=l.system_stable_object_key
+               and ce.component_label_normalized=l.catalog_component_label
+               and ce.binding_status='accepted'
+              join e6_component_msc_classification_projection cp
+                on cp.component_entity_id=ce.component_entity_id
+               and cp.projection_status='eligible_for_quantity_selection'
+              where {e6_msc_class} is not null
+              union all
+            """
+            e6_msc_mass_class = mass_class_sql("sp.normalized_value")
+            e6_msc_candidates += f"""
+              select l.hierarchy_node_key, 5 as evidence_rank,
+                     {e6_msc_mass_class}::varchar as class_token,
+                     'assumed'::varchar as classification_status,
+                     'e6_msc_component_mass_main_sequence_prior_v1'::varchar as evidence_basis,
+                     sp.evidence_id as selected_fact_id,
+                     ce.source_id as source_catalog,
+                     ce.release_id as source_version,
+                     sp.evidence_id as source_pk,
+                     cast(null as varchar) as retrieval_checksum,
+                     cast(null as varchar) as retrieved_at,
+                     sp.value_raw as source_value,
+                     0.35::double as confidence_score
+              from leaves l
+              join e6_component_msc_component_entities ce
+                on ce.canonical_system_stable_object_key=l.system_stable_object_key
+               and ce.component_label_normalized=l.catalog_component_label
+               and ce.binding_status='accepted'
+              join e6_component_msc_stellar_parameter_projection sp
+                on sp.component_entity_id=ce.component_entity_id
+               and sp.projection_status='eligible_for_quantity_selection'
+               and sp.quantity_key='mass'
+              where {e6_msc_mass_class} is not null
+              union all
+            """
 
         con.execute(
             f"""
@@ -157,17 +281,11 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
                      {mass_class_sql('r.mass_secondary_msun')}::varchar
               from msc_system_details r where secondary_component_key is not null
             ), candidates as (
-              select l.hierarchy_node_key, 0 as evidence_rank, l.core_class_token as class_token,
-                     'source'::varchar as classification_status,
-                     'core_leaf_source_class_v1'::varchar as evidence_basis,
-                     l.core_source_catalog as source_catalog, cast(null as varchar) as source_version,
-                     l.core_source_pk as source_pk, cast(null as varchar) as retrieval_checksum,
-                     cast(null as varchar) as retrieved_at,
-                     l.core_spectral_type_raw as source_value, 0.95::double as confidence_score
-              from leaves l where l.core_class_token is not null
-              union all
-              select l.hierarchy_node_key, 1, d.classification_value, 'source',
-                     d.derivation_method, d.source_catalog, d.source_version, d.source_pk,
+              {e6_core_candidates}
+              {legacy_core_candidates}
+              {e6_msc_candidates}
+              select l.hierarchy_node_key, 10, d.classification_value, 'source',
+                     d.derivation_method, cast(null as varchar), d.source_catalog, d.source_version, d.source_pk,
                      d.retrieval_checksum, d.retrieved_at,
                      try_cast(json_extract_string(d.input_parameters_json, '$.spectral_type_raw') as varchar),
                      coalesce(d.confidence_score, 0.9)
@@ -175,25 +293,27 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
                 on d.stable_component_key = l.evidence_component_key
                and d.classification_key = 'stellar_display_class'
               where d.review_status = 'accepted' and d.classification_status = 'source'
+                {canonical_legacy_guard}
               union all
-              select l.hierarchy_node_key, 2, r.class_token, 'derived',
-                     'msc_exact_leaf_spectral_type_v1', r.source_catalog, r.source_version,
+              select l.hierarchy_node_key, 20, r.class_token, 'derived',
+                     'msc_exact_leaf_spectral_type_v1', cast(null as varchar), r.source_catalog, r.source_version,
                      r.source_pk, r.retrieval_checksum, r.retrieved_at, r.spectral_type_raw, 0.72
               from leaves l join raw_endpoints r on r.stable_component_key = l.evidence_component_key
-              where r.class_token is not null
+              where r.class_token is not null {canonical_legacy_guard}
               union all
-              select l.hierarchy_node_key, 3, d.classification_value, 'derived',
-                     d.derivation_method, d.source_catalog, d.source_version, d.source_pk,
+              select l.hierarchy_node_key, 30, d.classification_value, 'derived',
+                     d.derivation_method, cast(null as varchar), d.source_catalog, d.source_version, d.source_pk,
                      d.retrieval_checksum, d.retrieved_at,
                      try_cast(json_extract_string(d.input_parameters_json, '$.spectral_type_raw') as varchar),
                      coalesce(d.confidence_score, 0.55)
               from leaves l join derived_stellar_classifications d
                 on d.stable_component_key = l.evidence_component_key
                and d.classification_key = 'stellar_display_class'
-              where d.classification_status = 'derived'
+              where d.classification_status = 'derived' {canonical_legacy_guard}
               union all
-              select l.hierarchy_node_key, 4, coalesce(d.classification_value, r.mass_class_token), 'assumed',
+              select l.hierarchy_node_key, 40, coalesce(d.classification_value, r.mass_class_token), 'assumed',
                      coalesce(d.derivation_method, 'mass_main_sequence_prior_v1'),
+                     cast(null as varchar),
                      coalesce(d.source_catalog, r.source_catalog), coalesce(d.source_version, r.source_version),
                      coalesce(d.source_pk, r.source_pk), coalesce(d.retrieval_checksum, r.retrieval_checksum),
                      coalesce(d.retrieved_at, r.retrieved_at), cast(null as varchar),
@@ -205,6 +325,7 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
                and d.classification_status = 'assumed'
               left join raw_endpoints r on r.stable_component_key = l.evidence_component_key
               where coalesce(d.classification_value, r.mass_class_token) is not null
+                {canonical_legacy_guard}
             ), ranked as (
               select c.*,
                      row_number() over (
@@ -236,6 +357,7 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
               coalesce(r.class_token, 'UNKNOWN')::varchar as classification_value,
               coalesce(r.classification_status, 'missing')::varchar as classification_status,
               coalesce(r.evidence_basis, 'no_exact_leaf_classification_evidence')::varchar as evidence_basis,
+              r.selected_fact_id,
               r.source_catalog,
               r.source_version,
               r.source_pk,

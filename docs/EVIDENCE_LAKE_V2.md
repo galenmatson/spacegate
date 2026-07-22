@@ -1759,6 +1759,25 @@ tables remain pinned by source database hashes and exact table counts. DISC,
 public products, consumer migration, compact-object identity, and the complete
 scientific A/B remain open, so the checkpoint is not promotable or served.
 
+The selected-consumer checkpoint replaces generated Gaia CORE class letters as
+an implicit authority with one versioned display-class policy. Direct selected
+spectral evidence wins first; selected temperature, selected BP-RP, and selected
+mass are explicitly labeled derived or assumed presentation priors with exact
+fact IDs. Release-scoped MSC component spectra and masses bind to canonical and
+inferred hierarchy leaves by canonical system identity plus normalized component
+label, never by a named-system branch. The full leaf A/B fills 929 unknowns and
+loses no previously known class. Lower-priority prior disagreement is reported
+separately from competing direct/source classification conflict.
+
+The same A/B rejects the initial stellar-parameter consumer as complete. E4
+preserves NASA reference-specific, stellarhosts, and composite host parameter
+sets, but E5 policy v12 defines selection only for NASA planet quantities. That
+omission causes nearly the entire small legacy mass/radius/luminosity/temperature
+loss tail and must be corrected through a reusable host binding and quantity
+policy. A separate inverse-parallax distance tail must receive an explicit
+uncertainty-aware policy; neither issue may be hidden by an unlabeled runtime
+fallback.
+
 ### E7. Promotion, Cutover, and Legacy Retirement
 
 After the E6 scientific review is accepted, promote atomically while retaining

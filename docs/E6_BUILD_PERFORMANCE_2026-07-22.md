@@ -7,6 +7,13 @@ This report measures the first accepted Evidence Lake v2 E6 shadow foundation,
 public-slice, map-tile, simulation-scene, API/search, or browser verification.
 Those phases must be appended before E6 closes.
 
+The E6/E7 acceptance report must retain a per-step breakdown for selected-fact
+consumers, DISC, public slice, map tiles, simulation scenes, API/search and UX
+verification, promotion, and rollback. Each row must include wall and CPU time,
+peak memory, measured I/O where the runner exposes it, and output bytes. Slow
+steps will be profiled and optimized only from this evidence; accepted changes
+must include a before/after comparison.
+
 Photon profile:
 
 - 12 DuckDB threads
@@ -85,3 +92,37 @@ materialization, deterministic exports, Bailer-Jones projection, immutable
 input verification, and global selection. E6 optimization should not distract
 from those measured E5 targets unless downstream regeneration changes this
 ranking.
+
+## Selected Consumer Checkpoint
+
+The first full selected-consumer run on USB scratch established the shared
+stellar-parameter compatibility view and centralized display classification.
+A warm-cache rerun took 8.56 wall seconds. Classification materialization took
+5.93 seconds, indexes 1.40, verification 0.78, and the 8,041-row non-astrometric
+subject supplement 0.37. Peak RSS was 10.72 GiB. The supplement avoids either
+dropping non-Gaia subjects or duplicating the complete 5.87-million-row identity
+spine.
+
+The hierarchy-leaf projection then took 27.38 wall seconds, 137.64 CPU-seconds,
+and 18.75 GiB peak RSS. Its central classification table occupies approximately
+325.5 MiB of DuckDB data blocks and the complete leaf table approximately 620.0
+MiB, excluding indexes and reusable/free database blocks. It projects 5,879,796
+leaves with zero duplicate keys or invalid rows.
+
+The scientific A/B changes 338,820 classifications, fills 929 prior unknowns,
+and loses zero prior known classifications. Exact release-scoped MSC evidence
+now supplies 5,683 component spectral classifications and 8,314 component-mass
+priors with evidence IDs. The large remaining delta is chiefly the intentional
+replacement of legacy Gaia temperature/color-generated class letters by the
+versioned selected-temperature and selected-color policy; it remains an E6
+scientific-review item.
+
+The machine A/B auditor itself takes 4.40 wall seconds and 3.22 GiB peak RSS.
+It exposed a policy blocker rather than a performance blocker: the selected
+projection adds millions of physical values but loses 62 legacy temperatures,
+686 masses, 193 radii, and 195 luminosities. All but one of those losses are
+NASA Exoplanet Archive host-star values already preserved in E4; E5 currently
+selects NASA planet quantities but omitted a host-star selection program. The
+1,160 lost distances are legacy Gaia inverse-parallax values without a selected
+posterior estimate and require an explicit distance policy rather than silent
+fallback. Neither tail is hidden by the compatibility view.
