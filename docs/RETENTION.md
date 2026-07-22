@@ -507,6 +507,15 @@ independent artifact audit are protected E5/E6 inputs. Hunt/Reffert E4 artifact
 `7e66e0690aa962c837d43a86` and its raw/typed lineage remain protected source
 inputs; neither is a manual cleanup target.
 
+E5 extended-object artifact `3790054572476ea189aaff06`, its ordered binding and
+evidence Parquet projections, policy, compiler, compile and clean-reproduction
+reports, and independent audit are protected E5/E6 inputs. Green SNR E4 artifact
+`d08c5aa9af7dc8bcdbf0d6c3`, OpenNGC-family E4 artifact
+`54d1b0b6a841344c48327991`, their raw/typed snapshots, and the canonical
+reference remain protected transitive inputs. Neither individual Parquet files
+nor a ledger-referenced whole artifact may be removed by an ordinary space
+cleanup.
+
 The white-dwarf adapter's first v21 attempt failed closed before promotion when
 an unqualified source column collided with compiler lineage `source_id`. Its
 hidden temporary artifact remains a retention dry-run candidate; the v22

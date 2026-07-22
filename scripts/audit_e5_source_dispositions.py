@@ -32,6 +32,7 @@ ALLOWED_DISPOSITIONS = {
     "selected_relation_evidence_projection",
     "selected_component_evidence_projection",
     "selected_cluster_evidence_projection",
+    "selected_extended_object_evidence_projection",
 }
 
 
@@ -145,6 +146,12 @@ def audit(
         if disposition == "selected_cluster_evidence_projection" and (
             not row.get("cluster_policy_version")
             or not row.get("cluster_artifact_id")
+            or row.get("blocks_e5") is not False
+        ):
+            incomplete_dispositions.append(source_id)
+        if disposition == "selected_extended_object_evidence_projection" and (
+            not row.get("extended_object_policy_version")
+            or not row.get("extended_object_artifact_id")
             or row.get("blocks_e5") is not False
         ):
             incomplete_dispositions.append(source_id)

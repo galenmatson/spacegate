@@ -1515,6 +1515,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   posteriors only for one-to-one cluster identities, resolve Gaia DR3 member
   endpoints independently, preserve all published probabilities, and create no
   canonical membership containment
+- [x] E5 extended-object projection: reconcile all Green SNR and OpenNGC-family
+  evidence through exact catalog-source keys; retain explicit accepted,
+  excluded, quarantined, and unresolved outcomes; and prevent every extended
+  row from entering stellar selected facts
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

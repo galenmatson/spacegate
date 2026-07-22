@@ -2945,6 +2945,20 @@ Representative commits:
   reproduction in about 2.2 wall seconds at about 1.1 GiB peak RSS. This
   focused compiler is not a material contributor to the slow full E5 build.
 
+### 104) Extended Evidence Stays Outside Stellar Facts
+
+- Extended-object policy v1 reconciles evidence only through exact general
+  catalog-source keys already represented in the canonical source bridge. It
+  does not use coordinates, visual overlap, or named-object branches.
+- All 310 Green SNR rows bind to one canonical extended object. Of 19,012
+  OpenNGC-family rows, 17,800 bind, 803 preserve explicit exclusions, 404 remain
+  quarantined as unclassified, and five redirects remain unresolved because
+  their target is absent. Every row retains its exact outcome and reason.
+- Geometry, distance, morphology, flux, spectral index, component context,
+  names, citations, and lineage stay in the extended-object domain. Artifact
+  `3790054572476ea189aaff06` emits zero stellar facts, passes independent audit,
+  and reproduces byte-identically in under one wall second.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -280,6 +280,14 @@ Evidence Lake v2 staging rule:
   source documents separate from canonical object inventory. Catalog component
   markers remain scoped, and raw list-valued aliases remain evidence until E2
   applies an explicit parser/reconciliation policy.
+- E5 extended-object policy v1 projects those rows through exact general
+  catalog-source reconciliation keys. Each source evidence row receives one
+  accepted, excluded, quarantined, or unresolved binding outcome; coordinate
+  proximity and visual overlap are not identity mechanisms. Accepted rows may
+  feed only extended-object quantity selection. A checked DOUBLE-to-BIGINT
+  bridge is required by the current canonical reconciliation schema and fails
+  on any representational collision. No extended-object row may emit a stellar
+  selected fact.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

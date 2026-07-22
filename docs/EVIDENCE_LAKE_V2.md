@@ -1424,9 +1424,10 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.15` records 19 completed sources and seven
-remaining blockers after the Hunt/Reffert cluster projection. The multiplicity
-batch is complete; the cluster/extended/Solar batch has three active sources.
+Ledger `2026-07-22.e5-policy-batches.16` records 21 completed sources and five
+remaining blockers after the Hunt/Reffert and extended-object projections. The
+multiplicity batch is complete; the cluster/extended/Solar batch has only the
+JPL Horizons epoch/frame policy active.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1489,6 +1490,17 @@ exactly and 4,247 claims have both endpoints accepted. Every source probability
 is preserved, but no threshold creates canonical containment. Artifact
 `a6169c9ec351db81104e8518` independently audits and reproduces in about 2.2
 seconds wall time with about 1.1 GiB peak RSS.
+
+Extended-object policy v1 applies the existing canonical source-reconciliation
+keys without coordinate, visual-overlap, or object-name heuristics. All 310
+Green SNR rows bind exactly. Of 19,012 OpenNGC-family evidence rows, 17,800 bind
+to one canonical extended object, 803 retain explicit source exclusions, 404
+remain quarantined as unclassified, and five redirects remain unresolved
+because their targets are absent. Accepted rows become eligible only for
+extended-object quantity selection. Source geometry, distance, morphology,
+flux, spectral index, components, names, citations, and lineage never enter
+stellar selected facts. Artifact `3790054572476ea189aaff06` passes independent
+audit and byte-identical reproduction in under one wall second.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

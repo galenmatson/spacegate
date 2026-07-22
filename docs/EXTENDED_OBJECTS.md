@@ -47,6 +47,12 @@ while `Blue Horsehead Nebula` is its public display name.
 Every source row is represented in `extended_object_source_reconciliation` with
 an accepted, reconciled, redirected, excluded, or quarantined outcome and reason.
 
+E5 policy `2026-07-22.e5-extended-objects.1` consumes those exact reconciliation
+keys without adding coordinate or visual-overlap identity. Artifact
+`3790054572476ea189aaff06` accounts all 310 Green SNR and 19,012 OpenNGC-family
+evidence rows. Accepted evidence remains eligible only for extended-object
+selection, and the compiler and independent audit require zero stellar facts.
+
 ## Geometry and Distance
 
 All source coordinates are normalized to ICRS. B1900/B1950 inputs use Astropy

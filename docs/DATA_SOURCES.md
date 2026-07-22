@@ -202,6 +202,14 @@ Exact Gaia DR3 identity binds 17,273 of 51,017 member endpoints; 4,247 claims
 have both endpoints accepted. Published HDBSCAN probabilities remain evidence
 and never create canonical containment.
 
+E5 extended-object artifact `3790054572476ea189aaff06` uses exact catalog
+source-reconciliation keys rather than coordinates or visual overlap. It binds
+all 310 Green SNR rows and 17,800 of 19,012 OpenNGC-family rows; the remainder
+stay explicitly excluded (803), quarantined (404), or unresolved redirects
+(five). All geometry, distances, physical context, names, components, and
+citations remain in the extended-object evidence domain. No row is projected
+as a stellar selected fact.
+
 SIMBAD is not bulk-mirrored or used as inventory: its release-pinned Gaia DR3
 bridge is intersected locally before targeted alias, basic-data, and
 bibliography acquisition. Full TIC, Gaia observation products, and survey

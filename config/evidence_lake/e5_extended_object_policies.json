@@ -1,0 +1,50 @@
+{
+  "schema_version": "spacegate.e5_extended_object_policies.v1",
+  "policy_version": "2026-07-22.e5-extended-objects.1",
+  "compiler_version": "selected_extended_object_evidence_compiler_v1",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "reconciliation_contract": "core_extended_object_source_reconciliation_v1",
+  "canonical_id_join": "unique_double_encoded_reconciliation_id_to_bigint_v1",
+  "sources": [
+    {
+      "source_id": "extended.green_snr",
+      "release_id": "rolling_snapshot_20260709",
+      "evidence_build_id": "d08c5aa9af7dc8bcdbf0d6c3",
+      "source_key_strategy": "green_snr_galactic_coordinate_key_v1",
+      "authority_role": "green_specialist_supernova_remnant_geometry_and_physics",
+      "accepted_reconciliation_outcomes": ["accepted", "reconciled", "redirected"],
+      "stellar_fact_projection": false,
+      "acceptance": {
+        "expected_bindings": 310,
+        "expected_bindings_accepted": 310,
+        "expected_bindings_excluded": 0,
+        "expected_bindings_quarantined": 0,
+        "expected_bindings_unresolved": 0,
+        "expected_evidence": 310,
+        "expected_evidence_eligible": 310,
+        "expected_canonical_candidate_ambiguities": 0,
+        "expected_stellar_fact_rows": 0
+      }
+    },
+    {
+      "source_id": "extended.openngc_and_nebulae",
+      "release_id": "spacegate_snapshot_20260713",
+      "evidence_build_id": "54d1b0b6a841344c48327991",
+      "source_key_strategy": "extended_catalog_logical_key_v1",
+      "authority_role": "source_native_extended_object_geometry_distance_and_parameters",
+      "accepted_reconciliation_outcomes": ["accepted", "reconciled", "redirected"],
+      "stellar_fact_projection": false,
+      "acceptance": {
+        "expected_bindings": 19012,
+        "expected_bindings_accepted": 17800,
+        "expected_bindings_excluded": 803,
+        "expected_bindings_quarantined": 404,
+        "expected_bindings_unresolved": 5,
+        "expected_evidence": 19012,
+        "expected_evidence_eligible": 17800,
+        "expected_canonical_candidate_ambiguities": 0,
+        "expected_stellar_fact_rows": 0
+      }
+    }
+  ]
+}

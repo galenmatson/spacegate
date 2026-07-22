@@ -2076,6 +2076,13 @@ Foundation checkpoint (July 21, 2026):
   cluster/member pairs, and creates no canonical containment. Artifact
   `a6169c9ec351db81104e8518` independently audits and reproduces in about 2.2
   seconds wall time with about 1.1 GiB peak RSS
+- extended-object policy v1 reconciles all 310 Green SNR rows and all 19,012
+  OpenNGC-family rows through exact, general catalog-source keys. It accepts
+  17,800 OpenNGC-family bindings, preserves 803 exclusions, 404 quarantines,
+  and five unresolved redirects, and emits zero stellar selected facts.
+  Artifact `3790054572476ea189aaff06` independently audits and reproduces in
+  under one second; the cluster/extended/Solar batch now has only JPL Horizons
+  remaining
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys
