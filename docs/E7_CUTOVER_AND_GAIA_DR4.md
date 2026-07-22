@@ -35,7 +35,7 @@ Machine contracts:
 - `scripts/verify_selected_system_placements.py`
 - `scripts/verify_selected_system_placement_reproduction.py`
 
-The current completion audit passes all 35 pinned checkpoint checks and reports
+The current completion audit passes all 68 pinned checkpoint checks and reports
 `incomplete`. Its six explicit gates are the clean pinned-input authoritative
 entrypoint, shared selected-fact consumer cutover, operator scientific A/B
 acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
@@ -55,8 +55,10 @@ Vocabulary seed `6b4fb210e1b1bcf61299fe7f` is the corresponding one-time
 bridge for 1,026,480 public aliases. It is identity-only, maps every row to a
 permanent object and system key, and reproduces byte-for-byte without retaining
 legacy numeric target IDs. The stability-table migration audit separately owns
-all 74 tables and currently exposes 61 remaining replacements; therefore these
-two migration seeds do not yet close the clean-entrypoint gate.
+all 74 tables; clean foundation, science, WISE, cluster, and extended-object
+artifacts now replace additional groups, but runtime compatibility consumers
+and the top-level clean entrypoint remain open. Therefore these two migration
+seeds alone do not close the clean-entrypoint gate.
 
 ## Cutover Sequence
 
