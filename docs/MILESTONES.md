@@ -1200,8 +1200,9 @@ Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
 registered E3 acquisition completed July 20, 2026; accepted E4 release set is
 pinned; E5 selected-fact v15 and component-scope v9 are accepted unserved
 artifacts. Corrected E6 v6 shadow, scientific A/B, reproduction, public slice,
-and map tiles pass; simulation/API/search/browser measurement and E7 operator
-review remain in progress.
+map tiles, simulation/API/search, and production-equivalent browser measurement
+pass; complete scientific-delta accounting and E7 operator review remain in
+progress.
 
 Goal:
 
@@ -2368,6 +2369,12 @@ Foundation checkpoint (July 22, 2026):
 - an isolated USB-backed map reproduction with the identical four-radius
   publication contract completes in 4:38.14, matches every 100/250/500/1,000-ly
   manifest hash exactly, and removes its 461-MiB scratch tree
+- the unpromoted production-equivalent browser checkpoint passes all twelve
+  applicable tiled-map Playwright cases and all 312 fixed deep-map performance
+  checks across 500/1,000-ly cold, warm, rapid-direction, desktop, mobile, and
+  Photon profiles. The prior development-runtime heap misses disappear without
+  changing budgets; production heap is 116 MB at 500-ly desktop and 225 MB at
+  1,000-ly warm desktop
 - the phase report ranks E5 program-level incremental compilation, a proven
   public-slice identity fast path, and deterministic parallel tile encoding as
   the first optimization targets. Details and acceptance constraints are in

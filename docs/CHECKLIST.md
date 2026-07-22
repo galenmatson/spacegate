@@ -1651,6 +1651,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E6 map determinism checkpoint: rebuild all four public radii in isolated
   USB scratch with identical inputs, match every manifest hash exactly, retain
   the machine comparison, and remove scratch
+- [x] E6 production browser checkpoint: pass twelve applicable tiled-map
+  Playwright cases and all 312 fixed performance checks across 500/1,000-ly
+  cold, warm, rapid-direction, desktop, mobile, and Photon profiles without
+  raising budgets; retain development-runtime heap misses as diagnostics only
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports

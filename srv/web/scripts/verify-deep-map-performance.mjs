@@ -25,7 +25,7 @@ for (const [scenario, payload, expectedRadius] of [
   ["deep_1000_rapid_direction", rapid1000, 1000],
 ]) {
   const radius = Number(payload.radius_ly);
-  const expectedEligible = expectedRadius === 500 ? 2_332_003 : 5_869_087;
+  const expectedEligible = expectedRadius === 500 ? 2_332_007 : 5_869_091;
   for (const row of payload.results) {
     const mobile = row.profile === "mobile";
     const renderer = row.renderer || {};

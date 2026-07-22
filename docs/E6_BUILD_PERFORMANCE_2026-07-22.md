@@ -6,8 +6,9 @@ This report began with the first accepted Evidence Lake v2 E6 shadow
 foundation, `e6_994a6301c335ac385f5dc052_shadow`. Historical checkpoint
 measurements remain below. The current measured candidate is
 `e6_cfcdf2d9add2cd7e2b96af68_shadow`; its corrected public slice, map tiles,
-and downstream verification measurements are appended as they finish. E6 does
-not close until browser, promotion, and rollback rows are complete.
+and downstream verification measurements are appended as they finish. The
+production-equivalent browser rows now pass; E6/E7 does not close until the
+remaining scientific-delta review, promotion, and rollback rows are complete.
 
 The public-slice builder now emits
 `slice_build_performance_report.json` with named core selection,
@@ -336,6 +337,47 @@ identifier search; it emits no stale-slice or preview warnings.
 | Alias/search materialization | 0.80 | Pass |
 | API integration contract | 40.42 | Pass |
 | Strict known-system API benchmark | 37.39 | Pass, no warnings |
+
+## Production Browser Acceptance
+
+The unpromoted public candidate passes the complete tiled-map Playwright suite
+through a production Vite build served behind the same-origin nginx topology
+used by Spacegate. Twelve desktop/mobile/4K cases pass, with four intentional
+mobile skips. Coverage includes exact 100/250-ly loading, progressive
+500/1,000-ly loading, canvas-pixel and screenshot checks, search handoff,
+flight, exact-density behavior, and the 4K Bright style. The sole initial test
+failure was a stale golden expecting label strategy v2; the candidate correctly
+advertises the shared hierarchy-leaf v3 policy, and the updated golden passes.
+
+The production performance matrix passes all 312 fixed acceptance checks. No
+budget was raised. The checks cover eligible-system counts, rendered-point
+bounds, tile completion and duplication, network failures and bytes, usable
+and settle time, median/p95 frame time, long tasks, post-GC JavaScript heap,
+search/selection latency, camera detail, and device density policy.
+
+| Scenario/profile | Heap MB | Settle s | p95 frame ms | Requests | Encoded MB | Points |
+|---|---:|---:|---:|---:|---:|---:|
+| 500 cold / desktop | 116 | 2.61 | 33.4 | 110 | 9.84 | 22,176 |
+| 500 cold / mobile | 86 | 1.91 | 16.8 | 106 | 6.78 | 19,951 |
+| 500 cold / Photon | 103 | 2.97 | 50.0 | 110 | 9.89 | 22,176 |
+| 1,000 cold / desktop | 342 | 10.92 | 50.1 | 512 | 18.79 | 100,158 |
+| 1,000 cold / mobile | 254 | 6.71 | 50.1 | 508 | 15.68 | 97,933 |
+| 1,000 cold / Photon | 269 | 13.11 | 66.7 | 512 | 18.79 | 100,158 |
+| 1,000 warm / desktop | 225 | 10.43 | 50.1 | 512 | 0.31 | 100,158 |
+| 1,000 warm / mobile | 462 | 5.81 | 50.1 | 508 | 0.31 | 97,933 |
+| 1,000 warm / Photon | 254 | 13.09 | 66.7 | 512 | 0.31 | 100,158 |
+| 1,000 rapid / desktop | 286 | 11.08 | 66.8 | 512 | 18.79 | 100,158 |
+| 1,000 rapid / mobile | 239 | 6.27 | 50.1 | 508 | 15.68 | 97,933 |
+| 1,000 rapid / Photon | 304 | 13.37 | 66.7 | 512 | 18.79 | 100,158 |
+
+An earlier Vite development-server run missed two heap budgets: 364 MB against
+the 320-MB 500-ly desktop limit and 747 MB against the 650-MB 1,000-ly warm
+desktop limit. Equivalent production assets reduced those measurements to 116
+MB and 225 MB. The development reports remain retained as diagnostics, but
+development-runtime heap is not used to weaken or redefine the production
+acceptance budget. Machine evidence is retained in
+`e6_shadow_v6_deep_map_production_performance_acceptance.json` and the four
+`e6-v6-prod-*` benchmark directories.
 
 ## Ranked Optimization Program
 
