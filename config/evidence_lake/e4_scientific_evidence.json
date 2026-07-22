@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v5",
-  "contract_version": "2026-07-22.e4-foundation.82",
+  "contract_version": "2026-07-22.e4-foundation.83",
   "compiler_version": "scientific_evidence_compiler_v79",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
@@ -1832,6 +1832,10 @@
     ],
     "oec_archive_members": [
       {"pattern": ".*", "disposition": "lineage", "destination": "source_records", "reason": "archive-member path, checksum, size, and parser disposition lineage"}
+    ],
+    "iau_2015_resolution_b3_constants": [
+      {"pattern": "^subject_name$", "disposition": "identity", "destination": "identifier_claim_evidence", "reason": "IAU resolution physical-body subject identity"},
+      {"pattern": ".*", "disposition": "domain", "destination": "source_records", "reason": "official nominal constants and published best-estimate evidence routed exhaustively by subject and parameter"}
     ]
   },
   "source_adapters": {
@@ -2517,6 +2521,71 @@
           "source_citation_links": [
             {"identifier_claim_field": "proper_name", "reference_key_field": "reference", "citation_role": "iau_official_name_reference", "excluded_reference_values": ["--"], "required": true}
           ]
+        }
+      }
+    },
+    "standards.iau_2015_resolution_b3": {
+      "adapter_version": "iau_2015_resolution_b3_scientific_evidence_v1",
+      "tables": {
+        "iau_2015_resolution_b3_constants": {
+          "raw_artifact_name": "iau_2015_resolution_b3_pdf",
+          "logical_key_fields": [
+            "subject_name",
+            "object_kind",
+            "parameter_name",
+            "parameter_occurrence"
+          ],
+          "object_scope": "official_nominal_constant_or_published_best_estimate",
+          "field_profile": "iau_2015_resolution_b3_constants",
+          "identifier_claims": {
+            "subject_name": {
+              "namespace": "iau_body_name",
+              "claim_scope": "named_physical_body"
+            }
+          },
+          "source_native_eav_parameters": {
+            "object_kind_field": "object_kind",
+            "object_key_fields": ["subject_name"],
+            "parameter_name_field": "parameter_name",
+            "occurrence_field": "parameter_occurrence",
+            "value_field": "value_raw",
+            "attributes_field": "attributes_json",
+            "quantity_namespace": "iau_2015_resolution_b3",
+            "parameter_set_kind": "iau_2015_resolution_b3_source_fact",
+            "method": "iau_2015_resolution_b3_published_value",
+            "normalization_version": "iau_2015_resolution_b3_si_v1",
+            "reference_raw": "https://www.iau.org/common/Uploaded%20files/IAUGA2015-Resolution-B3-recommended-nominal-conversion.pdf",
+            "default_units": {
+              "star.effective_temperature": "K"
+            },
+            "routes": [
+              {
+                "object_kinds": ["star"],
+                "parameter_names": ["effective_temperature"],
+                "destination": "stellar_parameter_evidence",
+                "parameter_set_kind": "iau_2015_solar_best_estimate",
+                "reason": "IAU Resolution B3 published current best estimate for the solar effective temperature, distinct from its exact nominal conversion constant"
+              },
+              {
+                "object_kinds": ["reference_standard"],
+                "parameter_names": [
+                  "nominal_solar_radius",
+                  "nominal_total_solar_irradiance",
+                  "nominal_solar_luminosity",
+                  "nominal_solar_effective_temperature",
+                  "nominal_solar_mass_parameter",
+                  "nominal_terrestrial_equatorial_radius",
+                  "nominal_terrestrial_polar_radius",
+                  "nominal_jovian_equatorial_radius",
+                  "nominal_jovian_polar_radius",
+                  "nominal_terrestrial_mass_parameter",
+                  "nominal_jovian_mass_parameter"
+                ],
+                "destination": "source_records",
+                "reason": "nominal constants are exact conversion factors, not measurements of the named physical bodies"
+              }
+            ]
+          }
         }
       }
     },

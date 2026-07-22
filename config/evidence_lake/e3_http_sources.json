@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_http_sources.v1",
-  "program_version": "2026-07-21.e3-http.4",
+  "program_version": "2026-07-22.e3-http.5",
   "manifest_name": "evidence_lake_e3_http_manifest.json",
   "products": [
     {
@@ -49,6 +49,15 @@
       "filename": "iau_wgsn_catalog.html",
       "expected_bytes": 616344,
       "expected_checksum": "sha256:43e8329ed0a85d2d2cdc2204a9afc20e2e6e19db70634562aa09baedb0dfafaa"
+    },
+    {
+      "source_name": "iau_2015_resolution_b3_pdf",
+      "source_id": "standards.iau_2015_resolution_b3",
+      "release_id": "iau_2015_resolution_b3",
+      "url": "https://www.iau.org/common/Uploaded%20files/IAUGA2015-Resolution-B3-recommended-nominal-conversion.pdf",
+      "filename": "IAUGA2015-Resolution-B3-recommended-nominal-conversion.pdf",
+      "expected_bytes": 88324,
+      "expected_checksum": "sha256:21644e136a12fe301fc29398433a60dcf1e810b85b14934f8b8499956fd8e4a1"
     },
     {
       "source_name": "gcvs_readme",

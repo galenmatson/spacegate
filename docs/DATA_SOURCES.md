@@ -259,6 +259,21 @@ missing names and the Izar/Pulcherrima two-record component collision explicit;
 search spellings, Bayer scope, provenance, coordinates, and imagery remain
 evidence rather than competing winners.
 
+IAU 2015 Resolution B3 is pinned separately as an official standards source,
+not folded into WGSN naming evidence. Raw snapshot `5c07a3926211b87eab6f72bf`
+preserves the exact six-page PDF; typed snapshot `d25948decca32f65e9783065`
+fails closed on the pinned PDF hash, page count, reviewed source fragments, and
+`pypdf==6.14.2` extraction contract. It preserves all eleven exact nominal
+conversion constants as reference-standard context and separately preserves
+the published current best solar effective-temperature estimate
+`5772.0 +/- 0.8 K`. Nominal constants are never labeled as measurements.
+
+E4 artifact `74972d83b964ccf0dc06641c` routes only that physical best estimate
+to stellar parameter evidence. E5 build `33006bde9bedd1fb365238b5` binds the
+scoped Sun parameter set through the general unique-name identity contract and
+selects one `teff_k` fact with exact evidence lineage. No production transform
+branches on the Sun or any benchmark identifier.
+
 GCVS uses a documented fixed-width lexical contract. Its registry explicitly
 declares `|` as a trailing layout delimiter, so parser v2 removes one trailing
 separator after slicing and trims only the remaining layout padding. It does

@@ -19,7 +19,14 @@ def test_checked_in_pipeline_is_valid_and_has_paired_clean_stages() -> None:
     config = MODULE.read_object(ROOT / "config/evidence_lake/e7_timed_pipeline.json")
     MODULE.validate_config(config)
     stage_ids = {stage["stage_id"] for stage in config["stages"]}
-    for domain in ("foundation", "science", "wise", "clusters", "extended_objects"):
+    for domain in (
+        "foundation",
+        "science",
+        "wise",
+        "clusters",
+        "extended_objects",
+        "runtime_core",
+    ):
         assert f"clean_{domain}_compile" in stage_ids
         assert f"clean_{domain}_verify" in stage_ids
 

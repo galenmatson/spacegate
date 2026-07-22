@@ -1,0 +1,47 @@
+{
+  "schema_version": "spacegate.e7_clean_runtime_core_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-runtime-core.2",
+  "compiler_version": "e7_clean_runtime_core_compiler_v1",
+  "rules": {
+    "open_stability_databases": false,
+    "preserve_api_core_schema": true,
+    "canonical_inventory_from_clean_foundation_only": true,
+    "scientific_values_from_selected_facts_only": true,
+    "preserve_unbound_planet_identity": true,
+    "preserve_unbound_tess_eb_evidence": true,
+    "canonical_white_dwarfs_remain_stars": true,
+    "compact_evidence_without_canonical_star_binding_remains_separate": true,
+    "cluster_membership_creates_containment": false
+  },
+  "inputs": {
+    "clean_foundation": {
+      "build_id": "9c2d08086275ead386f71bf7",
+      "relative_path": "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7",
+      "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
+    },
+    "clean_science": {
+      "build_id": "7c27f1595c69278b8d55c9e4",
+      "relative_path": "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4",
+      "manifest_sha256": "9741a4480ac9b474742644e58d66e93a2ed2476880411cbc0ee68e7da706e79b"
+    },
+    "clean_clusters": {
+      "build_id": "171d3096b5cd7ad5f53a016b",
+      "relative_path": "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b",
+      "manifest_sha256": "287475f92614bb9d9ba2727bd20153a9eb81dd2170119d37a0f6b8bded13d2f5"
+    },
+    "clean_extended_objects": {
+      "build_id": "c203e4f451890660ec02086a",
+      "relative_path": "derived/evidence_lake_v2/clean_extended_objects/c203e4f451890660ec02086a",
+      "manifest_sha256": "da6c9843abd755ca86a3b7463bb2d271ac6cfc360f3e5a311a72c7ecc54dd866"
+    }
+  },
+  "planet_classification": {
+    "terrestrial_max_radius_earth": 2.0,
+    "jupiter_min_radius_earth": 6.0,
+    "terrestrial_max_mass_earth": 10.0,
+    "jupiter_min_mass_earth": 40.0,
+    "hot_min_equilibrium_temperature_k": 320.0,
+    "temperate_min_equilibrium_temperature_k": 200.0,
+    "insolation_temperature_scale_k": 278.5
+  }
+}

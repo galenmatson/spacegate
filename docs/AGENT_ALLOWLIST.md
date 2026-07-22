@@ -81,6 +81,13 @@ These can directly support core-adjacent facts (still routed via arm → adjudic
   type: mission_archive (Hubble, Kepler, TESS)
   trust_score: 0.99
   allowed_uses: [observational data, light curves]
+
+- domain: iau.org
+  org: International Astronomical Union
+  type: official_standards_authority
+  trust_score: 1.00
+  allowed_uses: [official resolutions, astronomical nomenclature, nominal constants, standards metadata, citations]
+  notes: Distinguish exact nominal conversion constants from measured physical values and preserve the adopted resolution version
   
   
 ## TIER 1 - SCIENTIFIC LITERATURE

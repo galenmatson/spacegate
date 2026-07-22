@@ -11,9 +11,11 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import evidence_lake_store as lake_store  # noqa: E402
 from evidence_lake_store import (  # noqa: E402
     build_raw_snapshot,
     build_typed_snapshot,
+    cook_iau_2015_resolution_b3,
     manifest_entries,
     verify_snapshot,
     write_delimited_parquet,
@@ -44,6 +46,62 @@ def source_contract() -> dict:
             {"manifest": "test_manifest.json", "source_name": "test_rows"}
         ],
     }
+
+
+def test_iau_b3_pdf_cook_separates_nominal_constants_from_best_estimate(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    page_text = ["page"] * 6
+    page_text[1] = "\n".join(
+        [
+            "⊙ = 6.957× 108 m",
+            "⊙ = 1361 W m−2",
+            "⊙ = 3.828× 1026 W",
+            "eﬀ⊙ = 5772 K",
+            "⊙ = 1.327 124 4× 1020 m3s−2",
+        ]
+    )
+    page_text[2] = "\n".join(
+        [
+            "eE = 6.3781× 106 m",
+            "pE = 6.3568× 106 m",
+            "eJ = 7.1492× 107 m",
+            "pJ = 6.6854× 107 m",
+            "E = 3.986 004× 1014 m3 s−2",
+            "J = 1.266 865 3× 1017 m3 s−2",
+        ]
+    )
+    page_text[5] = "Teﬀ,⊙ = 5772.0 (± 0.8) K."
+
+    class Page:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+        def extract_text(self) -> str:
+            return self.text
+
+    class Reader:
+        def __init__(self, _path: Path) -> None:
+            self.pages = [Page(text) for text in page_text]
+
+    monkeypatch.setattr(lake_store, "PdfReader", Reader)
+    con = duckdb.connect()
+    table_dir = tmp_path / "tables"
+    table_dir.mkdir()
+    report = cook_iau_2015_resolution_b3(
+        {"tree_sha256": "a" * 64}, tmp_path / "source.pdf", table_dir, con
+    )[0]
+    rows = con.execute(
+        "SELECT object_kind,parameter_name,value_raw,attributes_json "
+        "FROM read_parquet(?) ORDER BY object_kind,parameter_name",
+        [str(table_dir / "iau_2015_resolution_b3_constants.parquet")],
+    ).fetchall()
+    con.close()
+    assert report["row_count"] == 12
+    assert sum(row[0] == "reference_standard" for row in rows) == 11
+    estimate = next(row for row in rows if row[0] == "star")
+    assert estimate[1:3] == ("effective_temperature", "5772.0")
+    assert json.loads(estimate[3])["errorplus"] == "0.8"
 
 
 def test_raw_snapshot_is_independent_and_typed_cook_is_deterministic(tmp_path: Path) -> None:

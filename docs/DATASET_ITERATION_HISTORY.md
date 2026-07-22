@@ -3595,6 +3595,31 @@ Representative commits:
   in the timing graph. Promotion and rollback will receive dedicated measured
   operator steps only after the clean authoritative runtime entrypoint passes.
 
+### 136) Solar Temperature Is Standards Evidence, Not a Named Fallback
+
+- The clean runtime audit found that the Sun had no selected temperature; the
+  stability build's `5772 K` value came from legacy `sol_authority` handling.
+  The repair does not copy that value or add a Sun branch.
+- Official IAU 2015 Resolution B3 is now a pinned immutable source. Its eleven
+  nominal constants remain exact reference conversion factors, while its
+  separately published `5772.0 +/- 0.8 K` current best estimate becomes typed
+  stellar evidence with page, fragment, checksum, citation, and uncertainty.
+- The first full E5 attempt safely failed because ranked-EAV candidate insertion
+  assumed every scoped parameter set used a source-record binding. The general
+  compiler now joins parameter-set subjects whenever component scope is present;
+  a synthetic regression and real-artifact preflight cover the contract.
+- E5 build `33006bde9bedd1fb365238b5` contains 123,288,873 facts and passes
+  independent audit plus exact clean reproduction. One earlier reproduction
+  matched scientific counts but not Parquet bytes; the verifier now retains
+  failed scratch and reports per-file differences, and the subsequent clean
+  reproduction matched every hash.
+- Clean-science build `7c27f1595c69278b8d55c9e4` changes exactly one
+  scientific subject: the Sun gains selected `teff_k` and its shared display
+  prior becomes G instead of UNKNOWN. Astrometry, photometry, variability,
+  source classification, planet facts, and every other stellar value are
+  unchanged. Global selected-fact IDs still churn with the policy version; that
+  is recorded as a future schema-boundary repair, not scientific change.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

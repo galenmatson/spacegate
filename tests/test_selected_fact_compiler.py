@@ -993,7 +993,7 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
     policy = compiler.load_json(compiler.DEFAULT_POLICY)
     _, manifest = compiler.release_set_paths(Path("/data/spacegate/state"), policy)
     compiler.validate_policy(policy, manifest)
-    assert len(policy["selection_sources"]) == 15
+    assert len(policy["selection_sources"]) == 16
     nasa_programs = [
         source
         for source in policy["selection_sources"]
@@ -1063,6 +1063,14 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
         "ambiguous": 2,
         "missing": 180,
     }
+    iau_standard = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "standards.iau_2015_resolution_b3"
+    )
+    assert iau_standard["binding"]["strategy"] == "canonical_unique_name"
+    assert iau_standard["component_scope_policy"] == "same_record_object_identifier"
+    assert iau_standard["expected_selected_facts"] == 1
     ultracool = next(
         source
         for source in policy["selection_sources"]
@@ -1096,6 +1104,79 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
         "planet_insolation",
         "planet_equilibrium_temperature",
     }
+
+
+def test_ranked_eav_candidates_preserve_parameter_set_binding_for_scoped_evidence() -> None:
+    con = duckdb.connect()
+    con.execute(
+        """
+        CREATE SCHEMA source_test;
+        CREATE TABLE source_test.source_records (
+          source_record_id VARCHAR, source_table VARCHAR, source_context_json JSON
+        );
+        CREATE TABLE source_test.stellar_parameter_sets (
+          parameter_set_id VARCHAR, source_record_id VARCHAR,
+          component_scope VARCHAR, method VARCHAR, model VARCHAR,
+          reference_raw VARCHAR, quality_json JSON
+        );
+        CREATE TABLE source_test.stellar_parameter_evidence (
+          evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+          component_scope VARCHAR, quantity_key VARCHAR, value_raw VARCHAR,
+          unit_raw VARCHAR, normalized_value DOUBLE, normalized_unit VARCHAR,
+          uncertainty_lower DOUBLE, uncertainty_upper DOUBLE,
+          bound_semantics VARCHAR, method VARCHAR, model VARCHAR,
+          reference_raw VARCHAR, quality_json JSON, normalization_version VARCHAR
+        );
+        INSERT INTO source_test.source_records VALUES ('record-1','constants','{}');
+        INSERT INTO source_test.stellar_parameter_sets VALUES
+          ('set-1','record-1','Sun','iau-method',NULL,'iau-ref','{}');
+        INSERT INTO source_test.stellar_parameter_evidence VALUES
+          ('evidence-1','set-1','record-1','Sun','iau.effective_temperature',
+           '5772.0','K',5772.0,'K',0.8,0.8,'measurement','iau-method',NULL,
+           'iau-ref','{}','iau-v1');
+        CREATE TABLE evidence_object_bindings (
+          binding_id VARCHAR, source_id VARCHAR, object_type VARCHAR,
+          binding_subject_kind VARCHAR, binding_subject_id VARCHAR,
+          source_record_id VARCHAR, stable_object_key VARCHAR,
+          system_stable_object_key VARCHAR, binding_status VARCHAR
+        );
+        INSERT INTO evidence_object_bindings VALUES
+          ('binding-1','standards.test','star','parameter_set','set-1','record-1',
+           'sun-key','sol-key','accepted');
+        """
+    )
+    compiler.create_candidate_table(con)
+    source = {
+        "source_id": "standards.test",
+        "object_type": "star",
+        "storage": "eav",
+        "parameter_set_table": "stellar_parameter_sets",
+        "parameter_evidence_table": "stellar_parameter_evidence",
+        "component_scope_field": "component_scope",
+        "component_scope_policy": "same_record_object_identifier",
+        "_policy_version": "test-v1",
+        "quantity_groups": [
+            {
+                "group_key": "atmosphere",
+                "quantities": {"iau.effective_temperature": "teff_k"},
+                "authorities": [
+                    {"rank": 1, "method": "iau-method", "reason": "test authority"}
+                ],
+            }
+        ],
+    }
+    compiler.insert_candidates(
+        con,
+        source=source,
+        source_alias="source_test",
+        member={"build_id": "e4-test"},
+        release_id="r1",
+    )
+    assert con.execute(
+        "SELECT stable_object_key,quantity_key,normalized_value,binding_id "
+        "FROM fact_candidates"
+    ).fetchall() == [("sun-key", "teff_k", 5772.0, "binding-1")]
+    con.close()
 
 
 def test_one_source_can_select_star_and_planet_scopes_without_leakage(
@@ -1555,3 +1636,10 @@ def test_reproduction_comparison_ignores_duckdb_bytes_but_not_parquet() -> None:
     assert reproduction.compare_reports(report, reproduced) == []
     reproduced["files"]["selected_facts__teff_k.parquet"]["sha256"] = "different"
     assert reproduction.compare_reports(report, reproduced) == ["parquet_files"]
+    assert reproduction.parquet_file_differences(report, reproduced) == [
+        {
+            "file": "selected_facts__teff_k.parquet",
+            "reference": {"sha256": "deterministic"},
+            "reproduced": {"sha256": "different"},
+        }
+    ]

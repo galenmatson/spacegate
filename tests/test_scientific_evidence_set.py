@@ -164,7 +164,7 @@ def test_checked_in_release_set_policy_accounts_every_e4_adapter() -> None:
     policy = release_set.load_json(release_set.DEFAULT_POLICY)
     contract = release_set.load_json(release_set.DEFAULT_CONTRACT)
     assert set(policy["members"]) == set(contract["source_adapters"])
-    assert len(policy["members"]) == 39
+    assert len(policy["members"]) == 40
 
 
 def test_contained_child_requires_explicit_bulk_symlink_root(tmp_path: Path) -> None:

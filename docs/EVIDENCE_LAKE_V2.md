@@ -2146,6 +2146,24 @@ remain rejected.
 
 ## Hard Gates
 
+### Solar Standards Checkpoint
+
+The clean runtime no longer needs a named-object temperature fallback for the
+Sun. Official IAU 2015 Resolution B3 evidence preserves eleven exact nominal
+conversion constants as reference standards and the distinct published
+physical best estimate `5772.0 +/- 0.8 K` as stellar evidence. E5 build
+`33006bde9bedd1fb365238b5` selects the latter through the same scoped-EAV and
+canonical-name machinery available to any registered source. Clean-science
+build `7c27f1595c69278b8d55c9e4` adds exactly that one scientific row; its
+independent verifier and byte-exact Parquet reproduction pass.
+
+This checkpoint also exposes a non-scientific scaling debt: selected-fact IDs
+currently include the global E5 policy version, so an unrelated source addition
+changes otherwise identical IDs and downstream artifact bytes. The later
+identity-contract migration must use relevant-rule hashes and retain the global
+policy version as lineage; it may not weaken evidence identity or be disguised
+as a performance-only rewrite.
+
 Evidence Lake v2 is not promotable until:
 
 - every registered source release and field has an explicit disposition

@@ -1628,6 +1628,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   winners removed plus 13 object-owned collision winners restored; cleanly
   reproduce all 103 phases and logical hash
   `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
+- [x] E3-E5 IAU solar-standard checkpoint: pin and type all eleven IAU 2015
+  Resolution B3 nominal constants separately from the published physical solar
+  estimate, fix the general scoped ranked-EAV binding contract, select exactly
+  one source-backed solar `teff_k` fact, independently audit E5 build
+  `33006bde9bedd1fb365238b5`, and pass exact clean reproduction
+- [x] E7 selected-science solar A/B: compile and reproduce clean science
+  `7c27f1595c69278b8d55c9e4`; prove all non-solar scientific projections are
+  unchanged, add only the Sun's `5772.0 +/- 0.8 K` row, and record global fact-ID
+  churn from the existing policy-version identity contract as architectural debt
+- [ ] E5 stable fact-identity boundary: replace global-policy-version fact and
+  decision identities with relevant-rule hashes at an explicit schema boundary,
+  preserve global policy lineage separately, and prove unchanged winners retain
+  identity and reusable program artifacts across unrelated policy additions
 - [x] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
   clean E5 reproduction plus E6 shadow rebuild with the host and GSP-Phot
   policies, then account for the legacy temperature/mass/radius/luminosity
@@ -1720,6 +1733,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   planet parameters, copy typed domain projections, replace the classification
   fallback with one shared evidence/derivation policy, independently verify the
   artifact, and reproduce every canonical Parquet hash
+- [x] E7 clean selected-science v2: consume audited/reproduced E5 v16, compile
+  `7c27f1595c69278b8d55c9e4`, independently verify and byte-reproduce every
+  canonical Parquet product, and prove the sole scientific delta is the
+  official source-backed solar temperature and derived G display class
+- [x] E7 clean runtime CORE entrypoint: compose API-compatible CORE and hierarchy
+  build `92da8d31dc0e7dbd4d4d70a5` entirely from clean foundation/science,
+  cluster, and extended-object artifacts; preserve exact inventory/status
+  counts, independently verify it, and reproduce all canonical Parquet and
+  hierarchy logical products without opening stability databases
 - [x] E7 clean targeted-WISE projection: preserve exact CatWISE2020/AllWISE
   response members for a versioned 500-star target set, reproduce source-native
   typed Parquet, compile build `ec8e218402c3a4a3b55b2811` without legacy CSV or
@@ -1760,7 +1782,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E7 end-to-end build-time report: retain wall/CPU time, peak RSS, durable
   bytes, cache state, and named phase timings for every compiler, verifier,
   shadow build, promotion, rollback, and re-promotion step; rank the critical
-  path and preserve before/after evidence for accepted or rejected speedups
+  path and preserve before/after evidence for accepted or rejected speedups;
+  require nested phase totals to reconcile with their process totals and call
+  out untimed overhead rather than allowing work to disappear between timers
 - [x] E7 build-time instrumentation checkpoint: add a fail-closed pinned stage
   graph and runner with per-stage GNU-time logs, atomic machine reports,
   concurrent-run exclusion, explicit warm/cold artifact state, and deployment

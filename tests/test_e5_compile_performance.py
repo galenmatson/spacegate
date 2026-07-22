@@ -45,6 +45,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
             ),
             phase("selected_fact_exports", 20, 100),
             phase("global_parameter_set_selection", 12, 40),
+            phase("artifact_hashing", 8, 3),
             phase(
                 "immutable_e4_input_verification",
                 10,
@@ -64,7 +65,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
         {"status": "pass", "build_id": "a" * 24, "table_counts": {"selected_facts": 4}},
     )
 
-    assert report["total"]["wall_seconds"] == 112
+    assert report["total"]["wall_seconds"] == 120
     assert report["top_phases"][0]["phase"] == "source_candidate_insertion"
     assert report["categories"][0]["category"] == "source_candidate_insertion"
     assert report["optimization_candidates"][0]["target"] == (
@@ -75,5 +76,9 @@ def test_performance_analysis_ranks_measured_targets() -> None:
     ]
     assert report["optimization_candidates"][1]["target"] == (
         "global_authority_selection"
+    )
+    assert any(
+        row["target"] == "artifact_hashing_readback"
+        for row in report["optimization_candidates"]
     )
     assert report["peak_spill_allocated_bytes"] == 300

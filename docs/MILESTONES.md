@@ -2239,6 +2239,16 @@ Foundation checkpoint (July 21, 2026):
   the optical-counterpart conflict, and passes deterministic reproduction plus
   34 independent checks. E6 v7 projects those tables without promoting a
   compact object into canonical stellar inventory or public presentation
+- official IAU 2015 Resolution B3 source checkpoint pins and types eleven exact
+  nominal conversion constants separately from the published physical solar
+  temperature estimate. E5 policy v16 selects exactly one scoped solar
+  `teff_k` fact through general binding policy; build
+  `33006bde9bedd1fb365238b5` passes independent audit and clean reproduction
+- clean-science v2 `7c27f1595c69278b8d55c9e4` propagates the source-backed
+  solar temperature and changes no other scientific projection. The full A/B
+  records global fact-ID churn caused by the current policy-version identity
+  contract; a rule-hash identity migration remains an explicit schema-boundary
+  objective before reusable per-program E5 artifacts can eliminate broad rebuilds
 
 Deliverables:
 

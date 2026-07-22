@@ -20,6 +20,7 @@ from typing import Any, Iterable
 import duckdb
 import pyarrow as pa
 import pyarrow.parquet as pq
+from pypdf import PdfReader
 
 from evidence_lake_registry import (
     DEFAULT_REGISTRY,
@@ -73,6 +74,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
     "nasa_exoplanet_archive.planetary_systems": "evidence_typed_cook_tap_csv_v1",
     "naming.iau_wgsn": "evidence_typed_cook_html_table_v2",
+    "standards.iau_2015_resolution_b3": "evidence_typed_cook_iau_b3_pdf_v1",
     "classification.gcvs": "evidence_typed_cook_gcvs_cds_layout_delimiter_v2",
     "tess.identity_and_candidate_evidence": "evidence_typed_cook_member_lineage_v7",
     "multiplicity.wds": "evidence_typed_cook_wds_v1",
@@ -809,6 +811,127 @@ def source_native_report(
     }
 
 
+def cook_iau_2015_resolution_b3(
+    artifact: dict[str, Any],
+    path: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]]:
+    reader = PdfReader(path)
+    if len(reader.pages) != 6:
+        raise ValueError(f"IAU 2015 Resolution B3 page-count drift: {len(reader.pages)}")
+    pages = [page.extract_text() for page in reader.pages]
+    if any(not text for text in pages):
+        raise ValueError("IAU 2015 Resolution B3 contains an unextractable page")
+
+    # The immutable PDF hash is checked before this parser runs. These source
+    # fragments make the reviewed extraction fail closed if PDF text semantics
+    # or the PDF extraction dependency changes.
+    constants = [
+        ("Sun", "nominal_solar_radius", "695700000", "m", 2, "⊙ = 6.957× 108 m"),
+        ("Sun", "nominal_total_solar_irradiance", "1361", "W m-2", 2, "⊙ = 1361 W m−2"),
+        ("Sun", "nominal_solar_luminosity", "3.828e26", "W", 2, "⊙ = 3.828× 1026 W"),
+        ("Sun", "nominal_solar_effective_temperature", "5772", "K", 2, "eﬀ⊙ = 5772 K"),
+        ("Sun", "nominal_solar_mass_parameter", "1.3271244e20", "m3 s-2", 2, "⊙ = 1.327 124 4× 1020 m3s−2"),
+        ("Earth", "nominal_terrestrial_equatorial_radius", "6378100", "m", 3, "eE = 6.3781× 106 m"),
+        ("Earth", "nominal_terrestrial_polar_radius", "6356800", "m", 3, "pE = 6.3568× 106 m"),
+        ("Jupiter", "nominal_jovian_equatorial_radius", "71492000", "m", 3, "eJ = 7.1492× 107 m"),
+        ("Jupiter", "nominal_jovian_polar_radius", "66854000", "m", 3, "pJ = 6.6854× 107 m"),
+        ("Earth", "nominal_terrestrial_mass_parameter", "3.986004e14", "m3 s-2", 3, "E = 3.986 004× 1014 m3 s−2"),
+        ("Jupiter", "nominal_jovian_mass_parameter", "1.2668653e17", "m3 s-2", 3, "J = 1.266 865 3× 1017 m3 s−2"),
+    ]
+    rows: list[dict[str, Any]] = []
+    for subject, parameter, value, unit, page_number, fragment in constants:
+        if fragment not in pages[page_number - 1]:
+            raise ValueError(f"IAU 2015 Resolution B3 extraction drift: {parameter}")
+        rows.append(
+            {
+                "subject_name": subject,
+                "object_kind": "reference_standard",
+                "parameter_name": parameter,
+                "parameter_occurrence": 1,
+                "value_raw": value,
+                "attributes_json": json.dumps(
+                    {
+                        "exact_by_definition": True,
+                        "source_semantics": "nominal_conversion_constant",
+                        "unit": unit,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                "fact_semantics": "nominal_conversion_constant_exact_by_definition",
+                "page_number": page_number,
+                "source_fragment": fragment,
+            }
+        )
+
+    estimate_fragment = "Teﬀ,⊙ = 5772.0 (± 0.8) K."
+    if estimate_fragment not in pages[5]:
+        raise ValueError("IAU 2015 Resolution B3 solar-temperature estimate drift")
+    rows.append(
+        {
+            "subject_name": "Sun",
+            "object_kind": "star",
+            "parameter_name": "effective_temperature",
+            "parameter_occurrence": 1,
+            "value_raw": "5772.0",
+            "attributes_json": json.dumps(
+                {
+                    "errorminus": "0.8",
+                    "errorplus": "0.8",
+                    "exact_by_definition": False,
+                    "source_semantics": "current_2015_best_estimate",
+                    "unit": "K",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            "fact_semantics": "published_current_best_estimate_not_nominal_constant",
+            "page_number": 6,
+            "source_fragment": estimate_fragment,
+        }
+    )
+    schema = pa.schema(
+        [
+            ("subject_name", pa.string()),
+            ("object_kind", pa.string()),
+            ("parameter_name", pa.string()),
+            ("parameter_occurrence", pa.int32()),
+            ("value_raw", pa.string()),
+            ("attributes_json", pa.string()),
+            ("fact_semantics", pa.string()),
+            ("page_number", pa.int32()),
+            ("source_fragment", pa.string()),
+        ]
+    )
+    output = table_dir / "iau_2015_resolution_b3_constants.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(rows, schema=schema),
+        output,
+        compression="zstd",
+        use_dictionary=False,
+        write_statistics=True,
+    )
+    return [
+        source_native_report(
+            source_name="iau_2015_resolution_b3_constants",
+            parser="pypdf_6_14_2_reviewed_resolution_b3_v1",
+            typing_status="reviewed_source_document_constants_and_estimate",
+            raw_tree_sha256=artifact["tree_sha256"],
+            output=output,
+            con=con,
+            details={
+                "source_row_accounting": {
+                    "nominal_conversion_constants": len(constants),
+                    "published_current_best_estimates": 1,
+                    "rows_written": len(rows),
+                }
+            },
+        )
+    ]
+
+
 def cook_msc_archive(
     artifact: dict[str, Any],
     path: Path,
@@ -1234,11 +1357,22 @@ def cook_special_source(
         "spectroscopy.apogee_dr17",
         "exoplanet_lifecycle.open_exoplanet_catalogue",
         "compact.mcgill_magnetar",
+        "standards.iau_2015_resolution_b3",
     }:
         return None
     if source_id == "compact.mcgill_magnetar":
         return cook_mcgill_magnetar_bundle(
             raw_manifest, raw_snapshot_dir, table_dir, con
+        )
+    if source_id == "standards.iau_2015_resolution_b3":
+        if len(raw_manifest["artifacts"]) != 1:
+            raise ValueError("IAU 2015 Resolution B3 expects one raw PDF")
+        artifact = raw_manifest["artifacts"][0]
+        return cook_iau_2015_resolution_b3(
+            artifact,
+            single_artifact_file(raw_snapshot_dir, artifact),
+            table_dir,
+            con,
         )
     if len(raw_manifest["artifacts"]) != 1:
         raise ValueError(f"special source expects one raw artifact: {source_id}")

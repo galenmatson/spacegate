@@ -30,6 +30,9 @@ urllib3>=2.2.1
 orjson>=3.10.3
 ujson>=5.10.0
 
+# Pinned scientific-document extraction used by immutable typed-source cooks
+pypdf==6.14.2
+
 # Filesystem / path helpers
 platformdirs>=4.2.2
 

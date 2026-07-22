@@ -1,9 +1,9 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-22.e5-selection.15",
+  "policy_version": "2026-07-22.e5-selection.16",
   "compiler_version": "selected_fact_compiler_v15",
-  "evidence_release_set_id": "51b08e537e768acf63e554e1",
-  "evidence_release_set_sha256": "51b08e537e768acf63e554e162b7bdfc968cced23526954ec42f636671d94276",
+  "evidence_release_set_id": "5a1ccc6c67d9a27d4aeddc08",
+  "evidence_release_set_sha256": "5a1ccc6c67d9a27d4aeddc084f3bbac51d50709171157903df3bf7b9bcba4fc2",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "selection_sources": [
@@ -781,6 +781,58 @@
           "channel": "source_context",
           "disposition": "evidence_only",
           "reason": "Adoption date, language, origin, coordinates, magnitude, and image references remain source context for public explanation and audit."
+        }
+      ]
+    },
+    {
+      "source_id": "standards.iau_2015_resolution_b3",
+      "object_type": "star",
+      "binding_scope": "star",
+      "binding": {
+        "strategy": "canonical_unique_name",
+        "claim_namespace": "iau_body_name",
+        "canonical_table": "stars",
+        "canonical_name_field": "star_name_norm",
+        "normalization": "spacegate_public_name_v1"
+      },
+      "component_scope_policy": "same_record_object_identifier",
+      "allowed_claim_scopes": ["named_physical_body"],
+      "require_unique_source_target": true,
+      "parameter_set_table": "stellar_parameter_sets",
+      "parameter_evidence_table": "stellar_parameter_evidence",
+      "component_scope_field": "component_scope",
+      "minimum_eligible_records": 1,
+      "minimum_accepted_bindings": 1,
+      "minimum_selected_facts": 1,
+      "expected_binding_outcomes": {
+        "accepted": 1
+      },
+      "expected_selected_facts": 1,
+      "quantity_groups": [
+        {
+          "group_key": "stellar_atmosphere_reference",
+          "quantities": {
+            "iau_2015_resolution_b3.effective_temperature": "teff_k"
+          },
+          "authorities": [
+            {
+              "rank": 1,
+              "method": "iau_2015_resolution_b3_published_value",
+              "reason": "IAU Resolution B3 published current best estimate for the Sun, with stated uncertainty and separate nominal-constant semantics"
+            }
+          ]
+        }
+      ],
+      "channel_dispositions": [
+        {
+          "channel": "stellar_parameter_evidence.current_best_estimate",
+          "disposition": "selected",
+          "reason": "The source explicitly publishes the current best solar effective-temperature estimate and its uncertainty."
+        },
+        {
+          "channel": "source_records.nominal_conversion_constants",
+          "disposition": "evidence_only",
+          "reason": "Nominal constants remain exact conversion factors and are not treated as measurements of the physical bodies."
         }
       ]
     },

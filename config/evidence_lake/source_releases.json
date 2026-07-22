@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-22.20",
+  "registry_version": "2026-07-22.21",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -953,6 +953,50 @@
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "standards.iau_2015_resolution_b3",
+      "release_id": "iau_2015_resolution_b3",
+      "state": "active",
+      "authority_roles": {
+        "stellar_parameters": "official_nominal_conversion_constants_and_published_solar_best_estimate"
+      },
+      "publisher": "International Astronomical Union",
+      "citation_url": "https://www.iau.org/common/Uploaded%20files/IAUGA2015-Resolution-B3-recommended-nominal-conversion.pdf",
+      "license": {
+        "name": "IAU website terms",
+        "url": "https://www.iau.org/terms-and-conditions/"
+      },
+      "cadence": "adopted resolution; immutable release",
+      "identity_namespaces": ["iau_body_name"],
+      "frame_epoch": "not applicable",
+      "retrieval": {
+        "kind": "pinned_http_snapshot",
+        "implementation": "scripts/evidence_http_acquire.py"
+      },
+      "manifest_entries": [
+        {
+          "manifest": "evidence_lake_e3_http_manifest.json",
+          "source_name": "iau_2015_resolution_b3_pdf"
+        }
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "official_resolution_pdf",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "typed_fields": [
+          {"name": "subject_name", "disposition": "normalize"},
+          {"name": "object_kind", "disposition": "normalize"},
+          {"name": "parameter_name", "disposition": "normalize"},
+          {"name": "parameter_occurrence", "disposition": "normalize"},
+          {"name": "value_raw", "disposition": "preserve"},
+          {"name": "attributes_json", "disposition": "preserve"},
+          {"name": "fact_semantics", "disposition": "preserve"},
+          {"name": "page_number", "disposition": "preserve"},
+          {"name": "source_fragment", "disposition": "preserve"}
+        ]
+      }
     },
     {
       "source_id": "transitional.athyg",

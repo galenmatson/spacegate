@@ -1930,8 +1930,22 @@ def insert_candidates(
     rank_sql, reason_sql, quality_sql = authority_sql(source)
     quality_sql = parameter_set_order_sql(source, quality_sql)
     component_filter = ""
-    if source.get("component_scope_field"):
-        component_filter = f"AND ps.{sql_identifier(str(source['component_scope_field']))} IS NULL"
+    binding_subject_join = "AND b.binding_subject_kind = 'source_record'"
+    component_scope_field = source.get("component_scope_field")
+    component_scope_policy = str(
+        source.get("component_scope_policy") or "require_null"
+    )
+    if component_scope_field:
+        component_scope = f"ps.{sql_identifier(str(component_scope_field))}"
+        if component_scope_policy == "require_null":
+            component_filter = f"AND {component_scope} IS NULL"
+        else:
+            binding_subject_join = (
+                "AND b.binding_subject_kind = CASE WHEN "
+                f"{component_scope} IS NULL THEN 'source_record' ELSE 'parameter_set' END "
+                "AND b.binding_subject_id = CASE WHEN "
+                f"{component_scope} IS NULL THEN pe.source_record_id ELSE pe.parameter_set_id END"
+            )
     preselection_join = ""
     if source.get("parameter_set_preselection") is not None:
         preselection_join = (
@@ -1962,7 +1976,7 @@ def insert_candidates(
           JOIN evidence_object_bindings b
             ON b.source_id = {sql_literal(source['source_id'])}
            AND b.object_type = {sql_literal(source['object_type'])}
-           AND b.binding_subject_kind = 'source_record'
+           {binding_subject_join}
            AND b.source_record_id = pe.source_record_id
            AND b.binding_status = 'accepted'
           WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,22 @@ def compare_reports(reference: dict[str, Any], reproduced: dict[str, Any]) -> li
     return [key for key in expected if expected[key] != actual[key]]
 
 
+def parquet_file_differences(
+    reference: dict[str, Any], reproduced: dict[str, Any]
+) -> list[dict[str, Any]]:
+    expected = comparison_projection(reference)["parquet_files"]
+    actual = comparison_projection(reproduced)["parquet_files"]
+    return [
+        {
+            "file": name,
+            "reference": expected.get(name),
+            "reproduced": actual.get(name),
+        }
+        for name in sorted(set(expected) | set(actual))
+        if expected.get(name) != actual.get(name)
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", type=Path, default=Path("/data/spacegate/state"))
@@ -77,27 +94,31 @@ def main() -> int:
         type=Path,
         help="preserve the reproduced compiler's phase telemetry outside scratch",
     )
+    parser.add_argument(
+        "--reproduced-compile-report",
+        type=Path,
+        help="preserve the complete reproduced compile report outside scratch",
+    )
     parser.add_argument("--memory-limit", default="48GB")
     parser.add_argument("--threads", type=int, default=12)
     args = parser.parse_args()
 
     reference = load_json(args.reference_report)
     args.scratch_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
+    scratch = Path(tempfile.mkdtemp(
         prefix="selected-fact-reproduction.",
         dir=args.scratch_parent,
-    ) as scratch_name:
-        scratch = Path(scratch_name)
-        reproduced = compile_selected_facts(
-            state_dir=args.state_dir,
-            policy_path=args.policy,
-            dispositions_path=args.dispositions,
-            artifact_root=scratch / "artifacts",
-            report_path=scratch / "compile-report.json",
-            memory_limit=args.memory_limit,
-            threads=args.threads,
-            temp_directory=scratch / "spill",
-        )
+    ))
+    reproduced = compile_selected_facts(
+        state_dir=args.state_dir,
+        policy_path=args.policy,
+        dispositions_path=args.dispositions,
+        artifact_root=scratch / "artifacts",
+        report_path=scratch / "compile-report.json",
+        memory_limit=args.memory_limit,
+        threads=args.threads,
+        temp_directory=scratch / "spill",
+    )
     differences = compare_reports(reference, reproduced)
     performance_report = args.performance_report or args.report.with_name(
         f"{args.report.stem}_timing.json"
@@ -106,6 +127,13 @@ def main() -> int:
     if not isinstance(reproduction_performance, dict):
         raise ValueError("reproduced compiler report has no phase telemetry")
     atomic_json(performance_report, reproduction_performance)
+    reproduced_compile_report = args.reproduced_compile_report or args.report.with_name(
+        f"{args.report.stem}_compile.json"
+    )
+    atomic_json(reproduced_compile_report, reproduced)
+    file_differences = parquet_file_differences(reference, reproduced)
+    if not differences:
+        shutil.rmtree(scratch)
     report = {
         "schema_version": "spacegate.selected_fact_reproduction.v1",
         "status": "pass" if not differences else "fail",
@@ -114,7 +142,10 @@ def main() -> int:
         "reference_logical_content_sha256": reference["logical_content_sha256"],
         "reproduced_logical_content_sha256": reproduced["logical_content_sha256"],
         "differing_sections": differences,
-        "scratch_removed": not Path(scratch_name).exists(),
+        "parquet_file_differences": file_differences,
+        "scratch_path": str(scratch),
+        "scratch_removed": not scratch.exists(),
+        "reproduced_compile_report": str(reproduced_compile_report),
         "performance_report": str(performance_report),
         "performance_phase_count": len(reproduction_performance.get("phases") or []),
     }

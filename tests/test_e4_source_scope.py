@@ -18,8 +18,8 @@ def test_checked_in_e4_source_scope_accounts_every_registered_source() -> None:
         json.loads(scope_audit.DEFAULT_SCOPE.read_text()),
     )
     assert report["status"] == "pass"
-    assert report["summaries"]["registered_sources"] == 49
-    assert report["summaries"]["e4_adapters"] == 39
+    assert report["summaries"]["registered_sources"] == 50
+    assert report["summaries"]["e4_adapters"] == 40
     assert report["summaries"]["explicit_boundary_dispositions"] == 10
     assert report["checks"]["unaccounted_sources"] == []
     assert report["checks"]["adapter_disposition_conflicts"] == []

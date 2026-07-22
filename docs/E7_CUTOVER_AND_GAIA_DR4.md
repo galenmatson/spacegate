@@ -143,6 +143,15 @@ foundation. Both pass all pinned build-ID and scientific-status gates. This
 gate remains open until full compiler, shadow, public-product, promotion,
 rollback, and re-promotion rows are recorded.
 
+After pinning selected-science v2 and adding the clean runtime CORE pair, verify
+run `20260722T213258Z_1307718` passes the expanded fourteen-stage graph. Seven
+compiler rows are explicitly recorded as attested reuse pending their paired
+verifiers; seven executed verification/preflight rows take 29.27 wall seconds,
+71.0 CPU-seconds, peak at 2,262,856 KiB RSS, and read 9,645,784 filesystem
+blocks. Runtime CORE verification contributes 6.64 seconds. This is a warm
+verification checkpoint, not a substitute for the still-open full compile,
+promotion, rollback, and re-promotion timing rows.
+
 The first E7 clean-compiler optimization is accepted for selected system
 placements. Baseline build `9ccc087defca7aebc5b77d6a` took 103.10 seconds and
 peaked at 26.16 GiB. Reading deterministic per-quantity Parquet projections and
@@ -156,6 +165,17 @@ work should target shared selected-fact projection and output materialization;
 immutable attestation already fell from 22.72 to 6.25 seconds and is no longer
 the dominant placement phase.
 
+The first clean runtime CORE composition baseline takes 77.13 wall seconds and
+400.23 CPU-seconds at 27.15 GiB peak RSS. Index construction leads at 29.63
+seconds, followed by Parquet export (9.99), stellar projection (8.88), clean
+science checksum verification (5.52), identity materialization (5.25), and
+system projection (4.02). This is a baseline, not an accepted optimization.
+Before the next measured build, explicit timers cover the previously unnamed
+CORE checkpoint, hierarchy metadata/checkpoint, and final database hashing.
+Index reduction or deferral may be evaluated only against observed API/search
+query plans and equivalent behavior; the compiler must not trade build time for
+unbounded request-time scans.
+
 Clean identity/search build `9c2d08086275ead386f71bf7` takes 68.23 seconds at
 17.27 GiB peak RSS. Its leading phases are index construction (14.9 seconds),
 canonical Parquet export (12.5), search materialization (9.9), and hierarchy
@@ -167,8 +187,8 @@ serialization. This measured step is not the hour-scale critical-path source;
 the selected-science, public-slice, map-tile, and scene phases remain the next
 optimization targets.
 
-Clean selected-science build `35eb29fa3b2a3ac518f5303a` is the next measured
-step: 190.81 seconds at 37.45 GiB peak RSS, with no swap. Export and hashing
+Clean selected-science build `35eb29fa3b2a3ac518f5303a` established the first
+measured step: 190.81 seconds at 37.45 GiB peak RSS, with no swap. Export and hashing
 together consume 70.4 seconds; immutable input verification, astrometry,
 physics, variability, and domain copy account for most of the rest. A
 shared-cache isolated reproduction takes 165.23 seconds and matches every
@@ -176,6 +196,32 @@ canonical Parquet hash. Future optimization should reuse already attested
 content-addressed hashes within one top-level build and avoid exporting
 duplicate consumer surfaces, but may not weaken independent verification or
 the clean reproduction gate.
+
+Selected-science v2 `7c27f1595c69278b8d55c9e4` consumes accepted E5 v16 and
+adds only the official IAU solar temperature. The cold-input compile takes
+207.22 named-phase seconds and 3:27.67 process wall time at 37.45 GiB peak RSS;
+its warm reproduction takes 174.33 named-phase seconds and 3:05.38 process wall
+time, matches every canonical Parquet hash, and removes scratch. Independent
+verification passes in 9.69 seconds. Value-only A/B proves zero astrometry,
+photometry, variability, classification, or planet changes; one solar physics
+row is added and one all-star summary row changes.
+
+The same A/B shows that every populated fact-ID surface changes because E5 IDs
+currently include the global policy version: 5,866,595 astrometry rows,
+4,664,686 physics rows, 5,864,423 photometry rows, 5,866,595 variability rows,
+321,719 classification rows, and 6,296 planet rows. This is lineage churn, not
+scientific change, but it defeats incremental reuse. Relevant-rule-hash fact
+identity is therefore a prerequisite for the highest-value E5 program cache;
+it requires an explicit schema/version migration rather than an opportunistic
+cutover edit.
+
+Clean runtime CORE v2 `92da8d31dc0e7dbd4d4d70a5` composes the accepted solar
+fact into the API-compatible CORE in 97.88 named-phase seconds, preserving
+5,869,091 systems, 5,874,636 stars, and 6,311 planets. The independent verifier
+passes; isolated reproduction takes 86.72 named-phase seconds, matches every
+canonical Parquet file and hierarchy logical projection, and removes scratch.
+The Sun now carries `teff_k=5772`, a G presentation class derived from selected
+temperature, and inspectable IAU fact lineage rather than legacy authority.
 
 ## Gaia DR4 Adapter
 

@@ -162,6 +162,18 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
                 "constraint": "Preserve stable filenames, row ordering, compression, row accounting, and logical hashes before changing the artifact contract.",
             }
         )
+    artifact_hashing = candidate_by_key.get(("artifact_hashing", ""))
+    if artifact_hashing:
+        optimization_candidates.append(
+            {
+                "priority": 4,
+                "target": "artifact_hashing_readback",
+                "measured_wall_seconds": artifact_hashing["wall_seconds"],
+                "measured_wall_percent": artifact_hashing["wall_percent"],
+                "next_experiment": "Measure export-integrated hashing or filesystem-backed immutable digests against the current post-export full read.",
+                "constraint": "Preserve byte hashes, logical content hashes, corrupt-artifact detection, and clean reproduction; manifest trust alone is insufficient.",
+            }
+        )
     input_verification = next(
         (
             row
@@ -173,7 +185,7 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
     if input_verification:
         optimization_candidates.append(
             {
-                "priority": 4,
+                "priority": 5,
                 "target": "immutable_input_checksum_verification",
                 "measured_wall_seconds": input_verification["wall_seconds"],
                 "measured_wall_percent": input_verification["wall_percent"],
@@ -192,7 +204,7 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
     if bj_source:
         optimization_candidates.append(
             {
-                "priority": 5,
+                "priority": 6,
                 "target": "bailer_jones_binding_and_direct_selection",
                 "measured_wall_seconds": bj_source["wall_seconds"],
                 "measured_wall_percent": bj_source["wall_percent"],
