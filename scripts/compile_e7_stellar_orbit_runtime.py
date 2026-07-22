@@ -57,7 +57,7 @@ def sql_literal(value: Any) -> str:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_stellar_orbit_runtime_policy.v1":
+    if policy.get("schema_version") != "spacegate.e7_stellar_orbit_runtime_policy.v2":
         raise ValueError("unsupported stellar orbit runtime policy")
     expected_rules = {
         "open_stability_databases": False,
@@ -209,8 +209,8 @@ def materialize(con: duckdb.DuckDBPyConnection, policy: dict[str, Any], build_id
         CREATE TEMP TABLE orbit_solutions_with_completeness AS
         SELECT *,
           source_kind IN ('orb6','msc_orb')
-            AND period_days IS NOT NULL AND semi_major_axis_arcsec IS NOT NULL
-            AND eccentricity IS NOT NULL AND inclination_deg IS NOT NULL
+            AND period_days>0 AND semi_major_axis_arcsec>0
+            AND eccentricity>=0 AND eccentricity<1 AND inclination_deg IS NOT NULL
             AND longitude_ascending_node_deg IS NOT NULL
             AND argument_periastron_deg IS NOT NULL
             AND time_periastron_value IS NOT NULL AS simulation_complete
@@ -301,6 +301,7 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         "duplicate_solutions": scalar("SELECT count(*) FROM (SELECT selected_orbit_solution_id FROM selected_stellar_orbit_solutions GROUP BY 1 HAVING count(*)<>1)"),
         "multiple_preferred_solutions": scalar("SELECT count(*) FROM (SELECT relation_id FROM selected_stellar_orbit_solutions WHERE selection_role='preferred_simulation' GROUP BY 1 HAVING count(*)<>1)"),
         "incomplete_preferred_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE selection_role='preferred_simulation' AND NOT simulation_complete"),
+        "nonphysical_visual_preferences": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE selection_role='preferred_simulation' AND (period_days<=0 OR semi_major_axis_arcsec<=0 OR eccentricity<0 OR eccentricity>=1)"),
         "preferred_relation_delta": scalar("SELECT count(*) FROM selected_stellar_orbit_relations WHERE preferred_simulation_solution_id IS NOT NULL") - counts["preferred_simulation_solutions"],
         "orphan_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions s LEFT JOIN selected_stellar_orbit_relations r USING(relation_id) WHERE r.relation_id IS NULL"),
         "fieldwise_composites": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_id IS NULL OR evidence_id IS NULL OR parameter_set_raw IS NULL"),
@@ -330,7 +331,7 @@ def compile_runtime(policy_path: Path, state: Path, output_root: Path, *, link_i
                 con.execute(f"COPY (SELECT * FROM {table} ORDER BY ALL) TO {sql_literal(path)} (FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 122880)")
                 products[path.name]={"rows":int(con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]),"bytes":path.stat().st_size,"sha256":file_sha256(path),"determinism":"byte_exact"}
         finally: con.close()
-        manifest={"schema_version":"spacegate.e7_stellar_orbit_runtime_manifest.v1","build_id":build_id,"status":"pass","generated_at":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),"policy_version":policy["policy_version"],"compiler_version":policy["compiler_version"],"policy_sha256":policy_sha,"compiler_sha256":compiler_sha,"input":{"build_id":input_manifest["build_id"],"manifest_sha256":policy["input"]["manifest_sha256"]},"stability_databases_opened":[],"verification":verification,"products":products,"performance":{"wall_seconds":round(time.monotonic()-started,6),"cpu_seconds":round(time.process_time()-cpu_started,6),"peak_rss_kib":int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)}}
+        manifest={"schema_version":"spacegate.e7_stellar_orbit_runtime_manifest.v2","build_id":build_id,"status":"pass","generated_at":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),"policy_version":policy["policy_version"],"compiler_version":policy["compiler_version"],"policy_sha256":policy_sha,"compiler_sha256":compiler_sha,"input":{"build_id":input_manifest["build_id"],"manifest_sha256":policy["input"]["manifest_sha256"]},"stability_databases_opened":[],"verification":verification,"products":products,"performance":{"wall_seconds":round(time.monotonic()-started,6),"cpu_seconds":round(time.process_time()-cpu_started,6),"peak_rss_kib":int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)}}
         write_object_atomic(staging/"manifest.json",manifest);os.replace(staging,final)
         if link_into_state:
             root=state/"derived/evidence_lake_v2/stellar_orbit_runtime";root.mkdir(parents=True,exist_ok=True);link=root/build_id

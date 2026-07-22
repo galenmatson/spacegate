@@ -50,7 +50,7 @@ def sql_literal(value: Any)->str:
 
 
 def validate_policy(policy: dict[str,Any])->None:
-    if policy.get("schema_version")!="spacegate.e7_stellar_orbit_endpoint_bridge_policy.v1":raise ValueError("unsupported endpoint bridge policy")
+    if policy.get("schema_version")!="spacegate.e7_stellar_orbit_endpoint_bridge_policy.v2":raise ValueError("unsupported endpoint bridge policy")
     expected={"open_stability_databases":False,"name_or_coordinate_endpoint_matching":False,"casefold_matching_requires_unique_source_and_runtime_leaf":True,"unresolved_endpoints_create_runtime_components":False,"unresolved_relations_create_runtime_edges":False,"source_relations_create_containment":False,"simulation_requires_selected_coherent_solution":True}
     if policy.get("rules")!=expected:raise ValueError("unsafe endpoint bridge rules")
     if set(policy.get("inputs") or {})!={"selected_orbits","selected_components","clean_runtime_core"}:raise ValueError("incomplete endpoint bridge inputs")
@@ -186,7 +186,7 @@ def compile_bridge(policy_path: Path,state: Path,output_root: Path,*,link_into_s
         for table in ("stellar_orbit_endpoint_bindings","stellar_orbit_relation_bindings"):
           path=staging/f"{table}.parquet";con.execute(f"COPY (SELECT * FROM {table} ORDER BY ALL) TO {sql_literal(path)} (FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 122880)");products[path.name]={"rows":int(con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]),"bytes":path.stat().st_size,"sha256":file_sha256(path),"determinism":"byte_exact"}
       finally:con.close()
-      manifest={"schema_version":"spacegate.e7_stellar_orbit_endpoint_bridge_manifest.v1","build_id":build_id,"status":"pass","generated_at":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),"policy_version":policy["policy_version"],"compiler_version":policy["compiler_version"],"policy_sha256":policy_sha,"compiler_sha256":compiler_sha,"inputs":{name:{"build_id":spec["build_id"],"manifest_sha256":spec["manifest_sha256"]} for name,spec in policy["inputs"].items()},"stability_databases_opened":[],"verification":verification,"products":products,"performance":{"wall_seconds":round(time.monotonic()-started,6),"cpu_seconds":round(time.process_time()-cpu_started,6),"peak_rss_kib":int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)}};write_object_atomic(staging/"manifest.json",manifest);os.replace(staging,final)
+      manifest={"schema_version":"spacegate.e7_stellar_orbit_endpoint_bridge_manifest.v2","build_id":build_id,"status":"pass","generated_at":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),"policy_version":policy["policy_version"],"compiler_version":policy["compiler_version"],"policy_sha256":policy_sha,"compiler_sha256":compiler_sha,"inputs":{name:{"build_id":spec["build_id"],"manifest_sha256":spec["manifest_sha256"]} for name,spec in policy["inputs"].items()},"stability_databases_opened":[],"verification":verification,"products":products,"performance":{"wall_seconds":round(time.monotonic()-started,6),"cpu_seconds":round(time.process_time()-cpu_started,6),"peak_rss_kib":int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)}};write_object_atomic(staging/"manifest.json",manifest);os.replace(staging,final)
       if link_into_state:
         root=state/"derived/evidence_lake_v2/stellar_orbit_endpoint_bridge";root.mkdir(parents=True,exist_ok=True);link=root/build_id
         if not link.exists() and not link.is_symlink():link.symlink_to(final)

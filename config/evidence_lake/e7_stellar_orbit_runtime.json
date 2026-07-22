@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.e7_stellar_orbit_runtime_policy.v1",
-  "policy_version": "2026-07-22.e7-stellar-orbit-runtime.1",
-  "compiler_version": "e7_stellar_orbit_runtime_compiler_v1",
+  "schema_version": "spacegate.e7_stellar_orbit_runtime_policy.v2",
+  "policy_version": "2026-07-22.e7-stellar-orbit-runtime.2",
+  "compiler_version": "e7_stellar_orbit_runtime_compiler_v2",
   "input": {
     "build_id": "67fea5f99500b57419ebdeb0",
     "relative_path": "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0",
@@ -37,7 +37,7 @@
     "orb6_solutions": 1159,
     "sb9_solutions": 1052,
     "debcat_solutions": 20,
-    "preferred_simulation_solutions": 3292,
+    "preferred_simulation_solutions": 1959,
     "deferred_sbx_solutions": 3043,
     "deferred_gaia_nss_solutions": 56617,
     "deferred_tess_eb_solutions": 2228,

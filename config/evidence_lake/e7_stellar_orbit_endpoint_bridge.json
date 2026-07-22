@@ -1,12 +1,12 @@
 {
-  "schema_version": "spacegate.e7_stellar_orbit_endpoint_bridge_policy.v1",
-  "policy_version": "2026-07-22.e7-stellar-orbit-endpoint-bridge.1",
-  "compiler_version": "e7_stellar_orbit_endpoint_bridge_compiler_v1",
+  "schema_version": "spacegate.e7_stellar_orbit_endpoint_bridge_policy.v2",
+  "policy_version": "2026-07-22.e7-stellar-orbit-endpoint-bridge.2",
+  "compiler_version": "e7_stellar_orbit_endpoint_bridge_compiler_v2",
   "inputs": {
     "selected_orbits": {
-      "build_id": "80099350ba26465252053885",
-      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/80099350ba26465252053885",
-      "manifest_sha256": "b704eb145a8204b17b65e70f32f3f7f3e58c0f4691bca01c8b06807c7cf20b41"
+      "build_id": "131d37fd3cdaa3867ff8337b",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/131d37fd3cdaa3867ff8337b",
+      "manifest_sha256": "5f4095e195b070eb0f2b95b2a8db7a08a40e41395f61ece531f794cbceb09eb0"
     },
     "selected_components": {
       "build_id": "67fea5f99500b57419ebdeb0",
@@ -39,10 +39,10 @@
     "relations_runtime_eligible": 3238,
     "relations_one_endpoint_unresolved": 1169,
     "relations_both_endpoints_unresolved": 6843,
-    "preferred_relations": 3292,
-    "preferred_relations_runtime_eligible": 1899,
-    "preferred_relations_one_endpoint_unresolved": 696,
-    "preferred_relations_both_endpoints_unresolved": 697,
+    "preferred_relations": 1959,
+    "preferred_relations_runtime_eligible": 808,
+    "preferred_relations_one_endpoint_unresolved": 531,
+    "preferred_relations_both_endpoints_unresolved": 620,
     "containment_promotions": 0
   }
 }

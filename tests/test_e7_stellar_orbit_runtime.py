@@ -62,4 +62,4 @@ def test_policy_json_is_canonical_object() -> None:
     )
     assert isinstance(value, dict)
     assert value["acceptance"]["selected_solutions"] == 17170
-    assert value["acceptance"]["preferred_simulation_solutions"] == 3292
+    assert value["acceptance"]["preferred_simulation_solutions"] == 1959

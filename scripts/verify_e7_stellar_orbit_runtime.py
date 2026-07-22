@@ -31,7 +31,7 @@ def audit(policy_path: Path, state: Path, manifest_path: Path) -> dict[str, Any]
     manifest=compiler.load_object(manifest_path)
     checks={
         "manifest_status_pass":manifest.get("status")=="pass",
-        "manifest_schema":manifest.get("schema_version")=="spacegate.e7_stellar_orbit_runtime_manifest.v1",
+        "manifest_schema":manifest.get("schema_version")=="spacegate.e7_stellar_orbit_runtime_manifest.v2",
         "stability_databases_not_opened":manifest.get("stability_databases_opened")==[],
         "policy_sha256_match":manifest.get("policy_sha256")==compiler.file_sha256(policy_path),
         "compiler_sha256_match":manifest.get("compiler_sha256")==compiler.file_sha256(Path(compiler.__file__).resolve()),
@@ -66,6 +66,7 @@ def audit(policy_path: Path, state: Path, manifest_path: Path) -> dict[str, Any]
             "orphan_solutions":int(con.execute("SELECT count(*) FROM solutions s LEFT JOIN relations r USING(relation_id) WHERE r.relation_id IS NULL").fetchone()[0]),
             "multiple_preferences":int(con.execute("SELECT count(*) FROM (SELECT relation_id FROM solutions WHERE selection_role='preferred_simulation' GROUP BY 1 HAVING count(*)<>1)").fetchone()[0]),
             "incomplete_preferences":int(con.execute("SELECT count(*) FROM solutions WHERE selection_role='preferred_simulation' AND NOT simulation_complete").fetchone()[0]),
+            "nonphysical_visual_preferences":int(con.execute("SELECT count(*) FROM solutions WHERE selection_role='preferred_simulation' AND (period_days<=0 OR semi_major_axis_arcsec<=0 OR eccentricity<0 OR eccentricity>=1)").fetchone()[0]),
             "preference_pointer_delta":abs(int(con.execute("SELECT count(*) FROM relations WHERE preferred_simulation_solution_id IS NOT NULL").fetchone()[0])-counts["preferred_simulation_solutions"]),
             "missing_relation_evidence":int(con.execute("SELECT count(*) FROM relations r LEFT JOIN selected.msc_relation_evidence_projection e ON e.projected_relation_id=r.relation_id WHERE e.projected_relation_id IS NULL").fetchone()[0]),
             "missing_solution_evidence":int(con.execute("SELECT count(*) FROM solutions s WHERE NOT EXISTS (SELECT 1 FROM selected.msc_orbital_solution_projection e WHERE e.evidence_id=s.evidence_id) AND NOT EXISTS (SELECT 1 FROM selected.orb6_orbital_solution_projection e WHERE e.evidence_id=s.evidence_id) AND NOT EXISTS (SELECT 1 FROM selected.sb9_orbital_solution_projection e WHERE e.evidence_id=s.evidence_id) AND NOT EXISTS (SELECT 1 FROM selected.debcat_orbital_solution_projection e WHERE e.evidence_id=s.evidence_id)").fetchone()[0]),
