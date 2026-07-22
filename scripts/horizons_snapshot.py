@@ -21,6 +21,23 @@ SOL_AUTHORITY_RESPONSE_SOURCE_NAME = "sol_authority_horizons_responses"
 SOL_ARTIFICIAL_TABLE_SOURCE_NAME = "sol_artificial_objects"
 SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME = "sol_artificial_horizons_responses"
 
+HORIZONS_ELEMENT_COLUMNS = {
+    "JDTDB": "epoch_tdb_jd",
+    "Calendar Date (TDB)": "calendar_date_tdb",
+    "EC": "eccentricity",
+    "QR": "periapsis_distance_au",
+    "IN": "inclination_deg",
+    "OM": "longitude_ascending_node_deg",
+    "W": "argument_periapsis_deg",
+    "Tp": "time_periapsis_tdb_jd",
+    "N": "mean_motion_deg_day",
+    "MA": "mean_anomaly_deg",
+    "TA": "true_anomaly_deg",
+    "A": "semi_major_axis_au",
+    "AD": "apoapsis_distance_au",
+    "PR": "orbital_period_days",
+}
+
 
 def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
@@ -51,6 +68,57 @@ def center_target_command(center_code: str) -> str:
     if not match:
         raise ValueError(f"invalid Horizons center expression: {center_code!r}")
     return match.group(1)
+
+
+def parse_horizons_elements(payload: str) -> dict[str, float | str | None]:
+    """Parse the first complete Horizons ELEMENTS row by its source header."""
+    lines = payload.splitlines()
+    start_index = next(
+        (index for index, line in enumerate(lines) if line.strip() == "$$SOE"),
+        None,
+    )
+    if start_index is None:
+        raise ValueError("Horizons response has no $$SOE element block")
+    header_line = next(
+        (
+            line
+            for line in reversed(lines[:start_index])
+            if "JDTDB" in line and "Calendar Date (TDB)" in line and "EC" in line
+        ),
+        None,
+    )
+    row_line = next(
+        (
+            line
+            for line in lines[start_index + 1 :]
+            if line.strip() and line.strip() != "$$EOE"
+        ),
+        None,
+    )
+    if header_line is None or row_line is None:
+        raise ValueError("Horizons response lacks a complete element header/row")
+    headers = [value.strip() for value in next(csv.reader([header_line])) if value.strip()]
+    values = [value.strip() for value in next(csv.reader([row_line]))]
+    while values and not values[-1]:
+        values.pop()
+    missing = sorted(set(HORIZONS_ELEMENT_COLUMNS) - set(headers))
+    if missing or len(headers) != len(values):
+        raise ValueError(
+            "Horizons element schema drift: "
+            f"missing={missing},headers={len(headers)},values={len(values)}"
+        )
+    source = dict(zip(headers, values, strict=True))
+    result: dict[str, float | str | None] = {}
+    for source_name, destination in HORIZONS_ELEMENT_COLUMNS.items():
+        raw = source[source_name]
+        if source_name == "Calendar Date (TDB)":
+            result[destination] = raw or None
+            continue
+        try:
+            result[destination] = float(raw.lstrip("~")) if raw else None
+        except ValueError:
+            result[destination] = None
+    return result
 
 
 def tree_files(path: Path) -> list[Path]:

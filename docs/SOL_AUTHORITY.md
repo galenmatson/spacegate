@@ -84,6 +84,15 @@ S1/S2 retrieval policy:
   Vesta, Pallas, Juno, Hebe, Iris, Interamnia, and Hector so target-resolution
   mistakes fail during source refresh
 
+Evidence Lake E5 selection keeps each osculating solution bound to its exact
+target command, independently resolved center command, TDB epoch, reference
+frame/plane, units, method, model, query, and response checksum. A center such
+as Horizons command `0` is a declared reference origin rather than a canonical
+object. Current artifact `d61c6890588ee40c46ea7d56` accounts all 60 natural
+targets, admits 59 physical target-center pairs for later orbit selection, and
+retains the Sun-to-barycenter solution as context. It makes no hierarchy edge
+or simulation-ready orbit before E6 review.
+
 ## Ingest Contract
 
 S1/S2 are wired into:

@@ -33,9 +33,23 @@ EXPECTED_SOURCE_ROWS = {
 }
 EXPECTED_FIELD_MAPPING = {
     (AUTHORITY, "excluded"): 1,
-    (AUTHORITY, "materialized"): 32,
+    (AUTHORITY, "materialized"): 41,
     (ARTIFICIAL, "excluded"): 1,
-    (ARTIFICIAL, "materialized"): 33,
+    (ARTIFICIAL, "materialized"): 42,
+}
+EXPECTED_ORBIT_PARAMETER_UNITS = {
+    "eccentricity": "dimensionless",
+    "periapsis_distance_au": "au",
+    "inclination_deg": "deg",
+    "longitude_ascending_node_deg": "deg",
+    "argument_periapsis_deg": "deg",
+    "time_periapsis_tdb_jd": "d",
+    "mean_motion_deg_day": "deg d-1",
+    "mean_anomaly_deg": "deg",
+    "true_anomaly_deg": "deg",
+    "semi_major_axis_au": "au",
+    "apoapsis_distance_au": "au",
+    "orbital_period_days": "d",
 }
 EXPECTED_IDENTIFIER_CLAIMS = {
     (AUTHORITY, "jpl_horizons_target"): 120,
@@ -181,6 +195,12 @@ def audit(con: duckdb.DuckDBPyConnection, manifest: dict[str, Any]) -> dict[str,
                 "description": "Source-published mass",
             },
         }
+    element_contract_predicate = " OR ".join(
+        f"not json_exists(parameter_set_raw,'$.{field}') "
+        f"or json_extract_string(quality_json,"
+        f"'$.parameter_metadata.{field}.unit')<>'{unit}'"
+        for field, unit in EXPECTED_ORBIT_PARAMETER_UNITS.items()
+    )
     checks: dict[str, Any] = {
         "release_mismatches": {
             source_id: releases.get(source_id)
@@ -261,6 +281,12 @@ def audit(con: duckdb.DuckDBPyConnection, manifest: dict[str, Any]) -> dict[str,
                 "'$.parameter_metadata.semi_major_axis_au.unit')<>'au' "
                 "or json_extract_string(quality_json, "
                 "'$.parameter_metadata.orbital_period_days.unit')<>'d'"
+            ).fetchone()[0]
+        ),
+        "incomplete_orbit_element_contract": int(
+            con.execute(
+                "select count(*) from orbital_solution_evidence where "
+                + element_contract_predicate
             ).fetchone()[0]
         ),
         "invalid_response_products": int(

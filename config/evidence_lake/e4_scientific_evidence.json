@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v5",
-  "contract_version": "2026-07-21.e4-foundation.78",
+  "contract_version": "2026-07-22.e4-foundation.79",
   "compiler_version": "scientific_evidence_compiler_v77",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
@@ -1604,7 +1604,7 @@
         "reason": "reviewed operator target keys/names and source-published Horizons target/center commands remain distinct identity claims"
       },
       {
-        "pattern": "^(center_code|epoch_tdb_jd|eccentricity|inclination_deg|semi_major_axis_au|orbital_period_days|horizons_query_url|horizons_response_path|horizons_response_sha256|retrieved_at)$",
+        "pattern": "^(center_code|epoch_tdb_jd|calendar_date_tdb|eccentricity|periapsis_distance_au|inclination_deg|longitude_ascending_node_deg|argument_periapsis_deg|time_periapsis_tdb_jd|mean_motion_deg_day|mean_anomaly_deg|true_anomaly_deg|semi_major_axis_au|apoapsis_distance_au|orbital_period_days|horizons_query_url|horizons_response_path|horizons_response_sha256|retrieved_at)$",
         "disposition": "domain",
         "destination": "orbital_solution_evidence",
         "reason": "source-parsed osculating elements and exact Horizons response/query lineage"
@@ -2485,7 +2485,7 @@
       }
     },
     "solar_system.jpl_horizons_authority": {
-      "adapter_version": "jpl_horizons_natural_scientific_evidence_v1",
+      "adapter_version": "jpl_horizons_natural_scientific_evidence_v2",
       "table_order": [
         "sol_authority_horizons_responses",
         "sol_system_objects"
@@ -2568,8 +2568,16 @@
             ],
             "parameter_fields": [
               "eccentricity",
+              "periapsis_distance_au",
               "inclination_deg",
+              "longitude_ascending_node_deg",
+              "argument_periapsis_deg",
+              "time_periapsis_tdb_jd",
+              "mean_motion_deg_day",
+              "mean_anomaly_deg",
+              "true_anomaly_deg",
               "semi_major_axis_au",
+              "apoapsis_distance_au",
               "orbital_period_days"
             ],
             "parameter_metadata": {
@@ -2577,13 +2585,45 @@
                 "unit": "dimensionless",
                 "description": "Osculating orbital eccentricity"
               },
+              "periapsis_distance_au": {
+                "unit": "au",
+                "description": "Osculating periapsis distance"
+              },
               "inclination_deg": {
                 "unit": "deg",
                 "description": "Inclination to the query reference plane"
               },
+              "longitude_ascending_node_deg": {
+                "unit": "deg",
+                "description": "Longitude of ascending node in the query reference plane"
+              },
+              "argument_periapsis_deg": {
+                "unit": "deg",
+                "description": "Argument of periapsis"
+              },
+              "time_periapsis_tdb_jd": {
+                "unit": "d",
+                "description": "TDB Julian date of periapsis passage"
+              },
+              "mean_motion_deg_day": {
+                "unit": "deg d-1",
+                "description": "Osculating mean motion"
+              },
+              "mean_anomaly_deg": {
+                "unit": "deg",
+                "description": "Mean anomaly at the solution epoch"
+              },
+              "true_anomaly_deg": {
+                "unit": "deg",
+                "description": "True anomaly at the solution epoch"
+              },
               "semi_major_axis_au": {
                 "unit": "au",
                 "description": "Signed osculating semimajor axis; negative is valid for hyperbolic trajectories"
+              },
+              "apoapsis_distance_au": {
+                "unit": "au",
+                "description": "Osculating apoapsis distance"
               },
               "orbital_period_days": {
                 "unit": "d",
@@ -2592,6 +2632,7 @@
             },
             "quality_fields": [
               "center_code",
+              "calendar_date_tdb",
               "horizons_response_path",
               "horizons_response_sha256",
               "retrieved_at"
@@ -2607,7 +2648,7 @@
             },
             "sql_predicate": "eccentricity is not null and inclination_deg is not null and semi_major_axis_au is not null",
             "method": "jpl_horizons_elements_api",
-            "normalization_version": "jpl_horizons_au_d_icrf_ecliptic_v1"
+            "normalization_version": "jpl_horizons_complete_elements_au_d_icrf_ecliptic_v2"
           },
           "coherent_parameter_set": {
             "destination": "solar_system_object_parameter_sets",
@@ -2634,7 +2675,7 @@
       }
     },
     "solar_system.jpl_horizons_artificial": {
-      "adapter_version": "jpl_horizons_artificial_scientific_evidence_v1",
+      "adapter_version": "jpl_horizons_artificial_scientific_evidence_v2",
       "table_order": [
         "sol_artificial_horizons_responses",
         "sol_artificial_objects"
@@ -2717,8 +2758,16 @@
             ],
             "parameter_fields": [
               "eccentricity",
+              "periapsis_distance_au",
               "inclination_deg",
+              "longitude_ascending_node_deg",
+              "argument_periapsis_deg",
+              "time_periapsis_tdb_jd",
+              "mean_motion_deg_day",
+              "mean_anomaly_deg",
+              "true_anomaly_deg",
               "semi_major_axis_au",
+              "apoapsis_distance_au",
               "orbital_period_days"
             ],
             "parameter_metadata": {
@@ -2726,13 +2775,45 @@
                 "unit": "dimensionless",
                 "description": "Osculating trajectory eccentricity"
               },
+              "periapsis_distance_au": {
+                "unit": "au",
+                "description": "Osculating periapsis distance"
+              },
               "inclination_deg": {
                 "unit": "deg",
                 "description": "Inclination to the query reference plane"
               },
+              "longitude_ascending_node_deg": {
+                "unit": "deg",
+                "description": "Longitude of ascending node in the query reference plane"
+              },
+              "argument_periapsis_deg": {
+                "unit": "deg",
+                "description": "Argument of periapsis"
+              },
+              "time_periapsis_tdb_jd": {
+                "unit": "d",
+                "description": "TDB Julian date of periapsis passage"
+              },
+              "mean_motion_deg_day": {
+                "unit": "deg d-1",
+                "description": "Osculating mean motion"
+              },
+              "mean_anomaly_deg": {
+                "unit": "deg",
+                "description": "Mean anomaly at the solution epoch"
+              },
+              "true_anomaly_deg": {
+                "unit": "deg",
+                "description": "True anomaly at the solution epoch"
+              },
               "semi_major_axis_au": {
                 "unit": "au",
                 "description": "Signed osculating semimajor axis; negative is valid for hyperbolic trajectories"
+              },
+              "apoapsis_distance_au": {
+                "unit": "au",
+                "description": "Osculating apoapsis distance"
               },
               "orbital_period_days": {
                 "unit": "d",
@@ -2741,6 +2822,7 @@
             },
             "quality_fields": [
               "center_code",
+              "calendar_date_tdb",
               "horizons_response_path",
               "horizons_response_sha256",
               "retrieved_at"
@@ -2756,7 +2838,7 @@
             },
             "sql_predicate": "eccentricity is not null and inclination_deg is not null and semi_major_axis_au is not null",
             "method": "jpl_horizons_elements_api",
-            "normalization_version": "jpl_horizons_au_d_icrf_ecliptic_v1"
+            "normalization_version": "jpl_horizons_complete_elements_au_d_icrf_ecliptic_v2"
           },
           "coherent_parameter_set": {
             "destination": "solar_system_object_parameter_sets",

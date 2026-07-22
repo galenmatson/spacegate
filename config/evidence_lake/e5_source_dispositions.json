@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-22.e5-source-dispositions.18",
+  "disposition_version": "2026-07-22.e5-source-dispositions.19",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -145,10 +145,12 @@
       "reason": "Artificial-spacecraft controls verify source and orbit contracts but are excluded from the public natural-object selection projection."
     },
     "solar_system.jpl_horizons_authority": {
-      "disposition": "deferred_pending_quantity_policy",
+      "disposition": "selected_solar_system_evidence_projection",
       "owner": "E5",
-      "blocks_e5": true,
-      "reason": "Natural Solar System state vectors and orbital elements require epoch/frame-aware authority and projection policies."
+      "blocks_e5": false,
+      "solar_system_policy_version": "2026-07-22.e5-solar-system.1",
+      "solar_system_artifact_id": "d61c6890588ee40c46ea7d56",
+      "reason": "All 60 reviewed natural Horizons targets bind through exact source keys or canonical JPL-command metadata. Fifty-nine target/physical-center pairs are epoch/frame-bound orbit-selection inputs; the Sun-to-barycenter solution remains declared reference-origin context. Every solution preserves the complete 12-element source row. All 36 coherent physical sets remain bound to exact natural objects, and no relation is promoted canonically."
     },
     "tess.identity_and_candidate_evidence": {
       "disposition": "deferred_pending_projection_policy",

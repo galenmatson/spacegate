@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-22.e5-policy-batches.16",
-  "disposition_version": "2026-07-22.e5-source-dispositions.18",
+  "batch_version": "2026-07-22.e5-policy-batches.17",
+  "disposition_version": "2026-07-22.e5-source-dispositions.19",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -71,16 +71,15 @@
     },
     {
       "batch_id": "cluster_extended_and_solar",
-      "status": "planned",
+      "status": "complete",
       "output_contract": "cluster_extended_object_and_epoch_orbit_projections",
       "depends_on": ["identity_and_naming"],
-      "sources": [
-        "solar_system.jpl_horizons_authority"
-      ],
+      "sources": [],
       "completed_sources": [
         "clusters.hunt_reffert_2024",
         "extended.green_snr",
-        "extended.openngc_and_nebulae"
+        "extended.openngc_and_nebulae",
+        "solar_system.jpl_horizons_authority"
       ]
     }
   ]

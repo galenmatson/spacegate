@@ -17,6 +17,7 @@ from horizons_snapshot import (
     SOL_ARTIFICIAL_RESPONSE_SOURCE_NAME,
     SOL_ARTIFICIAL_TABLE_SOURCE_NAME,
     center_target_command,
+    parse_horizons_elements,
     seed_sha256,
     write_horizons_snapshot,
 )
@@ -208,43 +209,8 @@ def parse_target_name(payload: str) -> str | None:
     return str(m.group(1)).strip() or None
 
 
-def parse_elements(payload: str) -> dict[str, float | None]:
-    lines = payload.splitlines()
-    in_block = False
-    first_csv_line: str | None = None
-    for line in lines:
-        if line.strip() == "$$SOE":
-            in_block = True
-            continue
-        if line.strip() == "$$EOE":
-            break
-        if in_block and line.strip():
-            first_csv_line = line.strip()
-            break
-    if not first_csv_line:
-        return {
-            "epoch_tdb_jd": None,
-            "eccentricity": None,
-            "inclination_deg": None,
-            "semi_major_axis_au": None,
-            "orbital_period_days": None,
-        }
-    parts = [part.strip() for part in first_csv_line.split(",")]
-    if len(parts) < 14:
-        return {
-            "epoch_tdb_jd": None,
-            "eccentricity": None,
-            "inclination_deg": None,
-            "semi_major_axis_au": None,
-            "orbital_period_days": None,
-        }
-    elements = {
-        "epoch_tdb_jd": parse_float_token(parts[0]),
-        "eccentricity": parse_float_token(parts[2]),
-        "inclination_deg": parse_float_token(parts[4]),
-        "semi_major_axis_au": parse_float_token(parts[11]),
-        "orbital_period_days": parse_float_token(parts[13]),
-    }
+def parse_elements(payload: str) -> dict[str, float | str | None]:
+    elements = parse_horizons_elements(payload)
     eccentricity = elements.get("eccentricity")
     semi_major_axis_au = elements.get("semi_major_axis_au")
     orbital_period_days = elements.get("orbital_period_days")
@@ -363,9 +329,18 @@ def main() -> int:
             "center_code": str(obj["center"]),
             "center_target_command": center_target_command(str(obj["center"])),
             "epoch_tdb_jd": elements.get("epoch_tdb_jd"),
+            "calendar_date_tdb": elements.get("calendar_date_tdb"),
             "eccentricity": elements.get("eccentricity"),
+            "periapsis_distance_au": elements.get("periapsis_distance_au"),
             "inclination_deg": elements.get("inclination_deg"),
+            "longitude_ascending_node_deg": elements.get("longitude_ascending_node_deg"),
+            "argument_periapsis_deg": elements.get("argument_periapsis_deg"),
+            "time_periapsis_tdb_jd": elements.get("time_periapsis_tdb_jd"),
+            "mean_motion_deg_day": elements.get("mean_motion_deg_day"),
+            "mean_anomaly_deg": elements.get("mean_anomaly_deg"),
+            "true_anomaly_deg": elements.get("true_anomaly_deg"),
             "semi_major_axis_au": elements.get("semi_major_axis_au"),
+            "apoapsis_distance_au": elements.get("apoapsis_distance_au"),
             "orbital_period_days": elements.get("orbital_period_days"),
             "radius_km": parse_physical_radius_km(payload),
             "mass_kg": parse_mass_kg(payload),
@@ -392,9 +367,18 @@ def main() -> int:
         "center_code",
         "center_target_command",
         "epoch_tdb_jd",
+        "calendar_date_tdb",
         "eccentricity",
+        "periapsis_distance_au",
         "inclination_deg",
+        "longitude_ascending_node_deg",
+        "argument_periapsis_deg",
+        "time_periapsis_tdb_jd",
+        "mean_motion_deg_day",
+        "mean_anomaly_deg",
+        "true_anomaly_deg",
         "semi_major_axis_au",
+        "apoapsis_distance_au",
         "orbital_period_days",
         "radius_km",
         "mass_kg",

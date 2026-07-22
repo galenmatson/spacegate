@@ -17,8 +17,8 @@ def test_checked_in_batches_account_every_blocking_source_once() -> None:
         batch_audit.load(batch_audit.DEFAULT_SELECTION),
     )
     assert report["status"] == "pass"
-    assert report["blocking_source_count"] == 5
-    assert report["completed_source_count"] == 21
+    assert report["blocking_source_count"] == 4
+    assert report["completed_source_count"] == 22
     assert report["batch_count"] == 7
     assert report["failing_checks"] == {}
 

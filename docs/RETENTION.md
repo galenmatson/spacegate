@@ -744,14 +744,33 @@ publication. The mutable legacy CSV paths beside them are compatibility
 projections and may be replaced atomically by the collector, but their
 referenced immutable source snapshot must remain.
 
-The accepted combined JPL E4 checkpoint `236a7b7822c52fef8b903d58`, its exact
-compiler/source/generic-audit/clean-reproduction reports, and both referenced
-raw and typed snapshots are protected E4/E5 inputs. A failed manifestless v76
-staging tree was retired whole only after v77 passed those gates: reviewed
-candidate hash
+The initial combined JPL E4 checkpoint `236a7b7822c52fef8b903d58` and E5
+natural Solar System artifact `64e2bc581745f1491217fd7e` are retained
+diagnostic history: E5 review proved that their projection parsed only four of
+the 12 standard numeric Horizons `ELEMENTS` fields. They are superseded and
+must not be selected as accepted scientific evidence, but remain protected
+until the E6 comparison and a reviewed retention dry run account for their
+reports and references.
+
+The accepted complete-element JPL E4 checkpoint
+`b4edc4ea6eccba69794a92df`, natural raw/typed snapshot
+`164c147ee3b98ab3dab603bb`, artificial raw/typed snapshot
+`32654e1013dae08f24b92cdc`, their exact compiler/source/generic/
+complete-element/clean-reproduction reports, and release set
+`fde14e4687a853c844b0e341` are protected E4/E5 inputs. The release set pins 38
+sources and 36 artifacts totaling 449,199,915,008 bytes. A failed manifestless
+v76 staging tree was retired whole only after the earlier v77 checkpoint passed
+its then-current gates: reviewed candidate hash
 `989a230ebb4219d6decb901f16ac155d6f5051454d6b6f80f35e59c228c6b573`
 authorized removal of 1,851,392 allocated bytes. No accepted artifact or source
 snapshot was a candidate.
+
+E5 natural Solar System artifact `d61c6890588ee40c46ea7d56`, its policy and
+compiler, four ordered Parquet projections, compile and clean-reproduction
+reports, and independent artifact audit are protected E5/E6 inputs. Its
+canonical CORE/ARM reference and complete-element JPL E4 checkpoint remain protected
+transitive inputs. A space cleanup may not remove an individual projection or
+the ledger-referenced artifact.
 
 ## Gaia Source Evidence Checkpoint
 

@@ -231,8 +231,19 @@ Evidence Lake v2 staging rule:
   radius/mass values are coherent solar-system physical parameter sets. Source
   relations bind only parsed `jpl_horizons_target` commands. Reviewed operator
   seed keys/names retain distinct namespaces and cannot create containment or
-  orbit-center relations. Build `236a7b7822c52fef8b903d58` is an internal E4
-  checkpoint, not a promoted ARM or canonical Sol hierarchy.
+  orbit-center relations. Accepted build `b4edc4ea6eccba69794a92df`
+  preserves the full 12-column numeric `ELEMENTS` row plus TDB calendar context
+  for each solution; it is an E4 checkpoint, not a promoted ARM or canonical Sol
+  hierarchy.
+- E5 natural-object policy v1 binds the target and center axes independently.
+  Exact `sol_authority` source keys are primary; canonical catalog metadata may
+  supply the exact `jpl_horizons_command` identifier without name matching.
+  Declared frame origins such as command `0` remain typed non-object references.
+  An orbit projection is selectable only as one coherent target/center/epoch/
+  frame/method/model/response set. Physical radius and mass values remain one
+  coherent parameter set on the independently accepted target. This projection
+  does not itself create a canonical relation, hierarchy edge, or simulation
+  orbit.
 - Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5` validates the
   bounded citation and identity contracts at scale. Its 32-bucket astrometry-
   citation expansion preserves the same exhaustive evidence relation under a

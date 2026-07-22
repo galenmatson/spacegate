@@ -1829,14 +1829,21 @@ Current status (July 19, 2026, in progress):
   and typed snapshots `c8652fd839feaa7b59104ad3` /
   `b9e3f2cced96b8f2b071b7ea`; raw/typed accounting, source audits, and clean
   reproduction all pass
-- registry/contract v16/v75 cuts both Horizons releases over as separate E4
-  adapters. Build `236a7b7822c52fef8b903d58` accounts 142 source records and
-  all 67 fields, preserving 71 exact responses, 71 linked orbit/trajectory
+- registry/contract v16/v75 initially cut both Horizons releases over as
+  separate E4 adapters. Build `236a7b7822c52fef8b903d58` accounts 142 source
+  records and 67 parsed fields, preserving 71 exact responses, 71 linked orbit/trajectory
   solutions, 71 center relations, 36 coherent physical parameter sets, 73
   citations, and 178 evidence links. Operator seed identities remain distinct
   from parsed JPL target identities, and only JPL identities form relation
   endpoints. Generic/source audits and clean reproduction pass logical hash
   `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`
+- E5 review exposed that the initial JPL projection retained only four of 12
+  numeric `ELEMENTS` columns. Contract v79 now uses one header-driven parser for
+  both collectors and fails closed on schema drift. Accepted build
+  `b4edc4ea6eccba69794a92df` accounts 85 fields, preserves all 12 elements and
+  TDB calendar context for 71 solutions, passes source/generic/complete-element/
+  reproduction gates, and is composed into release set
+  `fde14e4687a853c844b0e341`
 - the Gaia DR3 backbone pre-adapter audit passes all 32,176,271 rows across its
   disjoint hard-parallax and uncertainty-envelope branches, with identical
   complete 152-field schemas, unique identities, correct boundary polarity,
@@ -1987,6 +1994,11 @@ Foundation checkpoint (July 21, 2026):
   artifact hashing from cached verification and scientific compilation, ranks
   wall/CPU/I/O/memory/spill costs, compares supported Photon execution profiles,
   and records before/after evidence for each accepted optimization
+- the complete-Horizons 38-source release-set recomposition verifies
+  449,199,915,008 immutable bytes in approximately 300 wall seconds despite
+  changing only two source artifacts. Record composition as its own phase and
+  test safe unchanged-input reuse or incremental composition without weakening
+  byte-integrity gates
 - focused Gaia artifact `887e762a67ea0b432c49bdd5` measures and rejects a
   one-time accepted-binding cache. It passes the independent audit with exactly
   89,068,940 facts and 23,466,380 decisions, but direct insertion regresses from
@@ -2081,8 +2093,15 @@ Foundation checkpoint (July 21, 2026):
   17,800 OpenNGC-family bindings, preserves 803 exclusions, 404 quarantines,
   and five unresolved redirects, and emits zero stellar selected facts.
   Artifact `3790054572476ea189aaff06` independently audits and reproduces in
-  under one second; the cluster/extended/Solar batch now has only JPL Horizons
-  remaining
+  under one second
+- Solar System policy v1 binds all 60 natural Horizons targets through exact
+  source keys or canonical JPL-command metadata and resolves 59 physical orbit
+  centers. It keeps the Sun-to-barycenter solution as non-object reference
+  context, preserves all 60 coherent epoch/frame-bound element sets, and makes
+  36 radius/mass parameter sets eligible on exact targets. Artifact
+  `d61c6890588ee40c46ea7d56` independently audits and reproduces in about 1.1
+  seconds with zero canonical relation promotion; the
+  cluster/extended/Solar policy batch is complete
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

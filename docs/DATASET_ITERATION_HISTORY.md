@@ -2959,6 +2959,46 @@ Representative commits:
   `3790054572476ea189aaff06` emits zero stellar facts, passes independent audit,
   and reproduces byte-identically in under one wall second.
 
+### 105) Horizons Orbits Are Epoch/Frame-Bound Evidence
+
+- Solar System policy v1 binds 59 natural objects through exact reviewed
+  `sol_authority` source keys. The canonical Sun follows the same general exact-
+  identifier path through its stored `jpl_horizons_command`; no object name is
+  embedded in the compiler. All 60 targets resolve uniquely.
+- Orbit centers resolve independently through exact JPL commands. Fifty-nine
+  solutions have physical target and center components. The Sun's command `0`
+  center remains a declared Solar System barycenter reference origin rather
+  than becoming a fabricated object or edge.
+- The first selected projection retained its TDB epoch 2457388.5,
+  ICRF/ecliptic/AU-D frame and unit context, method, model, exact query/response,
+  checksum lineage, but review exposed that the source adapter parsed only four
+  of the 12 standard numeric `ELEMENTS` columns. Artifact
+  `64e2bc581745f1491217fd7e` is therefore retained only as a superseded
+  diagnostic; passing structural and deterministic gates did not make the
+  incomplete scientific projection acceptable.
+
+### 106) Complete Horizons Elements Replace the Four-Field Projection
+
+- One shared header-driven parser now materializes eccentricity, periapsis and
+  apoapsis distance, inclination, ascending node, argument and time of
+  periapsis, mean motion, mean and true anomaly, semi-major axis, orbital
+  period, epoch, and calendar context. Schema drift fails closed rather than
+  silently discarding a changed or newly missing column.
+- Refreshed natural snapshot `164c147ee3b98ab3dab603bb` and artificial
+  snapshot `32654e1013dae08f24b92cdc` reproduce from byte-identical responses.
+  E4 artifact `b4edc4ea6eccba69794a92df` accounts all 142 records and 85
+  registered fields; all 71 solutions contain the complete 12-element row.
+- Release set `fde14e4687a853c844b0e341` pins 38 sources and 36 artifacts totaling
+  449,199,915,008 bytes. Full checksum verification took approximately 300 wall
+  seconds, making repeated immutable-input hashing a measured target for the
+  E5/E6 performance report and safe invocation-local or metadata-backed cache
+  design. No checksum or scientific-integrity gate was bypassed.
+- Corrected E5 artifact `d61c6890588ee40c46ea7d56` binds all 60 natural
+  targets, preserves complete coherent orbital solutions, 36 radii, and 20
+  masses, and passes independent audit and byte-identical reproduction in about
+  1.1 seconds with no canonical relation promotion. Solar projection itself is
+  not a material contributor to the slow full E5 build.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

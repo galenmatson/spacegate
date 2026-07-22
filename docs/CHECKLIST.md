@@ -1519,6 +1519,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   evidence through exact catalog-source keys; retain explicit accepted,
   excluded, quarantined, and unresolved outcomes; and prevent every extended
   row from entering stellar selected facts
+- [x] E5 JPL Horizons natural-object projection: bind targets and orbit centers
+  independently through exact authoritative identifiers; keep the Solar System
+  barycenter as a declared non-object reference origin; and preserve every
+  selected osculating solution with all 12 standard numeric element fields and
+  its exact epoch, frame, center, method, model, response, and physical-
+  parameter lineage
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

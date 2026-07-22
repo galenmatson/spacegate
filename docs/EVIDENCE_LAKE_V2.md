@@ -1056,9 +1056,10 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   snapshots `677018070eec1039a43e2652` / `b9e3f2cced96b8f2b071b7ea` pass
   raw/typed verification, independent source audits, and clean typed
   reproduction with scratch removal.
-- Registry/contract v16/v75 cuts both Horizons releases over as separate E4
-  adapters in immutable build `236a7b7822c52fef8b903d58`. It accounts 142
-  source records and all 67 fields as 65 materialized plus two explicit
+- Registry/contract v16/v75 initially cut both Horizons releases over as
+  separate E4 adapters in immutable build `236a7b7822c52fef8b903d58`. It
+  accounts 142 source records and 67 parsed fields as 65 materialized plus two
+  explicit
   exclusions. The build contains 284 identity claims, 71 exact raw-response
   products, 71 linked orbit/trajectory solutions, 71 source relations, 36
   coherent physical parameter sets, 73 citations, and 178 exact evidence links.
@@ -1068,7 +1069,18 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   product-integrity, relation, orbit-metadata, schema, or field-accounting
   defects. Clean reproduction matches logical hash
   `c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`
-  and removes its scratch tree. No source relation is canonical containment.
+  and removes its scratch tree. Later E5 review found that this parsed only four
+  of the 12 standard numeric fields in each retained `ELEMENTS` row, so it is a
+  historical field-loss reference rather than the accepted JPL E4 input.
+- Contract v79 and the shared header-driven parser preserve all 12 standard
+  numeric element fields plus the TDB calendar label from every exact natural
+  and artificial response. Raw snapshots `164c147ee3b98ab3dab603bb` and
+  `32654e1013dae08f24b92cdc` reproduce their typed projections. Accepted E4
+  build `b4edc4ea6eccba69794a92df` accounts 142 source records and all 85 fields
+  as 83 materialized plus two explicit exclusions. Generic, source-specific,
+  complete-element, and clean-reproduction gates pass. Release set
+  `fde14e4687a853c844b0e341` replaces only the two JPL members while preserving
+  all other accepted E4 shards. No source relation is canonical containment.
 - Compiler/contract v77/v78 gives Exoplanet.eu, OEC, and HWC independent E4
   adapters. Exoplanet.eu contributes 8,261 positive confirmed assertions. OEC
   contributes 5,287 confirmed, 3,844 candidate, 100 controversial, 12 negative
@@ -1300,6 +1312,13 @@ peak spill allocation. The direct binding-lineage gate now takes 4.5 seconds.
 A reusable analyzer ranks Gaia direct fact materialization, immutable-input
 verification, exports, and Bailer-Jones binding/selection for bounded profiling
 experiments without relaxing determinism or scientific accounting.
+The later 38-source release-set recomposition for complete Horizons elements
+verified 449,199,915,008 bytes in approximately 300 wall seconds. This separate
+measurement confirms that whole-release byte hashing remains a material fixed
+cost even when the scientific delta is tiny. The E5/E6 closeout report must
+therefore time release-set composition explicitly and evaluate safe
+invocation-local attestation, unchanged-input reuse, and incremental composition
+without replacing byte verification with metadata trust.
 Clean reproduction produced the same 70-phase scientific projection and every
 Parquet hash, reported no differing sections, and removed its USB scratch tree.
 The isolated 12-thread/48-GB run took 1,331.7 wall seconds versus 1,441.5 for
@@ -1424,10 +1443,9 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.16` records 21 completed sources and five
-remaining blockers after the Hunt/Reffert and extended-object projections. The
-multiplicity batch is complete; the cluster/extended/Solar batch has only the
-JPL Horizons epoch/frame policy active.
+Ledger `2026-07-22.e5-policy-batches.17` records 22 completed sources and four
+remaining blockers after the JPL Horizons natural-object projection. The
+multiplicity and cluster/extended/Solar batches are complete.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1501,6 +1519,20 @@ extended-object quantity selection. Source geometry, distance, morphology,
 flux, spectral index, components, names, citations, and lineage never enter
 stellar selected facts. Artifact `3790054572476ea189aaff06` passes independent
 audit and byte-identical reproduction in under one wall second.
+
+Solar System policy v1 independently resolves each natural Horizons target and
+each orbit-center command. Exact `sol_authority` source keys bind 59 objects;
+the Sun binds through the exact `jpl_horizons_command` already carried by its
+canonical catalog metadata, without a name-specific rule. All 60 targets bind.
+Fifty-nine solutions have both a physical target and center and are eligible
+for epoch/frame-aware orbit selection. The Sun's center command `0` is retained
+as the declared Solar System barycenter reference origin, not fabricated as an
+object or relation endpoint. All 60 solutions preserve TDB epoch 2457388.5,
+ICRF/ecliptic/AU-D frame and unit context, method, model, exact query/response
+lineage, and coherent elements. Thirty-six physical parameter sets expose 36
+radius and 20 mass values on exact canonical targets. Artifact
+`d61c6890588ee40c46ea7d56` passes independent audit and byte-identical
+reproduction in about 1.1 seconds with zero canonical relation promotion.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

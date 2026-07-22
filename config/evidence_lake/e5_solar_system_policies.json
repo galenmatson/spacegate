@@ -1,0 +1,48 @@
+{
+  "schema_version": "spacegate.e5_solar_system_policies.v1",
+  "policy_version": "2026-07-22.e5-solar-system.1",
+  "compiler_version": "selected_solar_system_evidence_compiler_v1",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "source": {
+    "source_id": "solar_system.jpl_horizons_authority",
+    "release_id": "horizons_s1_2016_01_01",
+    "evidence_build_id": "b4edc4ea6eccba69794a92df",
+    "object_source_table": "sol_system_objects",
+    "target_namespace": "jpl_horizons_target",
+    "target_claim_scope": "natural_solar_system_target",
+    "relation_kind": "jpl_horizons_orbit_center",
+    "component_source_catalog": "sol_authority",
+    "canonical_identifier_json_key": "jpl_horizons_command",
+    "external_reference_origins": {
+      "0": "solar_system_barycenter"
+    },
+    "required_solution_contract": {
+      "frame_raw": "ICRF with ecliptic reference plane; TDB epoch; AU-D output units",
+      "method": "jpl_horizons_elements_api",
+      "model": "JPL Horizons osculating elements",
+      "normalization_version": "jpl_horizons_complete_elements_au_d_icrf_ecliptic_v2"
+    },
+    "physical_parameter_set_kind": "jpl_horizons_physical_parameters",
+    "physical_normalization_version": "jpl_horizons_source_native_v1",
+    "acceptance": {
+      "target_bindings": 60,
+      "targets_accepted": 60,
+      "targets_missing": 0,
+      "targets_ambiguous": 0,
+      "relation_bindings": 60,
+      "relations_accepted": 59,
+      "relations_reference_origin": 1,
+      "relations_missing": 0,
+      "relations_ambiguous": 0,
+      "orbital_solutions": 60,
+      "orbital_solutions_complete_elements": 60,
+      "orbital_solutions_eligible": 59,
+      "orbital_solutions_reference_context": 1,
+      "physical_parameter_sets": 36,
+      "physical_parameter_sets_eligible": 36,
+      "radius_values": 36,
+      "mass_values": 20,
+      "canonical_relation_promotions": 0
+    }
+  }
+}

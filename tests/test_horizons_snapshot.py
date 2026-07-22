@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -11,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from horizons_snapshot import (  # noqa: E402
     ResponseCapture,
     center_target_command,
+    parse_horizons_elements,
     seed_sha256,
     sha256_file,
     tree_sha256,
@@ -25,11 +28,8 @@ def test_center_target_command_parses_horizons_center_expression() -> None:
 
 def test_center_target_command_rejects_ambiguous_expression() -> None:
     for value in ("", "500", "500@", "500@10@399"):
-        try:
+        with pytest.raises(ValueError):
             center_target_command(value)
-        except ValueError:
-            continue
-        raise AssertionError(f"expected invalid center expression: {value!r}")
 
 
 def test_horizons_snapshot_preserves_raw_response_and_atomic_projection(
@@ -104,3 +104,36 @@ def test_horizons_snapshot_preserves_raw_response_and_atomic_projection(
         "sol_test_objects",
         "sol_test_horizons_responses",
     ]
+
+
+ELEMENT_RESPONSE = """
+            JDTDB, Calendar Date (TDB), EC, QR, IN, OM, W, Tp, N, MA, TA, A, AD, PR,
+********
+$$SOE
+2457388.5, A.D. 2016-Jan-01 00:00:00.0000, 0.2, 0.3, 7.0, 48.3, 29.1, 2457396.2, 4.09, 328.3, 312.7, 0.387, 0.466, 87.96,
+$$EOE
+"""
+
+
+def test_parse_horizons_elements_preserves_complete_source_row() -> None:
+    assert parse_horizons_elements(ELEMENT_RESPONSE) == {
+        "epoch_tdb_jd": 2457388.5,
+        "calendar_date_tdb": "A.D. 2016-Jan-01 00:00:00.0000",
+        "eccentricity": 0.2,
+        "periapsis_distance_au": 0.3,
+        "inclination_deg": 7.0,
+        "longitude_ascending_node_deg": 48.3,
+        "argument_periapsis_deg": 29.1,
+        "time_periapsis_tdb_jd": 2457396.2,
+        "mean_motion_deg_day": 4.09,
+        "mean_anomaly_deg": 328.3,
+        "true_anomaly_deg": 312.7,
+        "semi_major_axis_au": 0.387,
+        "apoapsis_distance_au": 0.466,
+        "orbital_period_days": 87.96,
+    }
+
+
+def test_parse_horizons_elements_fails_closed_on_schema_drift() -> None:
+    with pytest.raises(ValueError, match="schema drift"):
+        parse_horizons_elements(ELEMENT_RESPONSE.replace(" QR,", ""))

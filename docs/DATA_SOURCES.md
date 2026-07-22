@@ -698,10 +698,19 @@ response index for all 60 natural targets and passes raw/typed accounting,
 source-response integrity, and clean reproduction. The checked-in E4 adapter
 uses parsed Horizons target/center commands as JPL-scoped identities, retains
 reviewed operator keys/names in separate seed namespaces, and materializes each
-exact response as observation-product lineage. Combined natural/artificial E4
-build `236a7b7822c52fef8b903d58` passes source, artifact, and clean-reproduction
-gates at logical hash
-`c81a10d4f97f6dd99be09852b3b68a1f33dca852828ff18132a6e9d3362ca1bb`.
+exact response as observation-product lineage. The shared parser maps the source
+header and preserves all 12 numeric `ELEMENTS` columns plus TDB calendar context;
+schema drift fails closed. Combined natural/artificial E4 build
+`b4edc4ea6eccba69794a92df` accounts all 85 registered fields and passes source,
+artifact, complete-element, and clean-reproduction gates.
+
+E5 natural-object artifact `d61c6890588ee40c46ea7d56` binds all 60 reviewed
+targets through exact source keys or canonical JPL-command metadata. It resolves
+59 target/physical-center pairs and retains command `0` as the non-object Solar
+System barycenter reference origin. All 60 solutions keep their exact TDB epoch,
+ICRF/ecliptic/AU-D frame, model, method, query/response, and complete 12-element
+lineage. Thirty-six physical sets expose 36 radii and 20 masses on exact targets.
+No source relation is promoted into canonical hierarchy at E5.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
