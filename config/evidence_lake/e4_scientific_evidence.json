@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v5",
-  "contract_version": "2026-07-22.e4-foundation.80",
-  "compiler_version": "scientific_evidence_compiler_v78",
+  "contract_version": "2026-07-22.e4-foundation.81",
+  "compiler_version": "scientific_evidence_compiler_v79",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -4884,7 +4884,7 @@
       }
     },
     "ultracool.ultracoolsheet": {
-      "adapter_version": "ultracoolsheet_scientific_evidence_v1",
+      "adapter_version": "ultracoolsheet_scientific_evidence_v2",
       "tables": {
         "UltracoolSheet_Main": {
           "logical_key_fields": ["name"],
@@ -4897,12 +4897,40 @@
             "designation_2mass": {"namespace": "twomass_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
             "designation_MKO": {"namespace": "source_mko_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
             "designation_WISE": {"namespace": "wise_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
-            "sourceID_Gaia_DR3": {"namespace": "gaia_dr3_source_id", "claim_scope": "star_or_substellar_object", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["null", "nan"]},
-            "sourceID_Gaia_DR2": {"namespace": "gaia_dr2_source_id", "claim_scope": "star_or_substellar_object", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["null", "nan"]},
             "name_simbad": {"namespace": "simbad_preferred_designation", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]},
             "name_simpleDB": {"namespace": "simpledb_object_name", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]},
             "gucds_shortname": {"namespace": "gucds_shortname", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]}
           },
+          "conditional_identifier_claims": [
+            {
+              "value_field": "sourceID_Gaia_DR3",
+              "namespace": "gaia_dr3_source_id",
+              "claim_scope": "star_or_substellar_object",
+              "normalization": "unsigned_integer_decimal_v1",
+              "sql_predicate": "trim(astrom_Gaia) = 'O'"
+            },
+            {
+              "value_field": "sourceID_Gaia_DR3",
+              "namespace": "gaia_dr3_source_id",
+              "claim_scope": "associated_primary_astrometric_proxy",
+              "normalization": "unsigned_integer_decimal_v1",
+              "sql_predicate": "trim(astrom_Gaia) = 'P'"
+            },
+            {
+              "value_field": "sourceID_Gaia_DR2",
+              "namespace": "gaia_dr2_source_id",
+              "claim_scope": "star_or_substellar_object",
+              "normalization": "unsigned_integer_decimal_v1",
+              "sql_predicate": "trim(astrom_Gaia) = 'O'"
+            },
+            {
+              "value_field": "sourceID_Gaia_DR2",
+              "namespace": "gaia_dr2_source_id",
+              "claim_scope": "associated_primary_astrometric_proxy",
+              "normalization": "unsigned_integer_decimal_v1",
+              "sql_predicate": "trim(astrom_Gaia) = 'P'"
+            }
+          ],
           "scoped_stellar_parameter_sets": [
             {
               "scope_key": "optical_spectral_classification",

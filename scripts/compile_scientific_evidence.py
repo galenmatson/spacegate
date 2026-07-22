@@ -5844,10 +5844,15 @@ def materialize_source(
                 "source_row_hash_mismatches": int(unknown_hashes),
                 "storage": "duckdb_temporary_table",
             }
+        conditional_identifier_fields = {
+            str(claim["value_field"])
+            for claim in table_contract.get("conditional_identifier_claims") or []
+        }
         identifier_fields = [
             str(field["column_name"])
             for field, rule, _index in classified_fields
             if rule["destination"] == "identifier_claim_evidence"
+            and str(field["column_name"]) not in conditional_identifier_fields
         ]
         materialized_fields = set(context_fields)
         identifier_claims = dict(contract["identifier_claims"])

@@ -311,12 +311,27 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     ]["UltracoolSheet_Main"]
     assert len(ultracool_sheet["photometry_measurements"]) == 23
     assert len(ultracool_sheet["configured_domain_measurements"]) == 55
-    assert ultracool_sheet["identifier_claims"]["sourceID_Gaia_DR2"][
-        "namespace"
-    ] == "gaia_dr2_source_id"
-    assert ultracool_sheet["identifier_claims"]["sourceID_Gaia_DR3"][
-        "namespace"
-    ] == "gaia_dr3_source_id"
+    gaia_claims = ultracool_sheet["conditional_identifier_claims"]
+    assert {
+        (claim["value_field"], claim["namespace"], claim["claim_scope"])
+        for claim in gaia_claims
+    } == {
+        ("sourceID_Gaia_DR2", "gaia_dr2_source_id", "star_or_substellar_object"),
+        (
+            "sourceID_Gaia_DR2",
+            "gaia_dr2_source_id",
+            "associated_primary_astrometric_proxy",
+        ),
+        ("sourceID_Gaia_DR3", "gaia_dr3_source_id", "star_or_substellar_object"),
+        (
+            "sourceID_Gaia_DR3",
+            "gaia_dr3_source_id",
+            "associated_primary_astrometric_proxy",
+        ),
+    }
+    assert all("astrom_Gaia" in claim["sql_predicate"] for claim in gaia_claims)
+    assert "sourceID_Gaia_DR2" not in ultracool_sheet["identifier_claims"]
+    assert "sourceID_Gaia_DR3" not in ultracool_sheet["identifier_claims"]
     assert "identifiers_simbad" not in ultracool_sheet["identifier_claims"]
     assert ultracool_sheet["observation_product_missing_values"] == {
         "url_simpleDB": ["null", "nan"]

@@ -116,6 +116,16 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "where namespace not in ('gaia_dr2_source_id','gaia_dr3_source_id') "
             "and namespace like 'gaia_%source_id'",
         ),
+        "gaia_astrometric_proxy_scope_mismatch": scalar(
+            con,
+            "select count(*) from identifier_claim_evidence i "
+            "join source_records r using(source_record_id) "
+            "where i.namespace in ('gaia_dr2_source_id','gaia_dr3_source_id') "
+            "and case json_extract_string(r.source_context_json,'$.astrom_Gaia') "
+            "when 'O' then i.claim_scope<>'star_or_substellar_object' "
+            "when 'P' then i.claim_scope<>'associated_primary_astrometric_proxy' "
+            "else true end",
+        ),
         "unexpected_classification_counts": mismatch_count(
             classification_counts, EXPECTED_CLASSIFICATIONS
         ),
@@ -213,6 +223,14 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "select namespace,count(*) claim_count,count(distinct identifier_normalized) "
             "distinct_value_count from identifier_claim_evidence "
             "group by namespace order by namespace",
+        ),
+        "gaia_identifiers_by_astrometry_owner_and_scope": rows(
+            con,
+            "select json_extract_string(r.source_context_json,'$.astrom_Gaia') "
+            "astrometry_owner,i.namespace,i.claim_scope,count(*) claim_count "
+            "from identifier_claim_evidence i join source_records r using(source_record_id) "
+            "where i.namespace in ('gaia_dr2_source_id','gaia_dr3_source_id') "
+            "group by all order by 1,2,3",
         ),
         "classifications_by_scheme": rows(
             con,

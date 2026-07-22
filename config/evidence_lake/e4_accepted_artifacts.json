@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.scientific_evidence_release_set_policy.v1",
-  "policy_version": "2026-07-22.e4-accepted-artifacts.2",
+  "policy_version": "2026-07-22.e4-accepted-artifacts.3",
   "members": {
     "classification.gcvs": "a6f6669d2bd48eac5d6204d2",
     "classification.vsx": "d9780b76333132c0a05098b7",
@@ -39,6 +39,6 @@
     "tess.identity_and_candidate_evidence": "03acb9eb0fb2cbc0f8203dd8",
     "tess.villanova_eb": "255678b2daa6e8bf46e6dcd9",
     "ultracool.gaia_dr3_sample": "78016b90e02689547c3f53dd",
-    "ultracool.ultracoolsheet": "20fdb1c95d25d441160d3bd9"
+    "ultracool.ultracoolsheet": "a328a9e13d6c2b44f8d57861"
   }
 }
