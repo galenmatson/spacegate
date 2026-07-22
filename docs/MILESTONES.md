@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 57 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 62 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2483,6 +2483,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   1,867 require selected current cluster identity and 35 require selected
   associated-star relation bindings. Search identity for M 45, IC 4592, and
   LBN 1113 passes now, but distance serving cutover remains open
+- Cantat-Gaudin artifact `03a28284466d6821e8d5693e` now provides the clean
+  lower-authority input for that cluster tail: 2,017 coherent source contexts,
+  234,128 UPMASK membership claims, 470,273 release-scoped identifiers, and all
+  57 fields are preserved with citations and exact logical reproduction. Clean
+  selection must still apply permanent cluster identity, DR2-to-DR3 endpoint,
+  current-authority, collision, and object-scope policy before distance cutover
 - targeted CatWISE2020 and AllWISE release
   `spacegate_targeted_500_20260722_v1` preserves 1,000 exact IRSA cone
   responses for a deterministic 500-star evidence universe, including seven

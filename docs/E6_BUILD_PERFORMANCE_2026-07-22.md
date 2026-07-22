@@ -583,6 +583,13 @@ candidate and selected-geometry Parquet in 9.71 seconds, 9.86 CPU-seconds, and
 361 MiB for accepted build `a4b521d1e1de52e14afac0da`: 73.6% lower wall time
 and 64.9% lower CPU. Isolated compile plus independent audit takes 9.72 seconds.
 
+The supplementary Cantat-Gaudin E4 compiler processes 236,317 source rows,
+57 fields, 2,017 cluster contexts, and 234,128 membership claims in 21.32 wall
+seconds and 26.27 CPU-seconds with 0.96 GiB peak RSS. The immutable DuckDB is
+358.5 MiB. A clean reproduction takes 21.34 wall seconds, 26.59 CPU-seconds,
+0.95 GiB peak RSS, and matches the logical hash. Both runs use `/mnt/space` for
+artifact or scratch storage because `/data` is below its acquisition floor.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

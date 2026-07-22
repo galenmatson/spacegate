@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.8",
+  "contract_version": "2026-07-22.e0-e7-acceptance.9",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -47,7 +47,27 @@
     {
       "stage": "E4",
       "path": "e4_source_scope_audit.json",
-      "expect": {"status": "pass", "scope_version": "2026-07-22.e4-source-scope.8"}
+      "expect": {"status": "pass", "scope_version": "2026-07-22.e4-source-scope.9"}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_cantat_gaudin_compile.json",
+      "expect": {"status": "pass", "build_id": "03a28284466d6821e8d5693e", "mapping_status_counts": {"materialized": 57}}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_cantat_gaudin_artifact_audit.json",
+      "expect": {"status": "pass", "build_id": "03a28284466d6821e8d5693e", "temporary_storage_removed": true}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_cantat_gaudin_scope_audit.json",
+      "expect": {"status": "pass", "build_id": "03a28284466d6821e8d5693e"}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_cantat_gaudin_reproduction.json",
+      "expect": {"status": "pass", "build_id": "03a28284466d6821e8d5693e", "scratch_removed": true, "differing_sections": []}
     },
     {
       "stage": "E5",
@@ -231,6 +251,7 @@
     "derived/evidence_lake_v2/selected_facts/fa4aaed18aebcffb8632d978/manifest.json",
     "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
+    "derived/evidence_lake_v2/scientific_evidence/03a28284466d6821e8d5693e/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json",
     "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",

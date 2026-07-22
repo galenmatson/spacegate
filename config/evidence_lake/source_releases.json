@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-22.19",
+  "registry_version": "2026-07-22.20",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -705,7 +705,7 @@
     {
       "source_id": "clusters.cantat_gaudin_2020",
       "release_id": "aa_640_a1",
-      "state": "active_replacement_pending",
+      "state": "active_supplementary",
       "authority_roles": {"cluster": "legacy_physical_and_membership_claim", "identity": "gaia_dr2_membership"},
       "publisher": "CDS/VizieR",
       "citation_url": "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/ReadMe",

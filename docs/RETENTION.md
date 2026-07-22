@@ -1138,6 +1138,14 @@ protected unserved candidate artifacts. Rejected row-wise baseline
 deletion target; retain it until a dry-run proves the accepted replacement and
 all report references are accounted.
 
+Cantat-Gaudin E4 artifact `03a28284466d6821e8d5693e` is accepted, referenced,
+and stored under `/mnt/space/spacegate/e4-scientific-evidence` with a state
+symlink. Preserve its immutable raw/typed inputs, artifact, compile/audit/
+reproduction reports, and external timing records. Reproduction scratch was
+removed automatically. Predecessor `fb0f20d00bf972cf8d8d948d` has identical
+logical science but stale contract/registry version labels; it is unserved and
+an exact future retention candidate, not a manual deletion target.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

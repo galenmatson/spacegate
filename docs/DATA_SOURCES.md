@@ -1283,6 +1283,13 @@ Cantat-only geometry rows plus 1,867 cluster and 35 associated-star distances
 as deferred; these values cannot enter serving output until their own selected
 identity/relation bindings pass.
 
+Cantat-Gaudin is now an active supplementary E4 adapter rather than only a
+source-native reference. Artifact `03a28284466d6821e8d5693e` preserves all
+2,017 cluster rows, 234,128 UPMASK Gaia DR2 membership claims, 57 fields, native
+units/flags, and citation lineage. Hunt/Reffert remains the current cluster
+authority; Cantat-Gaudin may win only as a lower-authority fallback after clean
+cluster identity, scope, and official DR2-to-DR3 endpoint reconciliation.
+
 ## Transitional Sources
 
 ## 14) AT-HYG

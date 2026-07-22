@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v5",
-  "contract_version": "2026-07-22.e4-foundation.81",
+  "contract_version": "2026-07-22.e4-foundation.82",
   "compiler_version": "scientific_evidence_compiler_v79",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
@@ -945,6 +945,42 @@
         "disposition": "context",
         "destination": "source_records",
         "reason": "physical line order and exact fixed-width reference row lineage"
+      }
+    ],
+    "cantat_gaudin_clusters": [
+      {
+        "pattern": "^Cluster$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped Cantat-Gaudin cluster designation"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "cluster_evidence",
+        "reason": "complete source-native legacy cluster position, structure, distance, motion, age, extinction, membership-count, and quality context"
+      }
+    ],
+    "cantat_gaudin_members": [
+      {
+        "pattern": "^(Cluster|GaiaDR2)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped cluster and Gaia DR2 member identities"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "cluster_membership_evidence",
+        "reason": "complete source-published DR2 membership probability, astrometry, covariance, photometry, radial velocity, temperature, and quality context"
+      }
+    ],
+    "cantat_gaudin_document": [
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "source documentation line and exact fixed-width schema lineage"
       }
     ],
     "hunt_reffert_clusters": [
@@ -3033,6 +3069,54 @@
           "logical_key_fields": ["source_line_number"],
           "object_scope": "source_method_document_line",
           "field_profile": "source_method_document"
+        }
+      }
+    },
+    "clusters.cantat_gaudin_2020": {
+      "adapter_version": "cantat_gaudin_cluster_evidence_v1",
+      "table_order": [
+        "cantat_gaudin_2020_table1",
+        "cantat_gaudin_2020_members",
+        "cantat_gaudin_2020_readme"
+      ],
+      "tables": {
+        "cantat_gaudin_2020_table1": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "open_cluster",
+          "field_profile": "cantat_gaudin_clusters",
+          "identifier_claims": {
+            "Cluster": {"namespace": "cluster_name", "claim_scope": "open_cluster"}
+          },
+          "cluster_context": {
+            "cluster_identity_field": "Cluster",
+            "method": "cantat_gaudin_2020_gaia_dr2_cluster_characterization",
+            "model": "source_published_cluster_summary_and_neural_network_parameters",
+            "reference_raw": "2020A&A...640A...1C",
+            "quality_fields": ["Flag", "nbstars07"],
+            "normalization_version": "cantat_gaudin_source_native_v1"
+          }
+        },
+        "cantat_gaudin_2020_members": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "probability_bearing_cluster_member_claim",
+          "field_profile": "cantat_gaudin_members",
+          "identifier_claims": {
+            "Cluster": {"namespace": "cluster_name", "claim_scope": "open_cluster"},
+            "GaiaDR2": {"namespace": "gaia_dr2_source_id", "claim_scope": "star", "component_scope": "member", "normalization": "unsigned_integer_decimal_v1"}
+          },
+          "cluster_membership": {
+            "cluster_identity_field": "Cluster",
+            "member_identity_field": "GaiaDR2",
+            "membership_probability_field": "proba",
+            "probability_semantics": "source_published_upmask_cluster_membership_probability",
+            "method": "cantat_gaudin_2020_gaia_dr2_cluster_membership",
+            "reference_raw": "2020A&A...640A...1C"
+          }
+        },
+        "cantat_gaudin_2020_readme": {
+          "logical_key_fields": ["source_line_number"],
+          "object_scope": "source_method_document_line",
+          "field_profile": "cantat_gaudin_document"
         }
       }
     },

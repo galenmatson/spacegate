@@ -81,6 +81,12 @@ def test_checked_in_registry_is_valid_and_manifest_bindings_are_unique() -> None
     assert registry["ingestion_envelope"]["buffer_radius_ly"] > 1000
 
 
+def test_registry_accepts_supplementary_active_sources() -> None:
+    registry = minimal_registry()
+    registry["sources"][0]["state"] = "active_supplementary"
+    assert validate_registry(registry) == []
+
+
 def test_member_lineage_fields_require_registered_artifacts_and_unique_names() -> None:
     registry = minimal_registry()
     policy = registry["sources"][0]["schema_policy"]

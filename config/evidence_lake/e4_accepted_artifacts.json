@@ -1,9 +1,10 @@
 {
   "schema_version": "spacegate.scientific_evidence_release_set_policy.v1",
-  "policy_version": "2026-07-22.e4-accepted-artifacts.3",
+  "policy_version": "2026-07-22.e4-accepted-artifacts.4",
   "members": {
     "classification.gcvs": "a6f6669d2bd48eac5d6204d2",
     "classification.vsx": "d9780b76333132c0a05098b7",
+    "clusters.cantat_gaudin_2020": "03a28284466d6821e8d5693e",
     "clusters.hunt_reffert_2024": "7e66e0690aa962c837d43a86",
     "compact.atnf": "64c55c19a5a10a88877d4cd2",
     "compact.gaia_edr3_white_dwarf": "486e4975af015d4e5f5a3c9b",

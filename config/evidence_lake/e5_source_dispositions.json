@@ -1,12 +1,19 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-22.e5-source-dispositions.20",
+  "disposition_version": "2026-07-22.e5-source-dispositions.21",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
       "owner": "E2/E6",
       "blocks_e5": false,
       "reason": "GCVS and NSV rows, cross-identifiers, variable classes, periods, extrema, spectral strings, and bibliography remain complete inspectable evidence. Only 19 current canonical stars resolve uniquely through the release-native cross-identifier bridge, so E5 must not manufacture a broad name or coordinate crossmatch; later release-scoped identity work may promote uniquely reviewed bindings."
+    },
+    "clusters.cantat_gaudin_2020": {
+      "disposition": "supplementary_cluster_evidence_pending_clean_selection",
+      "owner": "E5/E7",
+      "blocks_e5": false,
+      "evidence_build_id": "03a28284466d6821e8d5693e",
+      "reason": "All 2,017 legacy cluster contexts and 234,128 probability-bearing Gaia DR2 membership claims are complete E4 evidence with 57/57 fields accounted. Clean E5/E7 selection must bind cluster identity through the permanent extended vocabulary, reconcile member endpoints through the official DR2-to-DR3 outcomes, prefer uniquely bound Hunt/Reffert context, and retain scope conflicts and ambiguous current claims."
     },
     "clusters.hunt_reffert_2024": {
       "disposition": "selected_cluster_evidence_projection",

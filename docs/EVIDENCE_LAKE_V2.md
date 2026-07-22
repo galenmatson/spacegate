@@ -2114,6 +2114,16 @@ unpromoted until accepted E5 cluster/relation bindings exist. This is explicit
 missing evidence, not permission to copy stability science; extended-object
 distance cutover remains open.
 
+The first corrective input is clean E4 artifact `03a28284466d6821e8d5693e`.
+It compiles the immutable Cantat-Gaudin release into 2,017 coherent cluster
+contexts and 234,128 probability-bearing Gaia DR2 member claims, accounts all
+57 source fields, retains 470,273 release-scoped identifiers, and reproduces
+the logical content exactly. This source is a supplementary fallback, not a
+current-authority override. Clean selection must bind cluster names through the
+permanent extended-object vocabulary and member endpoints through the official
+DR2-to-DR3 graph. Twenty-five name matches currently land on nebula or combined
+cluster/nebulosity identities and therefore remain scope conflicts.
+
 ## Hard Gates
 
 Evidence Lake v2 is not promotable until:

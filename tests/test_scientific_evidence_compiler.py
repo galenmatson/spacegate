@@ -285,6 +285,15 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert gcvs["tables"]["gcvs_suspected_variables"][
         "conditional_identifier_claims"
     ][0]["sql_predicate"] == "m_NSV is null"
+    cantat = contract["source_adapters"]["clusters.cantat_gaudin_2020"]
+    assert set(cantat["tables"]) == {
+        "cantat_gaudin_2020_table1",
+        "cantat_gaudin_2020_members",
+        "cantat_gaudin_2020_readme",
+    }
+    assert cantat["tables"]["cantat_gaudin_2020_members"]["cluster_membership"][
+        "probability_semantics"
+    ] == "source_published_upmask_cluster_membership_probability"
     clusters = contract["source_adapters"]["clusters.hunt_reffert_2024"]
     assert set(clusters["tables"]) == {
         "hunt_reffert_2024_clusters",

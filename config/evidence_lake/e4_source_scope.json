@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e4_source_scope.v1",
-  "scope_version": "2026-07-22.e4-source-scope.8",
+  "scope_version": "2026-07-22.e4-source-scope.9",
   "explicit_dispositions": {
     "gaia.dr3.dr2_neighbourhood": {
       "disposition": "identity_graph_only",
@@ -43,12 +43,6 @@
       "owner": "E6",
       "blocks_e4": false,
       "reason": "Disabled field-limited projection is an E6 baseline only; expanded NSS has the active E4 adapter."
-    },
-    "clusters.cantat_gaudin_2020": {
-      "disposition": "superseded_source_native_reference",
-      "owner": "E3",
-      "blocks_e4": false,
-      "reason": "Legacy DR2 membership evidence remains source-native and inspectable; the current Gaia DR3 Hunt/Reffert physical and membership release is the active E4 cluster authority."
     },
     "transitional.athyg": {
       "disposition": "transitional_identity_reference_only",

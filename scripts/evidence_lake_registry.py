@@ -29,6 +29,7 @@ ALLOWED_STATES = {
     "active",
     "active_expansion_pending",
     "active_replacement_pending",
+    "active_supplementary",
     "transitional",
     "planned",
     "disabled",

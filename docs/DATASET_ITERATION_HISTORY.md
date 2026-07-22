@@ -3496,6 +3496,24 @@ Representative commits:
   reproducing every canonical Parquet hash. The rejected baseline remains an
   exact-candidate retention item.
 
+### 131) Superseded Cluster Evidence Can Remain a Legitimate Fallback
+
+- Treating Cantat-Gaudin only as a source-native reference left 1,665 cluster
+  positions and 1,867 distances stranded in the stability database even though
+  the immutable release already contained the underlying evidence.
+- E4 artifact `03a28284466d6821e8d5693e` now preserves all 2,017 coherent
+  cluster contexts, 234,128 UPMASK Gaia DR2 membership claims, 470,273
+  release-scoped identifiers, all 57 fields, native flags/units, and citation
+  lineage. Independent reproduction matches its logical hash.
+- Superseded does not mean unusable. Hunt/Reffert remains the current authority,
+  while Cantat-Gaudin is eligible only as a lower-authority fallback after
+  permanent cluster identity and scope checks. Twenty-five cluster names match
+  nebula or combined cluster/nebulosity identities and are retained as scope
+  conflicts rather than receiving cluster distances.
+- Member claims remain probability evidence, never canonical containment. Gaia
+  DR2 member IDs must traverse the official DR2-to-DR3 outcome graph before any
+  endpoint can be considered accepted.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
