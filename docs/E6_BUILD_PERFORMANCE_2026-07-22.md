@@ -568,6 +568,12 @@ seconds with byte-identical Parquet. Consequently WISE network acquisition is
 a release-refresh stage, while normal builds consume its immutable snapshot in
 seconds.
 
+Permanent extended-object identity seed `555fa1890943b97dd0e4ef3d` takes 2.31
+wall seconds, 2.36 CPU-seconds, and 116 MiB peak RSS to write five canonical
+Parquet products. Its isolated reproduction plus independent audit takes 2.41
+seconds and 121 MiB, with exact hashes and scratch removal. This migration-only
+step is retained in the final critical path but is not a meaningful bottleneck.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

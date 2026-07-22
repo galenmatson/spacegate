@@ -1202,7 +1202,7 @@ pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 48 checkpoint checks and
+in progress. The fail-closed completion audit passes 52 checkpoint checks and
 reports six open E7 gates rather than declaring the compiler cut over.
 
 Goal:
@@ -2435,13 +2435,13 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 48 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 52 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
 - the refreshed E0 schema audit passes 49 registered sources, 150 active
   artifacts, 6,273 fields, and four retained superseded artifacts; the storage
-  audit is intentionally not acquisition-ready at about 70.6 GiB free
+  audit is intentionally not acquisition-ready at about 80 GiB free
 - permanent identity seed `5c878083872c738415971864` exports all 11,759,440
   hierarchy nodes and 5,886,947 unique relationships without scientific scalar
   columns; a clean USB-backed reproduction matches both Parquet hashes and
@@ -2450,8 +2450,8 @@ Pre-promotion planning checkpoint (July 22, 2026):
   5,869,091 canonical systems once, preserves exact placement evidence and
   derivation lineage, passes independent verification, and reproduces both
   ordered Parquet hashes without reading stability-database science
-- the stability migration audit owns all 74 tables exactly once: six are now
-  verified artifacts, eight are verified empty retirements, and 60 clean
+- the stability migration audit owns all 74 tables exactly once: ten are now
+  verified artifacts, eight are verified empty retirements, and 56 clean
   compiler or compatibility replacements remain explicit
 - permanent identity vocabulary seed `6b4fb210e1b1bcf61299fe7f` exports all
   1,026,480 aliases by permanent stable object key without scientific scalar
@@ -2468,6 +2468,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   exactly one lineage-bearing display class, and reproduces every canonical
   Parquet hash; 30 legacy ARM tables now have verified replacements whose
   runtime compatibility cutover remains explicit work
+- permanent extended-object identity seed `555fa1890943b97dd0e4ef3d`
+  preserves 18,277 stable numeric identities, 71,855 aliases, 16,726
+  identifiers, 21,339 source reconciliation outcomes, and 404 quarantine
+  decisions. Its five Parquet products contain no geometry, coordinates, or
+  distance and reproduce byte-for-byte; four more stability tables therefore
+  move from clean-compiler blockers to verified permanent identity artifacts
 - targeted CatWISE2020 and AllWISE release
   `spacegate_targeted_500_20260722_v1` preserves 1,000 exact IRSA cone
   responses for a deterministic 500-star evidence universe, including seven

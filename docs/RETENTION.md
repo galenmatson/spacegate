@@ -1125,6 +1125,12 @@ artifacts. The two incomplete acquisition staging trees under
 future exact-candidate retention work; do not delete them manually or before
 consumer cutover proves the clean replacement and rollback path.
 
+Permanent extended-object identity seed `555fa1890943b97dd0e4ef3d` and its
+compile, audit, and reproduction reports are protected identity migration
+artifacts. They contain no replaceable scientific geometry or distance, but
+must remain available to reproduce stable public IDs, aliases, reconciliation,
+and quarantine decisions through clean serving cutover and rollback.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

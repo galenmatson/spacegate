@@ -3467,6 +3467,20 @@ Representative commits:
   artifacts pending consumer cutover, not clean-projection blockers; the total
   open replacement count remains 60 until serving is migrated.
 
+### 129) Extended-Object Identity Must Not Carry Scientific Placement
+
+- The original extended-object CORE combined permanent public identity with
+  selected geometry and distance. Copying that table into a clean compiler
+  would make the stability database an undeclared scientific authority.
+- Seed `555fa1890943b97dd0e4ef3d` instead preserves only 18,277 IDs/keys and
+  name/type scope, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
+  outcomes, and 404 quarantine decisions. Sky coordinates, angular geometry,
+  distance, and Cartesian placement are prohibited by its machine policy.
+- Independent audit and clean-scratch reproduction match all five Parquet
+  products exactly. The stability ledger now has 56 open replacements rather
+  than 60; selected extended-object geometry and distance remain deliberately
+  open for an evidence-only compiler.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

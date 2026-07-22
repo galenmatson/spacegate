@@ -1272,6 +1272,11 @@ Evidence Lake v2 checkpoint (July 22, 2026):
   4,404 scoped match rows, 210 candidate-review rows, and complete 1,000-row
   target/catalog accounting. It creates no CORE inventory.
 
+Extended-object permanent identity is retained separately in seed
+`555fa1890943b97dd0e4ef3d`. That seed preserves public IDs, aliases,
+identifiers, reconciliation outcomes, and quarantine only; source-native E4/E5
+evidence remains the required authority for geometry and distance.
+
 ## Transitional Sources
 
 ## 14) AT-HYG

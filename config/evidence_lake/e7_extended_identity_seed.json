@@ -1,0 +1,94 @@
+{
+  "schema_version": "spacegate.extended_identity_seed_policy.v1",
+  "policy_version": "2026-07-22.e7-extended-identity.1",
+  "compiler_version": "e7_extended_identity_seed_compiler_v1",
+  "scientific_authority": false,
+  "migration_source_build_id": "20260717T0614Z_f452835_side",
+  "migration_source_core_sha256": "2d792e1912d7bd93ad4ebea8e2515381052d2c5d0dfda1388f0ecc4086558e5b",
+  "tables": {
+    "extended_identity_nodes": {
+      "source_table": "extended_objects",
+      "columns": [
+        "extended_object_id",
+        "stable_object_key",
+        "canonical_name",
+        "display_name",
+        "entity_kind",
+        "object_family",
+        "object_type",
+        "type_policy_version"
+      ],
+      "order_by": ["extended_object_id"]
+    },
+    "extended_object_aliases": {
+      "source_table": "extended_object_aliases",
+      "columns": [
+        "extended_object_alias_id",
+        "extended_object_id",
+        "alias_raw",
+        "alias_norm",
+        "alias_kind",
+        "alias_priority",
+        "source_catalog",
+        "source_record_key"
+      ],
+      "order_by": ["extended_object_alias_id"]
+    },
+    "extended_object_identifiers": {
+      "source_table": "extended_object_identifiers",
+      "columns": [
+        "extended_object_identifier_id",
+        "extended_object_id",
+        "namespace",
+        "id_value_raw",
+        "id_value_norm",
+        "source_catalog",
+        "source_record_key"
+      ],
+      "order_by": ["extended_object_identifier_id"]
+    },
+    "extended_object_reconciliation": {
+      "source_table": "extended_object_source_reconciliation",
+      "columns": [
+        "extended_object_reconciliation_id",
+        "source_record_key",
+        "extended_object_id",
+        "outcome",
+        "reason"
+      ],
+      "order_by": ["extended_object_reconciliation_id"]
+    },
+    "extended_object_identity_quarantine": {
+      "source_table": "extended_object_identity_quarantine",
+      "columns": [
+        "extended_object_quarantine_id",
+        "source_record_key",
+        "reason",
+        "details_json"
+      ],
+      "order_by": ["extended_object_quarantine_id"]
+    }
+  },
+  "prohibited_scientific_columns": [
+    "ra_deg",
+    "dec_deg",
+    "shape_kind",
+    "major_axis_arcmin",
+    "minor_axis_arcmin",
+    "position_angle_deg",
+    "dist_pc",
+    "dist_ly",
+    "distance_low_pc",
+    "distance_high_pc",
+    "x_helio_ly",
+    "y_helio_ly",
+    "z_helio_ly"
+  ],
+  "rules": {
+    "future_clean_build_reads_migration_core": false,
+    "preserve_numeric_object_ids": true,
+    "preserve_reconciliation_outcomes": true,
+    "scientific_geometry_or_distance_allowed": false,
+    "every_alias_and_identifier_requires_identity_node": true
+  }
+}

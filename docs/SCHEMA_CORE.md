@@ -935,6 +935,14 @@ Expected columns:
 `extended_objects` is the canonical serving projection for non-stellar catalog
 objects. Its identity is separate from `systems`, `stars`, and `planets`.
 
+Evidence Lake v2 also separates permanent extended-object identity from
+selected geometry and distance. Seed `555fa1890943b97dd0e4ef3d` preserves
+numeric IDs, stable keys, name/type scope, aliases, identifiers,
+reconciliation outcomes, and quarantine decisions only. Its policy prohibits
+coordinates, angular geometry, distance, and Cartesian placement. A clean
+serving projection must join that identity seed to accepted selected evidence;
+the migration seed is never scientific authority.
+
 Key columns:
 
 - identity: `extended_object_id`, `stable_object_key`, `canonical_name`,

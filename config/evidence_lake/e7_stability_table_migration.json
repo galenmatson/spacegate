@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.4",
+  "contract_version": "2026-07-22.e7-stability-table-migration.5",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -51,14 +51,21 @@
           "tables": [
             "compact_objects",
             "eclipsing_binaries",
-            "extended_object_aliases",
-            "extended_object_identifiers",
-            "extended_object_identity_quarantine",
-            "extended_object_source_reconciliation",
             "extended_objects",
             "open_cluster_memberships",
             "open_clusters",
             "superstellar_objects"
+          ]
+        },
+        {
+          "group_id": "core.extended_object_identity",
+          "disposition": "verified_artifact",
+          "replacement": "Permanent extended-object identity seed 555fa1890943b97dd0e4ef3d preserves numeric IDs, aliases, identifiers, reconciliation outcomes, and quarantine decisions without geometry or distance",
+          "tables": [
+            "extended_object_aliases",
+            "extended_object_identifiers",
+            "extended_object_identity_quarantine",
+            "extended_object_source_reconciliation"
           ]
         },
         {

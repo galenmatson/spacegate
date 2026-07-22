@@ -1985,9 +1985,9 @@ step.
 
 Machine contract `config/evidence_lake/e7_stability_table_migration.json`
 accounts every table in stability CORE, ARM, hierarchy, and DISC exactly once.
-The audit passes all 74 tables with exact database checksums: six table owners
+The audit passes all 74 tables with exact database checksums: ten table owners
 are verified artifacts, eight empty compatibility tables are safe to omit, and
-60 clean compiler or compatibility replacements remain open. Passing this audit
+56 clean compiler or compatibility replacements remain open. Passing this audit
 means the migration inventory is complete; it does not authorize the clean
 compiler to read stability databases or imply cutover completion.
 
@@ -2083,6 +2083,22 @@ All ten canonical Parquet products reproduce byte-for-byte and the DuckDB
 container passes logical verification. Runtime/API consumer cutover remains
 open, so this checkpoint replaces an evidence projection but does not change
 served responses or retire the legacy collector yet.
+
+## E7 Permanent Extended-Object Identity
+
+Extended objects require the same separation between permanent identity and
+selected science as stars. Seed `555fa1890943b97dd0e4ef3d` therefore extracts
+only stable numeric IDs, stable keys, display/name scope, aliases, identifiers,
+source reconciliation outcomes, and quarantine decisions from the pinned
+stability CORE. It contains 18,277 identity nodes, 71,855 aliases, 16,726
+identifiers, 21,339 reconciliation rows, and 404 quarantine rows.
+
+The seed is explicitly not scientific authority and its policy prohibits sky
+coordinates, angular geometry, distance, and Cartesian placement. All five
+Parquet products reproduce byte-for-byte and independently verify without
+orphans or duplicate IDs/keys. A subsequent clean compiler must obtain extended
+object geometry and distance from the accepted E5 evidence projection, never
+from this migration seed or the stability database.
 
 ## Hard Gates
 
