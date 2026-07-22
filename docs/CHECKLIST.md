@@ -1771,9 +1771,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   relations, project 70 accepted orbital solutions, 35 minor bodies, and 11
   artificial objects, preserve three period-null hyperbolic trajectories, and
   pass independent audit plus isolated logical reproduction
+- [x] E7 cross-source stellar orbit selection: compile artifact
+  `80099350ba26465252053885` from the audited component-scope projection;
+  preserve 17,170 coherent MSC/ORB6/SB9/DEBCat solutions on 11,250 exact MSC
+  relations, select 3,292 complete visual solutions for simulation, keep
+  spectroscopic and eclipsing evidence as context, defer SBX/Gaia NSS/TESS EB
+  until their required identity or relation adjudication exists, and pass
+  independent audit plus byte-exact clean reproduction
 - [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
-  and TESS candidate compatibility without relation-to-containment promotion or
-  independent scientific fallback logic
+  including release-scoped endpoint bridging, and TESS candidate compatibility
+  without relation-to-containment promotion or independent scientific fallback
+  logic
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or

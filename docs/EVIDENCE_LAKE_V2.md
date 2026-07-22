@@ -2185,6 +2185,29 @@ signature with no differing tables and removes scratch. The accepted compile is
 graph extension, and runtime projection total 0.48 seconds. Cross-source stellar
 orbit authority and TESS candidate compatibility remain explicit ARM work.
 
+Stellar-orbit selector `80099350ba26465252053885` establishes the former
+authority boundary before ARM integration. It consumes audited component-scope
+artifact `67fea5f99500b57419ebdeb0` and preserves 17,170 coherent eligible
+solutions on 11,250 exact MSC endpoint relations: 14,939 MSC, 1,159 ORB6, 1,052
+SB9, and 20 DEBCat. It never constructs a field-wise cross-source orbit.
+
+Authority is applicability-specific. For simulation geometry, a complete ORB6
+published visual solution precedes a complete MSC compiled visual solution,
+with source quality and observation recency used only within the ORB6 family.
+Exactly 3,292 relations receive one preferred coherent simulation set. SB9
+spectroscopic dynamics, DEBCat eclipsing periods, and MSC elementary
+period/separation records remain inspectable context and alternatives. Raw
+parameter JSON, evidence identity, release, method, model, reference, quality,
+normalization, and selected normalized values remain together.
+
+The selector explicitly defers 3,043 endpoint-resolved SBX solutions until
+release-scoped components receive permanent identity, 56,617 Gaia NSS solutions
+until physical relations are adjudicated, and 2,228 TESS EB timing solutions
+until physical endpoints exist. Context-only evidence cannot create a runtime
+edge, synthetic companion, or containment. The 0.86-second compile passes a
+0.35-second independent audit and 1.18-second byte-exact isolated reproduction.
+ARM endpoint bridging and compatibility projection remain subsequent work.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

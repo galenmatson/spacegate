@@ -2562,6 +2562,19 @@ Pre-promotion planning checkpoint (July 22, 2026):
   projection total only 0.48 seconds; unchanged selected-stellar table copies
   remain the critical path. Cross-source orbit authority and TESS compatibility
   remain open
+- stellar-orbit runtime selector `80099350ba26465252053885` replaces the idea
+  of one global orbit-catalog ranking with applicability-specific roles. It
+  preserves 14,939 eligible MSC, 1,159 ORB6, 1,052 SB9, and 20 DEBCat coherent
+  solutions on 11,250 exact MSC relations. ORB6 visual geometry precedes MSC
+  compiled visual geometry only for simulation; 3,292 complete coherent visual
+  sets receive one preferred pointer. SB9 spectroscopy, DEBCat eclipsing
+  periods, and MSC relation periods remain context rather than being field-wise
+  combined into synthetic solutions
+- the same selector explicitly defers 3,043 SBX solutions pending permanent
+  component identity, 56,617 Gaia NSS solutions pending physical-relation
+  adjudication, and 2,228 TESS EB timing solutions pending physical endpoints.
+  It creates no containment or runtime edge. Compile, independent audit, and
+  byte-exact isolated reproduction complete in less than 1.2 seconds
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

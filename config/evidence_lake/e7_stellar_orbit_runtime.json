@@ -1,0 +1,46 @@
+{
+  "schema_version": "spacegate.e7_stellar_orbit_runtime_policy.v1",
+  "policy_version": "2026-07-22.e7-stellar-orbit-runtime.1",
+  "compiler_version": "e7_stellar_orbit_runtime_compiler_v1",
+  "input": {
+    "build_id": "67fea5f99500b57419ebdeb0",
+    "relative_path": "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0",
+    "manifest_sha256": "2e51b20b63351c4312947b592d9b5a147254c4bcdee35db130191be0e20204df",
+    "database_sha256": "dfbe081f2a5a024d31110276c3d6180349829e4502492829d13ddc180649116a"
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "source_relations_create_containment": false,
+    "fieldwise_cross_source_composites": false,
+    "simulation_requires_coherent_visual_solution": true,
+    "casefold_component_identity_without_uniqueness": false,
+    "context_only_solutions_create_runtime_edges": false
+  },
+  "source_roles": {
+    "orb6": "published_visual_geometry",
+    "msc_orb": "compiled_visual_geometry_fallback",
+    "msc_sys": "relation_period_or_separation_context",
+    "sb9": "spectroscopic_dynamics_context",
+    "debcat": "eclipsing_binary_period_context",
+    "sbx": "deferred_pending_permanent_component_identity",
+    "gaia_nss": "deferred_pending_relation_adjudication",
+    "tess_eb": "deferred_pending_relation_adjudication"
+  },
+  "simulation_authority": [
+    "orb6",
+    "msc_orb"
+  ],
+  "acceptance": {
+    "selected_relations": 11250,
+    "selected_solutions": 17170,
+    "msc_solutions": 14939,
+    "orb6_solutions": 1159,
+    "sb9_solutions": 1052,
+    "debcat_solutions": 20,
+    "preferred_simulation_solutions": 3292,
+    "deferred_sbx_solutions": 3043,
+    "deferred_gaia_nss_solutions": 56617,
+    "deferred_tess_eb_solutions": 2228,
+    "canonical_containment_promotions": 0
+  }
+}

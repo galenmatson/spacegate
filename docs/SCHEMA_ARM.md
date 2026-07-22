@@ -627,6 +627,10 @@ Columns:
 
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
+- orbit authority is applicability-specific, never one global source ranking.
+  A simulation preference must point to one coherent source solution. Visual,
+  spectroscopic, eclipsing, and observation-target contexts remain distinct;
+  their fields may not be silently combined into a synthetic solution.
 - planet, moon, binary, and artificial-object orbital solutions all follow the
   same evidence-preserving table contract. MSC `orb.tsv` rows are normalized as
   `solution_source_catalog='msc'` with period, angular semi-major axis,
@@ -642,6 +646,10 @@ Rule:
 - Sol authority planet orbital values are materialized as
   `normalization_method='source_native_planet_orbit'`.
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
+- SBX component solutions require permanent release-scoped endpoint identity
+  before ARM projection. Gaia NSS and TESS EB observation-target solutions
+  require physical-relation adjudication. Exact system scope alone is not
+  sufficient to manufacture companions or runtime edges.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
 - Projected-separation support values computed from angular separation and

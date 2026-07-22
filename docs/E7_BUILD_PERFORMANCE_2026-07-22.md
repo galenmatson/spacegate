@@ -104,6 +104,12 @@ separately because its policy distinction between periodic, hyperbolic, and
 reference-origin solutions is scientifically material even though its runtime is
 negligible.
 
+Cross-source stellar-orbit selection build `80099350ba26465252053885` takes
+0.86 seconds and peaks at 620,504 KiB RSS. Independent audit takes 0.35 seconds;
+compile, audit, byte-exact product comparison, report handling, and scratch
+cleanup take 1.18 seconds. Keeping authority selection in this compact artifact
+allows policy iteration without paying the 2.5-minute ARM assembly cost.
+
 Clean Solar ARM v2 build `376285dd79d73a52972d74fd` completes in 148.73 seconds
 of internal wall time and 2:28.91 under GNU `time -v`. It uses 430.19 CPU-seconds,
 peaks at 47,150,292 KiB RSS without swap, and writes a 13,716,172,800-byte

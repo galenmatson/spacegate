@@ -3688,6 +3688,26 @@ Representative commits:
   surfaces remains the dominant build-time cost and is now an explicit
   optimization target rather than a reason to weaken scientific verification.
 
+### 140) Orbit Authority Depends on the Scientific Use
+
+- Selector `80099350ba26465252053885` preserves 17,170 coherent eligible orbit
+  solutions on 11,250 exact MSC endpoint relations. It does not create one
+  global catalog rank or select individual fields across sources.
+- ORB6 published visual geometry precedes MSC compiled visual geometry only for
+  simulation. Exactly 3,292 relations have one complete preferred visual set.
+  SB9 spectroscopic dynamics, DEBCat eclipsing periods, and MSC elementary
+  relation periods remain context and alternatives.
+- The selector carries raw parameter sets and exact evidence/release lineage
+  alongside normalized values. No relation becomes containment and no
+  context-only solution becomes a runtime edge.
+- The artifact records why 3,043 SBX, 56,617 Gaia NSS, and 2,228 TESS EB
+  solutions remain deferred: permanent component identity or physical-relation
+  adjudication is missing. System scope is not treated as physical endpoint
+  identity.
+- Compilation takes 0.86 seconds, independent audit 0.35 seconds, and isolated
+  byte-exact reproduction 1.18 seconds. This inexpensive selected artifact can
+  be iterated independently before another 2.5-minute ARM assembly.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -776,6 +776,16 @@ reference context remains evidence-only. All component endpoints resolve, no
 source relation becomes canonical containment, and isolated logical reproduction
 passes.
 
+Cross-source stellar-orbit artifact `80099350ba26465252053885` consumes the
+audited E5 component-scope product without reading a stability database. ORB6
+is authoritative for complete published visual geometry, with MSC compiled
+visual solutions as the simulation fallback. SB9 spectroscopic solutions,
+DEBCat eclipsing periods, and MSC elementary relation periods remain coherent
+context rather than donating individual fields to a composite. The artifact
+accounts 17,170 eligible solutions and selects one complete visual set for
+3,292 of 11,250 exact endpoint relations. SBX, Gaia NSS, and TESS EB deferrals
+remain machine-readable and create no runtime relation or containment.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)
