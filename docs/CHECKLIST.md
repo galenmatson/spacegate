@@ -1704,7 +1704,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
-- [x] E7 completion audit checkpoint: verify 68 pinned reports/artifacts with no
+- [x] E7 completion audit checkpoint: verify 85 pinned reports/artifacts with no
   failures and expose six open or blocked gates without treating the stability-
   database-backed v7 candidate as a clean authoritative compiler
 - [x] E7 permanent identity seed: export 11,759,440 nodes and 5,886,947

@@ -35,7 +35,7 @@ Machine contracts:
 - `scripts/verify_selected_system_placements.py`
 - `scripts/verify_selected_system_placement_reproduction.py`
 
-The current completion audit passes all 68 pinned checkpoint checks and reports
+The current completion audit passes all 85 pinned checkpoint checks and reports
 `incomplete`. Its six explicit gates are the clean pinned-input authoritative
 entrypoint, shared selected-fact consumer cutover, operator scientific A/B
 acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,

@@ -1884,7 +1884,7 @@ The executable pre-promotion plan is documented in
 `e7_legacy_path_inventory.json`, `gaia_dr4_adapter_plan.json`, and
 `e0_e7_acceptance.json` are verified by `scripts/verify_e7_cutover_plan.py` and
 `scripts/audit_evidence_lake_completion.py`. The completion audit distinguishes
-35 passing checkpoint checks from six open or blocked E7 gates. Permanent
+85 passing checkpoint checks from six open or blocked E7 gates. Permanent
 identity seed `5c878083872c738415971864` now preserves the exact hierarchy in
 two deterministic identity-only Parquet products without scientific scalar
 columns. The ledger

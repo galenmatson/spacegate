@@ -1197,13 +1197,14 @@ July 17, 2026 catalog-wide follow-up:
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
-registered E3 acquisition completed July 20, 2026; accepted E4 release set is
-pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
+registered E3 acquisition completed July 20, 2026; accepted E4 release set v5 is
+pinned; E5 selected-fact v16, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
-production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 52 checkpoint checks and
-reports six open E7 gates rather than declaring the compiler cut over.
+production-equivalent tile/browser evidence pass. Clean runtime CORE v2 is
+independently verified and reproduced; E7 operator review remains in progress.
+The fail-closed completion audit passes 85 checkpoint checks and reports six
+open E7 gates rather than declaring the compiler cut over.
 
 Goal:
 
@@ -2445,7 +2446,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 68 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 85 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing

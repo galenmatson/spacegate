@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.13",
+  "contract_version": "2026-07-22.e0-e7-acceptance.14",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -28,6 +28,16 @@
       "stage": "E1",
       "path": "e1_targeted_wise_reproduction.json",
       "expect": {"status": "pass", "source_count": 2, "clean_temporary_root_removed": true}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_iau_2015_resolution_b3_cook.json",
+      "expect": {"status": "pass", "source_count": 1, "typed_table_count": 1, "typed_row_count": 12, "incomplete_table_count": 0}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_iau_2015_resolution_b3_verify.json",
+      "expect": {"status": "pass"}
     },
     {
       "stage": "E2",
@@ -75,6 +85,21 @@
       "expect": {"status": "pass", "release_set_id": "e3d7795d5584a8bb51163f95", "adapter_source_count": 39, "artifact_count": 37}
     },
     {
+      "stage": "E4",
+      "path": "e4_iau_2015_resolution_b3_report.json",
+      "expect": {"status": "pass", "build_id": "74972d83b964ccf0dc06641c"}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_iau_2015_resolution_b3_audit.json",
+      "expect": {"status": "pass", "build_id": "74972d83b964ccf0dc06641c"}
+    },
+    {
+      "stage": "E4",
+      "path": "e4_accepted_release_set.json",
+      "expect": {"status": "pass", "release_set_id": "5a1ccc6c67d9a27d4aeddc08", "adapter_source_count": 40, "artifact_count": 38}
+    },
+    {
       "stage": "E5",
       "path": "e5_selected_fact_v15_audit.json",
       "expect": {"status": "pass", "build_id": "fa4aaed18aebcffb8632d978"}
@@ -83,6 +108,16 @@
       "stage": "E5",
       "path": "e5_selected_fact_v15_reproduction.json",
       "expect": {"status": "pass", "build_id": "fa4aaed18aebcffb8632d978", "scratch_removed": true}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_fact_v16_audit.json",
+      "expect": {"status": "pass", "build_id": "33006bde9bedd1fb365238b5", "failing_checks": {}}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_fact_v16_reproduction.json",
+      "expect": {"status": "pass", "build_id": "33006bde9bedd1fb365238b5", "scratch_removed": true}
     },
     {
       "stage": "E5",
@@ -221,6 +256,31 @@
     },
     {
       "stage": "E7",
+      "path": "e7_clean_science_v2_verify.json",
+      "expect": {"status": "pass", "build_id": "7c27f1595c69278b8d55c9e4", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v2_reproduction.json",
+      "expect": {"status": "pass", "build_id": "7c27f1595c69278b8d55c9e4", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v2_ab.json",
+      "expect": {"status": "pass", "reference_build_id": "35eb29fa3b2a3ac518f5303a", "candidate_build_id": "7c27f1595c69278b8d55c9e4"}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v2_verify.json",
+      "expect": {"status": "pass", "build_id": "92da8d31dc0e7dbd4d4d70a5", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v2_reproduction.json",
+      "expect": {"status": "pass", "build_id": "92da8d31dc0e7dbd4d4d70a5", "scratch_removed": true, "differing_files": []}
+    },
+    {
+      "stage": "E7",
       "path": "e7_clean_wise_verification.json",
       "expect": {"status": "pass", "build_id": "ec8e218402c3a4a3b55b2811", "failing_checks": {}}
     },
@@ -273,12 +333,17 @@
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
     "derived/evidence_lake_v2/scientific_evidence/03a28284466d6821e8d5693e/manifest.json",
     "derived/evidence_lake_v2/scientific_evidence_sets/e3d7795d5584a8bb51163f95/manifest.json",
+    "derived/evidence_lake_v2/scientific_evidence/74972d83b964ccf0dc06641c/manifest.json",
+    "derived/evidence_lake_v2/scientific_evidence_sets/5a1ccc6c67d9a27d4aeddc08/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json",
     "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",
     "derived/evidence_lake_v2/extended_identity_seed/555fa1890943b97dd0e4ef3d/manifest.json",
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
     "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
+    "derived/evidence_lake_v2/selected_facts/33006bde9bedd1fb365238b5/manifest.json",
+    "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4/manifest.json",
+    "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5/manifest.json",
     "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json",
     "derived/evidence_lake_v2/clean_extended_objects/c203e4f451890660ec02086a/manifest.json",
     "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b/manifest.json"
@@ -288,7 +353,7 @@
       "gate_id": "clean_pinned_input_authoritative_entrypoint",
       "stage": "E7",
       "status": "open",
-      "reason": "Clean foundation 9c2d08086275ead386f71bf7, clean science 35eb29fa3b2a3ac518f5303a, clean WISE ec8e218402c3a4a3b55b2811, extended identity seed 555fa1890943b97dd0e4ef3d, and clean extended-object build c203e4f451890660ec02086a now replace permanent inventory/search/hierarchy, selected science, infrared evidence, extended identity, selected extended geometry, cluster distance, and relation-bound distance without stability science. Runtime compatibility consumers, the HD 97472 identity tail, serving/search cutover, final CORE/DISC metadata, hierarchy leaves, animation/barycenter surfaces, and public products remain open."
+      "reason": "Clean runtime CORE 92da8d31dc0e7dbd4d4d70a5 now composes clean foundation 9c2d08086275ead386f71bf7, solar-backed clean science 7c27f1595c69278b8d55c9e4, clean clusters 171d3096b5cd7ad5f53a016b, and clean extended objects c203e4f451890660ec02086a into the API-compatible CORE without opening stability databases. Clean WISE ec8e218402c3a4a3b55b2811 and extended identity seed 555fa1890943b97dd0e4ef3d remain separately verified. Serving/search cutover, final ARM/DISC metadata, hierarchy leaves, animation/barycenter surfaces, the HD 97472 identity tail, and rebuilt public products remain open."
     },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",
@@ -300,7 +365,7 @@
       "gate_id": "operator_scientific_ab_acceptance",
       "stage": "E7",
       "status": "awaiting_operator",
-      "reason": "The consolidated v7 scientific A/B report is complete but has not yet received explicit operator acceptance."
+      "reason": "The consolidated v7 scientific A/B report and the solar-backed v2 addendum are complete but have not yet received explicit operator acceptance. The addendum changes exactly one selected value: the Sun gains the official IAU effective temperature 5772 +/- 0.8 K; all other scientific projections are unchanged, while global-policy-version fact identity causes documented lineage-ID churn."
     },
     {
       "gate_id": "local_atomic_promotion_rollback_repromotion",

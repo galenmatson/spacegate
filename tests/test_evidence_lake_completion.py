@@ -17,7 +17,7 @@ def test_checked_in_completion_contract_reports_verified_but_incomplete() -> Non
     assert report["verified_checkpoint_status"] == "pass"
     assert report["completion_status"] == "incomplete"
     assert report["failing_checks"] == []
-    assert report["check_count"] == 68
+    assert report["check_count"] == 85
     assert report["open_gate_count"] == 6
 
 
