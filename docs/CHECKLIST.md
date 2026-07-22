@@ -1621,12 +1621,36 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   winners removed plus 13 object-owned collision winners restored; cleanly
   reproduce all 103 phases and logical hash
   `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
-- [ ] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
+- [x] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
   clean E5 reproduction plus E6 shadow rebuild with the host and GSP-Phot
-  policies, then
-  account for the legacy temperature/mass/radius/luminosity tail as selected,
-  superseded coherent lower-authority alternatives, or genuine unresolved
-  gaps without constructing incompatible per-field composites
+  policies, then account for the legacy temperature/mass/radius/luminosity
+  tail as selected, superseded coherent lower-authority alternatives, or
+  genuine unresolved gaps without constructing incompatible per-field
+  composites
+- [x] E5 MSC case-scope checkpoint: preserve exact case for physical component
+  identity, distinguish subsystem `AB` from star `Ab`, eliminate 238 case-fold
+  collision groups, fail on duplicate accepted WDS/source-label keys, and pass
+  independent audit plus clean reproduction as component artifact
+  `67fea5f99500b57419ebdeb0` without a named-system transform
+- [x] E6 corrected v6 shadow checkpoint: compile selected-fact v15 and
+  component-scope v9 as `e6_cfcdf2d9add2cd7e2b96af68_shadow`; pass all 194
+  independent checks, clean logical reproduction, selected-consumer A/B,
+  parameter-loss accounting, and coolness A/B
+- [x] E6 corrected public/map checkpoint: preserve all 5,869,091 public systems
+  in `e6_cfcdf2d9add2cd7e2b96af68_public` and pass exact 100/250/500/1,000-ly
+  coverage, checksum, name, representative, and badge verification with zero
+  missing or extra systems
+- [x] E6 simulation-cache performance checkpoint: measure the same 1,000-system
+  priority selection cold and warm; retain separate machine reports; account
+  1,000 generated scenes with zero failures in 22:31.97 and 1,000 reused scenes
+  in 1.86 seconds; identify repeated scene assembly as the bottleneck
+- [x] E6 corrected API/search checkpoint: pass focused tests, direct alias
+  materialization, complete API integration, and the strict twelve-system
+  search/detail/hierarchy/simulation benchmark against the unpromoted v6 public
+  build with no stale-slice or preview warnings
+- [x] E6 map determinism checkpoint: rebuild all four public radii in isolated
+  USB scratch with identical inputs, match every manifest hash exactly, retain
+  the machine comparison, and remove scratch
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports

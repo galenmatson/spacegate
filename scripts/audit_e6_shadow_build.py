@@ -53,6 +53,7 @@ def audit_build(
     core = build_dir / "core.duckdb"
     arm = build_dir / "arm.duckdb"
     hierarchy = build_dir / "canonical_hierarchy.duckdb"
+    disc = build_dir / "disc.duckdb"
     con = duckdb.connect()
     try:
         con.execute(f"ATTACH {compiler.sql_literal(str(core))} AS core (READ_ONLY)")
@@ -61,6 +62,7 @@ def audit_build(
         )
         con.execute(f"ATTACH {compiler.sql_literal(str(arm))} AS arm (READ_ONLY)")
         con.execute(f"ATTACH {compiler.sql_literal(str(hierarchy))} AS hierarchy (READ_ONLY)")
+        con.execute(f"ATTACH {compiler.sql_literal(str(disc))} AS disc (READ_ONLY)")
         con.execute(
             f"ATTACH {compiler.sql_literal(str(base_dir / 'canonical_hierarchy.duckdb'))} "
             "AS base_hierarchy (READ_ONLY)"
@@ -234,6 +236,52 @@ def audit_build(
         } else 0
         failures["planet_lifecycle_inventory_mutations"] = lifecycle_inventory_mutations
 
+        coolness_policy = policy["coolness_profile"]
+        coolness = {
+            "rows": scalar(con, "SELECT count(*) FROM disc.coolness_scores"),
+            "expected_rows": scalar(con, "SELECT count(*) FROM core.systems"),
+            "duplicate_systems": scalar(
+                con,
+                "SELECT count(*)-count(DISTINCT system_id) FROM disc.coolness_scores",
+            ),
+            "wrong_build": scalar(
+                con,
+                f"SELECT count(*) FROM disc.coolness_scores WHERE build_id<>"
+                f"{compiler.sql_literal(build_id)}",
+            ),
+            "wrong_profile": scalar(
+                con,
+                "SELECT count(*) FROM disc.coolness_scores WHERE "
+                f"profile_id<>{compiler.sql_literal(coolness_policy['profile_id'])} OR "
+                f"profile_version<>{compiler.sql_literal(coolness_policy['profile_version'])}",
+            ),
+        }
+        disc_metadata = dict(
+            con.execute(
+                "SELECT key,value FROM disc.build_metadata WHERE key LIKE 'e6_coolness_%'"
+            ).fetchall()
+        )
+        failures["coolness_inventory_delta"] = abs(
+            coolness["rows"] - coolness["expected_rows"]
+        )
+        failures["coolness_duplicate_systems"] = coolness["duplicate_systems"]
+        failures["coolness_wrong_build"] = coolness["wrong_build"]
+        failures["coolness_wrong_profile"] = coolness["wrong_profile"]
+        failures["coolness_manifest_status"] = int(
+            (manifest["report"].get("coolness_report") or {}).get("status") != "pass"
+        )
+        failures["coolness_metadata_profile_id"] = int(
+            disc_metadata.get("e6_coolness_profile_id") != coolness_policy["profile_id"]
+        )
+        failures["coolness_metadata_profile_version"] = int(
+            disc_metadata.get("e6_coolness_profile_version")
+            != coolness_policy["profile_version"]
+        )
+        failures["coolness_metadata_profile_hash"] = int(
+            disc_metadata.get("e6_coolness_profile_hash")
+            != coolness_policy["profile_hash"]
+        )
+
         selected_consumer_report = manifest["report"].get("selected_consumer_report") or {}
         stellar_leaf_report = manifest["report"].get("stellar_leaf_report") or {}
         star_count = inventory["stars"]["after"]
@@ -318,6 +366,7 @@ def audit_build(
         "core_checks": core_checks,
         "official_aliases": aliases,
         "selected_consumers": consumer_counts,
+        "coolness": {**coolness, "metadata": disc_metadata},
         "checks": failures,
         "failing_checks": failing,
     }

@@ -1198,7 +1198,10 @@ July 17, 2026 catalog-wide follow-up:
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
 registered E3 acquisition completed July 20, 2026; accepted E4 release set is
-pinned and E5 policy compilation is in progress.
+pinned; E5 selected-fact v15 and component-scope v9 are accepted unserved
+artifacts. Corrected E6 v6 shadow, scientific A/B, reproduction, public slice,
+and map tiles pass; simulation/API/search/browser measurement and E7 operator
+review remain in progress.
 
 Goal:
 
@@ -2335,6 +2338,40 @@ Foundation checkpoint (July 22, 2026):
   build and 36.78-second independent audit pass without spill; isolated
   compile/audit/reproduction passes all eighteen logical table hashes in
   311.37 seconds
+- component-scope policy v9/compiler v9 corrects a general case-fold identity
+  defect: exact MSC labels such as subsystem `AB` and terminal component `Ab`
+  are distinct within one WDS system. It removes 238 collision groups covering
+  476 accepted entities, adds a zero-duplicate source-key gate, and passes
+  independent audit and clean Parquet reproduction as artifact
+  `67fea5f99500b57419ebdeb0`; no named-system transform is used
+- policy `2026-07-22.e6-shadow.6` and compiler v6 produce corrected unserved
+  candidate `e6_cfcdf2d9add2cd7e2b96af68_shadow` from selected-fact v15 and
+  component-scope v9. Its 3:29.60 compile, 194-check independent audit, 5:49.34
+  isolated reproduction, parameter-loss accounting, selected-consumer A/B,
+  and coolness A/B all pass
+- corrected public candidate `e6_cfcdf2d9add2cd7e2b96af68_public` preserves all
+  5,869,091 systems and passes public integrity. Its complete 100/250/500/1,000
+  ly tile set passes exact coverage, checksum, display-name, representative,
+  and badge verification with zero missing or extra systems. The public slice
+  takes 4:43.42 and tiles take 4:38.38; browser, promotion, and rollback
+  measurements remain open
+- the measured cold priority cache generates 1,000 simulation scenes with zero
+  failures in 22:31.97, consuming 18,378 CPU-seconds for only 10.7 MB of
+  compressed output; the identical warm run reuses all scenes in 1.86 seconds.
+  Broad prewarming should move out of the critical build path into the bounded
+  admin/runtime-cache action, with representative scene goldens retained for
+  build acceptance
+- focused verification passes 29/29 tests, the 1.03-million-term alias gate,
+  the complete API integration contract, and the strict twelve-system
+  search/detail/hierarchy/simulation benchmark against the unpromoted v6 public
+  build with no stale-slice or preview warnings
+- an isolated USB-backed map reproduction with the identical four-radius
+  publication contract completes in 4:38.14, matches every 100/250/500/1,000-ly
+  manifest hash exactly, and removes its 461-MiB scratch tree
+- the phase report ranks E5 program-level incremental compilation, a proven
+  public-slice identity fast path, and deterministic parallel tile encoding as
+  the first optimization targets. Details and acceptance constraints are in
+  `docs/E6_BUILD_PERFORMANCE_2026-07-22.md`
 
 Deliverables:
 

@@ -145,6 +145,12 @@ Planned extension columns:
 
 Note:
 - The two planned columns above are not currently emitted by `scripts/score_coolness.py`.
+- Evidence Lake E6 materializes `coolness_scores` inside the immutable shadow
+  build. It prefers the shared selected stellar display classification and
+  selected `luminosity_log10_lsun` projection, falling back to legacy CORE
+  presentation values only when selected facts are absent. DISC build metadata
+  records the exact profile ID, version, and hash; map-tile manifests read this
+  build-pinned lineage rather than a later mutable active-profile pointer.
 - `nice_planet_count` is a presentation/prioritization signal, not a canonical
   habitability claim. It prefers source-native equilibrium temperature, then
   source-native insolation, then a lower-confidence stellar-class luminosity

@@ -507,12 +507,14 @@ schema-aware retention audit confirms that the WDS-complete successor and its
 rollback coverage are sufficient. Neither it nor the older
 `bbc7f0083646dfd5a602467b` is a manual deletion target.
 
-Combined E5 component artifact `f5358c0a0983958e5d4f76c5`, its compile and
+Combined E5 component artifact `67fea5f99500b57419ebdeb0`, its compile and
 clean-reproduction reports, independent audit, ordered Parquet projections,
-and source policies are protected E5/E6 inputs. It supersedes the current
-component role of `9e59131b92205068f7246a94`, but the older artifact remains a
-retention dry-run candidate rather than a manual deletion target until the
-schema-aware audit confirms rollback and report references.
+and source policies are protected current E6 inputs. Its policy-v8 predecessor
+`f5358c0a0983958e5d4f76c5` remains the component artifact pinned by the
+selected-fact-v15 source-disposition ledger and is therefore also protected.
+Policy-v7 artifact `9e59131b92205068f7246a94` is an older predecessor, but it
+remains a retention dry-run candidate rather than a manual deletion target
+until the schema-aware audit confirms rollback and report references.
 
 E5 cluster artifact `a6169c9ec351db81104e8518`, its ordered Parquet
 projections, compiler policy, compile and clean-reproduction reports, and
@@ -950,9 +952,15 @@ ordered Parquet files, manifest, independent audit, and clean-reproduction
 report. Never prune a DuckDB inspection database or individual Parquet member
 from a retained artifact.
 
-Artifact `9e59131b92205068f7246a94` is the protected checkpoint. It passes
-independent audit and clean reproduction across the combined seven-source
-component artifact, including exhaustive SBX, WDS, and Gaia NSS projections.
+Artifact `67fea5f99500b57419ebdeb0` is the protected current checkpoint. It
+passes independent audit and clean reproduction across the combined
+seven-source component artifact, including exhaustive SBX, WDS, and Gaia NSS
+projections and the case-significant MSC component-identity contract. Artifact
+`f5358c0a0983958e5d4f76c5` is its policy-v8 predecessor and remains protected
+by the selected-fact-v15 source-disposition ledger. Artifact
+`9e59131b92205068f7246a94` is the earlier policy-v7 predecessor and may enter a
+future exact-candidate dry-run only after all current config, build, report,
+process, and rollback protections pass.
 Its predecessors `33f2a90275378a35be21a704`,
 `079ac01403b8971e12c99228`, `7ae9b19a56212bfdc4f44d3b`,
 `bbc7f0083646dfd5a602467b`,
@@ -1013,10 +1021,12 @@ artifact.
 
 ## E6 Shadow Product Checkpoint
 
-Unserved shadow `out/e6_2da376053461c8220bee06ad_shadow`, its manifest,
-independent audit, reproduction report, E6 policy/compiler/auditor, stability
-reference, and all seven pinned E5 artifacts are protected E6 inputs. The
-shadow occupies approximately 18 GiB and is not a served/current build.
+Unserved shadow `out/e6_cfcdf2d9add2cd7e2b96af68_shadow`, corrected public
+candidate `out/e6_cfcdf2d9add2cd7e2b96af68_public`, their manifests, audits,
+reproduction and A/B reports, generated map/simulation artifacts, E6
+policy/compiler/auditor, stability reference, and all seven pinned E5 artifacts
+are protected E6 inputs. The shadow occupies approximately 18 GiB and is not a
+served/current build.
 Reproduction scratch is created on `/mnt/space/spacegate/e6-reproduction` and
 removed after the comparison, whether it passes or fails.
 
@@ -1050,6 +1060,15 @@ authorized removal of only the four listed superseded shadows and reclaimed
 68,429,119,488 allocated bytes. Retention audit reports are protected records,
 not dependencies on the retired artifacts; the tool tests this distinction to
 avoid a dry-run/apply self-reference loop. `/data` fell from 93% to 89% used.
+
+A later exact-candidate run used corrected v6 as the verified replacement and
+reclaimed three additional superseded unpromoted shadow directories under set
+hash `3e3f6120d03638cea5e58c410f4a8a61890211ad1b195311719ad0eaebb5cb0d`,
+recovering 55,580,577,792 allocated bytes. The immediately preceding v5 shadow
+and public candidate are now scientifically superseded by v6 but remain
+protected until their own reviewed dry-run can prove they are unserved,
+unreferenced, process-closed, and rollback-ineligible. Documentation does not
+authorize their manual deletion.
 
 ## WISE Image Cache
 

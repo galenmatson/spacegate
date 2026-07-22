@@ -88,3 +88,34 @@ def test_sliced_tess_projection_rejects_changed_identity() -> None:
             MODULE.verify_sliced_tess_projection(con)
     finally:
         con.close()
+
+
+def test_build_telemetry_emits_machine_readable_phase_metrics() -> None:
+    telemetry = MODULE.BuildTelemetry()
+    phase = telemetry.begin()
+    telemetry.end(
+        "test_phase",
+        phase,
+        output_bytes=123,
+        details={"rows": 7},
+    )
+
+    report = telemetry.report(source_build_id="source", slice_build_id="slice")
+
+    assert report["schema_version"] == "spacegate.public_slice_performance.v1"
+    assert report["status"] == "pass"
+    assert report["wall_seconds"] >= 0
+    assert report["cpu_seconds"] >= 0
+    assert report["peak_rss_kib"] > 0
+    assert report["phases"] == [
+        {
+            "name": "test_phase",
+            "wall_seconds": report["phases"][0]["wall_seconds"],
+            "cpu_seconds": report["phases"][0]["cpu_seconds"],
+            "peak_rss_kib": report["phases"][0]["peak_rss_kib"],
+            "input_blocks": report["phases"][0]["input_blocks"],
+            "output_blocks": report["phases"][0]["output_blocks"],
+            "output_bytes": 123,
+            "details": {"rows": 7},
+        }
+    ]

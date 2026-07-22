@@ -578,6 +578,7 @@ def build_scores(
     *,
     core_db_path: Path,
     disc_db_path: Path,
+    arm_db_path: Path | None = None,
     weights: dict[str, float],
     build_id: str,
     profile_id: str,
@@ -594,17 +595,43 @@ def build_scores(
     try:
         core_path_sql = str(core_db_path).replace("'", "''")
         con.execute(f"ATTACH '{core_path_sql}' AS core_db (READ_ONLY)")
+        class_expression = "s.spectral_class"
+        luminosity_expression = "NULL::DOUBLE"
+        selected_joins = ""
+        if arm_db_path is not None and arm_db_path.is_file():
+            arm_path_sql = str(arm_db_path).replace("'", "''")
+            con.execute(f"ATTACH '{arm_path_sql}' AS arm_db (READ_ONLY)")
+            arm_tables = {
+                str(row[0])
+                for row in con.execute(
+                    """
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_catalog='arm_db' AND table_schema='main'
+                    """
+                ).fetchall()
+            }
+            if "e6_selected_stellar_display_classifications" in arm_tables:
+                class_expression = "coalesce(display.classification_value,s.spectral_class)"
+                selected_joins += (
+                    " LEFT JOIN arm_db.e6_selected_stellar_display_classifications display "
+                    "USING (star_id)"
+                )
+            if "e6_selected_stellar_parameters" in arm_tables:
+                luminosity_expression = "selected.luminosity_log10_lsun"
+                selected_joins += (
+                    " LEFT JOIN arm_db.e6_selected_stellar_parameters selected USING (star_id)"
+                )
         con.execute(
-            """
+            f"""
 CREATE OR REPLACE TABLE coolness_scores AS
 WITH star_scored AS (
   SELECT
-    star_id,
-    system_id,
-    COALESCE(spectral_class, '?') AS spectral_class,
-    COALESCE(luminosity_class, '') AS luminosity_class,
-    LOWER(COALESCE(spectral_type_raw, '')) AS spectral_type_lc,
-    CASE COALESCE(spectral_class, '')
+    s.star_id,
+    s.system_id,
+    COALESCE({class_expression}, '?') AS spectral_class,
+    COALESCE(s.luminosity_class, '') AS luminosity_class,
+    LOWER(COALESCE(s.spectral_type_raw, '')) AS spectral_type_lc,
+    CASE COALESCE({class_expression}, '')
       WHEN 'O' THEN 1.00
       WHEN 'B' THEN 0.90
       WHEN 'A' THEN 0.80
@@ -617,20 +644,24 @@ WITH star_scored AS (
       WHEN 'Y' THEN 0.10
       ELSE 0.10
     END AS spectral_score,
-    SQRT(COALESCE(pm_ra_mas_yr, 0.0) * COALESCE(pm_ra_mas_yr, 0.0) +
-         COALESCE(pm_dec_mas_yr, 0.0) * COALESCE(pm_dec_mas_yr, 0.0)) AS pm_mas_yr,
+    SQRT(COALESCE(s.pm_ra_mas_yr, 0.0) * COALESCE(s.pm_ra_mas_yr, 0.0) +
+         COALESCE(s.pm_dec_mas_yr, 0.0) * COALESCE(s.pm_dec_mas_yr, 0.0)) AS pm_mas_yr,
     CASE
-      WHEN regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'pulsar|magnetar|neutron|white\\s*dwarf|\\bwd\\b|wolf\\s*rayet|\\bwr\\b') THEN 1.00
-      WHEN regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'pec|var|flare') THEN 0.80
-      WHEN COALESCE(luminosity_class, '') IN ('I', 'II', 'III', 'VII') THEN 0.70
-      WHEN COALESCE(spectral_class, '') IN ('O', 'B', 'L', 'T', 'Y') THEN 0.60
+      WHEN COALESCE({class_expression}, '') IN
+        ('WD','NS','PULSAR','MAGNETAR','BLACK HOLE','WR') THEN 1.00
+      WHEN regexp_matches(LOWER(COALESCE(s.spectral_type_raw, '')), 'pulsar|magnetar|neutron|white\\s*dwarf|\\bwd\\b|wolf\\s*rayet|\\bwr\\b') THEN 1.00
+      WHEN regexp_matches(LOWER(COALESCE(s.spectral_type_raw, '')), 'pec|var|flare') THEN 0.80
+      WHEN COALESCE(s.luminosity_class, '') IN ('I', 'II', 'III', 'VII') THEN 0.70
+      WHEN COALESCE({class_expression}, '') IN ('O', 'B', 'L', 'T', 'Y') THEN 0.60
       ELSE 0.00
     END AS star_exotic_raw,
     CASE
-      WHEN COALESCE(luminosity_class, '') IN ('', 'V')
-       AND NOT regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'giant|supergiant|\\biii\\b|\\bii\\b|\\biv\\b')
+      WHEN {luminosity_expression} IS NOT NULL
+      THEN pow(10.0,{luminosity_expression})
+      WHEN COALESCE(s.luminosity_class, '') IN ('', 'V')
+       AND NOT regexp_matches(LOWER(COALESCE(s.spectral_type_raw, '')), 'giant|supergiant|\\biii\\b|\\bii\\b|\\biv\\b')
       THEN
-        CASE COALESCE(spectral_class, '')
+        CASE COALESCE({class_expression}, '')
           WHEN 'O' THEN 30000.0
           WHEN 'B' THEN 1000.0
           WHEN 'A' THEN 20.0
@@ -642,15 +673,16 @@ WITH star_scored AS (
         END
       ELSE NULL
     END AS luminosity_proxy_lsun
-  FROM core_db.stars
-  WHERE system_id IS NOT NULL
+  FROM core_db.stars s
+  {selected_joins}
+  WHERE s.system_id IS NOT NULL
 ),
 star_features AS (
   SELECT
     system_id,
     COUNT(*)::BIGINT AS star_count,
     MAX(spectral_score) AS luminosity_feature,
-    AVG(pm_mas_yr) AS avg_pm_mas_yr,
+    SUM(pm_mas_yr ORDER BY star_id) / COUNT(*)::DOUBLE AS avg_pm_mas_yr,
     MAX(star_exotic_raw) AS exotic_star_feature
   FROM star_scored
   GROUP BY system_id
@@ -1146,6 +1178,9 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
     build_scores(
         core_db_path=core_db_path,
         disc_db_path=disc_db_path,
+        arm_db_path=(build_dir / "arm.duckdb")
+        if (build_dir / "arm.duckdb").is_file()
+        else None,
         weights=weights,
         build_id=build_id,
         profile_id=str(profile["profile_id"]),

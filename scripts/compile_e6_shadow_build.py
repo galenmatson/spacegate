@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import resource
 import shutil
 import tempfile
 import time
@@ -18,6 +19,7 @@ import duckdb
 
 import materialize_e6_selected_consumers as selected_consumers
 import materialize_stellar_leaf_classifications as leaf_classifications
+import score_coolness as coolness
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -102,23 +104,32 @@ class PhaseRecorder:
     def run(self, phase: str, operation: Any) -> Any:
         started = time.monotonic()
         cpu_started = time.process_time()
+        usage_started = resource.getrusage(resource.RUSAGE_SELF)
         try:
             result = operation()
         except Exception:
+            usage = resource.getrusage(resource.RUSAGE_SELF)
             self.phases.append(
                 {
                     "phase": phase,
                     "wall_seconds": round(time.monotonic() - started, 6),
                     "cpu_seconds": round(time.process_time() - cpu_started, 6),
+                    "peak_rss_kib": int(usage.ru_maxrss),
+                    "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+                    "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
                     "status": "fail",
                 }
             )
             raise
+        usage = resource.getrusage(resource.RUSAGE_SELF)
         self.phases.append(
             {
                 "phase": phase,
                 "wall_seconds": round(time.monotonic() - started, 6),
                 "cpu_seconds": round(time.process_time() - cpu_started, 6),
+                "peak_rss_kib": int(usage.ru_maxrss),
+                "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+                "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
                 "status": "pass",
             }
         )
@@ -178,6 +189,25 @@ def validate_policy(policy: dict[str, Any]) -> None:
     families = [str(row.get("family") or "") for row in policy.get("selected_artifacts") or []]
     if len(families) != len(set(families)) or "selected_facts" not in families:
         raise ValueError("E6 selected artifact families are missing or duplicated")
+    coolness_profile = policy.get("coolness_profile") or {}
+    weights = coolness.validate_weights(coolness_profile.get("weights") or {})
+    profile_id = str(coolness_profile.get("profile_id") or "")
+    profile_version = str(coolness_profile.get("profile_version") or "")
+    expected_profile_hash = coolness._profile_payload(
+        profile_id,
+        profile_version,
+        weights,
+        notes="validation",
+        created_by="validation",
+        created_at="1970-01-01T00:00:00Z",
+    )["profile_hash"]
+    if (
+        not profile_id
+        or not profile_version
+        or coolness_profile.get("profile_hash") != expected_profile_hash
+        or coolness_profile.get("weights_hash") != coolness._hash_weights(weights)
+    ):
+        raise ValueError("E6 coolness profile identity or hash is invalid")
     acceptance_modes = {
         "report_status_pass", "top_level_status_pass", "legacy_zero_verification"
     }
@@ -480,6 +510,53 @@ def set_key_value_metadata(
         con.close()
 
 
+def materialize_coolness_scores(
+    *, core_db: Path, disc_db: Path, build_id: str, profile: dict[str, Any]
+) -> dict[str, Any]:
+    weights = coolness.validate_weights(profile["weights"])
+    coolness.build_scores(
+        core_db_path=core_db,
+        disc_db_path=disc_db,
+        arm_db_path=disc_db.parent / "arm.duckdb",
+        weights=weights,
+        build_id=build_id,
+        profile_id=str(profile["profile_id"]),
+        profile_version=str(profile["profile_version"]),
+    )
+    con = duckdb.connect(str(disc_db), read_only=True)
+    try:
+        summary = con.execute(
+            """
+            SELECT count(*)::BIGINT,
+                   count(*) FILTER (WHERE planet_count>0)::BIGINT,
+                   count(*) FILTER (WHERE star_count>1)::BIGINT,
+                   min(score_total),max(score_total),
+                   sum(score_total ORDER BY system_id)/count(*)::DOUBLE
+            FROM coolness_scores
+            """
+        ).fetchone()
+    finally:
+        con.close()
+    return {
+        "status": "pass",
+        "profile_id": str(profile["profile_id"]),
+        "profile_version": str(profile["profile_version"]),
+        "profile_hash": str(profile["profile_hash"]),
+        "weights": weights,
+        "selected_fact_inputs": {
+            "display_classification": "e6_selected_stellar_display_classifications",
+            "luminosity": "e6_selected_stellar_parameters.luminosity_log10_lsun",
+            "fallback": "legacy CORE values only when selected values are absent",
+        },
+        "system_count": int(summary[0]),
+        "systems_with_planets": int(summary[1]),
+        "multi_star_systems": int(summary[2]),
+        "score_min": float(summary[3]) if summary[3] is not None else None,
+        "score_max": float(summary[4]) if summary[4] is not None else None,
+        "score_average": float(summary[5]) if summary[5] is not None else None,
+    }
+
+
 def compile_shadow_build(
     *,
     state: Path,
@@ -512,12 +589,14 @@ def compile_shadow_build(
     leaf_classification_compiler_sha = file_sha256(
         Path(leaf_classifications.__file__).resolve()
     )
+    coolness_compiler_sha = file_sha256(Path(coolness.__file__).resolve())
     policy_sha = file_sha256(policy_path)
     build_inputs = {
         "policy_sha256": policy_sha,
         "compiler_sha256": compiler_sha,
         "selected_consumer_compiler_sha256": selected_consumer_compiler_sha,
         "leaf_classification_compiler_sha256": leaf_classification_compiler_sha,
+        "coolness_compiler_sha256": coolness_compiler_sha,
         "stability_reference_build_id": base_id,
         "stability_reference_files": base_hashes,
         "selected_artifacts": {
@@ -716,6 +795,16 @@ def compile_shadow_build(
         if stellar_leaf_report.get("status") != "pass":
             raise ValueError("E6 stellar-leaf materialization failed")
 
+        coolness_report = recorder.run(
+            "materialize_coolness_scores",
+            lambda: materialize_coolness_scores(
+                core_db=shadow_core,
+                disc_db=staging / "disc.duckdb",
+                build_id=build_id,
+                profile=policy["coolness_profile"],
+            ),
+        )
+
         lineage_timestamp = max(
             str(row["manifest"].get("generated_at") or "") for row in inputs
         ) or "1970-01-01T00:00:00Z"
@@ -756,7 +845,16 @@ def compile_shadow_build(
                 staging / "disc.duckdb",
                 {
                     **metadata,
-                    "e6_disc_status": "carried_forward_pending_selected_fact_rescore",
+                    "e6_disc_status": "selected_fact_rescore_complete",
+                    "e6_coolness_profile_id": str(
+                        policy["coolness_profile"]["profile_id"]
+                    ),
+                    "e6_coolness_profile_version": str(
+                        policy["coolness_profile"]["profile_version"]
+                    ),
+                    "e6_coolness_profile_hash": str(
+                        policy["coolness_profile"]["profile_hash"]
+                    ),
                 },
             ),
         )
@@ -786,11 +884,12 @@ def compile_shadow_build(
             "official_name_alias_additions": alias_additions,
             "selected_consumer_report": selected_consumer_report,
             "stellar_leaf_report": stellar_leaf_report,
+            "coolness_report": coolness_report,
             "inventory_before": base_inventory,
             "inventory_after": shadow_inventory,
             "inventory_delta": inventory_delta,
             "hierarchy_status": "byte_copy_with_shadow_metadata_only",
-            "disc_status": "carried_forward_pending_selected_fact_rescore",
+            "disc_status": "selected_fact_rescore_complete",
             "public_slice_status": "pending",
             "map_simulation_api_status": "pending",
             "promotion_status": "unpromoted",

@@ -214,7 +214,9 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
                 s.star_id,
                 s.stable_object_key,
                 s.star_name as display_name,
-                lower(nullif(trim(s.component), '')) as catalog_component_label,
+                case when nullif(trim(s.component), '') is not null
+                  then upper(substr(trim(s.component), 1, 1)) || lower(substr(trim(s.component), 2))
+                end as catalog_component_label,
                 n.node_kind,
                 n.source_basis as hierarchy_source_basis,
                 s.spectral_type_raw as core_spectral_type_raw,
@@ -245,7 +247,10 @@ def materialize(*, core_db: Path, arm_db: Path, hierarchy_db: Path, build_id: st
                 cast(null as bigint) as star_id,
                 cast(null as varchar) as stable_object_key,
                 n.display_name,
-                split_part(n.hierarchy_node_key, ':', 5)::varchar as catalog_component_label,
+                (
+                  upper(substr(split_part(n.hierarchy_node_key, ':', 5), 1, 1))
+                  || lower(substr(split_part(n.hierarchy_node_key, ':', 5), 2))
+                )::varchar as catalog_component_label,
                 n.node_kind,
                 n.source_basis as hierarchy_source_basis,
                 cast(null as varchar) as core_spectral_type_raw,

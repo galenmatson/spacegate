@@ -7,7 +7,20 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_map_tiles import MAGIC, RECORD_STRUCT, cell_bounds, cell_index, encode_tile, morton3, tile_id
+import duckdb
+
+from scripts.build_map_tiles import (
+    MAGIC,
+    RECORD_STRUCT,
+    cell_bounds,
+    cell_index,
+    encode_tile,
+    morton3,
+    performance_delta,
+    performance_token,
+    read_profile,
+    tile_id,
+)
 from scripts.verify_map_tiles import read_tile
 
 
@@ -74,6 +87,65 @@ class MapTileContractTests(unittest.TestCase):
         header_length = struct.unpack_from("<I", raw, 8)[0]
         record = RECORD_STRUCT.unpack_from(raw, 12 + header_length)
         self.assertEqual(record[-1], 63)
+
+    def test_tile_profile_prefers_build_pinned_disc_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state"
+            active = state / "config/coolness_profiles/active.json"
+            active.parent.mkdir(parents=True)
+            active.write_text(
+                json.dumps(
+                    {
+                        "profile_id": "later",
+                        "profile_version": "2",
+                        "profile_hash": "later-hash",
+                    }
+                )
+            )
+            core = root / "core.duckdb"
+            disc = root / "disc.duckdb"
+            con = duckdb.connect(str(core))
+            con.execute("CREATE TABLE build_metadata(key VARCHAR,value VARCHAR)")
+            con.execute("INSERT INTO build_metadata VALUES ('build_id','test-build')")
+            con.close()
+            con = duckdb.connect(str(disc))
+            con.execute("CREATE TABLE build_metadata(key VARCHAR,value VARCHAR)")
+            con.execute(
+                "INSERT INTO build_metadata VALUES "
+                "('e6_coolness_profile_id','pinned'),"
+                "('e6_coolness_profile_version','1'),"
+                "('e6_coolness_profile_hash','pinned-hash')"
+            )
+            con.execute(
+                "CREATE TABLE coolness_scores(profile_id VARCHAR,profile_version VARCHAR)"
+            )
+            con.execute("INSERT INTO coolness_scores VALUES ('pinned','1')")
+            con.close()
+            con = duckdb.connect(str(core), read_only=True)
+            con.execute(f"ATTACH '{disc}' AS disc_db (READ_ONLY)")
+            try:
+                profile = read_profile(state, con)
+            finally:
+                con.close()
+        self.assertEqual(profile["profile_id"], "pinned")
+        self.assertEqual(profile["profile_version"], "1")
+        self.assertEqual(profile["profile_hash"], "pinned-hash")
+
+    def test_performance_phase_includes_resource_and_output_accounting(self) -> None:
+        token = performance_token()
+        phase = performance_delta(
+            "radius_100_tiles",
+            token,
+            output_bytes=42,
+            details={"radius_ly": 100},
+        )
+        self.assertEqual(phase["name"], "radius_100_tiles")
+        self.assertGreaterEqual(phase["wall_seconds"], 0)
+        self.assertGreaterEqual(phase["cpu_seconds"], 0)
+        self.assertGreater(phase["peak_rss_kib"], 0)
+        self.assertEqual(phase["output_bytes"], 42)
+        self.assertEqual(phase["details"], {"radius_ly": 100})
 
 
 if __name__ == "__main__":

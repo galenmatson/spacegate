@@ -70,7 +70,7 @@ def logical_product_hashes(build_dir: Path, scratch: Path) -> dict[str, dict[str
             "stellar_leaf_display_classifications",
         ],
         "canonical_hierarchy.duckdb": ["build_metadata"],
-        "disc.duckdb": ["build_metadata"],
+        "disc.duckdb": ["build_metadata", "coolness_scores"],
     }
     return {
         f"{database}:{table}": table_logical_hash(
@@ -209,6 +209,46 @@ def verify_reproduction(
                         "classification_conflicts",
                         "duplicate_leaf_keys",
                         "invalid_rows",
+                    )
+                }
+            ),
+            "coolness_report_match": int(
+                {
+                    key: reproduced_manifest["report"]
+                    .get("coolness_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "profile_id",
+                        "profile_version",
+                        "profile_hash",
+                        "weights",
+                        "selected_fact_inputs",
+                        "system_count",
+                        "systems_with_planets",
+                        "multi_star_systems",
+                        "score_min",
+                        "score_max",
+                        "score_average",
+                    )
+                }
+                != {
+                    key: reference_manifest["report"]
+                    .get("coolness_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "profile_id",
+                        "profile_version",
+                        "profile_hash",
+                        "weights",
+                        "selected_fact_inputs",
+                        "system_count",
+                        "systems_with_planets",
+                        "multi_star_systems",
+                        "score_min",
+                        "score_max",
+                        "score_average",
                     )
                 }
             ),

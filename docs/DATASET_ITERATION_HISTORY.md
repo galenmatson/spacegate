@@ -3235,6 +3235,28 @@ Representative commits:
   mutated logical table hashes. The USB reproduction staging tree is removed
   automatically after the gate.
 
+### 119) Component Labels Are Case-Significant Physical Scope
+
+- The E6 map golden exposed a third A-class Castor component, but the defect was
+  not Castor-specific. E5 had lowercased MSC component labels when constructing
+  release-scoped identity keys, collapsing subsystem labels such as `AB` with
+  terminal stars such as `Ab`.
+- The full artifact contained 238 case-fold collision groups covering 476
+  accepted component entities. Of 9,162 inferred hierarchy leaves, 231 could
+  bind multiple source entities and 41 could see multiple classifications.
+- Component policy v9/compiler v9 preserves exact case for MSC physical
+  identity and adds a zero-duplicate accepted WDS/source-label gate. Canonical
+  terminal labels normalize to their source-native terminal form. Cross-table
+  orbit/reference notation may case-fold only when exactly one compatible
+  relation exists and ambiguity accounting passes.
+- Corrected component artifact `67fea5f99500b57419ebdeb0` compiles in 24.76
+  seconds, passes independent audit, and reproduces byte-identical ordered
+  Parquet files in 24.72 seconds. Corrected E6 shadow
+  `e6_cfcdf2d9add2cd7e2b96af68_shadow` then passes all 194 independent checks,
+  clean logical reproduction, scientific A/B, and exact map coverage at 100,
+  250, 500, and 1,000 ly. The production transform contains no named-system,
+  display-name, or benchmark-identifier condition.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

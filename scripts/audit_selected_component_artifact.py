@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v8"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v9"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -67,6 +67,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
         "duplicate_msc_component_entity_ids": "SELECT count(*)-count(DISTINCT component_entity_id) FROM msc_component_entities",
+        "duplicate_accepted_msc_source_component_keys": "SELECT count(*)-count(DISTINCT source_component_key) FROM msc_component_entities WHERE binding_status='accepted'",
         "duplicate_msc_relation_projection_ids": "SELECT count(*)-count(DISTINCT projected_relation_id) FROM msc_relation_evidence_projection",
         "duplicate_debcat_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM debcat_system_bindings",
         "duplicate_debcat_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM debcat_relation_bindings",

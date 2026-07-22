@@ -349,11 +349,11 @@ def compile_msc(
         INSERT INTO msc_component_entities
         SELECT sha256(concat_ws('|',{source_id},{release_id},s.source_component_raw,{policy_sql})),
                {source_id},{release_id},{evidence_build_id},s.source_component_raw,
-               s.wds_id_raw,s.component_label_raw,lower(s.component_label_raw),
+               s.wds_id_raw,s.component_label_raw,trim(s.component_label_raw),
                b.system_binding_id,b.canonical_system_stable_object_key,
                CASE WHEN b.binding_status='accepted'
                           AND regexp_full_match(trim(s.source_component_raw),'[^:]+:[^:]+')
-                    THEN concat_ws(':','comp','msc',{release_id},lower(s.wds_id_raw),lower(s.component_label_raw)) END,
+                    THEN concat_ws(':','comp','msc',{release_id},lower(s.wds_id_raw),trim(s.component_label_raw)) END,
                CASE WHEN NOT regexp_full_match(trim(s.source_component_raw),'[^:]+:[^:]+')
                       THEN 'excluded'
                     ELSE b.binding_status END,
@@ -538,12 +538,12 @@ def compile_msc(
                count(p.projected_relation_id) relation_candidate_count,
                min(p.projected_relation_id) projected_relation_id,
                min(p.relation_evidence_id) relation_evidence_id,
-               min(CASE WHEN lower(p.left_component_label)=
-                                  lower(split_part(s.pair_label_raw,',',1))
+               min(CASE WHEN lower(trim(p.left_component_label))=
+                                  lower(trim(split_part(s.pair_label_raw,',',1)))
                         THEN p.left_source_component_key ELSE p.right_source_component_key END)
                  primary_source_component_key,
-               min(CASE WHEN lower(p.left_component_label)=
-                                  lower(split_part(s.pair_label_raw,',',2))
+               min(CASE WHEN lower(trim(p.left_component_label))=
+                                  lower(trim(split_part(s.pair_label_raw,',',2)))
                         THEN p.left_source_component_key ELSE p.right_source_component_key END)
                  secondary_source_component_key,
                min(p.canonical_system_stable_object_key) canonical_system_stable_object_key
@@ -551,12 +551,12 @@ def compile_msc(
         LEFT JOIN msc_accepted_pair_candidates p
           ON p.wds_id_raw=s.wds_id_raw
          AND regexp_full_match(s.pair_label_raw,'[^,]+,[^,]+')
-         AND least(lower(p.left_component_label),lower(p.right_component_label))=
-             least(lower(split_part(s.pair_label_raw,',',1)),
-                   lower(split_part(s.pair_label_raw,',',2)))
-         AND greatest(lower(p.left_component_label),lower(p.right_component_label))=
-             greatest(lower(split_part(s.pair_label_raw,',',1)),
-                      lower(split_part(s.pair_label_raw,',',2)))
+         AND least(lower(trim(p.left_component_label)),lower(trim(p.right_component_label)))=
+             least(lower(trim(split_part(s.pair_label_raw,',',1))),
+                   lower(trim(split_part(s.pair_label_raw,',',2))))
+         AND greatest(lower(trim(p.left_component_label)),lower(trim(p.right_component_label)))=
+             greatest(lower(trim(split_part(s.pair_label_raw,',',1))),
+                      lower(trim(split_part(s.pair_label_raw,',',2))))
         WHERE s.source_table='msc_orb'
         GROUP BY ALL;
 
@@ -1199,20 +1199,20 @@ def compile_orb6(
                count(m.projected_relation_id) msc_relation_candidate_count,
                min(m.projected_relation_id) msc_projected_relation_id,
                min(m.relation_evidence_id) msc_relation_evidence_id,
-               min(CASE WHEN lower(m.left_component_label)=lower(s.primary_component_label)
+               min(CASE WHEN lower(trim(m.left_component_label))=lower(trim(s.primary_component_label))
                         THEN m.left_source_component_key ELSE m.right_source_component_key END)
                  primary_source_component_key,
-               min(CASE WHEN lower(m.left_component_label)=lower(s.secondary_component_label)
+               min(CASE WHEN lower(trim(m.left_component_label))=lower(trim(s.secondary_component_label))
                         THEN m.left_source_component_key ELSE m.right_source_component_key END)
                  secondary_source_component_key,
                min(m.canonical_system_stable_object_key) canonical_system_stable_object_key
         FROM orb6_parsed_wds_pairs s
         LEFT JOIN orb6_msc_pair_candidates m
           ON m.wds_id_raw=s.wds_id_raw
-         AND least(lower(m.left_component_label),lower(m.right_component_label))=
-             least(lower(s.primary_component_label),lower(s.secondary_component_label))
-         AND greatest(lower(m.left_component_label),lower(m.right_component_label))=
-             greatest(lower(s.primary_component_label),lower(s.secondary_component_label))
+         AND least(lower(trim(m.left_component_label)),lower(trim(m.right_component_label)))=
+             least(lower(trim(s.primary_component_label)),lower(trim(s.secondary_component_label)))
+         AND greatest(lower(trim(m.left_component_label)),lower(trim(m.right_component_label)))=
+             greatest(lower(trim(s.primary_component_label)),lower(trim(s.secondary_component_label)))
         GROUP BY ALL;
 
         INSERT INTO orb6_relation_bindings
@@ -2183,6 +2183,7 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
         "duplicate_msc_component_entity_ids": "SELECT count(*)-count(DISTINCT component_entity_id) FROM msc_component_entities",
+        "duplicate_accepted_msc_source_component_keys": "SELECT count(*)-count(DISTINCT source_component_key) FROM msc_component_entities WHERE binding_status='accepted'",
         "duplicate_msc_relation_projection_ids": "SELECT count(*)-count(DISTINCT projected_relation_id) FROM msc_relation_evidence_projection",
         "duplicate_debcat_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM debcat_system_bindings",
         "duplicate_debcat_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM debcat_relation_bindings",
@@ -2411,7 +2412,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v8",
+            "schema_version": "spacegate.e5_selected_components.v9",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

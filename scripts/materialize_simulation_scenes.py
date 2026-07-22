@@ -5,6 +5,7 @@ import argparse
 import gzip
 import json
 import os
+import resource
 import sys
 import time
 from datetime import datetime, timezone
@@ -14,6 +15,34 @@ from typing import Any, Sequence
 import duckdb
 
 MATERIALIZER_VERSION = "simulation_scene_artifact_v4"
+
+
+def _performance_token() -> tuple[float, float, resource.struct_rusage]:
+    return time.perf_counter(), time.process_time(), resource.getrusage(resource.RUSAGE_SELF)
+
+
+def _performance_delta(
+    name: str,
+    token: tuple[float, float, resource.struct_rusage],
+    *,
+    output_bytes: int | None = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    wall_started, cpu_started, usage_started = token
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    result: dict[str, Any] = {
+        "name": name,
+        "wall_seconds": round(time.perf_counter() - wall_started, 6),
+        "cpu_seconds": round(time.process_time() - cpu_started, 6),
+        "peak_rss_kib": int(usage.ru_maxrss),
+        "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+        "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
+    }
+    if output_bytes is not None:
+        result["output_bytes"] = int(output_bytes)
+    if details:
+        result["details"] = details
+    return result
 
 
 def _root_dir() -> Path:
@@ -303,6 +332,9 @@ def _scene_artifact_reusable(path: Path, *, build_id: str) -> bool:
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
+    process_started = _performance_token()
+    phases: list[dict[str, Any]] = []
+    setup_started = _performance_token()
     root = _root_dir()
     if args.build_dir:
         build_dir = Path(args.build_dir).resolve()
@@ -315,7 +347,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
     build_dir = build_dir.resolve()
     scene_builder = _load_scene_builder(root, build_dir)
+    phases.append(_performance_delta("setup_and_scene_builder_load", setup_started))
 
+    selection_started = _performance_token()
     system_rows = _select_system_rows(
         build_dir,
         system_ids=args.system_id,
@@ -341,6 +375,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         output_dir = build_dir / "disc" / "simulation_scenes"
         report_path = state_dir / "reports" / build_id / "simulation_scene_cache_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
+    phases.append(
+        _performance_delta(
+            "system_selection",
+            selection_started,
+            details={"selected_systems": len(system_rows)},
+        )
+    )
 
     requested = len(system_rows)
     generated = 0
@@ -363,6 +404,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         }
     )
 
+    materialization_started = _performance_token()
     for idx, row in enumerate(system_rows, start=1):
         system_id = int(row["system_id"])
         out_path = output_dir / f"system_{system_id}.json.gz"
@@ -422,9 +464,34 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     "failed": failed,
                 }
             )
+    phases.append(
+        _performance_delta(
+            "scene_materialization",
+            materialization_started,
+            output_bytes=total_bytes,
+            details={
+                "requested": requested,
+                "generated": generated,
+                "reused": reused,
+                "incompatible_existing": incompatible_existing,
+                "failed": failed,
+            },
+        )
+    )
 
+    cache_prune = None
+    if args.output_mode == "runtime-cache":
+        prune_started = _performance_token()
+        cache_prune = _prune_runtime_cache(state_dir)
+        phases.append(
+            _performance_delta(
+                "runtime_cache_prune",
+                prune_started,
+                details=cache_prune,
+            )
+        )
     elapsed_s = time.perf_counter() - started
-    cache_prune = _prune_runtime_cache(state_dir) if args.output_mode == "runtime-cache" else None
+    process_metrics = _performance_delta("total", process_started)
     report = {
         "ok": failed == 0,
         "build_id": build_id,
@@ -453,6 +520,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "output_dir": str(output_dir),
         "report_path": str(report_path),
         "elapsed_s": round(elapsed_s, 3),
+        "performance": {
+            key: value for key, value in process_metrics.items() if key != "name"
+        },
+        "phases": phases,
         "runtime_cache_prune": cache_prune,
         "examples": examples,
     }

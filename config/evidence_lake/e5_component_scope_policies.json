@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-22.e5-component-scope.8",
-  "compiler_version": "selected_component_evidence_compiler_v8",
+  "policy_version": "2026-07-22.e5-component-scope.9",
+  "compiler_version": "selected_component_evidence_compiler_v9",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -12,7 +12,7 @@
     "system_namespace": "wds",
     "system_binding_method": "exact_canonical_wds_system_identifier",
     "system_binding_semantics": "Match the punctuation-preserving WDS identifier to the unique canonical reference system. Identity-graph raw WDS bindings remain diagnostics because source-star bindings may span pre-grouping system keys.",
-    "component_identity_semantics": "Materialize every distinct release-native msc_component identifier claim, including relation endpoints, source components, and parent subsystems. A source component key is scoped by release plus exact WDS identifier and component label and is not a canonical star or containment claim.",
+    "component_identity_semantics": "Materialize every distinct release-native msc_component identifier claim, including relation endpoints, source components, and parent subsystems. Component labels are trimmed but case-preserving because source-native case distinguishes aggregate subsystems such as AB from terminal components such as Ab. A source component key is scoped by release plus exact WDS identifier and case-significant component label and is not a canonical star or containment claim.",
     "component_parameter_authority": {
       "mass": "msc_compiled_component_mass_estimate",
       "apparent_v_magnitude": "msc_compiled_component_apparent_v_magnitude",

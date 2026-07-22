@@ -152,7 +152,9 @@ class StellarLeafClassificationTests(unittest.TestCase):
                   ('hier:test:a', 'canon:star:a', 'canonical_star', 'star', 'star',
                    'core', 'TEST', 'Leaf A'),
                   ('hier:wds:TEST:leaf:b', 'inferred:b', 'inferred_star_leaf',
-                   'star', 'star', 'msc', 'TEST', 'Leaf B');
+                   'star', 'star', 'msc', 'TEST', 'Leaf B'),
+                  ('hier:wds:TEST:leaf:ab', 'inferred:ab', 'inferred_star_leaf',
+                   'star', 'star', 'msc', 'TEST', 'Leaf Ab');
                 create table hierarchy_edges (
                   parent_node_key varchar, child_node_key varchar
                 );
@@ -189,11 +191,16 @@ class StellarLeafClassificationTests(unittest.TestCase):
                 create table e6_component_msc_component_entities (
                   component_entity_id varchar,source_id varchar,release_id varchar,
                   canonical_system_stable_object_key varchar,
-                  component_label_normalized varchar,binding_status varchar
+                  component_label_raw varchar,component_label_normalized varchar,
+                  binding_status varchar
                 );
                 insert into e6_component_msc_component_entities values
                   ('entity-b','multiplicity.msc','release-1',
-                   'canon:system:wds:TEST','b','accepted');
+                   'canon:system:wds:TEST','B','B','accepted'),
+                  ('entity-group-ab','multiplicity.msc','release-1',
+                   'canon:system:wds:TEST','AB','AB','accepted'),
+                  ('entity-leaf-ab','multiplicity.msc','release-1',
+                   'canon:system:wds:TEST','Ab','Ab','accepted');
                 create table e6_component_msc_classification_projection (
                   component_entity_id varchar,evidence_id varchar,
                   classification_raw varchar,classification_normalized varchar,
@@ -201,6 +208,10 @@ class StellarLeafClassificationTests(unittest.TestCase):
                 );
                 insert into e6_component_msc_classification_projection values
                   ('entity-b','fact-component','M4 V',null,
+                   'eligible_for_quantity_selection'),
+                  ('entity-group-ab','fact-group','A1 V',null,
+                   'eligible_for_quantity_selection'),
+                  ('entity-leaf-ab','fact-leaf','M2 V',null,
                    'eligible_for_quantity_selection');
                 create table e6_component_msc_stellar_parameter_projection (
                   component_entity_id varchar,evidence_id varchar,quantity_key varchar,
@@ -236,6 +247,12 @@ class StellarLeafClassificationTests(unittest.TestCase):
                         "G",
                         "selected_spectral_type_simbad",
                         "fact-core",
+                    ),
+                    (
+                        "hier:wds:TEST:leaf:ab",
+                        "M",
+                        "e6_msc_component_spectral_type_v1",
+                        "fact-leaf",
                     ),
                     (
                         "hier:wds:TEST:leaf:b",

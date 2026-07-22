@@ -2,10 +2,36 @@
 
 ## Scope
 
-This report measures the first accepted Evidence Lake v2 E6 shadow foundation,
-`e6_994a6301c335ac385f5dc052_shadow`. It does not yet include DISC rescore,
-public-slice, map-tile, simulation-scene, API/search, or browser verification.
-Those phases must be appended before E6 closes.
+This report began with the first accepted Evidence Lake v2 E6 shadow
+foundation, `e6_994a6301c335ac385f5dc052_shadow`. Historical checkpoint
+measurements remain below. The current measured candidate is
+`e6_cfcdf2d9add2cd7e2b96af68_shadow`; its corrected public slice, map tiles,
+and downstream verification measurements are appended as they finish. E6 does
+not close until browser, promotion, and rollback rows are complete.
+
+The public-slice builder now emits
+`slice_build_performance_report.json` with named core selection,
+materialization, checkpoint/vacuum, Parquet export, row-accounting, ARM,
+hierarchy, DISC, verification, and atomic-promotion phases. Each phase records
+wall and process CPU time, peak RSS, process I/O block deltas, and durable bytes
+where the phase creates an artifact. The first E6 public-slice run will establish
+the baseline; no build-path optimization is accepted before that measurement.
+The map-tile report contract is likewise upgraded to v2 and records setup plus
+an independent wall/CPU/RSS/I/O/output-byte row for each 100, 250, 500, and
+1,000-ly radius, followed by index publication. This separates repeated source
+scans and radius-specific encoding costs before deciding whether shared spatial
+intermediates are worth their added complexity.
+Simulation-scene materialization now records setup/module loading, system
+selection, scene generation or reuse, and runtime-cache pruning independently,
+with generated/reused/failed counts and output bytes attached to the generation
+phase. This makes cache warmness explicit instead of comparing a reused run
+against a cold generation run as if they were equivalent.
+Phase `peak_rss_kib` is the process high-water mark observed at that boundary,
+not an independently sampled per-phase maximum; process I/O values are true
+phase deltas from `getrusage`. CPU rows measure the instrumented Python process
+and its DuckDB worker threads. They exclude the child process used by the
+1.06-second public-slice verification phase; that row's wall time is
+authoritative and its displayed CPU time is intentionally not interpreted.
 
 The E6/E7 acceptance report must retain a per-step breakdown for selected-fact
 consumers, DISC, public slice, map tiles, simulation scenes, API/search and UX
@@ -216,3 +242,142 @@ does not replace the complete E5 compile because the global compiler must still
 prove competition against all other stellar authorities and deterministic
 partition exports. Its machine report is
 `state/reports/evidence_lake_v2/e5_nasa_host_selection_verification.json`.
+
+## Corrected E6 v6 Integrated Checkpoint
+
+Policy `2026-07-22.e6-shadow.6` compiles selected-fact v15 and component-scope
+v9 into unserved shadow `e6_cfcdf2d9add2cd7e2b96af68_shadow`. The component
+policy preserves case-significant MSC identities and removes 238 `AB`/`Ab`
+class collision groups without a named-system rule. The 3:29.60 compile peaks
+at 36.37 GiB RSS, uses no swap or external spill, and records 21 named phases.
+Independent audit passes all 194 checks in 42.37 seconds. Clean isolated
+compile, audit, and logical reproduction completes in 5:49.34, with all product
+and report comparisons matching.
+
+| Shadow phase | Wall s | CPU s | Peak RSS GiB | Observation |
+|---|---:|---:|---:|---|
+| Coolness rescore | 30.45 | 100.95 | 36.37 | Complete 5.87-million-system DISC rescore |
+| Verify seven E5 artifacts | 29.40 | 23.04 | 0.07 | Immutable input-byte attestation |
+| Stellar hierarchy leaves | 26.56 | 154.47 | 36.37 | 5,879,796 exact terminal leaves |
+| Copy E5 evidence projections | 25.31 | 38.09 | 3.74 | Domain evidence copied into ARM |
+| Stellar astrometry projection | 22.66 | 216.75 | 25.62 | 5,866,595 projected subjects |
+| Stellar physics projection | 14.05 | 129.04 | 36.37 | 4,664,686 projected subjects |
+| Stellar variability projection | 13.78 | 146.96 | 36.37 | Source-native selected facts |
+| Apply selected CORE facts | 9.76 | 101.74 | 36.37 | Explicit scalar mappings only |
+| Shared selected consumers | 9.61 | 168.18 | 36.37 | Central parameter/classification contract |
+| Hash final products | 9.49 | 9.49 | 36.37 | Four immutable build products |
+
+The corrected public slice contains all 5,869,091 systems: the radius policy
+trims zero rows. It takes 4:43.42 externally and 283.21 seconds in measured
+phases, peaks at 32.27 GiB RSS, and writes approximately 19.9 GiB of databases
+and Parquet. Integrity verification reports zero missing, dangling, duplicate,
+or mis-scoped rows.
+
+| Public-slice phase | Wall s | CPU s | Peak RSS GiB | Share of measured wall |
+|---|---:|---:|---:|---:|
+| ARM slice | 194.89 | 797.33 | 32.27 | 68.8% |
+| CORE materialization | 52.43 | 120.49 | 10.91 | 18.5% |
+| Canonical hierarchy slice | 17.63 | 81.13 | 32.27 | 6.2% |
+| DISC slice | 8.52 | 49.81 | 32.27 | 3.0% |
+| CORE Parquet export | 7.57 | 121.41 | 25.63 | 2.7% |
+| Other measured phases | 2.15 | 10.25 | 32.27 | 0.8% |
+
+Map generation takes 4:38.38, peaks at 12.28 GiB RSS, and produces 481.7 MB
+of compressed content-addressed artifacts. Every exact radius passes coverage,
+checksum, display-name, representative, and badge verification with zero
+missing or extra systems.
+
+| Radius | Systems | Wall s | CPU s | Output MB |
+|---:|---:|---:|---:|---:|
+| 100 ly | 10,240 | 5.91 | 152.12 | 0.93 |
+| 250 ly | 230,183 | 12.62 | 160.37 | 13.44 |
+| 500 ly | 2,332,007 | 73.84 | 226.53 | 130.37 |
+| 1,000 ly | 5,869,091 | 185.48 | 364.16 | 336.91 |
+
+An isolated USB-backed rebuild with identical 100/250/500/1,000-ly publication
+inputs completes in 4:38.14 and matches all four manifest SHA-256 values
+exactly. The machine comparison passes and its 461-MiB scratch tree is removed.
+An initial diagnostic used a 100/250-only publication flag: all tile bytes still
+matched, while the expected `public_enabled` field changed the 500/1,000
+manifest hashes. That parameter-mismatch report is retained separately and is
+not treated as a determinism failure or as the accepted reproduction.
+
+The cold 1,000-system simulation-scene cache takes 22:31.97 externally and
+1,351.69 seconds in instrumented phases, peaks at 2.72 GiB RSS, and consumes
+18,377.97 CPU-seconds (13.6 cores on average). All 1,000 scenes generate with
+zero failures or incompatible artifacts. The compressed output is only
+10,657,542 bytes, confirming that scene assembly rather than storage or gzip is
+the bottleneck.
+
+| Scene-cache phase | Wall s | CPU s | Result |
+|---|---:|---:|---|
+| Module/setup | 0.52 | 2.54 | API scene builder loaded |
+| Select priority systems | 0.71 | 13.59 | 1,000 systems |
+| Cold scene materialization | 1,350.46 | 18,361.83 | 1,000 generated, zero failed |
+| Complete warm rerun | 1.65 | 16.65 | 1,000 reused, zero generated |
+
+The externally observed warm run is 1.86 seconds. Cold and warm machine reports
+are retained separately as `e6_shadow_v6_simulation_scenes_cold.json` and
+`e6_shadow_v6_simulation_scenes_warm.json`; the ordinary report path may be
+overwritten by later cache operations and is not the historical record.
+
+Focused compiler/scope/coolness/public/tile/scene/API-consumer tests pass 29/29
+in 2.26 seconds. Direct alias materialization verification passes 1,026,545
+aliases, 775 proper names, and 5,179 expanded Bayer terms in 0.8 seconds. An
+unpromoted local API process capped at eight DuckDB threads and 8 GB passes the
+complete integration contract in 40.42 seconds and the strict twelve-system
+search/detail/hierarchy/simulation benchmark in 37.39 seconds. The strict set
+includes Castor, Nu Scorpii, Alpha Centauri, Sirius, Sol, TRAPPIST-1, and source
+identifier search; it emits no stale-slice or preview warnings.
+
+| Verification step | Wall s | Result |
+|---|---:|---|
+| Focused pytest suite | 2.26 | 29 passed |
+| Alias/search materialization | 0.80 | Pass |
+| API integration contract | 40.42 | Pass |
+| Strict known-system API benchmark | 37.39 | Pass, no warnings |
+
+## Ranked Optimization Program
+
+No optimization is accepted without producing equivalent scientific hashes,
+coverage/accounting reports, and a before/after timing row. The measured order
+of work is:
+
+1. **E5 program-level intermediates.** The approximately 30-minute compiler is
+   still the dominant build step. Content-addressed source/program outputs,
+   reusable release-scoped identity outcomes, and a Parquet-first direct-scalar
+   lane can prevent a one-field policy change from recompiling every Gaia fact.
+   Separate the source-disposition closure ledger from the selected-scalar
+   artifact identity: replacing a component-only projection should update the
+   E6 composition manifest without forcing an unrelated 123-million-fact
+   scalar compile. The current v15 ledger therefore remains an immutable input
+   naming component v8 while E6 v6 explicitly composes its audited v9 successor.
+   Previously tested binding-cache and partition-export shortcuts remain
+   rejected because they were slower or nondeterministic.
+2. **Public-slice identity fast path.** This build retains every source system,
+   yet spends 194.89 seconds rebuilding ARM and 52.43 seconds rebuilding CORE.
+   Add a fail-closed identity proof and immutable artifact-copy/reuse path, then
+   patch only build metadata and independently compare logical hashes and row
+   accounting. Hardlinks are prohibited because metadata mutation would alter
+   the shadow; `/data` does not support reflinks, so physical copy cost remains.
+3. **Map name projection and bounded encoding parallelism.** The 1,000-ly phase
+   is 66.7% of tile wall time and becomes mostly serial after its initial
+   parallel query. Precompute the public display-name projection, eliminate
+   per-tile alias queries, and use a bounded deterministic worker pool for
+   encoding, gzip, and writes. Scan the 1,000-ly population once and reuse fully
+   interior content-addressed tiles across radii; radius-boundary tiles remain
+   distinct.
+4. **Preserve verification, profile moderate E6 phases.** E6 input attestation,
+   coolness, and leaf materialization each cost 26-30 seconds but are not large
+   enough to justify weakening integrity or domain separation. Optimize them
+   only after the first three items and only with fail-closed attestations.
+5. **Remove broad scene prewarming from the critical build path.** Cold scene
+   generation costs 22.5 minutes while warm validation costs 1.86 seconds and
+   the complete cache is only 10.7 MB. Keep bounded representative scene
+   goldens in build acceptance, then use the existing admin/runtime-cache action
+   to populate popular scenes incrementally after local promotion. Give that
+   admin materializer a persistent batch query context or reusable scene-input
+   projection so it does not reconstruct CORE/ARM/DISC API state 1,000 times.
+   Do not simply add concurrent scene workers: the current sequential outer
+   loop already averages 13.6 CPU cores through DuckDB, so unbounded workers
+   would increase contention without addressing repeated assembly.

@@ -988,7 +988,8 @@ Policy:
 - still quantify contribution in comparison reports for observability
 - E4 preserves the release independently from legacy ARM cooking. Local
   component labels are never global identifiers: the typed evidence key is
-  WDS plus the exact source label, while raw `Primary`, `Secondary`, `Parent`,
+  WDS plus the exact, case-significant source label, while raw `Primary`,
+  `Secondary`, `Parent`,
   and `System` strings remain inspectable. `Type` status determines evidence
   polarity but does not accept containment, and source numeric zero, including
   signed zero, is unknown per the release ReadMe.
@@ -1003,6 +1004,11 @@ Policy:
   16,182 classifications, 54,902 photometry rows, 62,214 astrometry/motion rows,
   and 14,939 exact relation-bound orbit solutions while keeping relative
   separations as context-only evidence.
+- E5 component policy v9 preserves distinctions such as subsystem `AB` versus
+  terminal star `Ab` and rejects duplicate accepted WDS/label keys. It removes
+  238 case-fold collision groups without a named-system rule. Cross-table
+  notation matching may ignore case only after proving a single compatible
+  relation and recording the outcome.
 
 Security/transport note:
 

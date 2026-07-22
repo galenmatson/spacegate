@@ -1,12 +1,28 @@
 {
   "schema_version": "spacegate.e6_shadow_build_policy.v1",
-  "policy_version": "2026-07-22.e6-shadow.4",
-  "compiler_version": "e6_shadow_compiler_v3",
+  "policy_version": "2026-07-22.e6-shadow.6",
+  "compiler_version": "e6_shadow_compiler_v6",
+  "coolness_profile": {
+    "profile_id": "tuned",
+    "profile_version": "20260711T232800Z_198cc957",
+    "profile_hash": "1081d54dca4b62e2378ca02f008603dd12adf3284412547c01504c3ec5206884",
+    "weights_hash": "198cc95781fb2ee1eb7bddfc6ce1dc307a0b4f783bdd85de40fa1ab522ded16e",
+    "weights": {
+      "exotic_star": 0.121212,
+      "luminosity": 0.060606,
+      "multiplicity": 0.151515,
+      "nice_planets": 0.151515,
+      "proper_motion": 0.151515,
+      "proximity": 0.090909,
+      "system_complexity": 0.121212,
+      "weird_planets": 0.151515
+    }
+  },
   "stability_reference_build_id": "20260717T0614Z_f452835_side",
   "selected_artifacts": [
-    {"family": "selected_facts", "build_id": "16708b8ed193aeae9b2ab995", "database": "selected_facts.duckdb", "arm_prefix": "e6_fact", "acceptance_mode": "report_status_pass"},
+    {"family": "selected_facts", "build_id": "fa4aaed18aebcffb8632d978", "database": "selected_facts.duckdb", "arm_prefix": "e6_fact", "acceptance_mode": "report_status_pass"},
     {"family": "selected_relations", "build_id": "c59bf6664db0b60960dc36a1", "database": "selected_relations.duckdb", "arm_prefix": "e6_relation", "acceptance_mode": "legacy_zero_verification"},
-    {"family": "selected_components", "build_id": "f5358c0a0983958e5d4f76c5", "database": "selected_components.duckdb", "arm_prefix": "e6_component", "acceptance_mode": "legacy_zero_verification"},
+    {"family": "selected_components", "build_id": "67fea5f99500b57419ebdeb0", "database": "selected_components.duckdb", "arm_prefix": "e6_component", "acceptance_mode": "legacy_zero_verification"},
     {"family": "selected_clusters", "build_id": "a6169c9ec351db81104e8518", "database": "selected_clusters.duckdb", "arm_prefix": "e6_cluster", "acceptance_mode": "top_level_status_pass"},
     {"family": "selected_extended_objects", "build_id": "3790054572476ea189aaff06", "database": "selected_extended_objects.duckdb", "arm_prefix": "e6_extended", "acceptance_mode": "top_level_status_pass"},
     {"family": "selected_planet_evidence", "build_id": "86aa5553053db35d81ff26e0", "database": "selected_planet_evidence.duckdb", "arm_prefix": "e6_planet_evidence", "acceptance_mode": "top_level_status_pass"},

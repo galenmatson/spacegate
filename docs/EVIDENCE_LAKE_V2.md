@@ -2,8 +2,12 @@
 
 Status: active main quest. E0-E2 completed July 18, 2026; registered E3
 acquisition completed July 20, 2026 and received the reviewed lifecycle/McGill
-bibliography supplement on July 21; E4 typed scientific materialization is in
-progress.
+bibliography supplement on July 21; the accepted E4 release set, E5
+selected-fact v15, and E5 component-scope v9 are pinned. Corrected E6 v6 shadow,
+clean reproduction, scientific A/B, public slice, four-radius map reproduction,
+simulation-cache measurement, and API/search verification pass. Browser
+measurement and E7 operator review remain in progress. Nothing is promoted or
+deployed.
 
 E0 checkpoint:
 
@@ -1437,6 +1441,28 @@ pair labels, and three missing pair identities. Artifact
 `bbc7f0083646dfd5a602467b` passes independent audit and byte-identical
 reproduction across twenty-four ordered Parquet files in about 5.8 seconds.
 It adds no canonical identity, containment, hierarchy edge, or orbit winner.
+
+Component-scope policy v9 makes MSC component identity case-significant within
+each exact WDS system. Labels such as subsystem `AB` and terminal component
+`Ab` are distinct source identities even though DuckDB identifiers and some
+cross-catalog notations are case-insensitive. The previous normalized key
+collapsed 238 such pairs across 476 accepted source entities and allowed 231
+canonical leaves to see more than one source component; 41 of those leaves saw
+multiple classification records. Policy v9 preserves the source label in the
+identity key and fails on any duplicate accepted WDS/label key. Cross-table
+orbit/reference matching may case-fold only when the candidate relation is
+unique and its ambiguity accounting passes; it never changes physical
+component identity. Artifact `67fea5f99500b57419ebdeb0` passes independent
+audit and clean byte-identical Parquet reproduction. No system name or
+benchmark identifier participates in the transform.
+Selected-fact v15 retains its policy-v20 source-disposition ledger and the v8
+component artifact named by that historical closure input. E6 v6 explicitly
+composes the independently audited v9 successor for leaf classification. A
+component-only scope correction does not alter the 123-million-row selected
+scalar fact set; rewriting the ledger in place would instead make the accepted
+v15 reproduction defaults dishonest. A later compiler revision should split
+the closure/composition manifest from selected-scalar build identity so this
+relationship is explicit and cheap to advance.
 
 The system-binding audit also exposes an E2 diagnostic rather than hiding it:
 among the 5,369 canonical WDS matches, the current identity graph agrees on one

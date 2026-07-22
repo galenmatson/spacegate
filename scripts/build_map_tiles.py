@@ -8,10 +8,12 @@ import heapq
 import json
 import math
 import os
+import resource
 import shutil
 import struct
 import sys
 import tempfile
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -63,6 +65,34 @@ def atomic_json(path: Path, payload: Any) -> None:
         temp_path = Path(stream.name)
     os.replace(temp_path, path)
     path.chmod(0o664)
+
+
+def performance_token() -> tuple[float, float, resource.struct_rusage]:
+    return time.monotonic(), time.process_time(), resource.getrusage(resource.RUSAGE_SELF)
+
+
+def performance_delta(
+    name: str,
+    token: tuple[float, float, resource.struct_rusage],
+    *,
+    output_bytes: int | None = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    wall_started, cpu_started, usage_started = token
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    result: dict[str, Any] = {
+        "name": name,
+        "wall_seconds": round(time.monotonic() - wall_started, 6),
+        "cpu_seconds": round(time.process_time() - cpu_started, 6),
+        "peak_rss_kib": int(usage.ru_maxrss),
+        "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+        "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
+    }
+    if output_bytes is not None:
+        result["output_bytes"] = int(output_bytes)
+    if details:
+        result["details"] = details
+    return result
 
 
 def morton3(x: int, y: int, z: int, depth: int) -> int:
@@ -630,15 +660,40 @@ def read_profile(state_dir: Path, con: duckdb.DuckDBPyConnection) -> dict[str, A
     active = json.loads(active_path.read_text(encoding="utf-8")) if active_path.exists() else {}
     build_id = str(con.execute("select value from build_metadata where key='build_id'").fetchone()[0])
     row = con.execute("select profile_id, profile_version from disc_db.coolness_scores limit 1").fetchone()
+    metadata = dict(
+        con.execute(
+            """
+            SELECT key,value FROM disc_db.build_metadata
+            WHERE key IN (
+              'e6_coolness_profile_id','e6_coolness_profile_version',
+              'e6_coolness_profile_hash'
+            )
+            """
+        ).fetchall()
+    )
+    profile_id = str(metadata.get("e6_coolness_profile_id") or (row[0] if row else "unknown"))
+    profile_version = str(
+        metadata.get("e6_coolness_profile_version") or (row[1] if row else "unknown")
+    )
+    active_matches = (
+        str(active.get("profile_id") or "") == profile_id
+        and str(active.get("profile_version") or "") == profile_version
+    )
     return {
         "build_id": build_id,
-        "profile_id": str(active.get("profile_id") or (row[0] if row else "unknown")),
-        "profile_version": str(active.get("profile_version") or (row[1] if row else "unknown")),
-        "profile_hash": str(active.get("profile_hash") or "unrecorded"),
+        "profile_id": profile_id,
+        "profile_version": profile_version,
+        "profile_hash": str(
+            metadata.get("e6_coolness_profile_hash")
+            or (active.get("profile_hash") if active_matches else None)
+            or "unrecorded"
+        ),
     }
 
 
 def main() -> None:
+    process_started = performance_token()
+    phases: list[dict[str, Any]] = []
     parser = argparse.ArgumentParser(description="Build deterministic Spacegate octree map tiles.")
     parser.add_argument("--state-dir", type=Path, default=Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/state")))
     parser.add_argument("--build-dir", type=Path, default=None)
@@ -655,6 +710,7 @@ def main() -> None:
         raise SystemExit("Supported radii are 100,250,500,1000")
     if any(radius not in radii for radius in public_radii):
         raise SystemExit("Public radii must be included in --radii")
+    setup_started = performance_token()
     if output_dir.exists():
         if not args.replace:
             raise SystemExit(f"Output already exists: {output_dir}; pass --replace")
@@ -666,13 +722,38 @@ def main() -> None:
     con.execute(f"ATTACH '{str(build_dir / 'arm.duckdb').replace("'", "''")}' AS arm_db (READ_ONLY)")
     try:
         profile = read_profile(args.state_dir, con)
-        manifests = [
-            build_radius(con, label_con, output_dir, radius, profile, radius in public_radii)
-            for radius in radii
-        ]
+        phases.append(performance_delta("setup_and_database_open", setup_started))
+        manifests = []
+        for radius in radii:
+            radius_started = performance_token()
+            manifest = build_radius(
+                con,
+                label_con,
+                output_dir,
+                radius,
+                profile,
+                radius in public_radii,
+            )
+            manifests.append(manifest)
+            manifest_path = output_dir / f"radius-{radius}" / "manifest.json"
+            phases.append(
+                performance_delta(
+                    f"radius_{radius}_tiles",
+                    radius_started,
+                    output_bytes=int(manifest["bytes"]["all_compressed"])
+                    + manifest_path.stat().st_size,
+                    details={
+                        "radius_ly": radius,
+                        "exact_tiles": int(manifest["counts"]["exact_tiles"]),
+                        "sample_tiles": int(manifest["counts"]["sample_tiles"]),
+                        "eligible_systems": int(manifest["counts"]["eligible_systems"]),
+                    },
+                )
+            )
     finally:
         label_con.close()
         con.close()
+    index_started = performance_token()
     index = {
         "index_version": INDEX_VERSION,
         "build_id": profile["build_id"],
@@ -685,11 +766,23 @@ def main() -> None:
         },
     }
     atomic_json(output_dir / "index.json", index)
+    phases.append(
+        performance_delta(
+            "index_write",
+            index_started,
+            output_bytes=(output_dir / "index.json").stat().st_size,
+        )
+    )
+    process_metrics = performance_delta("total", process_started)
     report = {
-        "schema_version": "spacegate_map_tile_build_report_v1",
+        "schema_version": "spacegate_map_tile_build_report_v2",
         "build_id": profile["build_id"],
         "output_dir": str(output_dir),
         "radii": [{"radius_ly": m["radius_ly"], "counts": m["counts"], "bytes": m["bytes"], "manifest_sha256": m["manifest_sha256"]} for m in manifests],
+        "performance": {
+            key: value for key, value in process_metrics.items() if key != "name"
+        },
+        "phases": phases,
     }
     report_dir = args.state_dir / "reports" / profile["build_id"]
     atomic_json(report_dir / "map_tile_build_report.json", report)

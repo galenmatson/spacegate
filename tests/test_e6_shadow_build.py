@@ -30,6 +30,11 @@ def test_e6_policy_maps_only_projected_numeric_quantities() -> None:
     with pytest.raises(ValueError, match="artifact acceptance mode"):
         compiler.validate_policy(invalid)
 
+    invalid = copy.deepcopy(policy)
+    invalid["coolness_profile"]["profile_hash"] = "0" * 64
+    with pytest.raises(ValueError, match="coolness profile"):
+        compiler.validate_policy(invalid)
+
 
 def test_e6_projection_preserves_lineage_and_updates_without_inventory_change(
     tmp_path: Path,
@@ -178,3 +183,18 @@ def test_e6_logical_hash_is_order_independent_and_duplicate_sensitive(
     )
     assert duplicate_hash["row_count"] == 3
     assert duplicate_hash["logical_sha256"] != first_hash["logical_sha256"]
+
+
+def test_e6_phase_recorder_captures_resources_on_success_and_failure() -> None:
+    recorder = compiler.PhaseRecorder()
+    assert recorder.run("success", lambda: 42) == 42
+    with pytest.raises(RuntimeError, match="expected"):
+        recorder.run("failure", lambda: (_ for _ in ()).throw(RuntimeError("expected")))
+
+    assert [phase["status"] for phase in recorder.phases] == ["pass", "fail"]
+    for phase in recorder.phases:
+        assert phase["wall_seconds"] >= 0
+        assert phase["cpu_seconds"] >= 0
+        assert phase["peak_rss_kib"] > 0
+        assert phase["input_blocks"] >= 0
+        assert phase["output_blocks"] >= 0

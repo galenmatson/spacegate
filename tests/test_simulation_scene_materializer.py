@@ -107,6 +107,15 @@ def test_runtime_cache_mode_does_not_mutate_immutable_build(tmp_path: Path, monk
     cache_file = state_dir / "cache" / "simulation_scenes" / build_id / "system_42.json.gz"
     assert report["ok"] is True
     assert report["params"]["output_mode"] == "runtime-cache"
+    assert report["performance"]["wall_seconds"] >= 0
+    assert report["performance"]["cpu_seconds"] >= 0
+    assert [phase["name"] for phase in report["phases"]] == [
+        "setup_and_scene_builder_load",
+        "system_selection",
+        "scene_materialization",
+        "runtime_cache_prune",
+    ]
+    assert report["phases"][2]["details"]["generated"] == 1
     assert cache_file.exists()
     assert not (build_dir / "disc" / "simulation_scenes").exists()
     with gzip.open(cache_file, "rt", encoding="utf-8") as handle:

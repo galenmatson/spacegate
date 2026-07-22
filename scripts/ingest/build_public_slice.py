@@ -4,9 +4,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import resource
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,6 +21,61 @@ TESS_PROJECTION_TABLES = {
     "toi_current_evidence",
     "toi_disposition_history",
 }
+
+
+class BuildTelemetry:
+    """Collect low-overhead, process-level timings for each durable build step."""
+
+    def __init__(self) -> None:
+        self.started_at = utc_now()
+        self.started = self.begin()
+        self.phases: list[dict[str, object]] = []
+
+    @staticmethod
+    def begin() -> tuple[float, float, resource.struct_rusage]:
+        return time.monotonic(), time.process_time(), resource.getrusage(resource.RUSAGE_SELF)
+
+    def end(
+        self,
+        name: str,
+        token: tuple[float, float, resource.struct_rusage],
+        *,
+        output_bytes: int | None = None,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        wall_started, cpu_started, usage_started = token
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        phase: dict[str, object] = {
+            "name": name,
+            "wall_seconds": round(time.monotonic() - wall_started, 6),
+            "cpu_seconds": round(time.process_time() - cpu_started, 6),
+            "peak_rss_kib": int(usage.ru_maxrss),
+            "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+            "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
+        }
+        if output_bytes is not None:
+            phase["output_bytes"] = int(output_bytes)
+        if details:
+            phase["details"] = details
+        self.phases.append(phase)
+
+    def report(self, *, source_build_id: str, slice_build_id: str) -> dict[str, object]:
+        wall_started, cpu_started, usage_started = self.started
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        return {
+            "schema_version": "spacegate.public_slice_performance.v1",
+            "generated_at": utc_now(),
+            "started_at": self.started_at,
+            "source_build_id": source_build_id,
+            "slice_build_id": slice_build_id,
+            "status": "pass",
+            "wall_seconds": round(time.monotonic() - wall_started, 6),
+            "cpu_seconds": round(time.process_time() - cpu_started, 6),
+            "peak_rss_kib": int(usage.ru_maxrss),
+            "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
+            "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
+            "phases": self.phases,
+        }
 
 
 def utc_now() -> str:
@@ -676,6 +733,8 @@ def build_slice(
     trim_beyond_ly: float,
     trim_spectral: list[str],
 ) -> dict[str, object]:
+    telemetry = BuildTelemetry()
+    setup_phase = telemetry.begin()
     source_core = source_build_dir / "core.duckdb"
     if not source_core.exists():
         raise SystemExit(f"Missing source core DB: {source_core}")
@@ -691,8 +750,10 @@ def build_slice(
     tmp_dir.mkdir(parents=True, exist_ok=True)
     (tmp_dir / "ingest").mkdir(parents=True, exist_ok=True)
     (tmp_dir / "parquet").mkdir(parents=True, exist_ok=True)
+    telemetry.end("staging_setup", setup_phase)
 
     core_dst = tmp_dir / "core.duckdb"
+    core_selection_phase = telemetry.begin()
     con = duckdb.connect(str(core_dst))
     try:
         con.execute(f"ATTACH {sql_literal(str(source_core))} AS src (READ_ONLY)")
@@ -806,7 +867,16 @@ def build_slice(
               (select count(*) from src.system_search_terms where system_id in (select system_id from slice_trim_systems))
             """
         ).fetchone()
+        telemetry.end(
+            "core_selection",
+            core_selection_phase,
+            details={
+                "source_systems": int(counts_before[0]),
+                "trimmed_systems": int(trim_counts[0]),
+            },
+        )
 
+        core_materialization_phase = telemetry.begin()
         con.execute("create table build_metadata as select * from src.build_metadata")
         con.execute(
             """
@@ -947,9 +1017,18 @@ def build_slice(
                 ("slice_distant_single_trim_require_unnamed", "1"),
             ],
         )
+        telemetry.end("core_materialization", core_materialization_phase)
+
+        core_compaction_phase = telemetry.begin()
         con.execute("checkpoint")
         con.execute("vacuum")
+        telemetry.end(
+            "core_checkpoint_and_vacuum",
+            core_compaction_phase,
+            output_bytes=core_dst.stat().st_size,
+        )
 
+        parquet_phase = telemetry.begin()
         parquet_dir = tmp_dir / "parquet"
         con.execute(
             f"copy (select * from stars order by spatial_index) to {sql_literal(str(parquet_dir / 'stars.parquet'))} (format parquet)"
@@ -984,7 +1063,13 @@ def build_slice(
                 con.execute(
                     f"copy (select * from {table_name}) to {sql_literal(str(parquet_dir / f'{table_name}.parquet'))} (format parquet)"
                 )
+        telemetry.end(
+            "core_parquet_export",
+            parquet_phase,
+            output_bytes=sum(path.stat().st_size for path in parquet_dir.glob("*.parquet")),
+        )
 
+        core_accounting_phase = telemetry.begin()
         counts_after = con.execute(
             """
             select
@@ -995,32 +1080,63 @@ def build_slice(
               (select count(*) from system_search_terms)
             """
         ).fetchone()
+        telemetry.end("core_row_accounting", core_accounting_phase)
     finally:
         con.close()
 
-    side_artifacts = {
-        "arm": build_sliced_arm(
-            source_build_dir=source_build_dir,
-            tmp_dir=tmp_dir,
-            core_dst=core_dst,
-            source_build_id=source_build_id,
-            slice_build_id=slice_build_id,
+    side_artifacts: dict[str, dict[str, object] | None] = {}
+    arm_phase = telemetry.begin()
+    side_artifacts["arm"] = build_sliced_arm(
+        source_build_dir=source_build_dir,
+        tmp_dir=tmp_dir,
+        core_dst=core_dst,
+        source_build_id=source_build_id,
+        slice_build_id=slice_build_id,
+    )
+    telemetry.end(
+        "arm_slice",
+        arm_phase,
+        output_bytes=(
+            int(side_artifacts["arm"]["db_bytes"])
+            if side_artifacts["arm"] is not None
+            else 0
         ),
-        "canonical_hierarchy": build_sliced_canonical_hierarchy(
-            source_build_dir=source_build_dir,
-            tmp_dir=tmp_dir,
-            core_dst=core_dst,
-            source_build_id=source_build_id,
-            slice_build_id=slice_build_id,
+    )
+    hierarchy_phase = telemetry.begin()
+    side_artifacts["canonical_hierarchy"] = build_sliced_canonical_hierarchy(
+        source_build_dir=source_build_dir,
+        tmp_dir=tmp_dir,
+        core_dst=core_dst,
+        source_build_id=source_build_id,
+        slice_build_id=slice_build_id,
+    )
+    telemetry.end(
+        "canonical_hierarchy_slice",
+        hierarchy_phase,
+        output_bytes=(
+            int(side_artifacts["canonical_hierarchy"]["db_bytes"])
+            if side_artifacts["canonical_hierarchy"] is not None
+            else 0
         ),
-        "disc": build_sliced_disc(
-            source_build_dir=source_build_dir,
-            tmp_dir=tmp_dir,
-            core_dst=core_dst,
-            source_build_id=source_build_id,
-            slice_build_id=slice_build_id,
+    )
+    disc_phase = telemetry.begin()
+    side_artifacts["disc"] = build_sliced_disc(
+        source_build_dir=source_build_dir,
+        tmp_dir=tmp_dir,
+        core_dst=core_dst,
+        source_build_id=source_build_id,
+        slice_build_id=slice_build_id,
+    )
+    telemetry.end(
+        "disc_slice",
+        disc_phase,
+        output_bytes=(
+            int(side_artifacts["disc"]["db_bytes"])
+            + int(side_artifacts["disc"]["parquet_bytes"])
+            if side_artifacts["disc"] is not None
+            else 0
         ),
-    }
+    )
 
     report = {
         "generated_at": utc_now(),
@@ -1061,9 +1177,12 @@ def build_slice(
         "side_artifacts": side_artifacts,
     }
 
+    report_phase = telemetry.begin()
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = reports_dir / "slice_policy_report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    telemetry.end("slice_policy_report", report_phase, output_bytes=report_path.stat().st_size)
+    verification_phase = telemetry.begin()
     subprocess.check_call(
         [
             sys.executable,
@@ -1082,7 +1201,28 @@ def build_slice(
         ],
         cwd=str(root),
     )
+    verification_report = reports_dir / "derived_build_verification_report.json"
+    telemetry.end(
+        "derived_build_verification",
+        verification_phase,
+        output_bytes=verification_report.stat().st_size,
+    )
+    promotion_phase = telemetry.begin()
     tmp_dir.rename(final_dir)
+    telemetry.end("atomic_directory_promotion", promotion_phase)
+    performance_report = reports_dir / "slice_build_performance_report.json"
+    performance_report.write_text(
+        json.dumps(
+            telemetry.report(
+                source_build_id=source_build_id,
+                slice_build_id=slice_build_id,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return report
 
 
