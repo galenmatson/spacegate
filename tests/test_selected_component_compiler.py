@@ -359,14 +359,36 @@ def make_fixture(state: Path, policy_path: Path) -> None:
           evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
           identifier_raw VARCHAR
         );
+        CREATE TABLE stellar_classification_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, classification_raw VARCHAR
+        );
+        CREATE TABLE photometry_extinction_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, quantity_key VARCHAR
+        );
+        CREATE TABLE astrometry_distance_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, quantity_key VARCHAR
+        );
         INSERT INTO source_records VALUES
           ('w1','multiplicity.wds','wds-test-release','wdsweb_summ2','{"components":"AB"}'),
-          ('w2','multiplicity.wds','wds-test-release','wdsweb_summ2','{"components":"Aa1,2"}');
+          ('w2','multiplicity.wds','wds-test-release','wdsweb_summ2','{"components":"Aa1,2"}'),
+          ('w3','multiplicity.wds','wds-test-release','wdsweb_summ2','{}');
         INSERT INTO identifier_claim_evidence VALUES
           ('w-w1','w1','wds_id','00001+0001'),
           ('w-d1','w1','wds_discoverer_designation','TST   1'),
           ('w-w2','w2','wds_id','00001+0001'),
-          ('w-d2','w2','wds_discoverer_designation','TST   2');
+          ('w-d2','w2','wds_discoverer_designation','TST   2'),
+          ('w-w3','w3','wds_id','00001+0001'),
+          ('w-d3','w3','wds_discoverer_designation','TST   4');
+        INSERT INTO stellar_classification_evidence VALUES
+          ('w-c1','w1','G0V+K0V'),('w-c2','w2','K0V');
+        INSERT INTO photometry_extinction_evidence VALUES
+          ('w-p1','w1','apparent_magnitude_first_component'),
+          ('w-p2','w1','apparent_magnitude_second_component'),
+          ('w-p3','w2','apparent_magnitude_first_component');
+        INSERT INTO astrometry_distance_evidence VALUES
+          ('w-a1','w1','relative_separation_last'),
+          ('w-a2','w1','primary_proper_motion_ra_wds_source_convention'),
+          ('w-a3','w2','relative_separation_last');
         """
     )
     con.close()
@@ -558,6 +580,30 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_astrometry_context_only": 1,
                 },
             },
+            "wds": {
+                "source_id": "multiplicity.wds",
+                "release_id": "wds-test-release",
+                "evidence_build_id": wds_id,
+                "source_table": "wdsweb_summ2",
+                "relation_binding_method": "test-wds-pair-to-msc",
+                "classification_authority": "test-wds-classification-context",
+                "photometry_authority": "test-wds-photometry-context",
+                "astrometry_authority": "test-wds-astrometry-context",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_relation_bindings": 3,
+                    "expected_relations_accepted": 2,
+                    "expected_relations_missing_msc": 1,
+                    "expected_relations_ambiguous_msc": 0,
+                    "expected_relations_unparsed": 0,
+                    "expected_classification_evidence": 2,
+                    "expected_classification_context_only": 1,
+                    "expected_photometry_evidence": 3,
+                    "expected_photometry_context_only": 2,
+                    "expected_astrometry_evidence": 3,
+                    "expected_astrometry_context_only": 2,
+                },
+            },
         },
     )
 
@@ -661,6 +707,21 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     ).fetchone()[0] == 1
     assert con.execute(
         "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 0
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM wds_pair_relation_bindings GROUP BY 1"
+    ).fetchall()) == {"accepted": 2, "missing_msc_relation": 1}
+    assert con.execute(
+        "SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NOT NULL"
+    ).fetchone()[0] == 2
+    assert con.execute(
+        "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NOT NULL"
+    ).fetchone()[0] == 2
+    assert con.execute(
+        "SELECT count(*) FROM wds_classification_projection WHERE projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 0
     con.close()
 

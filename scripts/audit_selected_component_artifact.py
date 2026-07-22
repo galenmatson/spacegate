@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v5"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v6"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -118,6 +118,16 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "eligible_sbx_orbits_without_relation": "SELECT count(*) FROM sbx_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND projected_relation_id IS NULL",
         "selectable_sbx_astrometry": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
         "context_sbx_astrometry_without_system": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "duplicate_wds_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM wds_pair_relation_bindings",
+        "accepted_wds_relations_without_targets": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status='accepted' AND (msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_wds_relations_with_targets": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "accepted_wds_self_relations": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status='accepted' AND primary_source_component_key=secondary_source_component_key",
+        "selectable_wds_classifications": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_wds_photometry": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_wds_astrometry": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_wds_classifications_without_target": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "context_wds_photometry_without_target": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "context_wds_astrometry_without_target": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -265,6 +275,25 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     sbx_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["sbx"]["acceptance"].items()}
     failures["sbx_acceptance_mismatch"] = int(sbx_observed != sbx_expected)
+
+    wds_relations = dict(con.execute(
+        "SELECT binding_status,count(*) FROM wds_pair_relation_bindings GROUP BY 1"
+    ).fetchall())
+    wds_observed = {
+        "relation_bindings": sum(wds_relations.values()),
+        "relations_accepted": wds_relations.get("accepted", 0),
+        "relations_missing_msc": wds_relations.get("missing_msc_relation", 0),
+        "relations_ambiguous_msc": wds_relations.get("ambiguous_msc_relation", 0),
+        "relations_unparsed": wds_relations.get("unparsed_pair", 0),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM wds_classification_projection").fetchone()[0]),
+        "classification_context_only": int(con.execute("SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM wds_photometry_projection").fetchone()[0]),
+        "photometry_context_only": int(con.execute("SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM wds_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": int(con.execute("SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+    }
+    wds_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["wds"]["acceptance"].items()}
+    failures["wds_acceptance_mismatch"] = int(wds_observed != wds_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -277,6 +306,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
             {"source_id": policy["sb9"]["source_id"], "observed": sb9_observed, "expected": sb9_expected},
             {"source_id": policy["orb6"]["source_id"], "observed": orb6_observed, "expected": orb6_expected},
             {"source_id": policy["sbx"]["source_id"], "observed": sbx_observed, "expected": sbx_expected},
+            {"source_id": policy["wds"]["source_id"], "observed": wds_observed, "expected": wds_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

@@ -1424,8 +1424,8 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-21.e5-policy-batches.11` records 15 completed sources and 11
-remaining blockers after the full SBX projection.
+Ledger `2026-07-22.e5-policy-batches.12` records 16 completed sources and 10
+remaining blockers after the WDS relation-context projection.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1438,7 +1438,19 @@ observation-target/photocenter context, including 11,686 rows with an accepted
 system anchor. Seventy of 94 source hierarchy claims have two resolved source
 system endpoints, but none becomes canonical containment or hierarchy.
 Artifact `7ae9b19a56212bfdc4f44d3b` passes independent audit and byte-identical
-reproduction in about 10 seconds for the combined multiplicity projection.
+reproduction in about 10 seconds for that combined multiplicity checkpoint.
+
+Component policy v6 then accounts all 157,299 WDS visual-pair summaries. The
+documented blank A/B, simple two-symbol, comma, hyphen, and abbreviated numbered
+component forms are the only parsed notations. Exact WDS-qualified endpoints
+resolve 5,282 rows to one accepted MSC relation, 152,016 have no relation, and
+one remains ambiguous. WDS spectral text stays opaque pair context; 312,727
+unspecified-band component magnitudes and 1,779,163 epoch/relative-astrometry,
+position, and source-convention proper-motion rows remain contextual rather
+than selectable facts. The CDS two-arcsecond candidate bridge does not become
+identity. Combined artifact `33f2a90275378a35be21a704` passes independent
+audit and byte-identical reproduction in 18.9 seconds wall time with 4.78 GiB
+peak RSS and creates no canonical component, containment, or hierarchy.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

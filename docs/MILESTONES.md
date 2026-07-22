@@ -2007,7 +2007,7 @@ Foundation checkpoint (July 21, 2026):
   endpoints, including 95,045 `R_chance_align < 0.1` high-confidence evidence
   rows and 3,043 shifted-sky negative controls. Independent audit and clean
   reproduction pass with identical Parquet hashes in about 15 seconds
-- component-scope artifact `7ae9b19a56212bfdc4f44d3b` anchors 24,671 of
+- component-scope artifact `33f2a90275378a35be21a704` anchors 24,671 of
   32,790 release-scoped MSC component identities to 5,369 exact canonical WDS
   systems, retains 8,119 missing components and three invalid source
   self-relations, and creates no canonical star or containment assertion
@@ -2040,8 +2040,15 @@ Foundation checkpoint (July 21, 2026):
   system for 2,354 systems; 1,699 remain missing and 27 ambiguous. Astrometry
   remains observation-target/photocenter context, and source hierarchy never
   becomes canonical containment. Combined artifact
-  `7ae9b19a56212bfdc4f44d3b` independently audits and reproduces in about 10
-  seconds wall time with about 1.46 GiB peak RSS
+  SBX checkpoint `7ae9b19a56212bfdc4f44d3b` independently audits and
+  reproduces in about 10 seconds wall time with about 1.46 GiB peak RSS
+- component policy v6 accounts all 157,299 WDS visual-pair summaries through
+  documented pair notation and exact WDS-qualified MSC endpoints. It resolves
+  5,282 pairs, retains 152,016 missing and one ambiguous relation, and keeps all
+  73,779 spectral strings, 312,727 unspecified-band magnitudes, and 1,779,163
+  astrometry/history rows contextual rather than inventing component facts.
+  Combined artifact `33f2a90275378a35be21a704` independently audits and
+  reproduces in 18.9 seconds wall time with about 4.78 GiB peak RSS
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

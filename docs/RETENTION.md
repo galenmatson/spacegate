@@ -488,11 +488,11 @@ source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.
 
-E5 combined component artifact `7ae9b19a56212bfdc4f44d3b`, its compile report,
-independent audit, and deterministic reproduction evidence are protected. It
-supersedes `bbc7f0083646dfd5a602467b` for active component-policy lineage, but
-the older artifact remains a retention dry-run candidate rather than a manual
-deletion target until the next schema-aware audit proves it unreferenced.
+E5 SBX checkpoint `7ae9b19a56212bfdc4f44d3b`, its compile report, independent
+audit, and deterministic reproduction evidence remain protected until the
+schema-aware retention audit confirms that the WDS-complete successor and its
+rollback coverage are sufficient. Neither it nor the older
+`bbc7f0083646dfd5a602467b` is a manual deletion target.
 
 The white-dwarf adapter's first v21 attempt failed closed before promotion when
 an unqualified source column collided with compiler lineage `source_id`. Its
@@ -849,18 +849,22 @@ this artifact, and removed as whole units after their reports were retained.
 ## E5 Selected-Component Artifacts
 
 `derived/evidence_lake_v2/selected_components/<build_id>/` contains immutable
-MSC, DEBCat, SB9, and ORB6 component/relation evidence projections. Protect every artifact
+MSC, DEBCat, SB9, ORB6, SBX, and WDS component/relation/context evidence
+projections. Protect every artifact
 named by the E5 disposition ledger, its component policy and compiler hashes,
 the canonical reference build, E2 identity graph, all referenced E4 shards,
 ordered Parquet files, manifest, independent audit, and clean-reproduction
 report. Never prune a DuckDB inspection database or individual Parquet member
 from a retained artifact.
 
-Artifact `bbc7f0083646dfd5a602467b` is the protected checkpoint. It passes
-independent audit and clean reproduction with identical hashes for all
-twenty-four ordered Parquet files. Its predecessors `6def85dff374034cfe125b6b`
-and `1dddf975f24d9bba9590d046` predate the full MSC and ORB6 projections and are
-no longer ledger-current. Earlier artifacts
+Artifact `33f2a90275378a35be21a704` is the protected checkpoint. It passes
+independent audit and clean reproduction across the combined six-source
+component artifact, including exhaustive SBX and WDS projections. Its
+predecessors `079ac01403b8971e12c99228`, `7ae9b19a56212bfdc4f44d3b`,
+`bbc7f0083646dfd5a602467b`,
+`6def85dff374034cfe125b6b`, and `1dddf975f24d9bba9590d046` predate the WDS,
+SBX, full MSC, or ORB6 projections and are no longer ledger-current. Earlier
+artifacts
 `58f4c58cf2fff4d18e7a32c4` and
 `78b28bd541f82c49cd0ff5b7` are unreferenced experiments: the first lacked the
 exact DEBCat source-native quantity-authority keys, while the second preceded a

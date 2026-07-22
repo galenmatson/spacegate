@@ -1495,6 +1495,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   HIP, HD, and TIC system anchors; retain missing/conflicting identities,
   preserve astrometry as observation-target context, and forbid canonical
   component or hierarchy promotion
+- [x] E5 WDS relation-context projection: account all 157,299 visual-pair
+  summaries through the documented component notation and exact MSC endpoints;
+  preserve opaque spectra, unspecified-band magnitudes, relative astrometry,
+  epochs, positions, and source-convention proper motion as scoped context only
+  and reject positional, system-level, and canonical-containment fallbacks
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

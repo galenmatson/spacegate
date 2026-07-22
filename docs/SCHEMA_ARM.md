@@ -103,7 +103,13 @@ Evidence Lake v2 staging rule:
   identifier plus constructed discoverer/pair designation and one accepted MSC
   relation with the parsed WDS-qualified endpoints;
   `orb6_orbital_solution_projection` retains all rejected outcomes and makes
-  only those exact bindings eligible. It is an E6 compiler input, not an
+  only those exact bindings eligible. SBX primary/secondary targets remain
+  release scoped under exact system anchors, and its observation-target
+  astrometry remains context rather than being copied to the primary.
+  `wds_pair_relation_bindings` applies the same documented pair parser directly
+  to every WDS summary row; WDS classification, photometry, and astrometry
+  projections remain contextual even when an exact MSC relation resolves.
+  It is an E6 compiler input, not an
   independently served or canonical database.
 - `evidence_object_bindings` contains exactly one outcome per eligible evidence
   subject. `binding_subject_kind` and `binding_subject_id` distinguish an
@@ -1483,6 +1489,16 @@ consume it only as a candidate relation with angular-distance evidence; it is
 not a probability, accepted physical identity, containment edge, or orbital
 solution. Copied Gaia columns in the bridge are match context, while the
 release-native Gaia adapters own their scientific parameter semantics.
+
+E5 parses only the documented blank ordinary A/B, simple two-symbol, comma,
+hyphen, and abbreviated numbered component forms. A WDS summary row receives
+release-scoped endpoint keys only when that parsed pair matches one accepted
+MSC relation under the same punctuation-preserving WDS identifier. Opaque
+spectral text stays on the pair; component magnitudes remain context because
+the bandpass is not consistently specified; relative astrometry and
+source-convention proper motion preserve their source units and epochs. None of
+these rows can create canonical components, containment, hierarchy, or selected
+stellar scalars.
 
 ## Gaia UCD Association Evidence Policy
 

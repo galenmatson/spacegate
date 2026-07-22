@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx"):
+    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -228,6 +228,18 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           target_key VARCHAR, canonical_system_stable_object_key VARCHAR,
           projected_relation_id VARCHAR, binding_status VARCHAR,
           binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE wds_pair_relation_bindings (
+          relation_binding_id VARCHAR, source_record_id VARCHAR,
+          wds_identifier_evidence_id VARCHAR, discoverer_identifier_evidence_id VARCHAR,
+          source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
+          wds_id_raw VARCHAR, discoverer_raw VARCHAR, components_raw VARCHAR,
+          primary_component_label VARCHAR, secondary_component_label VARCHAR,
+          component_parse_method VARCHAR, msc_relation_candidate_count BIGINT,
+          msc_projected_relation_id VARCHAR, msc_relation_evidence_id VARCHAR,
+          primary_source_component_key VARCHAR, secondary_source_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_method VARCHAR, binding_reason VARCHAR, policy_version VARCHAR
         );
         """
     )
@@ -1563,6 +1575,237 @@ def compile_sbx(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_wds(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    source_table = sql_literal(source["source_table"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["relation_binding_method"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE wds_e5_pair_subjects AS
+        WITH identifiers AS (
+          SELECT source_record_id,
+                 min(evidence_id) FILTER(WHERE namespace='wds_id')
+                   wds_identifier_evidence_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_id') wds_id_raw,
+                 min(evidence_id) FILTER(WHERE namespace='wds_discoverer_designation')
+                   discoverer_identifier_evidence_id,
+                 min(identifier_raw) FILTER(WHERE namespace='wds_discoverer_designation')
+                   discoverer_raw
+          FROM wds.identifier_claim_evidence
+          GROUP BY source_record_id
+        )
+        SELECT s.source_record_id,i.wds_identifier_evidence_id,i.wds_id_raw,
+               i.discoverer_identifier_evidence_id,i.discoverer_raw,
+               json_extract_string(s.source_context_json,'$.components') components_raw
+        FROM wds.source_records s
+        JOIN identifiers i USING(source_record_id)
+        WHERE s.source_id={source_id} AND s.release_id={release_id}
+          AND s.source_table={source_table};
+
+        CREATE TEMP TABLE wds_e5_parsed_pairs AS
+        SELECT *,
+          CASE
+            WHEN components_raw IS NULL OR trim(components_raw)='' THEN 'A'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN split_part(trim(components_raw),',',1)
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN split_part(trim(components_raw),',',1)
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN split_part(trim(components_raw),'-',1)
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]{{2}}')
+              THEN substr(trim(components_raw),1,1)
+          END primary_component_label,
+          CASE
+            WHEN components_raw IS NULL OR trim(components_raw)='' THEN 'B'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN concat(regexp_extract(trim(components_raw),'^([A-Za-z]+)',1),
+                          split_part(trim(components_raw),',',2))
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN split_part(trim(components_raw),',',2)
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN split_part(trim(components_raw),'-',2)
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]{{2}}')
+              THEN substr(trim(components_raw),2,1)
+          END secondary_component_label,
+          CASE
+            WHEN components_raw IS NULL OR trim(components_raw)=''
+              THEN 'documented_ordinary_pair_ab'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]+[0-9]+,[0-9]+')
+              THEN 'wds_abbreviated_numbered_pair'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+,[A-Za-z0-9]+')
+              THEN 'wds_comma_separated_pair'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z0-9]+-[A-Za-z0-9]+')
+              THEN 'wds_hyphen_separated_pair'
+            WHEN regexp_full_match(trim(components_raw),'[A-Za-z]{{2}}')
+              THEN 'wds_simple_two_symbol_pair'
+            ELSE 'unparsed'
+          END component_parse_method
+        FROM wds_e5_pair_subjects;
+
+        CREATE TEMP TABLE wds_e5_msc_pair_candidates AS
+        SELECT m.projected_relation_id,m.relation_evidence_id,
+               m.left_source_component_key,m.right_source_component_key,
+               m.canonical_system_stable_object_key,l.wds_id_raw,
+               l.component_label_raw left_component_label,
+               r.component_label_raw right_component_label
+        FROM msc_relation_evidence_projection m
+        JOIN msc_component_entities l ON l.component_entity_id=m.left_component_entity_id
+        JOIN msc_component_entities r ON r.component_entity_id=m.right_component_entity_id
+        WHERE m.projection_status='accepted_relation_evidence'
+          AND l.wds_id_raw=r.wds_id_raw;
+
+        INSERT INTO wds_pair_relation_bindings
+        WITH candidates AS (
+          SELECT s.*,
+                 count(m.projected_relation_id) msc_relation_candidate_count,
+                 min(m.projected_relation_id) msc_projected_relation_id,
+                 min(m.relation_evidence_id) msc_relation_evidence_id,
+                 min(CASE WHEN m.left_component_label=s.primary_component_label
+                          THEN m.left_source_component_key ELSE m.right_source_component_key END)
+                   primary_source_component_key,
+                 min(CASE WHEN m.left_component_label=s.secondary_component_label
+                          THEN m.left_source_component_key ELSE m.right_source_component_key END)
+                   secondary_source_component_key,
+                 min(m.canonical_system_stable_object_key)
+                   canonical_system_stable_object_key
+          FROM wds_e5_parsed_pairs s
+          LEFT JOIN wds_e5_msc_pair_candidates m
+            ON m.wds_id_raw=s.wds_id_raw
+           AND least(m.left_component_label,m.right_component_label)=
+               least(s.primary_component_label,s.secondary_component_label)
+           AND greatest(m.left_component_label,m.right_component_label)=
+               greatest(s.primary_component_label,s.secondary_component_label)
+          GROUP BY ALL
+        )
+        SELECT sha256(concat_ws('|',{source_id},source_record_id,'pair',{policy_sql})),
+               source_record_id,wds_identifier_evidence_id,
+               discoverer_identifier_evidence_id,{source_id},{release_id},
+               {evidence_build_id},wds_id_raw,discoverer_raw,components_raw,
+               primary_component_label,secondary_component_label,
+               component_parse_method,msc_relation_candidate_count,
+               CASE WHEN component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN msc_projected_relation_id END,
+               CASE WHEN component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN msc_relation_evidence_id END,
+               CASE WHEN component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN primary_source_component_key END,
+               CASE WHEN component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1 THEN secondary_source_component_key END,
+               CASE WHEN component_parse_method<>'unparsed'
+                          AND msc_relation_candidate_count=1
+                    THEN canonical_system_stable_object_key END,
+               CASE WHEN component_parse_method='unparsed' THEN 'unparsed_pair'
+                    WHEN msc_relation_candidate_count=0 THEN 'missing_msc_relation'
+                    WHEN msc_relation_candidate_count>1 THEN 'ambiguous_msc_relation'
+                    ELSE 'accepted' END,
+               {method},
+               CASE WHEN component_parse_method='unparsed'
+                      THEN 'source-native WDS component notation is outside the documented parser contract'
+                    WHEN msc_relation_candidate_count=0
+                      THEN 'no accepted MSC relation has the exact WDS-qualified component endpoints'
+                    WHEN msc_relation_candidate_count>1
+                      THEN 'multiple accepted MSC relations have the exact WDS-qualified component endpoints'
+                    ELSE 'one accepted MSC relation has the exact WDS-qualified component endpoints' END,
+               {policy_sql}
+        FROM candidates;
+
+        CREATE TABLE wds_classification_projection AS
+        SELECT c.*,b.relation_binding_id,b.msc_projected_relation_id,
+               CASE WHEN b.binding_status='accepted' THEN 'wds_source_pair' END target_scope,
+               CASE WHEN b.binding_status='accepted' THEN concat(
+                 'source-relation:',{source_id},':',{release_id},':',b.source_record_id) END target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['classification_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'WDS spectral text may describe the primary or both components and remains pair context'
+                    ELSE b.binding_reason END projection_reason,{policy_sql} policy_version
+        FROM wds.stellar_classification_evidence c
+        JOIN wds_pair_relation_bindings b USING(source_record_id);
+
+        CREATE TABLE wds_photometry_projection AS
+        SELECT p.*,b.relation_binding_id,b.msc_projected_relation_id,
+               CASE WHEN b.binding_status='accepted' THEN 'msc_source_component' END target_scope,
+               CASE WHEN b.binding_status='accepted'
+                          AND p.quantity_key='apparent_magnitude_first_component'
+                      THEN b.primary_source_component_key
+                    WHEN b.binding_status='accepted'
+                          AND p.quantity_key='apparent_magnitude_second_component'
+                      THEN b.secondary_source_component_key END target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['photometry_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'WDS component magnitude lacks a consistently specified bandpass and remains component context'
+                    ELSE b.binding_reason END projection_reason,{policy_sql} policy_version
+        FROM wds.photometry_extinction_evidence p
+        JOIN wds_pair_relation_bindings b USING(source_record_id);
+
+        CREATE TABLE wds_astrometry_projection AS
+        SELECT a.*,b.relation_binding_id,b.msc_projected_relation_id,
+               CASE
+                 WHEN b.binding_status<>'accepted' THEN NULL
+                 WHEN a.quantity_key LIKE 'primary_%'
+                   OR a.quantity_key='subsystem_primary_j2000_coordinate_string'
+                   THEN 'msc_source_component'
+                 WHEN a.quantity_key LIKE 'secondary_%' THEN 'msc_source_component'
+                 ELSE 'wds_source_pair' END target_scope,
+               CASE
+                 WHEN b.binding_status<>'accepted' THEN NULL
+                 WHEN a.quantity_key LIKE 'primary_%'
+                   OR a.quantity_key='subsystem_primary_j2000_coordinate_string'
+                   THEN b.primary_source_component_key
+                 WHEN a.quantity_key LIKE 'secondary_%' THEN b.secondary_source_component_key
+                 ELSE concat('source-relation:',{source_id},':',{release_id},':',b.source_record_id)
+               END target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['astrometry_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'WDS summary astrometry retains source epochs, pair scope, and source-unit conventions as context'
+                    ELSE b.binding_reason END projection_reason,{policy_sql} policy_version
+        FROM wds.astrometry_distance_evidence a
+        JOIN wds_pair_relation_bindings b USING(source_record_id);
+        """
+    )
+
+    relation_counts = dict(con.execute(
+        "SELECT binding_status,count(*) FROM wds_pair_relation_bindings GROUP BY 1"
+    ).fetchall())
+    context = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='context_only_evidence'"
+    ).fetchone()[0])
+    observed = {
+        "relation_bindings": sum(relation_counts.values()),
+        "relations_accepted": relation_counts.get("accepted", 0),
+        "relations_missing_msc": relation_counts.get("missing_msc_relation", 0),
+        "relations_ambiguous_msc": relation_counts.get("ambiguous_msc_relation", 0),
+        "relations_unparsed": relation_counts.get("unparsed_pair", 0),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM wds_classification_projection").fetchone()[0]),
+        "classification_context_only": context("wds_classification_projection"),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM wds_photometry_projection").fetchone()[0]),
+        "photometry_context_only": context("wds_photometry_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM wds_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": context("wds_astrometry_projection"),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"WDS acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -1619,6 +1862,16 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "eligible_sbx_orbits_without_relations": "SELECT count(*) FROM sbx_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND projected_relation_id IS NULL",
         "selectable_sbx_astrometry": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
         "context_sbx_astrometry_without_systems": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "duplicate_wds_relation_binding_ids": "SELECT count(*)-count(DISTINCT relation_binding_id) FROM wds_pair_relation_bindings",
+        "accepted_wds_relations_without_targets": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status='accepted' AND (msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_wds_relations_with_targets": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "accepted_wds_self_relations": "SELECT count(*) FROM wds_pair_relation_bindings WHERE binding_status='accepted' AND primary_source_component_key=secondary_source_component_key",
+        "selectable_wds_classifications": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_wds_photometry": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_wds_astrometry": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_wds_classifications_without_targets": "SELECT count(*) FROM wds_classification_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "context_wds_photometry_without_targets": "SELECT count(*) FROM wds_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
+        "context_wds_astrometry_without_targets": "SELECT count(*) FROM wds_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -1645,8 +1898,9 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         raise FileNotFoundError(f"missing component compiler input: {[str(p) for p in required if not p.is_file()]}")
     identity_report_sha = sha256_file(identity_report)
     source_build_ids = [
-        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9", "orb6", "sbx")
-    ] + [policy["orb6"]["wds_evidence_build_id"]]
+        policy[name]["evidence_build_id"]
+        for name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds")
+    ]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
         "compiler_sha256": compiler_sha,
@@ -1675,7 +1929,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("sb9", "evidence_build_id", "sb9"),
             ("orb6", "evidence_build_id", "orb6"),
             ("sbx", "evidence_build_id", "sbx"),
-            ("wds", "wds_evidence_build_id", "orb6"),
+            ("wds", "evidence_build_id", "wds"),
         ):
             source_db = evidence_root / policy[name][build_id_key] / "scientific_evidence.duckdb"
             if not source_db.is_file():
@@ -1688,6 +1942,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             compile_sb9(con, source=policy["sb9"], policy_version=policy["policy_version"]),
             compile_orb6(con, source=policy["orb6"], policy_version=policy["policy_version"]),
             compile_sbx(con, source=policy["sbx"], policy_version=policy["policy_version"]),
+            compile_wds(con, source=policy["wds"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -1730,6 +1985,10 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("sbx_classification_projection", "evidence_id"),
             ("sbx_orbital_solution_projection", "evidence_id"),
             ("sbx_astrometry_projection", "evidence_id"),
+            ("wds_pair_relation_bindings", "relation_binding_id"),
+            ("wds_classification_projection", "evidence_id"),
+            ("wds_photometry_projection", "evidence_id"),
+            ("wds_astrometry_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -1748,7 +2007,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v5",
+            "schema_version": "spacegate.e5_selected_components.v6",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

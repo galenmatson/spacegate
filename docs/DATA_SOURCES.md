@@ -821,6 +821,20 @@ Policy:
 - the CDS best-match bridge is candidate positional evidence within 2 arcseconds,
   not a probability, authoritative crossmatch, physical relation, or orbit
 
+Evidence Lake status:
+
+- E5 artifact `33f2a90275378a35be21a704` accounts every one of the 157,299
+  visual-pair summaries. The bounded documented parser resolves 5,282 rows to
+  one exact WDS-qualified accepted MSC relation; 152,016 lack that relation and
+  one is ambiguous.
+- The 4,303 relation-bound spectral strings remain opaque pair context. The
+  10,388 relation-bound component magnitudes remain contextual because WDS does
+  not provide one consistent bandpass, and 57,572 relation-bound astrometry,
+  epoch, position, and source-convention proper-motion rows remain contextual
+  without unit reinterpretation.
+- The E5 projection does not use the CDS positional candidate as identity and
+  creates no canonical component, containment, hierarchy, or selected scalar.
+
 Source endpoint:
 
 - USNO/GSU WDS published data
@@ -869,7 +883,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `7ae9b19a56212bfdc4f44d3b` accounts all 374
+- E5 component-scope artifact `33f2a90275378a35be21a704` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -907,7 +921,7 @@ Classification: `auxiliary`
 
 Evidence Lake status:
 
-- Combined component artifact `7ae9b19a56212bfdc4f44d3b` accounts all 4,080
+- Combined component artifact `33f2a90275378a35be21a704` accounts all 4,080
   SBX systems and all 8,160 release-scoped primary/secondary identities. Exact
   Gaia DR3, officially reconciled Gaia DR2, HIP, HD, and TIC claims resolve
   2,354 systems uniquely; 1,699 are absent from the current canonical reference
@@ -942,7 +956,7 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `7ae9b19a56212bfdc4f44d3b` now accounts 6,937 WDS systems, 32,790 source
+  `33f2a90275378a35be21a704` now accounts 6,937 WDS systems, 32,790 source
   component identities, and 15,748 relations. It anchors 24,671 components and
   accepts 12,052 two-endpoint relation-evidence rows while retaining 8,119
   missing components, 3,693 unresolved relations, and three invalid source
@@ -1203,7 +1217,7 @@ SB9 policy:
   back to name-only or coordinate-only component assignment
 - DEBCat component evidence uses a separate unique canonical-system + period
   match and the same endpoint-existence gates
-- E5 artifact `bbc7f0083646dfd5a602467b` applies the SB9 rule to all 4,079
+- E5 artifact `33f2a90275378a35be21a704` applies the SB9 rule to all 4,079
   catalog relations. It accepts 790 unique references with two resolved MSC
   endpoints, retains 3,104 missing references, eight ambiguous references, and
   177 unresolved referenced relations, and makes 874 component magnitudes, 940

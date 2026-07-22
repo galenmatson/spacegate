@@ -2867,6 +2867,27 @@ Representative commits:
   confirming it is not a material contributor to the 24-minute full selected-
   fact build.
 
+### 100) WDS Pair Context Requires Exact MSC Endpoints
+
+- Component policy v6 applies the same documented WDS notation contract used
+  for ORB6 to all 157,299 WDS summary rows: blank is the ordinary A/B pair;
+  simple two-symbol, comma, hyphen, and abbreviated numbered forms are parsed;
+  no other syntax, coordinate, discoverer-name, or system-level fallback is
+  allowed.
+- Exact punctuation-preserving WDS identity plus unordered endpoints resolves
+  5,282 rows to one accepted MSC relation. Another 152,016 lack an accepted
+  relation and one has two candidates. All outcomes retain the exact source row
+  and reason.
+- WDS spectral text remains pair context because the source field may describe
+  the primary or both components. Unspecified-band magnitudes, observation
+  history, relative astrometry, lexical positions, and source-convention proper
+  motions remain scoped context even for accepted pairs; no selected scalar,
+  canonical component, containment, or hierarchy is emitted.
+- Combined artifact `33f2a90275378a35be21a704` passes independent audit and
+  byte-identical reproduction. It accounts 73,779 classifications, 312,727
+  magnitude rows, and 1,779,163 astrometry/history rows in 18.9 wall seconds,
+  38.0 CPU-seconds, and 4.78 GiB peak RSS.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

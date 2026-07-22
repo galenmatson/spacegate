@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-21.e5-component-scope.5",
-  "compiler_version": "selected_component_evidence_compiler_v5",
+  "policy_version": "2026-07-22.e5-component-scope.6",
+  "compiler_version": "selected_component_evidence_compiler_v6",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -196,6 +196,34 @@
       "expected_orbital_solutions_eligible": 3043,
       "expected_astrometry_evidence": 20152,
       "expected_astrometry_context_only": 11686
+    }
+  },
+  "wds": {
+    "source_id": "multiplicity.wds",
+    "release_id": "rolling_snapshot",
+    "evidence_build_id": "ad98d4e369c5a0addc6477a0",
+    "source_table": "wdsweb_summ2",
+    "relation_binding_method": "documented_wds_pair_notation_to_exact_accepted_msc_endpoints",
+    "relation_binding_semantics": "Parse only the documented blank ordinary A/B, simple two-symbol, comma-separated, hyphen-separated, and abbreviated numbered WDS component forms. Require one accepted MSC relation with the same punctuation-preserving WDS identifier and unordered endpoints. Do not use the CDS positional crossmatch, discoverer name, coordinates, or a system-level fallback.",
+    "classification_authority": "wds_opaque_pair_spectral_context",
+    "classification_semantics": "The WDS spectral field can describe the primary or both components. Preserve it on the exact source pair and never copy or split it onto a stellar component.",
+    "photometry_authority": "wds_unspecified_band_component_magnitude_context",
+    "photometry_semantics": "First/second magnitudes may target exact release-scoped endpoints, but their bandpass is not consistently specified, so they remain contextual rather than selectable photometry.",
+    "astrometry_authority": "wds_source_epoch_relative_astrometry_context",
+    "astrometry_semantics": "Preserve observation epochs, relative astrometry, source-convention proper motions, and lexical positions with exact pair/component targets as context. Do not convert or select source-convention units here.",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_relation_bindings": 157299,
+      "expected_relations_accepted": 5282,
+      "expected_relations_missing_msc": 152016,
+      "expected_relations_ambiguous_msc": 1,
+      "expected_relations_unparsed": 0,
+      "expected_classification_evidence": 73779,
+      "expected_classification_context_only": 4303,
+      "expected_photometry_evidence": 312727,
+      "expected_photometry_context_only": 10388,
+      "expected_astrometry_evidence": 1779163,
+      "expected_astrometry_context_only": 57572
     }
   }
 }
