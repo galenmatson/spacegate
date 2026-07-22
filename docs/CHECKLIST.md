@@ -1691,7 +1691,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
-- [x] E7 completion audit checkpoint: verify 35 pinned reports/artifacts with no
+- [x] E7 completion audit checkpoint: verify 38 pinned reports/artifacts with no
   failures and expose six open or blocked gates without treating the stability-
   database-backed v7 candidate as a clean authoritative compiler
 - [x] E7 permanent identity seed: export 11,759,440 nodes and 5,886,947
@@ -1708,6 +1708,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E7 permanent identity vocabulary: migrate all 1,026,480 aliases onto
   permanent stable object keys in a 25.7-MiB identity-only artifact, prohibit
   scientific scalar columns, and pass independent audit plus clean reproduction
+- [x] E7 clean identity/search foundation: compile build
+  `9c2d08086275ead386f71bf7` from pinned identity, alias, hierarchy, and selected
+  placement artifacts without opening a stability database; preserve all
+  5,869,091 systems, 5,874,636 stars, and 6,311 planets, emit 12,768,410
+  deterministic search terms, independently verify the query databases, and
+  reproduce every canonical Parquet hash in isolated scratch
 - [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
   process to retire only superseded unserved v5 shadow
   `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its

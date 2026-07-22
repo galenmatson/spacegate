@@ -1097,6 +1097,16 @@ authorized removal of only `e6_6e2449e225cd33f9055df6c0_shadow` and reclaimed
 verified v7, served/current/rollback builds, and transitive evidence remain
 protected.
 
+E7 clean-foundation development produced five immutable variants under
+`/mnt/space/spacegate/e7-clean-foundation`, about 7.8 GiB each. Accepted build
+`9c2d08086275ead386f71bf7`, its state symlink, compile/verification/reproduction
+reports, and all pinned inputs are protected. The four earlier variants are
+superseded compiler diagnostics, but they are not manual deletion targets.
+Add a clean-foundation-aware exact-candidate dry-run that checks manifests,
+state symlinks, reports, process liveness, shared files, and the accepted
+replacement before removing whole variants and their corresponding superseded
+state links. The isolated reproduction scratch tree was removed automatically.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

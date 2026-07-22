@@ -1402,6 +1402,12 @@ Matching rules (when `q` is provided):
 
 Implementation notes:
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
+- Evidence Lake clean foundation `9c2d08086275ead386f71bf7` makes that
+  projection deterministic from permanent canonical names, aliases, and
+  release-scoped identifiers. It emits at most one row per system, target type,
+  target ID, and normalized term and retains target focus metadata. Later clean
+  serving builds must consume this projection rather than copy stability search
+  rows.
 - rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
 - responses that expose large numeric catalog identifiers should include string
   companions such as `gaia_id_text`, `hip_id_text`, and `hd_id_text` when those

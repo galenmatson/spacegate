@@ -3382,11 +3382,11 @@ Representative commits:
 
 - `e7_stability_table_migration.json` and its independent audit checksum and
   enumerate every one of the 74 tables in stability CORE, ARM, hierarchy, and
-  DISC. No table is implicitly inherited: five table owners are verified
-  artifacts, eight zero-row compatibility tables are explicit retirements, 54
+  DISC. No table is implicitly inherited: six table owners are verified
+  artifacts, eight zero-row compatibility tables are explicit retirements, 53
   require clean compilation, and seven infrared tables remain one bounded clean
   projection blocker.
-- The audit deliberately reports `incomplete` with 61 open replacements while
+- The audit deliberately reports `incomplete` with 60 open replacements while
   passing all accounting gates. This separates complete migration planning from
   actual clean cutover and prevents a copied compatibility database from being
   mislabeled as Evidence Lake output.
@@ -3401,6 +3401,24 @@ Representative commits:
   then retired only the unserved superseded v5 shadow, reclaimed
   18,582,962,176 allocated bytes, and preserved its public artifact, all seven
   reports, verified v7, rollback state, and source evidence.
+
+### 126) Clean Inventory and Search No Longer Depend on Stability Databases
+
+- Build `9c2d08086275ead386f71bf7` compiles permanent inventory, selected system
+  placement, aliases, release-scoped identifiers, quarantine, search terms, and
+  canonical hierarchy from five checksum-pinned clean artifacts. The compiler
+  opens no stability database and marks identity migration inputs as
+  non-scientific authority.
+- Exact inventory is 5,869,091 systems, 5,874,636 stars, and 6,311 planets.
+  The build emits 12,768,410 deduplicated search terms and preserves all
+  6,669,279 accepted identifier bindings. It explicitly accounts 3,485 planets
+  without a canonical system binding and 3,489 without a host-star binding;
+  no unmatched planet is discarded or assigned an invented host.
+- Production takes 68.23 seconds at 17.27 GiB peak RSS. Isolated compilation
+  plus independent verification takes 74.63 seconds, matches every canonical
+  Parquet hash, and removes scratch. DuckDB query-database containers are
+  verified by logical schema/count/invariant checks because their internal page
+  layout is not a deterministic serialization.
 
 ## Recurrent Defect Classes and Mitigations
 

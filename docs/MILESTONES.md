@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 35 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 38 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2450,12 +2450,18 @@ Pre-promotion planning checkpoint (July 22, 2026):
   5,869,091 canonical systems once, preserves exact placement evidence and
   derivation lineage, passes independent verification, and reproduces both
   ordered Parquet hashes without reading stability-database science
-- the stability migration audit owns all 74 tables exactly once: five are now
-  verified artifacts, eight are verified empty retirements, and 61 clean
+- the stability migration audit owns all 74 tables exactly once: six are now
+  verified artifacts, eight are verified empty retirements, and 60 clean
   compiler or compatibility replacements remain explicit
 - permanent identity vocabulary seed `6b4fb210e1b1bcf61299fe7f` exports all
   1,026,480 aliases by permanent stable object key without scientific scalar
   columns; independent audit and USB-backed reproduction pass
+- clean foundation build `9c2d08086275ead386f71bf7` opens no stability
+  database and materializes the permanent system/star/planet inventory,
+  selected placements, aliases, identifiers, quarantine, 12,768,410 search
+  terms, and canonical hierarchy from pinned artifacts; all canonical Parquet
+  hashes reproduce exactly and both DuckDB query databases pass logical-table
+  verification
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

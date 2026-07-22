@@ -988,3 +988,22 @@ During Gaia-first migration:
 - parallel builds may exist (legacy AT-HYG path vs Gaia-first path)
 - API-facing schema fields should remain stable where practical
 - any field semantic changes must be documented in release notes and build metadata
+
+### Evidence Lake v2 clean foundation
+
+E7 build `9c2d08086275ead386f71bf7` establishes the non-stability input
+contract for canonical inventory and search. `canonical_objects` retains the
+permanent stable key, object type, permanent numeric compatibility ID, system
+key, and display name. Foundation `systems` adds selected placement and exact
+bound star/planet counts; `stars` and `planets` retain permanent containment
+bindings without scientific scalar fallback. Unbound planets remain rows with
+nullable system/host IDs.
+
+`aliases`, `object_identifiers`, `identifier_quarantine`, and
+`system_search_terms` are rebuilt from permanent identity artifacts. Search
+terms are unique by system, target type, target ID, and normalized term.
+Authoritative output is deterministic Parquet; the accompanying DuckDB files
+are verified query projections whose internal page serialization is not part of
+the scientific identity contract. Later E7 compilers enrich these tables from
+selected facts and domain projections but may not copy stability scientific
+values into them.

@@ -521,6 +521,18 @@ RSS and writes 25.7 MiB; isolated compile plus audit takes 5.66 seconds. These
 steps remain explicit rows in the final E7 critical path even though neither is
 a material runtime bottleneck.
 
+Clean identity/search foundation build `9c2d08086275ead386f71bf7` takes 68.23
+wall seconds, 17.27 GiB peak RSS, and writes about 7.8 GiB across canonical
+Parquet plus regenerable DuckDB query databases. The largest phases are index
+construction (14.9 seconds), Parquet export (12.5), search materialization
+(9.9), and hierarchy materialization (9.8). Isolated compile plus verification
+takes 74.63 seconds. Preserving insertion order adds roughly 6-8 seconds but
+makes all eight canonical Parquet outputs byte-identical; this is accepted.
+DuckDB container byte hashes remain intentionally non-gating because internal
+page layout is not a stable serialization, while independent logical-table
+verification remains mandatory. This step is not responsible for the
+hour-scale end-to-end build.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

@@ -1984,9 +1984,9 @@ step.
 
 Machine contract `config/evidence_lake/e7_stability_table_migration.json`
 accounts every table in stability CORE, ARM, hierarchy, and DISC exactly once.
-The audit passes all 74 tables with exact database checksums: five table owners
+The audit passes all 74 tables with exact database checksums: six table owners
 are verified artifacts, eight empty compatibility tables are safe to omit, and
-61 clean compiler or compatibility replacements remain open. Passing this audit
+60 clean compiler or compatibility replacements remain open. Passing this audit
 means the migration inventory is complete; it does not authorize the clean
 compiler to read stability databases or imply cutover completion.
 
@@ -1998,6 +1998,33 @@ identities, empty normalized aliases, semantic duplicates, or prohibited
 scientific columns. Production and isolated USB-backed compilation produce the
 same hash and the reproduction removes scratch. Future clean builds read this
 seed, not the migration CORE.
+
+## E7 Clean Identity and Search Foundation
+
+Content-addressed build `9c2d08086275ead386f71bf7` is the first clean
+authoritative build entrypoint. It opens no stability database. Its only inputs
+are checksum-pinned permanent identity, hierarchy, alias-vocabulary, and
+selected-system-placement artifacts. It materializes 5,869,091 systems,
+5,874,636 stars, 6,311 planets, 1,026,480 aliases, 6,669,279 identifiers,
+81,043 explicit identity quarantines, and 12,768,410 deduplicated system search
+terms. All systems have one selected placement and no object, alias, identifier,
+or search binding is silently dropped.
+
+The build explicitly retains 3,485 planet records whose legacy canonical
+identity has no system binding and 3,489 without a host-star binding. These are
+accounted unresolved identities, not deleted inventory or invented host links.
+The scientific compiler must resolve them from accepted identity evidence or
+keep them visibly unbound.
+
+The production compile takes 68.23 wall seconds and peaks at 17.27 GiB RSS.
+Index construction is the largest phase at 14.9 seconds, followed by canonical
+Parquet export at 12.5 seconds, search-term materialization at 9.9 seconds, and
+hierarchy materialization at 9.8 seconds. An isolated rebuild plus independent
+verification takes 74.63 seconds and removes scratch. Every canonical Parquet
+is byte-identical. DuckDB files are explicitly regenerable query databases:
+their page serialization is not stable, so determinism is gated on exact
+Parquet hashes plus independent schema, count, relationship, and invariant
+verification of their logical tables.
 
 ## Hard Gates
 

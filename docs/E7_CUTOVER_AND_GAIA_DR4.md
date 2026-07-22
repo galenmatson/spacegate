@@ -131,6 +131,17 @@ work should target shared selected-fact projection and output materialization;
 immutable attestation already fell from 22.72 to 6.25 seconds and is no longer
 the dominant placement phase.
 
+Clean identity/search build `9c2d08086275ead386f71bf7` takes 68.23 seconds at
+17.27 GiB peak RSS. Its leading phases are index construction (14.9 seconds),
+canonical Parquet export (12.5), search materialization (9.9), and hierarchy
+materialization (9.8). Isolated compile plus independent verification takes
+74.63 seconds. Preserved insertion order costs roughly 6-8 seconds and is
+accepted because it makes every canonical Parquet byte-identical. DuckDB
+containers remain logical query projections, not deterministic scientific
+serialization. This measured step is not the hour-scale critical-path source;
+the selected-science, public-slice, map-tile, and scene phases remain the next
+optimization targets.
+
 ## Gaia DR4 Adapter
 
 ESA currently schedules Gaia DR4 for December 2, 2026. The date and evolving

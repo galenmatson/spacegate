@@ -1,0 +1,51 @@
+{
+  "schema_version": "spacegate.e7_clean_foundation_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-foundation.1",
+  "compiler_version": "e7_clean_foundation_compiler_v1",
+  "rules": {
+    "open_stability_databases": false,
+    "scientific_authority_from_identity_seed": false,
+    "require_every_canonical_system_placed": true,
+    "require_every_alias_bound": true,
+    "require_every_identifier_bound": true,
+    "semantic_search_duplicates_allowed": false
+  },
+  "inputs": {
+    "identity_graph": {
+      "id": "c84389ad55f17081fff008b4",
+      "relative_path": "derived/evidence_lake_v2/identity/c84389ad55f17081fff008b4/identity_graph.duckdb",
+      "sha256": "a73ca688ebdf47e930be0f116643bc7575fba93080191e7f8633159e22d3862e"
+    },
+    "hierarchy_nodes": {
+      "id": "5c878083872c738415971864",
+      "relative_path": "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/hierarchy_nodes.parquet",
+      "sha256": "ac6c9447a4b238b5d7a06e3b90c73432b4fcb39fce33b397d219bdf5a7901c44"
+    },
+    "hierarchy_edges": {
+      "id": "5c878083872c738415971864",
+      "relative_path": "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/hierarchy_edges.parquet",
+      "sha256": "f44c08e44d4ccb2254881f8eff0b8d793718537e7922f3ff60a0266306bc2880"
+    },
+    "aliases": {
+      "id": "6b4fb210e1b1bcf61299fe7f",
+      "relative_path": "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/aliases.parquet",
+      "sha256": "8004eb6d114d157783b229542d0e63d456981cfcf7249bb349956ff523225ac9"
+    },
+    "system_placements": {
+      "id": "22e9a59dd02484454a629df7",
+      "relative_path": "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/selected_system_placements.parquet",
+      "sha256": "342eb2d6fd8bc36152a9ba425c2a7c8c226383994b859294ed9e765933b3b3d1"
+    }
+  },
+  "identifier_display_prefixes": {
+    "gaia_dr3": "Gaia DR3",
+    "hip": "HIP",
+    "hd": "HD",
+    "hr": "HR",
+    "tic": "TIC",
+    "tyc": "TYC",
+    "wds": "WDS",
+    "gl": "",
+    "hyg": "HYG"
+  }
+}

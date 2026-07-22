@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.2",
+  "contract_version": "2026-07-22.e0-e7-acceptance.3",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
   "report_checks": [
@@ -138,6 +138,16 @@
       "stage": "E7",
       "path": "e7_identity_vocabulary_reproduction.json",
       "expect": {"status": "pass", "seed_id": "6b4fb210e1b1bcf61299fe7f", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_foundation_verification.json",
+      "expect": {"status": "pass", "build_id": "9c2d08086275ead386f71bf7", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_foundation_reproduction.json",
+      "expect": {"status": "pass", "build_id": "9c2d08086275ead386f71bf7", "scratch_removed": true, "failing_checks": []}
     }
   ],
   "required_artifacts": [
@@ -148,14 +158,15 @@
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json",
     "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
-    "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json"
+    "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",
+    "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json"
   ],
   "open_gates": [
     {
       "gate_id": "clean_pinned_input_authoritative_entrypoint",
       "stage": "E7",
       "status": "open",
-      "reason": "Permanent identity, hierarchy, aliases, and system placement now have clean pinned-input projections, but 61 scientific, compatibility, search, metadata, and presentation table replacements remain before E6 can stop opening stability databases."
+      "reason": "Clean build 9c2d08086275ead386f71bf7 now compiles canonical inventory, aliases, identifiers, system search, hierarchy, and placement from pinned non-stability inputs, but selected scientific, extended-object, infrared, compatibility, final metadata, and presentation replacements remain before E6 can stop opening stability databases."
     },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",

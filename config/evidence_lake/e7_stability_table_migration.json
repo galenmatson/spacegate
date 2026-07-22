@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.1",
+  "contract_version": "2026-07-22.e7-stability-table-migration.2",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -33,10 +33,16 @@
           "tables": ["object_identifiers", "identifier_quarantine"]
         },
         {
-          "group_id": "core.search",
+          "group_id": "core.system_search",
+          "disposition": "verified_artifact",
+          "replacement": "E7 clean foundation 9c2d08086275ead386f71bf7 deterministic search projection from clean names, aliases, and identifiers",
+          "tables": ["system_search_terms"]
+        },
+        {
+          "group_id": "core.extended_object_search",
           "disposition": "clean_compiler_required",
-          "replacement": "Deterministic search projections from clean names, aliases, and identifiers",
-          "tables": ["system_search_terms", "extended_object_search_terms"]
+          "replacement": "Deterministic search projection from selected extended-object names, aliases, and identifiers",
+          "tables": ["extended_object_search_terms"]
         },
         {
           "group_id": "core.selected_domains",
