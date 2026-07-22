@@ -760,12 +760,21 @@ JPL target/center relation outcomes are preserved with zero canonical-containmen
 promotions. Runtime orbit and physical selection must consume this identity
 artifact rather than the old stability-bound target table.
 
-Selected runtime artifact `9175e1163df1ec5234ccf7ae` now performs that clean
+Selected runtime artifact `0f1ac54fb1d4e9b71472abab` now performs that clean
 join for both natural and artificial targets. It preserves 68 complete periodic
 solutions, three complete period-null hyperbolic escape trajectories, one
 barycenter reference context, and 36 natural-body physical parameter sets.
 Periodic renderability and hyperbolic trajectory eligibility remain distinct;
 the selector does not invent a period for an unbound path.
+
+Clean runtime ARM build `376285dd79d73a52972d74fd` consumes this selected
+artifact and the permanent identity artifact without opening a stability
+database. It projects 57 ARM-only Solar identities, 57 non-containment graph
+relations, 70 accepted runtime orbit/solution rows, 35 minor-body compatibility
+rows, and 11 artificial-object compatibility rows. The selected barycenter
+reference context remains evidence-only. All component endpoints resolve, no
+source relation becomes canonical containment, and isolated logical reproduction
+passes.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 

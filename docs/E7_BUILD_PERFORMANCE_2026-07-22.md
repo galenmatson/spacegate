@@ -97,25 +97,56 @@ compile/audit/reproduction takes 8.23 seconds with a 279,780 KiB peak. These are
 separate named stages in the eventual E7 critical path; they replace an implicit
 stability-ARM identity lookup rather than adding optional duplicate work.
 
-Selected Solar runtime compilation takes 0.14 seconds external wall time and
-peaks at 91,940 KiB RSS. Independent verification takes 0.12 seconds; isolated
-byte-exact compile/audit/reproduction takes 0.18 seconds. The stage is retained
+Selected Solar runtime compilation takes 0.15 seconds external wall time and
+peaks at 92,484 KiB RSS. Independent verification and isolated byte-exact
+compile/audit/reproduction each remain below 0.2 seconds. The stage is retained
 separately because its policy distinction between periodic, hyperbolic, and
 reference-origin solutions is scientifically material even though its runtime is
 negligible.
+
+Clean Solar ARM v2 build `376285dd79d73a52972d74fd` completes in 148.73 seconds
+of internal wall time and 2:28.91 under GNU `time -v`. It uses 430.19 CPU-seconds,
+peaks at 47,150,292 KiB RSS without swap, and writes a 13,716,172,800-byte
+DuckDB. The named phases total 145.41 seconds; connection close, publication,
+manifest writing, and timer overhead account for the remaining 3.31 seconds.
+The independent audit takes 8.15 seconds.
+
+The six dominant selected-stellar copies still consume 92.89 seconds; all
+selected-science copies consume 93.43 seconds. Component graph creation takes
+8.31 seconds, leaf classification 6.95 seconds, indexes 18.03 seconds, input
+product byte verification 10.31 seconds, and final database hashing 6.93 seconds.
+All Solar copies, graph extension, and compatibility projections together take
+0.48 seconds. This establishes that Solar compilation is not responsible for the
+slow build.
+
+The first Solar ARM attempt failed closed after 2:02.01 external wall time and a
+39,006,908 KiB peak because the runtime projection referenced an unselected
+source-native key instead of the release-scoped `source_record_id`. No artifact
+was published and staging was removed. A lightweight schema smoke test was added
+before the second full run; it validates the selected contracts, endpoint
+resolution, compatibility column names, and period-null hyperbolic rows without
+recopying the multi-million-row science surfaces.
+
+The accepted isolated rebuild takes 149.18 seconds. Rebuild, logical signatures
+for all 31 tables, independent verification, report handling, and scratch cleanup
+take 2:52.34 internally and 2:52.54 under GNU `time -v`, peaking at 46,971,956
+KiB RSS. Every schema, row count, verification section, and logical hash matches;
+there are no differing tables.
 
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical
    output with the canonical hierarchy rather than returning to a multi-inventory
    join.
-2. Measure whether copying complete selected-science and WISE consumer tables is
-   I/O-bound and whether immutable views or a smaller runtime projection can meet
-   the same consumer contract.
+2. Prototype a deployable immutable selected-science shard referenced by ARM,
+   or content-addressed assembly that reuses unchanged physical table blocks.
+   Recopying unchanged selected science is the measured 93.43-second critical
+   path; views are acceptable only if deployment and visible-failure guarantees
+   remain self-contained.
 3. Profile stellar leaf candidate ranking by evidence source and avoid sorting
    rows that cannot compete, while preserving the shared classification policy.
-4. Measure index creation independently; omit only indexes proven unused by the
-   runtime and verification query plans.
+4. Profile the 18.03-second index phase against runtime and verification query
+   plans. Defer or omit only indexes proven unused before atomic promotion.
 5. Avoid rebuilding content-addressed phases whose full input and relevant policy
    hashes are unchanged, but continue byte-verifying every referenced artifact.
 6. Keep the final database hash and clean reproduction. Test parallel or

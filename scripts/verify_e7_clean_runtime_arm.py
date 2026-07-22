@@ -34,13 +34,32 @@ WISE_TABLES = {
     "infrared_source_matches",
     "wise_sources",
 }
+SOLAR_IDENTITY_TABLES = {
+    "solar_component_aliases",
+    "solar_component_identifiers",
+    "solar_component_identities",
+    "solar_relation_identity_outcomes",
+}
+SOLAR_RUNTIME_TABLES = {
+    "selected_solar_orbital_solutions",
+    "selected_solar_physical_parameters",
+    "selected_solar_relation_bindings",
+    "selected_solar_target_bindings",
+}
 RUNTIME_TABLES = {
     "build_metadata",
     "component_entities",
+    "orbital_solutions",
+    "orbit_edges",
+    "sol_artificial_objects",
+    "sol_small_body_objects",
     "stellar_leaf_display_classifications",
     "system_hierarchy_edges",
 }
-EXPECTED_TABLES = SCIENCE_TABLES | WISE_TABLES | RUNTIME_TABLES
+EXPECTED_TABLES = (
+    SCIENCE_TABLES | WISE_TABLES | SOLAR_IDENTITY_TABLES
+    | SOLAR_RUNTIME_TABLES | RUNTIME_TABLES
+)
 EXPECTED_VIEWS = {
     "e6_selected_planet_parameters",
     "e6_selected_stellar_display_classifications",
@@ -62,6 +81,16 @@ REQUIRED_COLUMNS = {
         "leaf_component_key", "classification_value", "classification_status",
         "evidence_basis", "selected_fact_id", "source_catalog", "source_pk",
         "confidence_score", "has_classification_conflict", "projection_version",
+    },
+    "orbit_edges": {
+        "orbit_edge_id", "host_component_key", "primary_component_key",
+        "secondary_component_key", "relation_kind", "preferred_solution_id",
+        "confidence_score", "source_catalog", "source_pk", "source_row_hash",
+    },
+    "orbital_solutions": {
+        "orbital_solution_id", "orbit_edge_id", "solution_source_catalog",
+        "period_days", "semi_major_axis_au", "eccentricity", "inclination_deg",
+        "normalization_method", "source_catalog", "source_pk", "source_row_hash",
     },
 }
 VALID_CLASSES = (
@@ -93,7 +122,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     started = time.monotonic()
     manifest = load_object(build_dir / "manifest.json")
     failures: dict[str, Any] = {}
-    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v1":
+    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v2":
         failures["manifest_schema"] = manifest.get("schema_version")
     if manifest.get("status") != "pass":
         failures["manifest_status"] = manifest.get("status")
@@ -157,7 +186,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "duplicate_leaf_nodes": scalar(con, "SELECT count(*) FROM (SELECT hierarchy_node_key FROM stellar_leaf_display_classifications GROUP BY 1 HAVING count(*)<>1)"),
                 "orphan_hierarchy_parents": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.parent_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_hierarchy_children": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.child_component_key WHERE c.component_entity_id IS NULL"),
-                "source_claim_containment_edges": scalar(con, "SELECT count(*) FROM system_hierarchy_edges WHERE source_catalog<>'canonical_hierarchy'"),
+                "source_claim_containment_edges": scalar(con, "SELECT count(*) FROM system_hierarchy_edges WHERE source_catalog<>'canonical_hierarchy' AND edge_kind='contains'"),
                 "invalid_leaf_classes": scalar(con, f"SELECT count(*) FROM stellar_leaf_display_classifications WHERE classification_value NOT IN {VALID_CLASSES}"),
                 "nonmissing_leaf_without_lineage": scalar(con, "SELECT count(*) FROM stellar_leaf_display_classifications WHERE classification_status<>'missing' AND (evidence_basis IS NULL OR source_catalog IS NULL OR source_pk IS NULL)"),
                 "duplicate_selected_stars": scalar(con, "SELECT count(*) FROM (SELECT star_id FROM selected_stellar_parameters GROUP BY 1 HAVING count(*)<>1)"),
@@ -167,6 +196,17 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "display_view_count_delta": abs(scalar(con, "SELECT count(*) FROM e6_selected_stellar_display_classifications") - counts.get("selected_stellar_display_classifications", -1)),
                 "planet_view_count_delta": abs(scalar(con, "SELECT count(*) FROM e6_selected_planet_parameters") - counts.get("selected_planet_parameters", -1)),
                 "metadata_stability_opened": scalar(con, "SELECT count(*) FROM build_metadata WHERE key='stability_database_opened' AND value<>'0'"),
+                "solar_canonical_containment_promotions": scalar(con, "SELECT (SELECT count(*) FROM solar_relation_identity_outcomes WHERE canonical_containment)+(SELECT count(*) FROM selected_solar_relation_bindings WHERE canonical_containment)+(SELECT count(*) FROM selected_solar_orbital_solutions WHERE canonical_containment)"),
+                "solar_identity_projection_delta": abs(scalar(con, "SELECT count(*) FROM component_entities WHERE source_catalog IN ('sol_authority','sol_artificial')") - scalar(con, "SELECT count(*) FROM solar_component_identities WHERE core_object_id IS NULL")),
+                "solar_orbit_projection_delta": abs(counts.get("orbit_edges", -1) - scalar(con, "SELECT count(*) FROM selected_solar_orbital_solutions WHERE runtime_eligible")),
+                "solar_solution_projection_delta": abs(counts.get("orbital_solutions", -1) - counts.get("orbit_edges", -1)),
+                "orphan_orbit_hosts": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.host_component_key WHERE c.component_entity_id IS NULL"),
+                "orphan_orbit_primaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.primary_component_key WHERE c.component_entity_id IS NULL"),
+                "orphan_orbit_secondaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.secondary_component_key WHERE c.component_entity_id IS NULL"),
+                "orphan_orbital_solutions": scalar(con, "SELECT count(*) FROM orbital_solutions s LEFT JOIN orbit_edges e USING(orbit_edge_id) WHERE e.orbit_edge_id IS NULL"),
+                "periodic_hyperbolic_solutions": scalar(con, "SELECT count(*) FROM selected_solar_orbital_solutions WHERE render_mode='hyperbolic_trajectory' AND periodic_renderable"),
+                "small_body_count_delta": abs(counts.get("sol_small_body_objects", -1) - 35),
+                "artificial_count_delta": abs(counts.get("sol_artificial_objects", -1) - 11),
                 "manifest_count_delta": sum(
                     abs(counts.get(table, -1) - int(expected))
                     for table, expected in manifest_counts.items()
@@ -179,7 +219,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     if nonzero:
         failures["invariants"] = nonzero
     return {
-        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v1",
+        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v2",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "build_id": manifest.get("build_id"),
         "status": "pass" if not failures else "fail",

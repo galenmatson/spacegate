@@ -3647,7 +3647,7 @@ Representative commits:
 
 ### 138) Hyperbolic Trajectories Do Not Have Orbital Periods
 
-- Clean Solar runtime build `9175e1163df1ec5234ccf7ae` selects all 71 natural
+- Clean Solar runtime build `0f1ac54fb1d4e9b71472abab` selects all 71 natural
   and artificial JPL solutions through permanent Solar identity, preserving
   exact target/center relation, epoch, frame, model, method, response quality,
   and twelve-element lineage without opening a stability database.
@@ -3664,6 +3664,29 @@ Representative commits:
 - Thirty-six natural-body physical parameter sets are selected. Independent
   source/identity audit and byte-exact isolated reproduction pass; no source
   relation is promoted into canonical containment.
+
+### 139) Solar Runtime Projection Extends ARM Without Extending CORE
+
+- Clean ARM build `376285dd79d73a52972d74fd` consumes permanent Solar identity
+  and selected Solar evidence. It does not append moons, minor bodies, or
+  spacecraft to the immutable canonical CORE inventory.
+- The 57 ARM-only identities become runtime component nodes and 57 selected
+  target/center claims become `orbits` relations. None becomes a `contains`
+  relation. The Sun and thirteen canonical planets continue using their existing
+  CORE-backed component identities.
+- Seventy accepted solutions project into legacy-compatible orbit tables. The
+  Solar System barycenter remains reference context; it is not converted into a
+  physical component or renderable edge. Three escape trajectories remain
+  hyperbolic and period-null.
+- Thirty-five minor bodies and eleven artificial objects receive compatibility
+  rows entirely from selected evidence. Independent verification reports zero
+  duplicate or orphan component, relation, orbit, or solution rows and zero
+  containment promotions. Isolated reproduction matches every logical table
+  signature.
+- The accepted compile takes 148.73 seconds internally, but Solar work totals
+  only 0.48 seconds. Recopying unchanged multi-million-row selected-stellar
+  surfaces remains the dominant build-time cost and is now an explicit
+  optimization target rather than a reason to weaken scientific verification.
 
 ## Recurrent Defect Classes and Mitigations
 

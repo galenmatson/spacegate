@@ -104,7 +104,7 @@ class Timings:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v1":
+    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v2":
         raise ValueError("unsupported clean runtime ARM policy")
     required_rules = {
         "open_stability_databases": False,
@@ -118,7 +118,8 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if any(rules.get(key) is not expected for key, expected in required_rules.items()):
         raise ValueError("unsafe clean runtime ARM rules")
     if set(policy.get("inputs") or {}) != {
-        "clean_runtime_core", "clean_science", "clean_wise"
+        "clean_runtime_core", "clean_science", "clean_wise",
+        "solar_identity", "solar_runtime",
     }:
         raise ValueError("clean runtime ARM inputs are incomplete")
     for name, spec in policy["inputs"].items():
@@ -132,7 +133,10 @@ def validate_policy(policy: dict[str, Any]) -> None:
             raise ValueError(f"invalid bounded input contract: {name}")
     science_tables = [str(value) for value in policy.get("selected_science_tables") or []]
     wise_tables = [str(value) for value in policy.get("clean_wise_tables") or []]
-    if len(science_tables) != len(set(science_tables)) or len(wise_tables) != len(set(wise_tables)):
+    solar_identity_tables = [str(value) for value in policy.get("solar_identity_tables") or []]
+    solar_runtime_tables = [str(value) for value in policy.get("solar_runtime_tables") or []]
+    all_tables = science_tables + wise_tables + solar_identity_tables + solar_runtime_tables
+    if len(all_tables) != len(set(all_tables)):
         raise ValueError("duplicate runtime ARM input table")
     if "selected_stellar_parameters" not in science_tables:
         raise ValueError("selected stellar consumer surface is required")
@@ -196,6 +200,26 @@ def attach_inputs(
     con.execute(f"ATTACH {sql_literal(wise_db)} AS wise (READ_ONLY)")
 
 
+def register_parquet_inputs(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    solar_identity_products: dict[str, Path],
+    solar_runtime_products: dict[str, Path],
+) -> None:
+    con.execute("CREATE SCHEMA solar_identity")
+    con.execute("CREATE SCHEMA solar_runtime")
+    for table, path in sorted(solar_identity_products.items()):
+        con.execute(
+            f"CREATE VIEW solar_identity.{table} AS "
+            f"SELECT * FROM read_parquet({sql_literal(path)})"
+        )
+    for table, path in sorted(solar_runtime_products.items()):
+        con.execute(
+            f"CREATE VIEW solar_runtime.{table} AS "
+            f"SELECT * FROM read_parquet({sql_literal(path)})"
+        )
+
+
 def copy_selected_surfaces(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -231,6 +255,20 @@ def copy_selected_surfaces(
             f"copy_wise_{table}",
             lambda table=table: con.execute(
                 f"CREATE TABLE {table} AS SELECT * FROM wise.{table}"
+            ),
+        )
+    for table in policy["solar_identity_tables"]:
+        timing.run(
+            f"copy_solar_identity_{table}",
+            lambda table=table: con.execute(
+                f"CREATE TABLE {table} AS SELECT * FROM solar_identity.{table}"
+            ),
+        )
+    for table in policy["solar_runtime_tables"]:
+        timing.run(
+            f"copy_solar_runtime_{table}",
+            lambda table=table: con.execute(
+                f"CREATE TABLE {table} AS SELECT * FROM solar_runtime.{table}"
             ),
         )
 
@@ -396,6 +434,240 @@ def create_component_graph(con: duckdb.DuckDBPyConnection, build_id: str) -> Non
     )
 
 
+def extend_solar_component_graph(con: duckdb.DuckDBPyConnection, build_id: str) -> None:
+    """Add ARM-owned Solar identities and non-containment relation evidence."""
+    con.execute(
+        f"""
+        CREATE TEMP TABLE solar_arm_component_nodes AS
+        SELECT i.*,
+          CASE WHEN i.identity_kind='artificial' THEN 'artificial'
+               ELSE i.object_class END::VARCHAR AS runtime_component_type,
+          sys.system_id::HUGEINT AS system_id
+        FROM solar_component_identities i
+        JOIN core.systems sys
+          ON sys.stable_object_key=i.system_stable_object_key
+        WHERE i.identity_status='accepted'
+          AND i.core_object_id IS NULL;
+
+        INSERT INTO component_entities
+        SELECT base.max_id + row_number() OVER (
+            ORDER BY i.identity_kind,i.source_record_key
+          )::BIGINT AS component_entity_id,
+          i.stable_component_key,i.runtime_component_type,
+          NULL::VARCHAR AS core_object_type,NULL::HUGEINT AS core_object_id,
+          i.display_name,NULL::VARCHAR AS catalog_component_label,
+          NULL::DOUBLE AS ra_deg,NULL::DOUBLE AS dec_deg,NULL::DOUBLE AS dist_pc,
+          CASE WHEN i.identity_kind='artificial'
+            THEN 'sol_artificial' ELSE 'sol_authority' END::VARCHAR AS source_catalog,
+          i.release_id::VARCHAR AS source_version,
+          i.source_record_key::VARCHAR AS source_pk,
+          sha256(concat_ws('|',i.solar_identity_id,i.stable_component_key,
+            i.identity_method))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_identity_projection_v1'::VARCHAR AS transform_version
+        FROM solar_arm_component_nodes i
+        CROSS JOIN (SELECT coalesce(max(component_entity_id),0)::BIGINT max_id
+                    FROM component_entities) base;
+
+        INSERT INTO system_hierarchy_edges
+        SELECT base.max_id + row_number() OVER (
+            ORDER BY t.identity_kind,t.source_record_id
+          )::BIGINT AS hierarchy_edge_id,
+          r.center_component_key::VARCHAR AS parent_component_key,
+          r.target_component_key::VARCHAR AS child_component_key,
+          'orbits'::VARCHAR AS edge_kind,
+          CASE WHEN t.identity_kind='artificial' THEN 'artificial_object'
+               WHEN t.object_class='moon' THEN 'satellite'
+               ELSE 'minor_body' END::VARCHAR AS member_role,
+          r.relation_kind::VARCHAR AS catalog_relation_label,
+          NULL::INTEGER AS depth_hint,
+          CASE WHEN t.identity_kind='artificial' THEN 0.985 ELSE 0.995 END::DOUBLE
+            AS confidence_score,
+          'high'::VARCHAR AS confidence_tier,
+          to_json([r.source_id])::VARCHAR AS evidence_catalogs_json,
+          to_json([r.relation_evidence_id])::JSON AS evidence_ids_json,
+          CASE WHEN t.identity_kind='artificial'
+            THEN 'sol_artificial' ELSE 'sol_authority' END::VARCHAR AS source_catalog,
+          r.release_id::VARCHAR AS source_version,
+          r.relation_evidence_id::VARCHAR AS source_pk,
+          sha256(concat_ws('|',r.binding_id,r.center_component_key,
+            r.target_component_key))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_relation_projection_v1'::VARCHAR AS transform_version
+        FROM selected_solar_relation_bindings r
+        JOIN selected_solar_target_bindings t USING(source_record_id)
+        CROSS JOIN (SELECT coalesce(max(hierarchy_edge_id),0)::BIGINT max_id
+                    FROM system_hierarchy_edges) base
+        WHERE r.binding_status='accepted'
+          AND NOT r.canonical_containment
+          AND t.core_object_id IS NULL;
+        """
+    )
+
+
+def create_solar_runtime_projections(
+    con: duckdb.DuckDBPyConnection, build_id: str
+) -> None:
+    """Project selected Solar evidence into stable runtime compatibility tables."""
+    con.execute(
+        """
+        CREATE TEMP TABLE solar_runtime_orbits AS
+        SELECT row_number() OVER (
+            ORDER BY o.identity_kind,t.source_record_id,o.evidence_id
+          )::BIGINT AS runtime_orbit_id,
+          o.*,t.system_stable_object_key,t.display_name,t.object_class,t.object_kind,
+          t.parent_object_name,t.freshness_window_days,t.target_body_name,
+          t.jpl_horizons_target,t.source_record_id AS source_record_key,
+          t.source_id,t.release_id,
+          r.center_command
+        FROM selected_solar_orbital_solutions o
+        JOIN selected_solar_target_bindings t USING(source_record_id)
+        JOIN selected_solar_relation_bindings r
+          ON r.relation_evidence_id=o.relation_claim_id
+        WHERE o.runtime_eligible
+          AND o.solution_contract_valid
+          AND o.external_reference_origin IS NULL;
+
+        CREATE TABLE orbit_edges AS
+        SELECT runtime_orbit_id AS orbit_edge_id,
+          ('comp:system:' || system_stable_object_key)::VARCHAR AS host_component_key,
+          center_component_key::VARCHAR AS primary_component_key,
+          target_component_key::VARCHAR AS secondary_component_key,
+          CASE WHEN identity_kind='artificial' THEN 'artificial_orbit'
+               WHEN object_class='moon' THEN 'satellite'
+               WHEN object_class IN ('planet','dwarf_planet') THEN 'planet'
+               ELSE 'orbits' END::VARCHAR AS relation_kind,
+          NULL::VARCHAR AS barycenter_key,
+          runtime_orbit_id::BIGINT AS preferred_solution_id,
+          CASE WHEN identity_kind='artificial' THEN 0.985 ELSE 0.995 END::DOUBLE
+            AS confidence_score,
+          'high'::VARCHAR AS confidence_tier,
+          to_json([source_id])::VARCHAR AS evidence_catalogs_json,
+          to_json([evidence_id,relation_claim_id])::JSON AS evidence_ids_json,
+          CASE WHEN identity_kind='artificial'
+            THEN 'sol_artificial' ELSE 'sol_authority' END::VARCHAR AS source_catalog,
+          release_id::VARCHAR AS source_version,evidence_id::VARCHAR AS source_pk,
+          sha256(concat_ws('|',orbital_solution_id,target_component_key,
+            center_component_key))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_orbit_projection_v1'::VARCHAR AS transform_version
+        FROM solar_runtime_orbits
+        ORDER BY runtime_orbit_id;
+
+        CREATE TABLE orbital_solutions AS
+        SELECT runtime_orbit_id AS orbital_solution_id,
+          runtime_orbit_id AS orbit_edge_id,
+          CASE WHEN identity_kind='artificial'
+            THEN 'sol_artificial' ELSE 'sol_authority' END::VARCHAR
+            AS solution_source_catalog,
+          1::INTEGER AS solution_rank,
+          (2000.0 + ((epoch_tdb_jd-2451545.0)/365.25))::DOUBLE
+            AS reference_epoch_jyear,
+          (epoch_tdb_jd-2400000.5)::DOUBLE AS reference_epoch_mjd,
+          orbital_period_days::DOUBLE AS period_days,
+          semi_major_axis_au::DOUBLE AS semi_major_axis_au,
+          NULL::DOUBLE AS semi_major_axis_arcsec,eccentricity::DOUBLE AS eccentricity,
+          inclination_deg::DOUBLE AS inclination_deg,
+          longitude_ascending_node_deg::DOUBLE AS longitude_ascending_node_deg,
+          argument_periapsis_deg::DOUBLE AS argument_periastron_deg,
+          time_periapsis_tdb_jd::DOUBLE AS time_periastron_jd,
+          mean_anomaly_deg::DOUBLE AS mean_anomaly_deg,NULL::DOUBLE AS mass_ratio_q,
+          NULL::DOUBLE AS primary_mass_msun,NULL::DOUBLE AS secondary_mass_msun,
+          NULL::DOUBLE AS rv_semiamplitude_primary_kms,
+          NULL::DOUBLE AS rv_semiamplitude_secondary_kms,
+          CASE WHEN identity_kind='artificial' THEN 0.985 ELSE 0.995 END::DOUBLE
+            AS confidence_score,
+          quality_json::JSON AS fit_quality_json,
+          normalization_version::VARCHAR AS normalization_method,
+          'high'::VARCHAR AS confidence_tier,
+          CASE WHEN identity_kind='artificial'
+            THEN 'sol_artificial' ELSE 'sol_authority' END::VARCHAR AS source_catalog,
+          release_id::VARCHAR AS source_version,evidence_id::VARCHAR AS source_pk,
+          sha256(concat_ws('|',orbital_solution_id,solution_key,
+            normalization_version))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_orbit_projection_v1'::VARCHAR AS transform_version
+        FROM solar_runtime_orbits
+        ORDER BY runtime_orbit_id;
+
+        CREATE TABLE sol_small_body_objects AS
+        SELECT row_number() OVER (ORDER BY t.source_record_id)::BIGINT
+            AS sol_small_body_id,
+          t.stable_component_key,t.display_name::VARCHAR AS body_name,
+          lower(trim(t.display_name))::VARCHAR AS body_name_norm,
+          t.object_kind::VARCHAR AS body_kind,
+          ('comp:system:' || t.system_stable_object_key)::VARCHAR AS host_component_key,
+          o.center_component_key::VARCHAR AS primary_component_key,
+          t.stable_component_key::VARCHAR AS secondary_component_key,
+          t.parent_object_name::VARCHAR AS parent_name,
+          lower(trim(t.parent_object_name))::VARCHAR AS parent_name_norm,
+          o.orbital_period_days::DOUBLE AS orbital_period_days,
+          o.semi_major_axis_au::DOUBLE AS semi_major_axis_au,
+          o.eccentricity::DOUBLE AS eccentricity,
+          o.inclination_deg::DOUBLE AS inclination_deg,
+          o.epoch_tdb_jd::DOUBLE AS epoch_tdb_jd,
+          p.mass_kg::DOUBLE AS body_mass_kg,p.radius_km::DOUBLE AS body_radius_km,
+          t.freshness_window_days::INTEGER AS freshness_window_days,
+          NULL::INTEGER AS staleness_days,
+          NULL::BOOLEAN AS is_stale,0.995::DOUBLE AS confidence_score,
+          'high'::VARCHAR AS confidence_tier,'sol_authority'::VARCHAR AS source_catalog,
+          t.release_id::VARCHAR AS source_version,t.source_record_id::VARCHAR AS source_pk,
+          sha256(concat_ws('|',o.orbital_solution_id,t.stable_component_key,
+            p.selected_parameter_set_id))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_object_projection_v1'::VARCHAR AS transform_version,
+          NULL::VARCHAR AS source_url
+        FROM selected_solar_target_bindings t
+        JOIN selected_solar_orbital_solutions o USING(source_record_id)
+        LEFT JOIN selected_solar_physical_parameters p USING(source_record_id)
+        WHERE t.object_class='minor_body' AND o.runtime_eligible
+        ORDER BY t.source_record_id;
+
+        CREATE TABLE sol_artificial_objects AS
+        SELECT row_number() OVER (ORDER BY t.source_record_id)::BIGINT
+            AS sol_artificial_id,
+          t.stable_component_key,t.display_name::VARCHAR AS artifact_name,
+          lower(trim(t.display_name))::VARCHAR AS artifact_name_norm,
+          t.object_kind::VARCHAR AS artifact_kind,
+          ('comp:system:' || t.system_stable_object_key)::VARCHAR AS host_component_key,
+          o.center_component_key::VARCHAR AS primary_component_key,
+          t.stable_component_key::VARCHAR AS secondary_component_key,
+          t.parent_object_name::VARCHAR AS parent_name,
+          lower(trim(t.parent_object_name))::VARCHAR AS parent_name_norm,
+          r.center_command::VARCHAR AS center_code,
+          t.target_body_name::VARCHAR AS target_body_name,
+          o.orbital_period_days::DOUBLE AS orbital_period_days,
+          o.semi_major_axis_au::DOUBLE AS semi_major_axis_au,
+          o.eccentricity::DOUBLE AS eccentricity,
+          o.inclination_deg::DOUBLE AS inclination_deg,
+          o.epoch_tdb_jd::DOUBLE AS epoch_tdb_jd,
+          p.mass_kg::DOUBLE AS artifact_mass_kg,p.radius_km::DOUBLE AS artifact_radius_km,
+          t.freshness_window_days::INTEGER AS freshness_window_days,
+          NULL::INTEGER AS staleness_days,
+          NULL::BOOLEAN AS is_stale,0.985::DOUBLE AS confidence_score,
+          'high'::VARCHAR AS confidence_tier,'sol_artificial'::VARCHAR AS source_catalog,
+          t.release_id::VARCHAR AS source_version,t.source_record_id::VARCHAR AS source_pk,
+          sha256(concat_ws('|',o.orbital_solution_id,t.stable_component_key,
+            p.selected_parameter_set_id))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_selected_solar_object_projection_v1'::VARCHAR AS transform_version,
+          NULL::VARCHAR AS source_url
+        FROM selected_solar_target_bindings t
+        JOIN selected_solar_orbital_solutions o USING(source_record_id)
+        JOIN selected_solar_relation_bindings r USING(source_record_id)
+        LEFT JOIN selected_solar_physical_parameters p USING(source_record_id)
+        WHERE t.identity_kind='artificial' AND o.runtime_eligible
+        ORDER BY t.source_record_id;
+        """
+    )
+
+
 def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -> None:
     msc_class = spectral_class_sql("cp.classification_raw", "cp.classification_normalized", "'star'")
     con.execute(
@@ -512,6 +784,11 @@ def create_indexes(con: duckdb.DuckDBPyConnection) -> None:
         "CREATE UNIQUE INDEX selected_stellar_parameters_star_uq ON selected_stellar_parameters(star_id)",
         "CREATE UNIQUE INDEX selected_display_star_uq ON selected_stellar_display_classifications(star_id)",
         "CREATE UNIQUE INDEX selected_planet_parameters_planet_uq ON selected_planet_parameters(planet_id)",
+        "CREATE UNIQUE INDEX orbit_edges_id_uq ON orbit_edges(orbit_edge_id)",
+        "CREATE INDEX orbit_edges_host_idx ON orbit_edges(host_component_key)",
+        "CREATE INDEX orbit_edges_secondary_idx ON orbit_edges(secondary_component_key)",
+        "CREATE UNIQUE INDEX orbital_solutions_id_uq ON orbital_solutions(orbital_solution_id)",
+        "CREATE INDEX orbital_solutions_edge_idx ON orbital_solutions(orbit_edge_id)",
     )
     for statement in statements:
         con.execute(statement)
@@ -525,7 +802,9 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "component_entities", "system_hierarchy_edges",
             "stellar_leaf_display_classifications", "selected_stellar_parameters",
             "selected_stellar_display_classifications", "selected_planet_parameters",
-            "selected_stellar_variability", "wise_sources",
+            "selected_stellar_variability", "wise_sources", "orbit_edges",
+            "orbital_solutions", "sol_small_body_objects", "sol_artificial_objects",
+            "solar_component_identities", "selected_solar_orbital_solutions",
         )
     }
     checks = {
@@ -533,10 +812,16 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "SELECT count(*) FROM build_metadata WHERE key='stability_database_opened' AND value<>'0'"
         ),
         "component_inventory_delta": abs(
-            counts["component_entities"] - scalar("SELECT count(*) FROM hierarchy.hierarchy_nodes")
+            counts["component_entities"] - (
+                scalar("SELECT count(*) FROM hierarchy.hierarchy_nodes")
+                + scalar("SELECT count(*) FROM solar_component_identities WHERE core_object_id IS NULL")
+            )
         ),
         "hierarchy_edge_inventory_delta": abs(
-            counts["system_hierarchy_edges"] - scalar("SELECT count(*) FROM hierarchy.hierarchy_edges")
+            counts["system_hierarchy_edges"] - (
+                scalar("SELECT count(*) FROM hierarchy.hierarchy_edges")
+                + scalar("SELECT count(*) FROM selected_solar_target_bindings WHERE core_object_id IS NULL")
+            )
         ),
         "orphan_hierarchy_parents": scalar(
             "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c "
@@ -580,8 +865,40 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "('O','B','A','F','G','K','M','L','T','Y','WR','WD','NS','PULSAR','MAGNETAR','BLACK HOLE','UNKNOWN')"
         ),
         "source_claim_containment_edges": scalar(
-            "SELECT count(*) FROM system_hierarchy_edges WHERE source_catalog<>'canonical_hierarchy'"
+            "SELECT count(*) FROM system_hierarchy_edges "
+            "WHERE source_catalog<>'canonical_hierarchy' AND edge_kind='contains'"
         ),
+        "solar_canonical_containment_promotions": scalar(
+            "SELECT (SELECT count(*) FROM solar_relation_identity_outcomes WHERE canonical_containment) + "
+            "(SELECT count(*) FROM selected_solar_relation_bindings WHERE canonical_containment) + "
+            "(SELECT count(*) FROM selected_solar_orbital_solutions WHERE canonical_containment)"
+        ),
+        "solar_arm_identity_delta": abs(
+            scalar("SELECT count(*) FROM component_entities WHERE source_catalog IN ('sol_authority','sol_artificial')")
+            - scalar("SELECT count(*) FROM solar_component_identities WHERE core_object_id IS NULL")
+        ),
+        "solar_runtime_orbit_delta": abs(
+            counts["orbit_edges"]
+            - scalar("SELECT count(*) FROM selected_solar_orbital_solutions WHERE runtime_eligible")
+        ),
+        "orphan_orbit_primaries": scalar(
+            "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c "
+            "ON c.stable_component_key=e.primary_component_key WHERE c.component_entity_id IS NULL"
+        ),
+        "orphan_orbit_secondaries": scalar(
+            "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c "
+            "ON c.stable_component_key=e.secondary_component_key WHERE c.component_entity_id IS NULL"
+        ),
+        "orphan_orbital_solutions": scalar(
+            "SELECT count(*) FROM orbital_solutions s LEFT JOIN orbit_edges e USING(orbit_edge_id) "
+            "WHERE e.orbit_edge_id IS NULL"
+        ),
+        "periodic_hyperbolic_solutions": scalar(
+            "SELECT count(*) FROM selected_solar_orbital_solutions "
+            "WHERE render_mode='hyperbolic_trajectory' AND periodic_renderable"
+        ),
+        "small_body_projection_delta": abs(counts["sol_small_body_objects"] - 35),
+        "artificial_projection_delta": abs(counts["sol_artificial_objects"] - 11),
     }
     failing = {key: value for key, value in checks.items() if value != 0}
     return {
@@ -623,6 +940,24 @@ def compile_runtime_arm(
     wise_db = timing.run(
         "verify_clean_wise", lambda: product_path(inputs["clean_wise"], "clean_wise.duckdb")
     )
+    solar_identity_products = {
+        table: timing.run(
+            f"verify_solar_identity_{table}",
+            lambda table=table: product_path(
+                inputs["solar_identity"], f"{table}.parquet"
+            ),
+        )
+        for table in policy["solar_identity_tables"]
+    }
+    solar_runtime_products = {
+        table: timing.run(
+            f"verify_solar_runtime_{table}",
+            lambda table=table: product_path(
+                inputs["solar_runtime"], f"{table}.parquet"
+            ),
+        )
+        for table in policy["solar_runtime_tables"]
+    }
     compiler_sha = file_sha256(Path(__file__).resolve())
     policy_sha = file_sha256(policy_path)
     input_identity = {
@@ -655,6 +990,14 @@ def compile_runtime_arm(
                     science_db=science_db, wise_db=wise_db,
                 ),
             )
+            timing.run(
+                "register_solar_parquet_inputs",
+                lambda: register_parquet_inputs(
+                    con,
+                    solar_identity_products=solar_identity_products,
+                    solar_runtime_products=solar_runtime_products,
+                ),
+            )
             copy_selected_surfaces(
                 con,
                 policy=policy,
@@ -662,6 +1005,14 @@ def compile_runtime_arm(
                 timing=timing,
             )
             timing.run("component_graph", lambda: create_component_graph(con, build_id))
+            timing.run(
+                "solar_component_graph",
+                lambda: extend_solar_component_graph(con, build_id),
+            )
+            timing.run(
+                "solar_runtime_projections",
+                lambda: create_solar_runtime_projections(con, build_id),
+            )
             timing.run("stellar_leaf_classifications", lambda: create_leaf_classifications(con, build_id))
             verification = timing.run("internal_verification", lambda: verify(con, policy))
             if verification["status"] != "pass":
@@ -676,7 +1027,7 @@ def compile_runtime_arm(
             "determinism": "logical_tables",
         }
         manifest = {
-            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v1",
+            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v2",
             "build_id": build_id,
             "status": "pass",
             "generated_at": utc_now(),

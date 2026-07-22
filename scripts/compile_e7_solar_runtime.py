@@ -123,11 +123,17 @@ def materialize(con: duckdb.DuckDBPyConnection, policy: dict[str, Any], build_id
         SELECT sha256(concat_ws('|','selected-solar-target',i.solar_identity_id,{policy_version})) binding_id,
           i.solar_identity_id,i.stable_component_key,i.system_stable_object_key,
           i.identity_kind,i.display_name,i.object_class,i.object_kind,
+          i.parent_object_name,
+          try_cast(json_extract_string(sr.source_context_json,'$.freshness_window_days') AS INTEGER)
+            freshness_window_days,
+          json_extract_string(sr.source_context_json,'$.target_body_name') target_body_name,
           i.jpl_horizons_target,i.core_object_type,i.core_object_id,
           i.source_record_id,i.source_id,i.release_id,i.source_table,
           'accepted'::VARCHAR binding_status,'permanent_solar_identity'::VARCHAR binding_method,
           {policy_version} policy_version,{build} build_id
-        FROM identity.identities i ORDER BY i.stable_component_key;
+        FROM identity.identities i
+        JOIN evidence.source_records sr USING(source_record_id)
+        ORDER BY i.stable_component_key;
 
         CREATE TABLE selected_solar_relation_bindings AS
         SELECT sha256(concat_ws('|','selected-solar-relation',r.relation_identity_id,{policy_version})) binding_id,

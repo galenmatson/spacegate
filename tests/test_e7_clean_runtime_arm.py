@@ -177,6 +177,71 @@ def test_component_graph_projects_each_node_kind_without_cross_product_joins() -
     assert rows == [("canon:leaf:msc:12345+6789:b", "UNKNOWN")]
 
 
+def test_solar_runtime_projection_preserves_compatibility_and_hyperbolic_null_period() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute(
+        """
+        CREATE TABLE selected_solar_target_bindings(
+          source_record_id VARCHAR,system_stable_object_key VARCHAR,
+          stable_component_key VARCHAR,identity_kind VARCHAR,display_name VARCHAR,
+          object_class VARCHAR,object_kind VARCHAR,parent_object_name VARCHAR,
+          freshness_window_days INTEGER,target_body_name VARCHAR,
+          jpl_horizons_target VARCHAR,source_id VARCHAR,release_id VARCHAR
+        );
+        CREATE TABLE selected_solar_relation_bindings(
+          source_record_id VARCHAR,relation_evidence_id VARCHAR,center_command VARCHAR
+        );
+        CREATE TABLE selected_solar_orbital_solutions(
+          source_record_id VARCHAR,evidence_id VARCHAR,orbital_solution_id VARCHAR,
+          relation_claim_id VARCHAR,identity_kind VARCHAR,target_component_key VARCHAR,
+          center_component_key VARCHAR,external_reference_origin VARCHAR,
+          runtime_eligible BOOLEAN,solution_contract_valid BOOLEAN,
+          epoch_tdb_jd DOUBLE,orbital_period_days DOUBLE,semi_major_axis_au DOUBLE,
+          eccentricity DOUBLE,inclination_deg DOUBLE,
+          longitude_ascending_node_deg DOUBLE,argument_periapsis_deg DOUBLE,
+          time_periapsis_tdb_jd DOUBLE,mean_anomaly_deg DOUBLE,
+          quality_json JSON,normalization_version VARCHAR,solution_key VARCHAR
+        );
+        CREATE TABLE selected_solar_physical_parameters(
+          source_record_id VARCHAR,mass_kg DOUBLE,radius_km DOUBLE,
+          selected_parameter_set_id VARCHAR
+        );
+        INSERT INTO selected_solar_target_bindings VALUES
+          ('minor','canon:system:sol','comp:solar:natural:101','natural','Vesta',
+           'minor_body','asteroid','Sun',365,NULL,'4','jpl','release-1'),
+          ('probe','canon:system:sol','comp:solar:artificial:4203','artificial',
+           'Probe','artificial','deep_space_probe','Sun',90,'Probe (-1)','-1',
+           'jpl','release-1');
+        INSERT INTO selected_solar_relation_bindings VALUES
+          ('minor','rel-minor','10'),('probe','rel-probe','10');
+        INSERT INTO selected_solar_orbital_solutions VALUES
+          ('minor','ev-minor','solution-minor','rel-minor','natural',
+           'comp:solar:natural:101','comp:star:sun',NULL,true,true,2451545,
+           1325,2.36,0.09,7.1,103,150,2451000,20,'{}','norm-v1','minor-key'),
+          ('probe','ev-probe','solution-probe','rel-probe','artificial',
+           'comp:solar:artificial:4203','comp:star:sun',NULL,true,true,2451545,
+           NULL,-3.2,1.4,35,70,110,2451000,30,'{}','norm-v1','probe-key');
+        INSERT INTO selected_solar_physical_parameters VALUES
+          ('minor',2.59e20,262.7,'physical-minor');
+        """
+    )
+
+    COMPILER.create_solar_runtime_projections(con, "test-build")
+
+    assert con.execute("SELECT count(*) FROM orbit_edges").fetchone()[0] == 2
+    assert con.execute("SELECT count(*) FROM sol_small_body_objects").fetchone()[0] == 1
+    assert con.execute("SELECT count(*) FROM sol_artificial_objects").fetchone()[0] == 1
+    assert con.execute(
+        "SELECT period_days FROM orbital_solutions WHERE eccentricity>=1"
+    ).fetchone()[0] is None
+    assert {row[0] for row in con.execute("DESCRIBE sol_small_body_objects").fetchall()} >= {
+        "freshness_window_days", "staleness_days", "is_stale", "source_url",
+    }
+    assert {row[0] for row in con.execute("DESCRIBE sol_artificial_objects").fetchall()} >= {
+        "center_code", "target_body_name", "freshness_window_days", "source_url",
+    }
+
+
 def test_compiler_has_no_stability_or_named_object_inputs() -> None:
     source = (ROOT / "scripts/compile_e7_clean_runtime_arm.py").read_text(encoding="utf-8")
     lowered = source.lower()
@@ -192,7 +257,10 @@ def test_compiler_has_no_stability_or_named_object_inputs() -> None:
 def test_policy_json_is_canonical_object() -> None:
     value = json.loads((ROOT / "config/evidence_lake/e7_clean_runtime_arm.json").read_text())
     assert isinstance(value, dict)
-    assert set(value["inputs"]) == {"clean_runtime_core", "clean_science", "clean_wise"}
+    assert set(value["inputs"]) == {
+        "clean_runtime_core", "clean_science", "clean_wise",
+        "solar_identity", "solar_runtime",
+    }
 
 
 def test_independent_verifier_contract_matches_compiler_policy() -> None:
@@ -205,6 +273,8 @@ def test_independent_verifier_contract_matches_compiler_policy() -> None:
 
     assert set(policy["selected_science_tables"]) == verifier.SCIENCE_TABLES
     assert set(policy["clean_wise_tables"]) == verifier.WISE_TABLES
+    assert set(policy["solar_identity_tables"]) == verifier.SOLAR_IDENTITY_TABLES
+    assert set(policy["solar_runtime_tables"]) == verifier.SOLAR_RUNTIME_TABLES
     assert verifier.EXPECTED_VIEWS == {
         "e6_selected_planet_parameters",
         "e6_selected_stellar_display_classifications",

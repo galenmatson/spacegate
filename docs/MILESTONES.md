@@ -2543,13 +2543,25 @@ Pre-promotion planning checkpoint (July 22, 2026):
   identities, retains three identifiers and one alias each, and resolves all 71
   orbit-center claims with zero canonical-containment promotions. Independent
   audit and isolated byte-exact reproduction pass
-- selected Solar runtime build `9175e1163df1ec5234ccf7ae` joins the permanent
+- selected Solar runtime build `0f1ac54fb1d4e9b71472abab` joins the permanent
   identities back to exact E4 JPL evidence and preserves all 71 complete
   epoch/frame contracts. It distinguishes 68 periodic solutions from the valid
   period-null hyperbolic trajectories of Voyager 1, Voyager 2, and New Horizons;
   only 67 accepted periodic solutions are marked directly renderable, while the
   Sun's barycenter solution remains reference context. Thirty-six natural-body
   physical sets are selected and no relation creates canonical containment
+- clean Solar ARM build `376285dd79d73a52972d74fd` replaces the bounded ARM
+  foundation with the selected Solar surfaces included. It adds 57 ARM-owned
+  component identities and 57 explicitly non-containment orbit relations,
+  projects all 70 accepted target/center solutions, 35 minor-body rows, and 11
+  artificial-object rows, and keeps the barycenter reference context in the
+  typed selected table rather than turning it into a renderable edge. Independent
+  audit and isolated logical reproduction pass with no differing tables
+- the measured clean Solar ARM compile takes 2:28.73 internally, peaks at 45.0
+  GiB RSS, and produces a 13,716,172,800-byte artifact. Solar copying and
+  projection total only 0.48 seconds; unchanged selected-stellar table copies
+  remain the critical path. Cross-source orbit authority and TESS compatibility
+  remain open
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

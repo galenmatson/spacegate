@@ -2149,7 +2149,7 @@ no coordinates, physical parameters, or orbital elements. The 4.22-second build,
 byte-identical Parquet products and removed scratch. Runtime Solar orbit and
 physical selection still remains to be compiled from this identity foundation.
 
-Selected Solar runtime build `9175e1163df1ec5234ccf7ae` completes that next
+Selected Solar runtime build `0f1ac54fb1d4e9b71472abab` completes that next
 selection boundary without a stability read. It joins the permanent identity
 artifact directly to the exact E4 relation, orbital-solution, and physical-set
 evidence. All 71 solutions retain target and center identity, source record,
@@ -2166,6 +2166,24 @@ are typed `hyperbolic_trajectory`, and the Sun's Solar System barycenter solutio
 is non-renderable reference context. All 71 pass the epoch/frame/method/model
 contract and zero relations promote canonical containment. Independent audit and
 byte-exact clean reproduction pass.
+
+Clean runtime ARM build `376285dd79d73a52972d74fd` consumes those permanent
+identity and selected-runtime artifacts directly. It adds only the 57 Solar
+objects absent from CORE to `component_entities`; the Sun and thirteen canonical
+planets retain their existing permanent CORE component identities. Fifty-seven
+source relations become inspectable `orbits` graph edges, never `contains`
+edges. The runtime compatibility projection contains 70 accepted orbit edges
+and solutions, 35 minor-body rows, and 11 artificial-object rows. The Solar
+System barycenter row remains selected reference context and does not become an
+edge. Voyager 1, Voyager 2, and New Horizons retain null periods in both selected
+and compatibility surfaces.
+
+The 13,716,172,800-byte ARM passes independent schema/count/lineage/orphan and
+containment verification. An isolated rebuild matches every logical table
+signature with no differing tables and removes scratch. The accepted compile is
+148.73 seconds internally and peaks at 47,150,292 KiB RSS; Solar input copying,
+graph extension, and runtime projection total 0.48 seconds. Cross-source stellar
+orbit authority and TESS candidate compatibility remain explicit ARM work.
 
 ## E7 Permanent Extended-Object Identity
 

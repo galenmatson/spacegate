@@ -1760,14 +1760,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   explicit crosswalk, account all 71 target/center relations without containment
   promotion, and pass independent audit plus byte-exact reproduction
 - [x] E7 selected Solar runtime evidence: compile build
-  `9175e1163df1ec5234ccf7ae` from pinned E4 evidence and permanent Solar
+  `0f1ac54fb1d4e9b71472abab` from pinned E4 evidence and permanent Solar
   identity; preserve all 71 epoch/frame-bound solutions, distinguish 68 complete
   periodic solutions from three valid hyperbolic escape trajectories, retain one
   non-renderable barycenter reference context, select 36 physical parameter
   sets, and pass independent audit plus byte-exact reproduction
+- [x] E7 clean Solar ARM projection: compile build
+  `376285dd79d73a52972d74fd` from the permanent Solar identity and selected
+  runtime artifacts; add 57 ARM-owned components and 57 non-containment orbit
+  relations, project 70 accepted orbital solutions, 35 minor bodies, and 11
+  artificial objects, preserve three period-null hyperbolic trajectories, and
+  pass independent audit plus isolated logical reproduction
 - [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
-  selected Solar runtime projections, and TESS candidate compatibility without
-  relation-to-containment promotion or independent scientific fallback logic
+  and TESS candidate compatibility without relation-to-containment promotion or
+  independent scientific fallback logic
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or
