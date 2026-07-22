@@ -12,7 +12,7 @@ not an accepted production build configuration.
 
 E1 source-native Parquet, the E2 release-scoped identity/scope graph, and the 38
 registered E4 scientific adapters now have explicit compiler contracts. They
-remain unserved compiler inputs while corrected E6 v6 completes scientific
+remain unserved compiler inputs while corrected E6 v7 completes scientific
 review and E7 local cutover. The preflight,
 typed-lake, identity graph, and E4 evidence contracts do not promote registry
 metadata, source relations, release crossmatches, or coherent Gaia source
@@ -23,7 +23,7 @@ database. Canonical ingest must consume E5 selected facts derived from that set,
 not attach an arbitrary collection of whichever E4 artifacts happen to exist.
 Selected-fact build `fa4aaed18aebcffb8632d978` and component-scope build
 `67fea5f99500b57419ebdeb0` are the verified E5 inputs to corrected shadow
-`e6_cfcdf2d9add2cd7e2b96af68_shadow`; none is itself a CORE promotion.
+`e6_95e7af54d69f3d9602d81e5b_shadow`; none is itself a CORE promotion.
 
 E7 does not retire this canonical identity pipeline. It adapts the permanent
 normalizer, identity graph, object reducer, and hierarchy builder to consume E2

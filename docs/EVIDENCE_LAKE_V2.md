@@ -3,11 +3,15 @@
 Status: active main quest. E0-E2 completed July 18, 2026; registered E3
 acquisition completed July 20, 2026 and received the reviewed lifecycle/McGill
 bibliography supplement on July 21; the accepted E4 release set, E5
-selected-fact v15, and E5 component-scope v9 are pinned. Corrected E6 v6 shadow,
-clean reproduction, scientific A/B, public slice, four-radius map reproduction,
-simulation-cache measurement, and API/search verification pass. Browser
-measurement and E7 operator review remain in progress. Nothing is promoted or
-deployed.
+selected-fact v15, E5 component-scope v9, and E5 compact-identity v1 are pinned.
+Corrected E6 v7 shadow, clean reproduction, scientific A/B, public slice,
+four-radius map verification, bounded simulation-cache measurement, and
+API/search verification pass. Its tile payload contract is exactly equivalent
+to the production-browser-tested v6 candidate. E7 operator review remains in
+progress. Nothing is promoted or deployed.
+
+The consolidated scientific decision record is
+`docs/E6_SCIENTIFIC_AB_2026-07-22.md`.
 
 E0 checkpoint:
 
@@ -1871,7 +1875,7 @@ after the new build is reproducible from pinned inputs.
 The executable pre-promotion plan is documented in
 `docs/E7_CUTOVER_AND_GAIA_DR4.md`. Machine contracts
 `e7_legacy_path_inventory.json` and `gaia_dr4_adapter_plan.json` are verified by
-`scripts/verify_e7_cutover_plan.py`. The ledger records that E6 v6 still
+`scripts/verify_e7_cutover_plan.py`. The ledger records that E6 v7 still
 composes permanent inventory from the stability databases, so bootstrap
 cookers, `ingest_core.py`, and `build_arm.py` cannot yet be retired. The
 canonical identity reducer is retained permanent work and will consume the E2

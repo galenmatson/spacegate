@@ -441,3 +441,19 @@ wide projections, selected consumers, hierarchy leaves, and coolness rescoring
 remain within 0.28 seconds of v6. The strengthened independent E6 audit passes
 in 47.89 seconds and now verifies actual row counts for every copied projection
 table, not only registry hashes.
+
+Clean isolated E6 v7 compile/audit/logical-hash reproduction passes in 5:51.12,
+only 1.78 seconds slower than v6, with a 36.53-GiB peak and no swap. The v7
+public slice passes in 4:37.57, 5.85 seconds faster than v6, with exact inventory
+parity. Four-radius tiles build in 4:38.87 and verify in 17.29 seconds. The
+1,000-ly phase consumes 185.83 seconds, 66.7% of tile wall time, confirming it
+as the bounded-encoding optimization target.
+
+The critical-path scene gate now uses 24 deterministic high-priority systems:
+cold generation takes 34.42 seconds with zero failures and warm reuse takes
+1.14 seconds. Broad 1,000-scene population remains available through the Admin
+materializer after promotion. Alias verification takes 0.74 seconds, complete
+API integration 41.11 seconds, and the strict twelve-system benchmark 39.68
+seconds. Parsed v7 tile `counts` and complete `tiles` arrays equal v6 at every
+radius, so the accepted v6 production-browser screenshots and 312 performance
+checks remain directly applicable; no frontend or renderer code changed.

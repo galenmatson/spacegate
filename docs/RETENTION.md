@@ -1034,10 +1034,15 @@ artifact.
 Unserved shadow `out/e6_cfcdf2d9add2cd7e2b96af68_shadow`, corrected public
 candidate `out/e6_cfcdf2d9add2cd7e2b96af68_public`, their manifests, audits,
 reproduction and A/B reports, generated map/simulation artifacts, E6
-policy/compiler/auditor, stability reference, and all seven pinned E5 artifacts
+policy/compiler/auditor, stability reference, and all pinned E5 artifacts
 are protected E6 inputs. The shadow occupies approximately 18 GiB and is not a
 served/current build.
-Reproduction scratch is created on `/mnt/space/spacegate/e6-reproduction` and
+Unserved compact-identity shadow `out/e6_95e7af54d69f3d9602d81e5b_shadow`
+and public candidate `out/e6_95e7af54d69f3d9602d81e5b_public` supersede v6 as
+the current E7 review candidate but do not make v6 disposable. Both generations
+and their referenced E5 artifacts remain protected through local promotion and
+rollback acceptance.
+Reproduction scratch is created under `/mnt/space/spacegate` and
 removed after the comparison, whether it passes or fails.
 
 Earlier E6 experiments `e6_878b7fc1d46108f4180df8d5_shadow` and
@@ -1049,6 +1054,14 @@ checks manifests, reports, process liveness, links, served/current/rollback
 references, and transitive inputs before retiring either whole directory. The
 accepted E6 shadow and its source artifacts must never enter that candidate
 set.
+
+The July 22 E7 pre-promotion dry-run explicitly accounts superseded v5 shadow
+`e6_6e2449e225cd33f9055df6c0_shadow` against verified v7 replacement, exact
+tree identity, process/pointer/manifest references, and six acknowledged v5
+reports. It reports 18,582,962,176 reclaimable allocated bytes and candidate-set
+hash `f76221956608c7a3d701b58e97b2d300f6f52b806b61bdbb8f3068302e67df09`.
+No apply was performed. The separate v5 public artifact is not covered by that
+report and remains protected pending a public-product-aware retention contract.
 
 Verified foundation `e6_994a6301c335ac385f5dc052_shadow` is now a superseded
 historical checkpoint. Candidate `e6_9147013123a439d7e9c2e4a5_shadow` is a

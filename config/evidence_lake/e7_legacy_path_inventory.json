@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-22.e7-cutover-plan.1",
-  "candidate_build_id": "e6_cfcdf2d9add2cd7e2b96af68_public",
+  "inventory_version": "2026-07-22.e7-cutover-plan.2",
+  "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "pre_promotion": true,
   "rules": {

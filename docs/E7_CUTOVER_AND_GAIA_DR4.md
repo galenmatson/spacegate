@@ -7,8 +7,9 @@ No legacy build code or artifact is deleted before the accepted Evidence Lake
 candidate has been promoted locally, exercised through the production service
 topology, rolled back to the stability build, and promoted again.
 
-The current E6 candidate still composes permanent inventory and identity from
-stability build `20260717T0614Z_f452835_side`. Therefore the bootstrap cookers,
+The current E6 v7 public candidate
+`e6_95e7af54d69f3d9602d81e5b_public` still composes permanent inventory and
+identity from stability build `20260717T0614Z_f452835_side`. Therefore the bootstrap cookers,
 `ingest_core.py`, and `build_arm.py` remain required stability inputs. Calling
 Evidence Lake v2 the only production compilation path before removing that
 dependency would be incorrect. The canonical identity reducer is permanent

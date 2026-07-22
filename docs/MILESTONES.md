@@ -1198,11 +1198,11 @@ July 17, 2026 catalog-wide follow-up:
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
 registered E3 acquisition completed July 20, 2026; accepted E4 release set is
-pinned; E5 selected-fact v15 and component-scope v9 are accepted unserved
-artifacts. Corrected E6 v6 shadow, scientific A/B, reproduction, public slice,
-map tiles, simulation/API/search, and production-equivalent browser measurement
-pass; complete scientific-delta accounting and E7 operator review remain in
-progress.
+pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
+accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
+reproduction, public slice, map tiles, bounded simulation/API/search, and
+production-equivalent tile/browser evidence pass; E7 operator review remains
+in progress.
 
 Goal:
 
@@ -2352,6 +2352,22 @@ Foundation checkpoint (July 22, 2026):
   component-scope v9. Its 3:29.60 compile, 194-check independent audit, 5:49.34
   isolated reproduction, parameter-loss accounting, selected-consumer A/B,
   and coolness A/B all pass
+- policy `2026-07-22.e6-shadow.7` and compiler v7 add permanent non-Gaia
+  compact-object identity, alias, envelope-outcome, fact, and quarantine
+  projections as candidate `e6_95e7af54d69f3d9602d81e5b_shadow`. Its 3:35.37
+  compile, expanded independent audit, 5:51.12 clean reproduction, parameter
+  accounting, selected-consumer, and coolness A/B gates pass. Canonical system,
+  star, planet, and hierarchy inventories do not change
+- v7 public candidate `e6_95e7af54d69f3d9602d81e5b_public` preserves all
+  5,869,091 systems. Its complete parsed tile membership and payload arrays are
+  exactly equal to the already browser-tested v6 candidate at 100, 250, 500,
+  and 1,000 ly; fresh coverage verification reports zero missing, extra, name,
+  or representative-class mismatches. A bounded 24-scene gate generates cold
+  in 34.42 seconds and reuses warm in 1.14 seconds, replacing broad prewarming
+  on the critical path; alias, API integration, and strict known-system gates pass
+- consolidated scientific review `docs/E6_SCIENTIFIC_AB_2026-07-22.md`
+  recommends v7 for the local E7 promotion/rollback drill while explicitly
+  retaining the stability-derived identity/bootstrap dependency as open work
 - corrected public candidate `e6_cfcdf2d9add2cd7e2b96af68_public` preserves all
   5,869,091 systems and passes public integrity. Its complete 100/250/500/1,000
   ly tile set passes exact coverage, checksum, display-name, representative,

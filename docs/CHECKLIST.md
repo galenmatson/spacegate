@@ -1662,6 +1662,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Playwright cases and all 312 fixed performance checks across 500/1,000-ly
   cold, warm, rapid-direction, desktop, mobile, and Photon profiles without
   raising budgets; retain development-runtime heap misses as diagnostics only
+- [x] E6 compact-identity v7 checkpoint: compose E5 compact build
+  `f0d7273f65371efeda365611` into unserved shadow
+  `e6_95e7af54d69f3d9602d81e5b_shadow`; pass the expanded independent audit,
+  clean logical reproduction, all scientific A/B gates, exact public inventory,
+  four-radius tile coverage, bounded cold/warm simulation scenes, alias search,
+  full API integration, and the strict known-system benchmark without promoting
+  compact identities into canonical stellar inventory
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports

@@ -3301,6 +3301,12 @@ Representative commits:
   tables into ARM while preserving exact canonical system, star, planet, and
   hierarchy inventory. No named-object transform or positional identity guess
   is introduced.
+- E6 v7 clean reproduction, 373-check independent audit, scientific A/B, public
+  slice, exact four-radius tile coverage, bounded simulation scenes, and
+  API/search gates pass. Its parsed tile payload arrays equal the
+  production-browser-tested v6 candidate. A fail-closed dry-run identifies only
+  the superseded v5 shadow as an 18.58-GB retention candidate; no artifact is
+  deleted, and the separate v5 public product remains outside that contract.
 
 ## Recurrent Defect Classes and Mitigations
 
