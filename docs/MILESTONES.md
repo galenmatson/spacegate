@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 38 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 41 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2462,6 +2462,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   terms, and canonical hierarchy from pinned artifacts; all canonical Parquet
   hashes reproduce exactly and both DuckDB query databases pass logical-table
   verification
+- clean science build `35eb29fa3b2a3ac518f5303a` consumes all eight accepted
+  E5 families without stability values, materializes the shared stellar/planet
+  selected projections and typed domain evidence, assigns all 5,874,636 stars
+  exactly one lineage-bearing display class, and reproduces every canonical
+  Parquet hash; 30 legacy ARM tables now have verified replacements whose
+  runtime compatibility cutover remains explicit work
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

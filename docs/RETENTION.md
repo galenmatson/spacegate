@@ -1107,6 +1107,15 @@ state symlinks, reports, process liveness, shared files, and the accepted
 replacement before removing whole variants and their corresponding superseded
 state links. The isolated reproduction scratch tree was removed automatically.
 
+E7 clean-science development currently retains accepted build
+`35eb29fa3b2a3ac518f5303a`, superseded instrumented predecessor
+`76c345d7a528dd8673011b64`, and one 9.0-GiB manifestless failed staging tree on
+`/mnt/space`. The accepted build and its reports/state link are protected. The
+other two are exact-candidate retention work, not manual deletion targets. A
+clean-science-aware dry-run must verify the accepted replacement, process
+liveness, reports, symlinks, shared files, and exact tree identities before
+removing the predecessor, failed tree, or their superseded state links.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stability_table_migration.v1",
-  "contract_version": "2026-07-22.e7-stability-table-migration.2",
+  "contract_version": "2026-07-22.e7-stability-table-migration.3",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "rules": {
     "all_tables_must_be_owned_once": true,
@@ -81,8 +81,8 @@
       "groups": [
         {
           "group_id": "arm.selected_science_compatibility",
-          "disposition": "clean_compiler_required",
-          "replacement": "E5 selected facts, relations, components, clusters, extended objects, planets, Solar System, and compact-object artifacts",
+          "disposition": "verified_artifact_pending_consumer_cutover",
+          "replacement": "E7 clean science 35eb29fa3b2a3ac518f5303a over accepted E5 selected facts, relations, components, clusters, extended objects, planets, Solar System, and compact objects; runtime compatibility consumers remain open",
           "tables": [
             "component_entities",
             "derived_physical_parameters",

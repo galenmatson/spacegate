@@ -437,6 +437,31 @@ Evidence Lake v2 staging rule:
   source observation may describe an unresolved target or photocenter; it is
   not copied to `primary` or `secondary`.
 
+## E7 Clean Selected-Science Projection
+
+Build `35eb29fa3b2a3ac518f5303a` is the first ARM-oriented compiler product that
+does not open a stability database. It consumes clean permanent subjects from
+foundation `9c2d08086275ead386f71bf7` and the eight accepted E5 selected
+artifact families. Its query database retains each source projection under an
+`evidence_<family>_<table>` name and materializes shared wide selected stellar
+astrometry, physics, photometry, variability, classification, and planet
+parameter surfaces.
+
+`selected_stellar_parameters` is the common scientific consumer surface.
+`selected_stellar_display_classifications` is the common presentation
+classification surface and contains one row per canonical star, the selected
+fact ID, evidence/derivation basis, confidence, alternative/conflict summary,
+and projection version. It may use only selected direct evidence or a labeled
+versioned derivation from selected temperature, color, or mass. Stability CORE
+spectral values are prohibited. Missing evidence remains `UNKNOWN`.
+
+The canonical Parquet products are byte-deterministic. The 10.6-GB DuckDB file
+is a regenerable query projection verified by table counts and invariants; its
+internal page layout is not scientific identity. The 30 replaced legacy ARM
+tables remain migration blockers until API, simulation, hierarchy, and public
+slice consumers read the clean surfaces or receive explicit compatibility
+views.
+
 ## Artifact Contract
 
 Per build:

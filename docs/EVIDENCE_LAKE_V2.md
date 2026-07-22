@@ -2026,6 +2026,32 @@ their page serialization is not stable, so determinism is gated on exact
 Parquet hashes plus independent schema, count, relationship, and invariant
 verification of their logical tables.
 
+## E7 Clean Selected Science
+
+Build `35eb29fa3b2a3ac518f5303a` consumes the clean foundation plus all eight
+accepted E5 selected-artifact families and opens no stability database. Its
+10.6-GB DuckDB query projection carries the typed relation, component, cluster,
+extended-object, planet, Solar System, and compact-object surfaces together
+with wide selected stellar/planet parameter tables. Nine canonical Parquet
+products total about 7.2 GB and reproduce byte-for-byte in isolated scratch.
+
+The shared stellar display-class policy no longer reads the legacy CORE
+spectral fallback. It selects direct optical, infrared, or SIMBAD spectral
+evidence first; then uses explicitly labeled selected-temperature, color, or
+mass presentation derivations; otherwise it emits `UNKNOWN`. All 5,874,636
+canonical stars appear exactly once and every non-missing class points to its
+selected fact. Current accounting is 321,425 source, 2,033,572 derived,
+3,176,113 assumed, and 343,526 missing. These changes require scientific A/B
+review; a lower unknown count alone is not an acceptance criterion.
+
+Production takes 190.81 seconds and peaks at 37.45 GiB RSS without swap. The
+largest phases are canonical export (37.65 seconds), product hashing (32.77),
+selected-artifact attestation (23.5), stellar astrometry pivot (about 20),
+domain projection copy (13.6), physics pivot (13.3), and variability pivot
+(12.1). The isolated shared-cache run takes 165.23 seconds plus 10.9 seconds of
+independent verification. Its faster input/product hashing is recorded as a
+cache effect, not an algorithmic speedup.
+
 ## Hard Gates
 
 Evidence Lake v2 is not promotable until:

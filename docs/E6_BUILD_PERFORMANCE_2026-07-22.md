@@ -533,6 +533,17 @@ page layout is not a stable serialization, while independent logical-table
 verification remains mandatory. This step is not responsible for the
 hour-scale end-to-end build.
 
+Clean selected-science build `35eb29fa3b2a3ac518f5303a` takes 190.81 seconds
+and peaks at 37.45 GiB RSS with no swap. Its largest named phases are canonical
+Parquet export (37.65 seconds), product hashing (32.77), immutable selected-
+artifact verification (23.5), stellar astrometry pivot (about 20), domain copy
+(13.6), stellar physics pivot (13.3), and variability pivot (12.1). An isolated
+shared-cache rebuild takes 165.23 seconds; its product hash falls to 9.35
+seconds while input attestation rises to 34.49 seconds. The net difference is
+cache/I/O state, not an accepted code optimization. All canonical Parquet
+hashes reproduce, the query database passes logical verification, and scratch
+is removed.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

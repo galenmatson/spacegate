@@ -38,6 +38,14 @@ exact response products, orbit solutions, physical parameter sets, and
 source-scoped center relations are compiler evidence only; it does not change
 the served Sol hierarchy, simulation payload, or public object count.
 
+E7 clean science build `35eb29fa3b2a3ac518f5303a` now provides unserved
+`selected_stellar_parameters`, `selected_stellar_display_classifications`, and
+`selected_planet_parameters` surfaces plus typed domain projections without
+stability values. Public API, simulation, search facets, and slice code must be
+cut over and A/B verified before these internal surfaces change responses. New
+consumer code must use these shared projections instead of selecting or
+inferring the same scientific quantity independently.
+
 ## Common Types
 
 ### Provenance

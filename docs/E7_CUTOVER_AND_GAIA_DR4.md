@@ -142,6 +142,16 @@ serialization. This measured step is not the hour-scale critical-path source;
 the selected-science, public-slice, map-tile, and scene phases remain the next
 optimization targets.
 
+Clean selected-science build `35eb29fa3b2a3ac518f5303a` is the next measured
+step: 190.81 seconds at 37.45 GiB peak RSS, with no swap. Export and hashing
+together consume 70.4 seconds; immutable input verification, astrometry,
+physics, variability, and domain copy account for most of the rest. A
+shared-cache isolated reproduction takes 165.23 seconds and matches every
+canonical Parquet hash. Future optimization should reuse already attested
+content-addressed hashes within one top-level build and avoid exporting
+duplicate consumer surfaces, but may not weaken independent verification or
+the clean reproduction gate.
+
 ## Gaia DR4 Adapter
 
 ESA currently schedules Gaia DR4 for December 2, 2026. The date and evolving

@@ -18,6 +18,7 @@ DEFAULT_CONTRACT = ROOT / "config/evidence_lake/e7_stability_table_migration.jso
 DEFAULT_STATE = Path("/data/spacegate/state")
 ALLOWED_DISPOSITIONS = {
     "verified_artifact",
+    "verified_artifact_pending_consumer_cutover",
     "identity_seed_required",
     "clean_compiler_required",
     "clean_projection_blocker",
@@ -170,7 +171,8 @@ def audit(contract_path: Path, state_dir: Path) -> dict[str, Any]:
         for database in database_reports
         for table in database["tables"]
         if table["disposition"] in {
-            "identity_seed_required", "clean_compiler_required", "clean_projection_blocker"
+            "identity_seed_required", "clean_compiler_required", "clean_projection_blocker",
+            "verified_artifact_pending_consumer_cutover",
         }
     )
     failures = {

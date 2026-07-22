@@ -3420,6 +3420,26 @@ Representative commits:
   verified by logical schema/count/invariant checks because their internal page
   layout is not a deterministic serialization.
 
+### 127) Selected Science and Display Classes Leave Stability CORE
+
+- Clean science build `35eb29fa3b2a3ac518f5303a` reads only clean foundation
+  `9c2d08086275ead386f71bf7` and eight accepted E5 artifacts. It copies typed
+  domain projections and materializes shared stellar/planet selected-fact
+  surfaces without copying any stability scientific value.
+- All 5,874,636 stars receive one display classification. Direct selected
+  optical/infrared/SIMBAD evidence wins, followed by labeled temperature,
+  color, or mass presentation derivation, then explicit `UNKNOWN`. Counts are
+  321,425 source, 2,033,572 derived, 3,176,113 assumed, and 343,526 missing;
+  every non-missing output carries a selected-fact ID.
+- Production takes 190.81 seconds at 37.45 GiB peak RSS. The isolated rebuild
+  matches all nine canonical Parquet products, passes independent logical
+  verification, and removes scratch. Its 165.23-second compiler time reflects
+  shared cache state and is not claimed as an optimization.
+- The stability ledger now distinguishes 30 verified selected-science
+  replacements whose runtime/API compatibility cutover is pending from 23
+  unbuilt clean replacements and seven infrared blockers. All 60 remain open
+  until their consumer or compiler gate closes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
