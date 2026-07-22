@@ -12,18 +12,25 @@ not an accepted production build configuration.
 
 E1 source-native Parquet, the E2 release-scoped identity/scope graph, and the 38
 registered E4 scientific adapters now have explicit compiler contracts. They
-remain unserved compiler inputs: the current canonical build path stays
-operational until E5 selected facts are complete and E6 passes the shadow
-scientific A/B review. The preflight,
+remain unserved compiler inputs while corrected E6 v6 completes scientific
+review and E7 local cutover. The preflight,
 typed-lake, identity graph, and E4 evidence contracts do not promote registry
 metadata, source relations, release crossmatches, or coherent Gaia source
 solutions into CORE by themselves.
-The combined E4 identity is release set `6c19de054e9b807674c37d3c`, an atomic
+The combined E4 identity is release set `fde14e4687a853c844b0e341`, an atomic
 manifest over 36 immutable read-only source shards rather than another copied
 database. Canonical ingest must consume E5 selected facts derived from that set,
 not attach an arbitrary collection of whichever E4 artifacts happen to exist.
-Selected-fact build `0a57f778ce13de1c2c800103` is the verified E5 input to
-the E6 canonical shadow build; it is not itself a CORE promotion.
+Selected-fact build `fa4aaed18aebcffb8632d978` and component-scope build
+`67fea5f99500b57419ebdeb0` are the verified E5 inputs to corrected shadow
+`e6_cfcdf2d9add2cd7e2b96af68_shadow`; none is itself a CORE promotion.
+
+E7 does not retire this canonical identity pipeline. It adapts the permanent
+normalizer, identity graph, object reducer, and hierarchy builder to consume E2
+and selected evidence directly. The transitional bootstrap cookers,
+`ingest_core.py`, and `build_arm.py` remain required stability inputs until a
+clean pinned-input build no longer composes from the stability databases. See
+`docs/E7_CUTOVER_AND_GAIA_DR4.md` and the machine legacy-path ledger.
 
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 

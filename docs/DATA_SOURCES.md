@@ -567,7 +567,11 @@ Evidence Lake E4 source checkpoints:
 ### 2026 Source-Refresh Watchlist
 
 - Gaia DR3 remains the current Spacegate backbone; Gaia DR4 is scheduled for
-  December 2, 2026 and should become an explicit transition milestone.
+  December 2, 2026 and has an explicit release-scoped transition contract in
+  `docs/E7_CUTOVER_AND_GAIA_DR4.md` and
+  `config/evidence_lake/gaia_dr4_adapter_plan.json`. DR3 and DR4 source IDs are
+  distinct namespaces joined only through the official neighborhood/crossmatch;
+  neither release owns permanent Spacegate object identity.
 - MSC is mandatory hierarchy evidence. Spacegate now targets the upstream June
   19, 2026 archive (`newmsc-20260619.tar.gz`) and verifies insecure fallback
   downloads with an explicit SHA-256 pin when CTIO TLS is not usable. Local

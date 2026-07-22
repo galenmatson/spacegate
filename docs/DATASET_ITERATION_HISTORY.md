@@ -3257,6 +3257,28 @@ Representative commits:
   250, 500, and 1,000 ly. The production transform contains no named-system,
   display-name, or benchmark-identifier condition.
 
+### 120) E7 Retirement Is Gated by a Clean Evidence-Lake Entry Point
+
+- The corrected E6 candidate remains intentionally unserved and still composes
+  permanent inventory and identity from stability build
+  `20260717T0614Z_f452835_side`. Therefore the legacy cookers,
+  `ingest_core.py`, and `build_arm.py` are not yet safe to retire even though
+  their field-losing scientific role is superseded.
+- `config/evidence_lake/e7_legacy_path_inventory.json` accounts seven legacy,
+  transitional, diagnostic, and permanent-identity path families. No entry is
+  marked retired. The canonical identity reducer is retained and adapted;
+  reproducible cooked projections may retire only after a clean pinned-input
+  driver, accepted scientific A/B, local atomic promotion, rollback, and
+  re-promotion.
+- `config/evidence_lake/gaia_dr4_adapter_plan.json` treats DR4 as a new
+  release-scoped evidence family. DR3 and DR4 source IDs are never compared as
+  interchangeable identifiers; official crossmatch candidates, split/merge
+  ambiguity, and permanent Spacegate identities remain separate concerns.
+- `scripts/verify_e7_cutover_plan.py` passes all 19 checks. Its run also exposed
+  an unowned `e6_selected_consumer_projection_v3` marker; assigning that marker
+  to the existing shared display-projection inventory restored the independent
+  24-path legacy derivation audit to pass without suppressing discovery.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

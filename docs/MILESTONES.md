@@ -2401,6 +2401,22 @@ Exit criteria:
 
 #### M8.3c-E7. Promotion, Cutover, and Legacy Retirement
 
+Pre-promotion planning checkpoint (July 22, 2026):
+
+- `docs/E7_CUTOVER_AND_GAIA_DR4.md` defines the atomic local promotion,
+  production-topology verification, rollback, re-promotion, compiler-entrypoint
+  cutover, per-path deprecation, and retention sequence
+- the machine legacy ledger accounts seven path families without marking any
+  retired; it preserves permanent canonical identity work and records the E6
+  stability-database dependency as a hard retirement blocker
+- the Gaia DR4 adapter plan keeps DR3/DR4 identifiers release scoped, requires
+  the official transition crossmatch, preserves split/merge ambiguity, and
+  reuses E0-E6 contracts rather than copying DR3 schemas or quality rules
+- the independent plan verifier passes 19 checks, and the 24-path legacy
+  derivation audit again has zero unowned production algorithm markers
+- local promotion, rollback timing, authoritative entrypoint replacement, and
+  actual legacy retirement remain open; this checkpoint authorizes no cleanup
+
 Deliverables:
 
 - reviewed atomic local promotion with the previous build retained for rollback

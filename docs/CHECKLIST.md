@@ -1673,6 +1673,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E6: review and account for every scientific delta using reusable policy;
   preserve canonical planet/status integrity and prohibit named-object
   transforms used only to satisfy goldens
+- [x] E7 pre-promotion plan: machine-account seven legacy path families, retain
+  permanent identity work, prohibit cleanup before rollback, define atomic
+  local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
+  contract with 19/19 plan checks and zero unowned derivation markers
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths

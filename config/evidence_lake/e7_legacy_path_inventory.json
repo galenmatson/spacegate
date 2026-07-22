@@ -1,0 +1,140 @@
+{
+  "schema_version": "spacegate.e7_legacy_path_inventory.v1",
+  "inventory_version": "2026-07-22.e7-cutover-plan.1",
+  "candidate_build_id": "e6_cfcdf2d9add2cd7e2b96af68_public",
+  "stability_build_id": "20260717T0614Z_f452835_side",
+  "pre_promotion": true,
+  "rules": {
+    "delete_before_rollback_drill": false,
+    "retire_raw_or_typed_source_evidence": false,
+    "retire_permanent_identity_work": false,
+    "require_clean_pinned_input_reproduction": true,
+    "require_atomic_promotion_and_rollback": true
+  },
+  "entries": [
+    {
+      "path_id": "legacy.full_build_orchestration",
+      "category": "orchestrator",
+      "paths": [
+        "scripts/build_database.sh",
+        "scripts/refresh_core.sh",
+        "scripts/download_core.sh",
+        "scripts/cook_core.sh"
+      ],
+      "current_state": "transitional_production",
+      "target_state": "deprecated_compatibility_wrapper",
+      "action": "Replace the authoritative entrypoint with an Evidence Lake release-set, selection, E6 projection, verification, and promotion driver. Keep the old wrapper only for stability reproduction until rollback expires.",
+      "retirement_gates": [
+        "new top-level driver reproduces the accepted build from pinned raw and typed inputs",
+        "no accepted build manifest names a legacy cooked artifact as scientific authority",
+        "local atomic promotion and rollback drill pass",
+        "operator accepts the scientific A/B report"
+      ],
+      "retention": "Preserve scripts in version control and preserve every referenced stability artifact."
+    },
+    {
+      "path_id": "legacy.catalog_cookers",
+      "category": "cooker",
+      "paths": [
+        "scripts/cook_multiplicity.py",
+        "scripts/cook_science_catalogs.py",
+        "scripts/cook_exoplanet_lifecycle.py"
+      ],
+      "current_state": "transitional_stability_input",
+      "target_state": "retired_from_authoritative_build",
+      "action": "Remove these merged or field-losing projections from the authoritative build graph after every active source has a registered immutable raw, source-native typed, E4, and E5 route.",
+      "retirement_gates": [
+        "source-release registry and field-disposition ledgers remain complete",
+        "E4 release set accounts every active source adapter or boundary disposition",
+        "clean build no longer reads legacy cooked outputs",
+        "rollback build and reports remain retained"
+      ],
+      "retention": "Retire only reproducible cooked projections; never delete unique raw snapshots, typed evidence, manifests, citations, or reports."
+    },
+    {
+      "path_id": "legacy.bootstrap_science_projection",
+      "category": "compiler",
+      "paths": [
+        "scripts/ingest_core.sh",
+        "scripts/ingest_core.py",
+        "scripts/build_arm.py"
+      ],
+      "current_state": "required_stability_input",
+      "target_state": "deprecated_stability_reproducer",
+      "action": "Replace bootstrap inventory and scientific-value production with release-scoped identity, selected facts, and E6 projections. Do not retire while E6 still composes from the stability databases.",
+      "retirement_gates": [
+        "E6 compiler has no stability CORE, ARM, hierarchy, or DISC database dependency",
+        "clean pinned-input reproduction preserves accepted permanent object identities and hierarchy",
+        "shared selected-fact consumers replace duplicate runtime science selection",
+        "local promotion and rollback drill pass"
+      ],
+      "retention": "Keep the exact stability source revision and immutable input build for rollback and historical reproduction."
+    },
+    {
+      "path_id": "canonical.identity_reducer",
+      "category": "permanent_identity",
+      "paths": [
+        "scripts/ingest/normalize_sources.py",
+        "scripts/ingest/build_identity_graph.py",
+        "scripts/ingest/reduce_canonical_objects.py",
+        "scripts/ingest/build_canonical_hierarchy.py",
+        "scripts/ingest/emit_canonical_build.py"
+      ],
+      "current_state": "retained_foundation",
+      "target_state": "retained_release_scoped_identity_compiler",
+      "action": "Adapt these permanent identity and hierarchy stages to consume the E2 graph and E4/E5 contracts. Preserve stable Spacegate object identities independently of every Gaia release.",
+      "retirement_gates": [
+        "not_retirable_permanent_identity_work"
+      ],
+      "retention": "Permanent identity mappings, adjudication outcomes, and hierarchy lineage are never discarded during Evidence Lake cutover."
+    },
+    {
+      "path_id": "legacy.duplicated_selection_and_derivation",
+      "category": "science_selection",
+      "paths": [
+        "config/evidence_lake/e5_legacy_derivation_inventory.json",
+        "scripts/audit_legacy_derivation_inventory.py"
+      ],
+      "current_state": "audited_transition",
+      "target_state": "selected_fact_projection_only",
+      "action": "Retire each duplicated API, renderer, map, category, and ARM science-selection path only when its recorded per-path gate passes; retain explicitly labeled presentation transforms and priors where policy requires them.",
+      "retirement_gates": [
+        "all scientific consumers use shared selected facts or versioned derivations",
+        "legacy inventory audit reports no unowned algorithm marker",
+        "classification, HZ, planet category, simulation, API, search, map, tag, and AAA parity pass"
+      ],
+      "retention": "Keep the inventory and audit permanently as supersession evidence."
+    },
+    {
+      "path_id": "legacy.from_cooked_slice_mode",
+      "category": "diagnostic_entrypoint",
+      "paths": [
+        "scripts/build_database_slice.sh"
+      ],
+      "current_state": "deprecated_fail_closed",
+      "target_state": "removed_after_rollback_window",
+      "action": "Keep the explicit refusal while old operational references may exist, then remove the option and its documentation after the rollback window.",
+      "retirement_gates": [
+        "no operator documentation or automation invokes --from-cooked",
+        "accepted Evidence Lake build has completed its rollback retention window"
+      ],
+      "retention": "The refusal can be removed; historical build reports remain."
+    },
+    {
+      "path_id": "legacy.monolithic_map_transport",
+      "category": "api_diagnostic",
+      "paths": [
+        "srv/api/app/main.py",
+        "docs/TILED_MAP.md"
+      ],
+      "current_state": "deprecated_diagnostic",
+      "target_state": "bounded_diagnostic_or_removed",
+      "action": "Keep only the bounded parity diagnostic until tiled transport has passed the Evidence Lake local promotion and rollback drill; never restore it as a second production renderer architecture.",
+      "retirement_gates": [
+        "tiled public build passes production browser acceptance",
+        "local promotion and rollback preserve search, selection, Peek, Explorer, and system handoff"
+      ],
+      "retention": "Retain benchmark reports and protocol documentation after endpoint removal."
+    }
+  ]
+}

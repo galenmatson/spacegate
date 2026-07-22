@@ -129,7 +129,7 @@
       "confidence": "source_to_missing",
       "provenance": "Exact hierarchy, leaf, evidence-component, source, and projection-version lineage.",
       "supersession": {"state": "rebuild_from_selected_facts", "e5_derivation_key": null, "retirement_gate": "E6 shared-consumer badge parity"},
-      "implementations": [{"file": "scripts/materialize_stellar_leaf_classifications.py", "symbol": "PROJECTION_VERSION", "markers": ["stellar_leaf_display_classification_v1", "msc_exact_leaf_spectral_type_v1", "mass_main_sequence_prior_v1"]}],
+      "implementations": [{"file": "scripts/materialize_stellar_leaf_classifications.py", "symbol": "PROJECTION_VERSION", "markers": ["stellar_leaf_display_classification_v1", "msc_exact_leaf_spectral_type_v1", "mass_main_sequence_prior_v1"]}, {"file": "scripts/materialize_e6_selected_consumers.py", "symbol": "PROJECTION_VERSION", "markers": ["e6_selected_consumer_projection_v3"]}],
       "materialized_markers": ["stellar_leaf_display_classifications.evidence_basis=core_leaf_source_class_v1", "stellar_leaf_display_classifications.evidence_basis=source_component_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=msc_exact_leaf_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=spectral_type_visual_class_prior_v1", "stellar_leaf_display_classifications.evidence_basis=mass_main_sequence_prior_v1", "stellar_leaf_display_classifications.evidence_basis=no_exact_leaf_classification_evidence"]
     },
     {

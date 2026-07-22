@@ -182,6 +182,16 @@ estate is 63 raw artifacts and 5,213,454,799 typed Parquet bytes across 27
 source releases; older immutable parser checkpoints explain why the physical
 typed directory is larger until E7 retirement.
 
+E7 cutover planning does not authorize cleanup. The pre-promotion ledger in
+`config/evidence_lake/e7_legacy_path_inventory.json` marks every old cooker,
+compiler, and diagnostic path as transitional, retained, or deprecated; none is
+retired. Promotion must first pass the scientific review, atomic local pointer
+change, production-topology verification, rollback drill, and re-promotion in
+`docs/E7_CUTOVER_AND_GAIA_DR4.md`. Only then may specifically enumerated,
+reproducible cooked or build artifacts enter the ordinary reviewed retention
+dry-run. Raw/typed evidence, permanent identity outcomes, manifests, citations,
+reports, served and rollback builds, and transitive inputs remain protected.
+
 Content-addressed acquisition target seeds under
 `derived/evidence_lake_v2/acquisition_targets/` are also lineage artifacts, not
 scratch. Preserve seed `638c3ff4e58abcd355029e0f` while any accepted Gaia

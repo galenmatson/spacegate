@@ -1862,6 +1862,16 @@ the previous build for rollback. Retire or formally deprecate the old
 collectors, cookers, evidence schemas, and duplicated selection paths only
 after the new build is reproducible from pinned inputs.
 
+The executable pre-promotion plan is documented in
+`docs/E7_CUTOVER_AND_GAIA_DR4.md`. Machine contracts
+`e7_legacy_path_inventory.json` and `gaia_dr4_adapter_plan.json` are verified by
+`scripts/verify_e7_cutover_plan.py`. The ledger records that E6 v6 still
+composes permanent inventory from the stability databases, so bootstrap
+cookers, `ingest_core.py`, and `build_arm.py` cannot yet be retired. The
+canonical identity reducer is retained permanent work and will consume the E2
+release-scoped graph. No ledger entry is marked retired before local promotion
+and rollback verification.
+
 ## Initial Source Program
 
 The first source program is release-pinned and bounded to Spacegate's scientific

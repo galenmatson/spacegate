@@ -1,0 +1,97 @@
+{
+  "schema_version": "spacegate.gaia_release_adapter_plan.v1",
+  "plan_version": "2026-07-22.gaia-dr4.1",
+  "release": {
+    "source": "Gaia",
+    "release_id": "dr4",
+    "scheduled_date": "2026-12-02",
+    "schedule_checked_at": "2026-07-22",
+    "schedule_authority_url": "https://www.cosmos.esa.int/web/gaia/release",
+    "status": "planned_not_acquired"
+  },
+  "identity_contract": {
+    "permanent_spacegate_ids_independent_of_gaia": true,
+    "gaia_dr3_and_dr4_ids_interchangeable": false,
+    "source_namespaces": [
+      "gaia_dr3_source_id",
+      "gaia_dr4_source_id"
+    ],
+    "required_transition_edge": "official_gaia_dr3_to_dr4_neighbourhood_or_crossmatch",
+    "allowed_outcomes": [
+      "accepted",
+      "missing",
+      "excluded",
+      "ambiguous",
+      "quarantined"
+    ],
+    "split_merge_policy": "Preserve all official candidates and scores; accept only policy-qualified unique physical bindings and quarantine split/merge ambiguity."
+  },
+  "adapter_families": [
+    "source_astrometry_and_photometry",
+    "astrophysical_parameters_and_evolution",
+    "non_single_star_solutions",
+    "variability_activity_and_rotation",
+    "spectroscopy_and_abundances",
+    "epoch_and_observation_product_indexes",
+    "official_external_crossmatches"
+  ],
+  "phases": [
+    {
+      "phase": "D0_registry_preflight",
+      "requirements": [
+        "register every selected DR4 table as a new release-scoped source",
+        "pin licenses, citations, schemas, retrieval contracts, field dispositions, units, epochs, frames, nulls, limits, and completeness gates",
+        "compare the published DR4 schema to DR3 without copying DR3 assumptions"
+      ]
+    },
+    {
+      "phase": "D1_bounded_acquisition",
+      "requirements": [
+        "derive a DR4 uncertainty-aware envelope independently from the DR3 target universe",
+        "preserve byte-identical TAP responses, exact ADQL, UWS jobs, checksums, counts, and retrieval timestamps",
+        "index bulk observation products but cache them on demand"
+      ]
+    },
+    {
+      "phase": "D2_source_native_typed",
+      "requirements": [
+        "cook each DR4 table independently into deterministic typed Parquet",
+        "preserve parameter sets, methods, models, epochs, frames, uncertainties, bounds, limits, quality flags, and source record identity",
+        "pass raw-to-typed clean reproduction and exhaustive field accounting"
+      ]
+    },
+    {
+      "phase": "D3_identity_transition",
+      "requirements": [
+        "acquire and preserve the official DR3-to-DR4 neighborhood or crossmatch in both useful directions",
+        "materialize release-scoped nodes and provenance-bearing transition edges",
+        "account every attempted binding and quarantine one-to-many, many-to-one, component-scope, and high-proper-motion ambiguity"
+      ]
+    },
+    {
+      "phase": "D4_evidence_and_selection",
+      "requirements": [
+        "add DR4 E4 adapters without deleting DR3 evidence",
+        "version per-quantity authority and applicability policies",
+        "preserve coherent DR3 and DR4 alternatives and make every selected delta cite its exact evidence"
+      ]
+    },
+    {
+      "phase": "D5_shadow_ab_and_cutover",
+      "requirements": [
+        "build DR3-reference and DR4-candidate products from permanent Spacegate identities",
+        "explain inventory, identity, hierarchy, parameter, classification, planet-host, map, simulation, API, storage, and performance deltas",
+        "promote only after clean reproduction, operator review, atomic local cutover, and tested rollback"
+      ]
+    }
+  ],
+  "forbidden_shortcuts": [
+    "compare DR3 and DR4 source IDs as interchangeable integers",
+    "overwrite DR3 evidence or aliases in place",
+    "derive permanent Spacegate object identity from a Gaia release ID",
+    "reuse a DR3 table schema or quality rule without a DR4 schema-drift review",
+    "promote relation or crossmatch candidates into containment",
+    "select field-wise values that break a coherent source parameter set",
+    "retire DR3 rollback inputs before the DR4 rollback window closes"
+  ]
+}
