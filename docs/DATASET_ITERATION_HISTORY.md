@@ -3031,6 +3031,27 @@ Representative commits:
   parameter facts, passes independent audit and byte-identical reproduction in
   8.7-10.2 wall seconds, and closes all four remaining source-policy blockers.
 
+### 109) Current-Release E5 Projection and Measured Build Cost
+
+- Policy v12/compiler v11 moves the main selected-fact projection onto E4
+  release set `6c19de054e9b807674c37d3c`. Build
+  `0a57f778ce13de1c2c800103` accounts 94,414,212 exhaustive bindings,
+  41,078,490 decisions, 121,304,924 facts, and 65,104 derivations. Independent
+  audit verifies policy version/hash lineage and every scientific gate.
+- Clean reproduction matches logical hash
+  `6ccec12397bbe7d64878c52ead6a06ffca52d686e75020b8fb08831e58c69628`
+  and every report section, then removes its USB scratch tree. The accepted run
+  takes 1,577.3 measured wall seconds and the reproduction takes 1,734.4.
+- Gaia direct materialization at 543.1 seconds is the dominant optimization
+  target, followed by deterministic export, Bailer-Jones binding/projection,
+  immutable input verification, and global selection. The full report is
+  `docs/E5_BUILD_PERFORMANCE_2026-07-22.md`.
+- One alpha-abundance selection had no optional quality-order value but no
+  same-authority competitor. The compiler and independent auditor now permit
+  that noncompetition while failing any same-authority competition lacking a
+  score. The pre-gate intermediate was independently rejected and exactly one
+  74,069,770,240-byte artifact was reclaimed through fail-closed retention.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -990,14 +990,13 @@ Notes:
 1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
    resolve only material production regressions while the scientific rebuild
    proceeds in parallel.
-2. Build the E5 selected-fact/derivation compiler over E4 release set
-   `a188a3adc6207d3a217d54a9`. Its atomic manifest composes all 38 independently
-   reproducible scientific adapters across 36 immutable source shards without
-   duplicating 449.2 GB of evidence. All E4 artifacts remain unserved pre-ARM
-   inputs until E5/E6.
-3. Build the E5 versioned selection/derivation
-   compiler. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B
-   scientific diff before promotion or deployment.
+2. Use verified E5 selected-fact build `0a57f778ce13de1c2c800103` from E4 release
+   set `6c19de054e9b807674c37d3c` as the immutable scientific input to the E6
+   shadow build. Its atomic release manifest composes all 38 registered sources
+   across 36 immutable shards without duplicating 448.9 GB of evidence.
+3. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B scientific diff,
+   shared-consumer behavior, performance, and rollback before local promotion
+   or deployment.
 4. Build the Concept Tag Foundation after the evidence contract is stable so
    public tags are driven by selected, provenance-bearing facts.
 5. Implement one secure AAA evidence-portfolio vertical slice with source-text

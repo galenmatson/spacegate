@@ -1449,10 +1449,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   selection, derivation, integrity, export, hash, and promotion phase; publish a
   machine-readable timing report and optimize measured bottlenecks before the
   required clean reproduction
-- [ ] E5/E6 end-to-end build performance report: rank every phase by wall and
+- [x] E5 end-to-end build performance report: rank every phase by wall and
   CPU time, distinguish cold and cached input verification, compare supported
   worker/memory profiles, retain query-plan evidence for the dominant costs,
-  and document measured optimizations before local cutover
+  and document measured optimizations before local cutover in
+  `docs/E5_BUILD_PERFORMANCE_2026-07-22.md`
+- [x] E5 current-release selected-fact checkpoint: compile policy v12/compiler
+  v11 against release set `6c19de054e9b807674c37d3c`, independently audit
+  exact policy lineage and scientific gates, and cleanly reproduce all report
+  sections and Parquet hashes for build `0a57f778ce13de1c2c800103`
 - [x] E5 Gaia accepted-binding-cache experiment: run the complete 5.87-million
   object/89.07-million-fact projection, independently audit it, reject the
   cache after candidate insertion regresses from 540.0 to 661.5 seconds, and

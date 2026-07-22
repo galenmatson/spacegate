@@ -18,10 +18,12 @@ scientific A/B review. The preflight,
 typed-lake, identity graph, and E4 evidence contracts do not promote registry
 metadata, source relations, release crossmatches, or coherent Gaia source
 solutions into CORE by themselves.
-The combined E4 identity is release set `a188a3adc6207d3a217d54a9`, an atomic
+The combined E4 identity is release set `6c19de054e9b807674c37d3c`, an atomic
 manifest over 36 immutable read-only source shards rather than another copied
 database. Canonical ingest must consume E5 selected facts derived from that set,
 not attach an arbitrary collection of whichever E4 artifacts happen to exist.
+Selected-fact build `0a57f778ce13de1c2c800103` is the verified E5 input to
+the E6 canonical shadow build; it is not itself a CORE promotion.
 
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 

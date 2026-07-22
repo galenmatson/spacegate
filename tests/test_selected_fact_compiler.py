@@ -1158,6 +1158,47 @@ def test_quality_policy_rejects_invalid_and_wrong_scope_rules(tmp_path: Path) ->
         compiler.validate_policy(policy, release_manifest)
 
 
+def test_missing_quality_score_only_fails_for_same_authority_competition() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute(
+        "CREATE TABLE parameter_set_selection_decisions ("
+        "selected_source_id VARCHAR,quantity_group VARCHAR,authority_rank INTEGER,"
+        "authority_reason VARCHAR,selection_quality_score DOUBLE,"
+        "candidate_parameter_set_count INTEGER,runner_up_authority_rank INTEGER)"
+    )
+    policy = {
+        "selection_sources": [{
+            "source_id": "source.test",
+            "quantity_groups": [{
+                "group_key": "stellar_test",
+                "authorities": [{
+                    "rank": 10,
+                    "reason": "quality-ranked test evidence",
+                    "quality_order": {
+                        "scope": "source_context",
+                        "path": "$.score",
+                        "direction": "desc",
+                    },
+                }],
+            }],
+        }],
+    }
+    con.execute(
+        "INSERT INTO parameter_set_selection_decisions VALUES "
+        "('source.test','stellar_test',10,'quality-ranked test evidence',NULL,1,NULL)"
+    )
+    checks = compiler.selection_quality_integrity_checks(con, policy)
+    assert set(checks.values()) == {0}
+
+    con.execute(
+        "INSERT INTO parameter_set_selection_decisions VALUES "
+        "('source.test','stellar_test',10,'quality-ranked test evidence',NULL,2,10)"
+    )
+    checks = compiler.selection_quality_integrity_checks(con, policy)
+    assert set(checks.values()) == {1}
+    con.close()
+
+
 def test_reproduction_comparison_ignores_duckdb_bytes_but_not_parquet() -> None:
     report = {
         "status": "pass",

@@ -1348,6 +1348,32 @@ The next experiment targets direct fact encoding and the cost of retaining both
 the large DuckDB table and deterministic per-quantity Parquet projection, not
 another accepted-binding cache.
 
+Policy v12/compiler v11 moves the main selected-fact compiler onto corrected
+release set `6c19de054e9b807674c37d3c` and closes the current E5 scientific
+projection as build `0a57f778ce13de1c2c800103`. It accounts 94,414,212
+binding outcomes, 41,078,490 decisions, 121,304,924 facts, and 65,104
+derivations. Independent audit verifies the exact policy version and file hash
+and reports zero scientific or lineage failures. Clean reproduction matches
+logical hash
+`6ccec12397bbe7d64878c52ead6a06ffca52d686e75020b8fb08831e58c69628`
+with no differing report section and removes its scratch tree.
+
+The 99-phase shared-host compile takes 1,577.3 measured wall seconds; clean
+USB-backed reproduction takes 1,734.4. Gaia candidate materialization is the
+largest phase at 543.1 seconds, followed by deterministic exports at 204.2,
+Bailer-Jones binding/projection at 199.6, immutable input verification at
+158.6, and global selection at 117.0. Peak compile usage is 35.25 GiB RSS,
+69.00 GiB staging, and 148.59 GiB spill allocation. The complete phase/source
+report and constrained optimization program are in
+`docs/E5_BUILD_PERFORMANCE_2026-07-22.md`.
+
+The quality-order contract now distinguishes an absent optional tie-breaker
+from an unrankable competition. A selected set may lack the declared quality
+value when it has no same-authority competitor; competing same-authority sets
+without a selected score fail before promotion and fail independent audit.
+The rejected policy-v11 intermediate was reclaimed through the exact-candidate
+retention workflow only after v12 compile, audit, and reproduction passed.
+
 Component-scope policy v1 adds a separate immutable multiplicity projection
 rather than forcing source-defined components into CORE identity. It resolves
 6,936 MSC WDS systems against the punctuation-preserving canonical WDS column:

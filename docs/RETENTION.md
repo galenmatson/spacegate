@@ -820,12 +820,14 @@ unreferenced artifacts through the exact-candidate dry-run/apply workflow.
 
 ## E4 Scientific Evidence Release Set
 
-Release set `a188a3adc6207d3a217d54a9` under
+Release set `6c19de054e9b807674c37d3c` under
 `derived/evidence_lake_v2/scientific_evidence_sets/` is the active E5 input. Its
-manifest references 36 accepted shard directories totaling 449,199,915,008
+manifest references 36 accepted shard directories totaling 448,898,973,696
 database bytes. Every referenced artifact, manifest, database, raw/typed input,
 audit, and reproduction report is protected. The set deliberately stores no
 copied evidence database; deleting a referenced shard would corrupt the set.
+Earlier set `a188a3adc6207d3a217d54a9` remains protected through the verified E5
+rollback artifact.
 Retention tooling must resolve active and rollback release-set manifests before
 considering any E4 artifact candidate. Superseded diagnostics remain subject to
 the existing exact-candidate dry-run/apply rules, never an age-only sweep.
@@ -840,19 +842,21 @@ staging directory may be considered only after no compiler process is active;
 use an exact candidate dry run before deletion. DuckDB spill under
 `/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
-The active E5 checkpoint is `f04aa4bc9c86d0c6f97a34da`; its compile,
+The active E5 checkpoint is `0a57f778ce13de1c2c800103`; its compile,
 deterministic Parquet exports, manifest, independent audit, clean-reproduction,
 timing, and performance-analysis reports are protected. Clean reproduction
 matched every logical and per-file Parquet hash, reported no differing
 sections, and removed its external scratch tree. The reference compile peaked
-at 66,102,259,712 staging and 161,548,070,912 spill allocated bytes; reproduction
-peaked at 133,656,276,992 spill allocated bytes.
-compiler's immutable-input attestation is process-local and is not a durable
+at 74,092,281,856 staging and 159,543,382,016 spill allocated bytes;
+reproduction peaked at 74,111,700,992 staging and 160,832,151,552 spill.
+The compiler's immutable-input attestation is process-local and is not a durable
 artifact or substitute for a checksum. Each invocation byte-hashes every pinned
 E4 input against its expected SHA; within that process only, the result may be
 reused while device, inode, size, mtime, and ctime remain unchanged. No retained
 metadata cache authorizes deletion, mutation, or checksum bypass. The immediate
-verified rollback `d3f255b55e4573676347b206`, its
+verified rollback `f04aa4bc9c86d0c6f97a34da`, its compile, audit, reproduction,
+and transitive E4 inputs remain protected. Earlier verified rollback
+`d3f255b55e4573676347b206`, its
 28,307,894,272-byte DuckDB, deterministic Parquet exports, manifest,
 independent audit, and clean-reproduction report remain protected. That
 reproduction matched logical hash
@@ -879,6 +883,14 @@ through candidate hash
 The applied report records 34,929,528,832 reclaimed allocated bytes. Future E5
 cleanup requires the same independent failed-artifact audit, reference/current/
 process/link checks, and exact candidate-set dry-run/apply process.
+
+Policy-v11 intermediate `c27804da6fe9e6ada61184b0` failed independent quality-
+order audit and was never an accepted rollback. After policy-v12 compile,
+lineage-aware audit, and clean reproduction passed, exact candidate-set hash
+`85b3c10f7c0853e994d27e9f59ad51762efb2a48a1d8b57ebe82570c7a295279`
+authorized removal of that one artifact and reclaimed 74,069,770,240 allocated
+bytes. Its failed audit, compile, timing, performance, and retention reports
+remain protected diagnostic history.
 
 ## E5 Selected-Relation Artifacts
 
@@ -957,9 +969,9 @@ acquisition gate and 400-GiB post-retention target; do not acquire another large
 release until a later reviewed retention pass restores that floor.
 
 The E5 source-disposition ledger and its machine-readable audit report are
-protected compiler-policy inputs. Current build `f04aa4bc9c86d0c6f97a34da`
-hashes the ledger; rollback `d3f255b55e4573676347b206` predates that identity
-input and remains protected as the immediate rollback.
+protected compiler-policy inputs. Current build `0a57f778ce13de1c2c800103`
+hashes the zero-blocker ledger; rollback `f04aa4bc9c86d0c6f97a34da` remains
+protected across the current-release cutover.
 
 Focused reports `e5_classification_selection_verification.json` and
 `e5_white_dwarf_selection_verification.json` are protected E5 policy evidence.

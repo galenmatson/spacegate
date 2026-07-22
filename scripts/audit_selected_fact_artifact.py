@@ -30,6 +30,14 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
     con = duckdb.connect(str(database), read_only=True)
     checks: dict[str, int] = {}
     try:
+        checks["policy_version_mismatch"] = int(
+            manifest.get("report", {}).get("policy_version")
+            != policy.get("policy_version")
+        )
+        checks["policy_sha256_mismatch"] = int(
+            manifest.get("inputs", {}).get("policy_sha256")
+            != file_sha256(policy_path.resolve())
+        )
         report_counts = manifest.get("report", {}).get("table_counts", {})
         audited_tables = [
             "selection_source_accounting",
@@ -237,7 +245,9 @@ def audit_artifact(artifact: Path, policy_path: Path) -> dict[str, Any]:
                         "SELECT COUNT(*) FROM parameter_set_selection_decisions "
                         "WHERE selected_source_id=? AND quantity_group=? "
                         "AND authority_rank=? AND authority_reason=? "
-                        "AND selection_quality_score IS NULL",
+                        "AND selection_quality_score IS NULL "
+                        "AND candidate_parameter_set_count>1 "
+                        "AND runner_up_authority_rank=authority_rank",
                         [
                             source_id,
                             str(group["group_key"]),

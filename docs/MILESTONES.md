@@ -1983,9 +1983,9 @@ Foundation checkpoint (July 21, 2026):
   chi-square; focused two-pass verification selects 493,275 facts with zero
   probability, scope, completeness, fit-order, duplicate, or lineage failures
 - the classification and white-dwarf policies landed together in batched build
-  `f04aa4bc9c86d0c6f97a34da`; it is locally current and independently audited,
-  while `d3f255b55e4573676347b206` remains the rollback until clean reproduction
-  passes
+  `f04aa4bc9c86d0c6f97a34da`; it was the independently audited local checkpoint
+  for that batch, while `d3f255b55e4573676347b206` remained its rollback until
+  clean reproduction passed
 - the v6 batch also establishes a compiler-performance gate: capture per-source
   and per-phase wall/CPU time, row volume, durable output, peak memory, and spill
   use; retain query plans for measured bottlenecks and optimize them before the
@@ -2117,6 +2117,17 @@ Foundation checkpoint (July 21, 2026):
   transit and 39,187 parameter facts, and leaves canonical inventory at 6,311.
   Artifact `86aa5553053db35d81ff26e0` independently audits and reproduces in
   8.7-10.2 seconds; all seven E5 policy batches now have zero blocking sources
+- policy v12/compiler v11 moves the complete main projection to E4 release set
+  `6c19de054e9b807674c37d3c`. Build `0a57f778ce13de1c2c800103`
+  independently audits and cleanly reproduces 94,414,212 binding outcomes,
+  41,078,490 decisions, 121,304,924 facts, and 65,104 derivations with logical
+  hash `6ccec12397bbe7d64878c52ead6a06ffca52d686e75020b8fb08831e58c69628`
+- the current 99-phase report measures 1,577.3 wall seconds and 7,033.8 CPU-
+  seconds. Gaia direct materialization (543.1 seconds), deterministic exports
+  (204.2), Bailer-Jones binding/projection (199.6), immutable verification
+  (158.6), and global selection (117.0) are the ranked targets; detailed
+  accepted/reproduction timings and rejected experiments are recorded in
+  `docs/E5_BUILD_PERFORMANCE_2026-07-22.md`
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

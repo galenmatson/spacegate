@@ -48,7 +48,7 @@ Evidence Lake v2 staging rule:
   E4 build in progress until the destination table contains their evidence or a
   reviewed exclusion is recorded.
 - The complete E4 input is an immutable release set, not a duplicate monolithic
-  DuckDB file. Release set `a188a3adc6207d3a217d54a9` pins each accepted shard
+  DuckDB file. Release set `6c19de054e9b807674c37d3c` pins each accepted shard
   manifest/database/logical/scientific hash and provides a table-to-shard index.
   E5 opens only those databases read-only. This preserves one atomic scientific
   build identity while avoiding another 449.2 GB copy of already immutable
@@ -67,6 +67,9 @@ Evidence Lake v2 staging rule:
   input selected-fact IDs, algorithm/version, applicability, formula,
   assumptions, uncertainty method, confidence, and superseded paths. These are
   pre-ARM compiler artifacts until the E6 shadow build passes.
+  Current selected-fact build `0a57f778ce13de1c2c800103` passes independent
+  policy-lineage/scientific audit and clean logical/Parquet reproduction under
+  policy v12/compiler v11.
 - E5 selected-relation artifacts live at
   `$SPACEGATE_STATE_DIR/derived/evidence_lake_v2/selected_relations/<build_id>/`.
   `relation_endpoint_bindings` gives the left and right evidence endpoints

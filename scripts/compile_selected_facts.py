@@ -2552,8 +2552,54 @@ def derive_stellar_luminosity(
     )
 
 
+def selection_quality_integrity_checks(
+    con: duckdb.DuckDBPyConnection,
+    policy: dict[str, Any],
+    recorder: PhaseRecorder | None = None,
+) -> dict[str, int]:
+    result: dict[str, int] = {}
+    for source in policy.get("selection_sources") or []:
+        source_id = str(source["source_id"])
+        for group in source.get("quantity_groups") or []:
+            group_key = str(group["group_key"])
+            for authority in group.get("authorities") or []:
+                if not authority.get("quality_order"):
+                    continue
+                rank = int(authority["rank"])
+                reason = str(authority["reason"])
+                name = (
+                    "competing_parameter_sets_without_selection_quality_"
+                    f"{source_id}_{group_key}_{rank}"
+                )
+                if recorder is not None:
+                    recorder.start(f"integrity_check.{name}")
+                try:
+                    count = int(
+                        con.execute(
+                            "SELECT COUNT(*) FROM parameter_set_selection_decisions "
+                            "WHERE selected_source_id=? AND quantity_group=? "
+                            "AND authority_rank=? AND authority_reason=? "
+                            "AND selection_quality_score IS NULL "
+                            "AND candidate_parameter_set_count>1 "
+                            "AND runner_up_authority_rank=authority_rank",
+                            [source_id, group_key, rank, reason],
+                        ).fetchone()[0]
+                        or 0
+                    )
+                except Exception:
+                    if recorder is not None:
+                        recorder.finish(status="fail")
+                    raise
+                result[name] = count
+                if recorder is not None:
+                    recorder.finish(details={"failure_count": count})
+    return result
+
+
 def verify_keys(
-    con: duckdb.DuckDBPyConnection, recorder: PhaseRecorder | None = None
+    con: duckdb.DuckDBPyConnection,
+    recorder: PhaseRecorder | None = None,
+    policy: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     checks = {
         "duplicate_binding_ids": "SELECT COUNT(*) - COUNT(DISTINCT binding_id) FROM evidence_object_bindings",
@@ -2588,6 +2634,8 @@ def verify_keys(
         result[name] = count
         if recorder is not None:
             recorder.finish(details={"failure_count": count})
+    if policy is not None:
+        result.update(selection_quality_integrity_checks(con, policy, recorder))
     failing = {name: count for name, count in result.items() if count}
     if failing:
         raise ValueError(f"selected-fact integrity checks failed: {failing}")
@@ -2954,7 +3002,7 @@ def compile_selected_facts(
             )
         recorder.finish(details={"sources": len(source_runtime)})
 
-        checks = verify_keys(con, recorder)
+        checks = verify_keys(con, recorder, policy)
         con.execute(
             "INSERT INTO evidence_build VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
