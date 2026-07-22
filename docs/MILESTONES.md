@@ -2292,7 +2292,8 @@ Foundation checkpoint (July 22, 2026):
   This accounts for 62 lost temperatures, 685 of 686 lost masses, and every one
   of 193 lost radii and 195 lost luminosities. It must be fixed in the general
   source selection policy, not masked by a compatibility fallback. A separate
-  1,160-row inverse-parallax distance tail remains an explicit policy review
+  1,160-row Gaia GSP-Phot posterior distance tail remains an explicit policy
+  review; it is source-model evidence, not reciprocal-parallax measurement
 - the general star-scoped NASA host policy now passes a hash-verified fast
   preflight: 132,578 eligible source records are exhaustively resolved as
   27,945 accepted, 104,628 missing, and five ambiguous, producing 12,210
@@ -2304,7 +2305,14 @@ Foundation checkpoint (July 22, 2026):
   phases and independent object-scoped artifact audit with 121,306,839 facts.
   Its 29:00 measured run confirms Gaia direct materialization (571.1 seconds),
   export (225.4), Bailer-Jones (206.2), and immutable verification (160.4) as
-  the ranked optimization targets. Clean reproduction and E6 A/B remain open
+  the ranked optimization targets. Its clean USB-scratch reproduction completes
+  in 24:49, matches every report section and logical hash, and removes scratch;
+  the GSP-Phot policy rebuild and E6 A/B remain open
+- the GSP-Phot distance preflight accounts for 6,955,056 valid official source
+  posteriors, 1,982,472 unique accepted canonical bindings, and exactly 1,160
+  fallback objects after geometric Bailer-Jones selection. It recovers every
+  legacy missing distance within 0.001 pc. The tail's selected parallax S/N is
+  only 2.07-7.39, so inverse parallax is deliberately not substituted
 - policy `2026-07-22.e6-shadow.3` and compiler v2 produce immutable integrated
   candidate `e6_2da376053461c8220bee06ad_shadow`; selected consumers and all
   5,879,796 hierarchy-leaf classifications now materialize before checkpoint,

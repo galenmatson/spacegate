@@ -321,6 +321,14 @@ def make_e4_artifact(
               uncertainty_upper DOUBLE, bound_semantics VARCHAR,
               reference_raw VARCHAR, normalization_version VARCHAR, quality_json JSON
             );
+            CREATE TABLE astrometry_distance_evidence (
+              evidence_id VARCHAR, source_record_id VARCHAR, quantity_key VARCHAR,
+              value_raw VARCHAR, unit_raw VARCHAR, normalized_value DOUBLE,
+              normalized_unit VARCHAR, uncertainty_lower DOUBLE,
+              uncertainty_upper DOUBLE, bound_semantics VARCHAR, frame_raw VARCHAR,
+              epoch_raw VARCHAR, method VARCHAR, model VARCHAR, reference_raw VARCHAR,
+              quality_json JSON, normalization_version VARCHAR
+            );
             INSERT INTO source_records VALUES
               ('gaia-record', 'gaia_ap', '{}');
             INSERT INTO identifier_claim_evidence VALUES
@@ -337,6 +345,12 @@ def make_e4_artifact(
               ('teff-hot-bad', 'hot-bad-set', 'gaia-record', 'effective_temperature', '5900', 5900, 'K', 5800, 6000, 'interval_endpoints', 'hot-bad-ref', 'norm-v1', '{"flag":1,"snr":100}'),
               ('teff-fallback', 'fallback-set', 'gaia-record', 'effective_temperature', '5700', 5700, 'K', 100, 100, 'symmetric_error', 'fallback-ref', 'norm-v1', '{}'),
               ('radius-fund', 'fundamental-set', 'gaia-record', 'stellar_radius', '1.0', 1.0, 'solRad', 0.1, 0.1, 'symmetric_error', 'fund-ref', 'norm-v1', '{}');
+            INSERT INTO astrometry_distance_evidence VALUES
+              ('gspphot-distance', 'gaia-record', 'gspphot_model_distance',
+               '101', 'pc', 101, 'pc', 95, 110,
+               'posterior_16th_84th_percentile_interval_endpoints', NULL, NULL,
+               'gaia_dr3_gspphot', 'Aeneas_MCMC_BP_RP_spectrophotometry',
+               'gaia-ap-ref', '{}', 'gspphot-v1');
             """
         )
     else:
@@ -662,6 +676,26 @@ def fixture_policy(state: Path, tmp_path: Path) -> Path:
                     "parameter_set_table": "stellar_parameter_sets",
                     "parameter_evidence_table": "stellar_parameter_evidence",
                     "component_scope_field": "component_scope",
+                    "auxiliary_measurement_groups": [
+                        {
+                            "table": "astrometry_distance_evidence",
+                            "group_key": "gspphot_model_distance",
+                            "source_quantity": "gspphot_model_distance",
+                            "quantity_key": "distance_gspphot_pc",
+                            "requirements": [
+                                "positive_value",
+                                "positive_ordered_interval",
+                            ],
+                            "authorities": [
+                                {
+                                    "rank": 40,
+                                    "method": "gaia_dr3_gspphot",
+                                    "model": "Aeneas_MCMC_BP_RP_spectrophotometry",
+                                    "reason": "source model",
+                                }
+                            ],
+                        }
+                    ],
                     "quantity_groups": [
                         {
                             "group_key": "atmosphere",
@@ -765,7 +799,7 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     assert report["status"] == "pass"
     assert report["source_disposition_status"] == "pass"
     assert report["source_disposition_blockers"] == []
-    assert report["table_counts"]["selected_facts"] == 13
+    assert report["table_counts"]["selected_facts"] == 14
     assert report["binding_outcomes"]["source.distance"] == {
         "accepted": 1,
         "ambiguous": 1,
@@ -792,8 +826,8 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     )
     assert (artifact / "selected_facts__teff_k.parquet").is_file()
     assert (artifact / "selection_decisions__atmosphere.parquet").is_file()
-    assert sum(report["partition_exports"]["selected_facts"].values()) == 13
-    assert sum(report["partition_exports"]["selection_decisions"].values()) == 10
+    assert sum(report["partition_exports"]["selected_facts"].values()) == 14
+    assert sum(report["partition_exports"]["selection_decisions"].values()) == 11
     audit = artifact_audit.audit_artifact(artifact, policy)
     assert audit["status"] == "pass"
     assert audit["failing_checks"] == {}
@@ -876,6 +910,7 @@ def test_selected_fact_compiler_selects_coherent_sets_and_lineage(tmp_path: Path
     assert ("parallax_mas", 20.0, 19.5, 20.5, "source_selected") in facts
     assert ("distance_geometric_pc", 50.0, 45.0, 57.0, "source_selected") in facts
     assert ("distance_photogeometric_pc", 49.0, 46.0, 53.0, "source_selected") in facts
+    assert ("distance_gspphot_pc", 101.0, 95.0, 110.0, "source_selected") in facts
     assert ("variability_flag", None, None, None, "source_selected") in facts
     assert any(row[0] == "luminosity_lsun" and row[4] == "derived" for row in facts)
     assert ("atmosphere", "hot-set", 10, 50.0, "hot-low-set", 10.0) in decisions

@@ -16,7 +16,7 @@ import duckdb
 from materialize_stellar_leaf_classifications import spectral_class_sql
 
 
-PROJECTION_VERSION = "e6_selected_consumer_projection_v2"
+PROJECTION_VERSION = "e6_selected_consumer_projection_v3"
 VALID_CLASSES = (
     "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WR", "WD",
     "NS", "PULSAR", "MAGNETAR", "BLACK HOLE", "UNKNOWN",
@@ -119,9 +119,12 @@ def materialize(*, core_db: Path, arm_db: Path, build_id: str) -> dict[str, Any]
               p.metallicity_m_h AS metallicity_feh,
               p.metallicity_m_h_lower AS metallicity_lo_feh,
               p.metallicity_m_h_upper AS metallicity_hi_feh,
-              coalesce(p.distance_geometric_pc,p.distance_photogeometric_pc) AS distance_pc,
-              coalesce(p.distance_geometric_pc_lower,p.distance_photogeometric_pc_lower) AS distance_lo_pc,
-              coalesce(p.distance_geometric_pc_upper,p.distance_photogeometric_pc_upper) AS distance_hi_pc,
+              coalesce(p.distance_geometric_pc,p.distance_photogeometric_pc,
+                       p.distance_gspphot_pc) AS distance_pc,
+              coalesce(p.distance_geometric_pc_lower,p.distance_photogeometric_pc_lower,
+                       p.distance_gspphot_pc_lower) AS distance_lo_pc,
+              coalesce(p.distance_geometric_pc_upper,p.distance_photogeometric_pc_upper,
+                       p.distance_gspphot_pc_upper) AS distance_hi_pc,
               p.radius_rsun,NULL::DOUBLE AS radius_err_plus_rsun,
               NULL::DOUBLE AS radius_err_minus_rsun,
               p.mass_msun,NULL::DOUBLE AS mass_err_plus_msun,
@@ -162,6 +165,7 @@ def materialize(*, core_db: Path, arm_db: Path, build_id: str) -> dict[str, Any]
                 'density_fact_id',p.density_g_cm3_fact_id,
                 'distance_geometric_fact_id',p.distance_geometric_pc_fact_id,
                 'distance_photogeometric_fact_id',p.distance_photogeometric_pc_fact_id,
+                'distance_gspphot_fact_id',p.distance_gspphot_pc_fact_id,
                 'spectral_type_optical_fact_id',c.spectral_type_optical_fact_id,
                 'spectral_type_infrared_fact_id',c.spectral_type_infrared_fact_id,
                 'spectral_type_simbad_fact_id',c.spectral_type_simbad_fact_id

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-22.e5-selection.13",
-  "compiler_version": "selected_fact_compiler_v13",
+  "policy_version": "2026-07-22.e5-selection.14",
+  "compiler_version": "selected_fact_compiler_v14",
   "evidence_release_set_id": "6c19de054e9b807674c37d3c",
   "evidence_release_set_sha256": "6c19de054e9b807674c37d3c2eb9476f4c57a82b425ed9378bf60104016f5aa1",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -165,6 +165,23 @@
       "parameter_set_table": "stellar_parameter_sets",
       "parameter_evidence_table": "stellar_parameter_evidence",
       "component_scope_field": "component_scope",
+      "auxiliary_measurement_groups": [
+        {
+          "table": "astrometry_distance_evidence",
+          "group_key": "stellar_gspphot_model_distance",
+          "source_quantity": "gspphot_model_distance",
+          "quantity_key": "distance_gspphot_pc",
+          "requirements": ["positive_value", "positive_ordered_interval"],
+          "authorities": [
+            {
+              "rank": 40,
+              "method": "gaia_dr3_gspphot",
+              "model": "Aeneas_MCMC_BP_RP_spectrophotometry",
+              "reason": "Gaia DR3 official best-library GSP-Phot source-model distance posterior; retained distinctly behind Bailer-Jones distance products"
+            }
+          ]
+        }
+      ],
       "quantity_groups": [
         {
           "group_key": "stellar_atmosphere",

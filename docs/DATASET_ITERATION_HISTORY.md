@@ -3109,10 +3109,10 @@ Representative commits:
 - This is not repaired with a UI fallback. The durable repair is a star-scoped
   NASA host program with authoritative identifier binding, coherent parameter
   set selection, exact evidence lineage, and correct log-luminosity semantics.
-- A separate 1,160-row distance loss consists of legacy Gaia inverse-parallax
-  values without selected posterior distances. It remains a policy review
-  because reciprocal parallax is a derivation with uncertainty/applicability
-  constraints, not an interchangeable source distance measurement.
+- A separate 1,160-row distance loss was initially described as legacy Gaia
+  inverse-parallax output. Source-level comparison corrects that interpretation:
+  every row is the Gaia DR3 main-table GSP-Phot posterior model distance, with
+  its published interval, method, and model already preserved in E4.
 
 ### 113) Shared Source Artifacts Require Object-Scoped Selection Programs
 
@@ -3133,8 +3133,24 @@ Representative commits:
   displaced by the targeted host policy with zero authority ties. The exact
   323,018 supplementary count then passed in the global compiler. Candidate
   `16708b8ed193aeae9b2ab995` contains 121,306,839 facts and passes the updated
-  independent object-scoped audit; it remains unserved pending reproduction
-  and E6 A/B.
+  independent object-scoped audit. Its clean USB-scratch reproduction finishes
+  in 24:49, matches all report sections and logical hashes with no differences,
+  and removes its scratch tree; it remains unserved pending v14 and E6 A/B.
+
+### 115) Source-Model Distances Are Evidence, Not Reciprocal-Parallax Derivations
+
+- The checked-in GSP-Phot preflight accounts 6,955,056 positive, ordered Gaia
+  model posteriors and 1,982,472 unique accepted canonical bindings. Of these,
+  1,981,312 also have geometric Bailer-Jones facts; the remaining 1,160 are the
+  complete E6 distance-loss tail.
+- The legacy and GSP-Phot values match within 0.001 pc. The same objects have
+  selected parallax S/N from 2.07 to 7.39, with none at 10 or above, so an
+  inverse-parallax fallback would be scientifically weaker and mislabeled.
+- E5 policy v14 therefore selects `distance_gspphot_pc` with exact evidence,
+  method, model, posterior bounds, binding, and release lineage. Shared
+  consumers apply geometric Bailer-Jones, photogeometric Bailer-Jones, then
+  GSP-Phot precedence. Supplementary AP library fits remain alternatives rather
+  than being flattened into the main-source selection.
 
 ### 114) E6 Consumer Projections Belong Inside the Immutable Build
 

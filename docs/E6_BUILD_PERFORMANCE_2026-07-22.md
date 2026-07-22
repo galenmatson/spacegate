@@ -164,9 +164,27 @@ projection adds millions of physical values but loses 62 legacy temperatures,
 686 masses, 193 radii, and 195 luminosities. All but one of those losses are
 NASA Exoplanet Archive host-star values already preserved in E4; E5 currently
 selects NASA planet quantities but omitted a host-star selection program. The
-1,160 lost distances are legacy Gaia inverse-parallax values without a selected
-posterior estimate and require an explicit distance policy rather than silent
-fallback. Neither tail is hidden by the compatibility view.
+1,160 lost distances were initially described as inverse-parallax values. The
+source audit corrects that: they are Gaia DR3 GSP-Phot posterior model distances
+preserved in E4. Policy v14 selects them as distinct source-model facts after
+Bailer-Jones posteriors rather than silently deriving reciprocal parallax.
+Neither tail is hidden by the compatibility view.
+
+## E5 Clean Reproduction and Distance Preflight
+
+The isolated USB-scratch reproduction of E5 candidate
+`16708b8ed193aeae9b2ab995` completes in 24:49.54, runs all 103 phases, matches
+logical hash `d7e38431f403844a4a0736201a61200a2ab95070b9192c0b24be83cfd6f01208`
+with no differing report sections, and removes scratch. Warm-phase costs remain
+concentrated in Gaia candidate insertion (488.79 seconds), immutable input
+verification (159.15), selected-fact and decision export (175.64), artifact
+hashing (113.22), global selection (92.01), and Bailer-Jones processing
+(166.27 combined).
+
+The GSP-Phot preflight takes 4.84 seconds of measured query phases. It accounts
+6,955,056 unique valid evidence rows, 1,982,472 unique accepted bindings, and
+recovers all 1,160 legacy missing distances. The tail's parallax S/N is
+2.07-7.39, so reciprocal parallax is not an acceptable optimization or fallback.
 
 ## NASA Host Policy Preflight
 

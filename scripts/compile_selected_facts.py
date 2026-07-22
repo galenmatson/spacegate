@@ -645,6 +645,45 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                         raise ValueError(f"invalid structured quantity mapping: {source_id}:{source_quantity}")
                 elif not str(selected_spec):
                     raise ValueError(f"blank selected quantity: {source_id}:{source_quantity}")
+        auxiliary_quantities: set[str] = set()
+        for group in source.get("auxiliary_measurement_groups") or []:
+            group_key = str(group.get("group_key") or "")
+            key = (source_id, object_type, group_key)
+            source_quantity = str(group.get("source_quantity") or "")
+            selected_quantity = str(group.get("quantity_key") or "")
+            requirements = group.get("requirements") or []
+            if storage != "eav":
+                raise ValueError(
+                    f"auxiliary measurement groups require EAV storage: {source_id}"
+                )
+            if not group_key or key in seen_groups:
+                raise ValueError(f"missing or duplicate auxiliary quantity group: {key}")
+            seen_groups.add(key)
+            sql_identifier(str(group.get("table") or ""))
+            if (
+                not source_quantity
+                or not selected_quantity
+                or source_quantity in auxiliary_quantities
+            ):
+                raise ValueError(f"invalid auxiliary quantity mapping: {source_id}:{group_key}")
+            auxiliary_quantities.add(source_quantity)
+            if (
+                not isinstance(requirements, list)
+                or len(requirements) != len(set(requirements))
+                or not set(requirements).issubset(
+                    {"positive_value", "positive_ordered_interval"}
+                )
+            ):
+                raise ValueError(
+                    f"invalid auxiliary measurement requirements: {source_id}:{group_key}"
+                )
+            authorities = group.get("authorities") or []
+            if not authorities or any(int(rule.get("rank") or 0) <= 0 for rule in authorities):
+                raise ValueError(
+                    f"auxiliary quantity group has no positive authority rules: {key}"
+                )
+            for rule in authorities:
+                validate_quality_rule(rule, source_id=source_id, group_key=group_key)
         if source.get("require_unique_source_target") is True and len(source_quantities) != 1:
             raise ValueError(
                 f"unique-source-target policy requires exactly one source quantity: {source_id}"
@@ -1300,6 +1339,31 @@ def create_binding(
             WHERE (pe.normalized_value IS NOT NULL OR NULLIF(TRIM(pe.value_raw), '') IS NOT NULL)
             """
         )
+        for group in source.get("auxiliary_measurement_groups") or []:
+            table = sql_identifier(str(group["table"]))
+            filters = auxiliary_measurement_filter_sql(group, "aux")
+            con.execute(
+                f"""
+                INSERT INTO eligible_{source_alias}
+                SELECT aux.source_record_id,
+                       'source_record'::VARCHAR binding_subject_kind,
+                       aux.source_record_id binding_subject_id,
+                       NULL::VARCHAR component_scope,
+                       TRUE applicability_pass,
+                       'eligible source-record auxiliary measurement'::VARCHAR
+                         applicability_reason,
+                       min(aux.evidence_id) applicability_evidence_id
+                FROM {source_alias}.{table} aux
+                WHERE aux.quantity_key={sql_literal(group['source_quantity'])}
+                  AND ({filters})
+                  AND NOT EXISTS (
+                    SELECT 1 FROM eligible_{source_alias} current
+                    WHERE current.binding_subject_kind='source_record'
+                      AND current.binding_subject_id=aux.source_record_id
+                  )
+                GROUP BY aux.source_record_id
+                """
+            )
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
     if strategy == "canonical_identifier_consensus":
@@ -1856,6 +1920,101 @@ def insert_candidates(
                binding_id
         FROM candidates WHERE authority_rank IS NOT NULL
         """
+    )
+    insert_auxiliary_measurement_candidates(
+        con,
+        source=source,
+        source_alias=source_alias,
+        member=member,
+        release_id=release_id,
+    )
+
+
+def auxiliary_measurement_filter_sql(group: dict[str, Any], alias: str) -> str:
+    filters = [
+        f"({alias}.normalized_value IS NOT NULL OR "
+        f"NULLIF(TRIM({alias}.value_raw), '') IS NOT NULL)"
+    ]
+    requirements = set(group.get("requirements") or [])
+    if "positive_value" in requirements:
+        filters.append(f"{alias}.normalized_value>0")
+    if "positive_ordered_interval" in requirements:
+        filters.extend(
+            [
+                f"{alias}.uncertainty_lower>0",
+                f"{alias}.uncertainty_lower<={alias}.normalized_value",
+                f"{alias}.uncertainty_upper>={alias}.normalized_value",
+            ]
+        )
+    return " AND ".join(filters)
+
+
+def insert_auxiliary_measurement_candidates(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    source_alias: str,
+    member: dict[str, Any],
+    release_id: str,
+) -> None:
+    groups = source.get("auxiliary_measurement_groups") or []
+    if not groups:
+        return
+    rows: list[str] = []
+    for group in groups:
+        table_name = str(group["table"])
+        table = sql_identifier(table_name)
+        filters = auxiliary_measurement_filter_sql(group, "aux")
+        rank = authority_case(
+            group,
+            value="rank",
+            source_alias="sr",
+            set_alias="aux",
+            evidence_alias="aux",
+        )
+        reason = authority_case(
+            group,
+            value="reason",
+            source_alias="sr",
+            set_alias="aux",
+            evidence_alias="aux",
+        )
+        quality = quality_score_case(
+            group,
+            source_alias="sr",
+            set_alias="aux",
+            evidence_alias="aux",
+        )
+        rows.append(
+            f"""
+            SELECT b.object_type,b.stable_object_key,b.system_stable_object_key,
+                   {sql_literal(group['group_key'])} quantity_group,
+                   {sql_literal(group['quantity_key'])} quantity_key,
+                   aux.value_raw,aux.normalized_value,aux.normalized_unit,
+                   aux.uncertainty_lower,aux.uncertainty_upper,aux.bound_semantics,
+                   {sql_literal(member['build_id'])} evidence_build_id,
+                   {sql_literal(table_name)} evidence_table,
+                   aux.evidence_id,aux.evidence_id parameter_set_id,
+                   aux.source_record_id,{sql_literal(source['source_id'])} source_id,
+                   {sql_literal(release_id)} release_id,aux.method,aux.model,
+                   aux.reference_raw,{rank} authority_rank,
+                   {reason} authority_reason,{quality} selection_quality_score,
+                   aux.normalization_version,aux.quality_json,b.binding_id
+            FROM {source_alias}.{table} aux
+            JOIN {source_alias}.source_records sr
+              ON sr.source_record_id=aux.source_record_id
+            JOIN evidence_object_bindings b
+              ON b.source_id={sql_literal(source['source_id'])}
+             AND b.object_type={sql_literal(source['object_type'])}
+             AND b.binding_subject_kind='source_record'
+             AND b.source_record_id=aux.source_record_id
+             AND b.binding_status='accepted'
+            WHERE aux.quantity_key={sql_literal(group['source_quantity'])}
+              AND ({filters})
+            """
+        )
+    con.execute(
+        "INSERT INTO fact_candidates " + " UNION ALL ".join(rows)
     )
 
 

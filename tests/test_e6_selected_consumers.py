@@ -61,6 +61,7 @@ def test_selected_display_classification_uses_shared_general_precedence(
                 "mass_msun", "luminosity_lsun", "luminosity_log10_lsun",
                 "density_g_cm3", "age_gyr",
                 "distance_geometric_pc", "distance_photogeometric_pc",
+                "distance_gspphot_pc",
                 "rotation_period_days",
             ]
         ) + ")"

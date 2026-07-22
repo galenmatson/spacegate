@@ -1774,8 +1774,10 @@ preserves NASA reference-specific, stellarhosts, and composite host parameter
 sets, but E5 policy v12 defines selection only for NASA planet quantities. That
 omission causes nearly the entire small legacy mass/radius/luminosity/temperature
 loss tail and must be corrected through a reusable host binding and quantity
-policy. A separate inverse-parallax distance tail must receive an explicit
-uncertainty-aware policy; neither issue may be hidden by an unlabeled runtime
+policy. A separate distance tail was initially misidentified as inverse
+parallax. The source audit establishes that all 1,160 rows are official Gaia
+DR3 GSP-Phot posterior model distances. They must remain distinctly labeled
+source-model evidence; neither issue may be hidden by an unlabeled runtime
 fallback.
 
 The reusable repair is now enforced by E5 policy v13 and the focused
@@ -1786,6 +1788,16 @@ binding_scope)`; exact duplicate programs fail validation. The hash-verified
 preflight resolves all 132,578 eligible host records and selects 12,210
 lineage-complete stellar facts with zero planet leakage. This is a cheap policy
 gate, not a substitute for the global E5 authority competition and E6 A/B.
+
+Policy v14 adds a reusable source-record auxiliary-measurement channel for the
+main Gaia AP artifact. It selects `gspphot_model_distance` as the distinct
+`distance_gspphot_pc` fact only when value and posterior interval are positive,
+ordered, and carry the expected Gaia GSP-Phot method/model. Consumer precedence
+is geometric Bailer-Jones, photogeometric Bailer-Jones, then GSP-Phot. The
+machine preflight accounts 6,955,056 source rows, 1,982,472 accepted canonical
+bindings, and exactly 1,160 fallback objects; it recovers the complete legacy
+tail. Their parallax S/N range of 2.07-7.39 rules out reciprocal parallax as the
+replacement policy.
 
 E6 policy `2026-07-22.e6-shadow.3` closes the immutable-boundary defect exposed
 by the initial consumer experiment. Shared stellar parameter/display-class and

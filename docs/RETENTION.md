@@ -849,6 +849,14 @@ matched every logical and per-file Parquet hash, reported no differing
 sections, and removed its external scratch tree. The reference compile peaked
 at 74,092,281,856 staging and 159,543,382,016 spill allocated bytes;
 reproduction peaked at 74,111,700,992 staging and 160,832,151,552 spill.
+Unserved host-policy candidate `16708b8ed193aeae9b2ab995` is USB-backed under
+`/mnt/space/spacegate/e5-selection-v13/` with a protected symlink in the normal
+selected-fact namespace. Its 121,306,839 facts, manifest, compile and phase
+timing reports, independent audit, and clean-reproduction report remain
+protected while v14 is built. The reproduction ran all 103 phases in 24:49.54,
+matched logical hash
+`d7e38431f403844a4a0736201a61200a2ab95070b9192c0b24be83cfd6f01208`,
+and removed its USB scratch tree.
 The compiler's immutable-input attestation is process-local and is not a durable
 artifact or substitute for a checksum. Each invocation byte-hashes every pinned
 E4 input against its expected SHA; within that process only, the result may be

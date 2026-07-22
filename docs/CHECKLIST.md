@@ -1603,15 +1603,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   phases and the object-scoped independent audit as unserved build
   `16708b8ed193aeae9b2ab995`; preserve the per-step performance report and
   exact v12 authority-impact accounting
+- [x] E5 NASA host clean reproduction: rebuild candidate
+  `16708b8ed193aeae9b2ab995` in isolated USB scratch, match every logical report
+  section and hash with no differences, remove scratch, and record all 103 phase
+  timings plus the 24:49 wall-clock runtime
+- [x] E5 GSP-Phot distance-policy preflight: recognize the 1,160-row legacy tail
+  as official Gaia GSP-Phot posterior model evidence, select it under a distinct
+  `distance_gspphot_pc` quantity after Bailer-Jones posteriors, recover the full
+  tail, and reject inverse-parallax substitution for its S/N 2.1-7.4 parallaxes
 - [ ] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
-  clean E5 reproduction plus E6 shadow rebuild with the host policy, then
+  clean E5 reproduction plus E6 shadow rebuild with the host and GSP-Phot
+  policies, then
   account for the legacy temperature/mass/radius/luminosity tail as selected,
   superseded coherent lower-authority alternatives, or genuine unresolved
   gaps without constructing incompatible per-field composites
-- [ ] E6 distance-loss review: account for 1,160 stability inverse-parallax
-  distances lacking selected Bailer-Jones posteriors; choose an explicit,
-  uncertainty-aware fallback or deliberate omission without treating reciprocal
-  parallax as a source distance measurement
 - [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
   public slice with complete inventory, identity, evidence, fallback, HZ,
   planet, orbit, API/search/map/simulation, storage, and performance A/B reports
