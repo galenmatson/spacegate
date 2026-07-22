@@ -93,6 +93,16 @@
       "stage": "E7",
       "path": "e7_legacy_derivation_v7_audit.json",
       "expect": {"status": "pass", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_permanent_identity_seed_compile.json",
+      "expect": {"status": "pass", "seed_id": "5c878083872c738415971864", "scientific_authority": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_permanent_identity_seed_reproduction.json",
+      "expect": {"status": "pass", "seed_id": "5c878083872c738415971864", "scratch_removed": true, "failing_checks": []}
     }
   ],
   "required_artifacts": [
@@ -100,7 +110,8 @@
     "out/e6_95e7af54d69f3d9602d81e5b_public/map_tiles/index.json",
     "derived/evidence_lake_v2/selected_facts/fa4aaed18aebcffb8632d978/manifest.json",
     "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
-    "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json"
+    "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
+    "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json"
   ],
   "open_gates": [
     {

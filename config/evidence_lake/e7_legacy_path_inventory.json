@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-22.e7-cutover-plan.2",
+  "inventory_version": "2026-07-22.e7-cutover-plan.3",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "pre_promotion": true,
@@ -78,11 +78,14 @@
         "scripts/ingest/build_identity_graph.py",
         "scripts/ingest/reduce_canonical_objects.py",
         "scripts/ingest/build_canonical_hierarchy.py",
-        "scripts/ingest/emit_canonical_build.py"
+        "scripts/ingest/emit_canonical_build.py",
+        "config/evidence_lake/e7_permanent_identity_seed.json",
+        "scripts/compile_permanent_identity_seed.py",
+        "scripts/verify_permanent_identity_seed_reproduction.py"
       ],
       "current_state": "retained_foundation",
       "target_state": "retained_release_scoped_identity_compiler",
-      "action": "Adapt these permanent identity and hierarchy stages to consume the E2 graph and E4/E5 contracts. Preserve stable Spacegate object identities independently of every Gaia release.",
+      "action": "Retain the release-scoped identity compiler and the content-addressed identity-only hierarchy migration seed. Adapt canonical emission to consume that seed plus E4/E5 contracts without reopening the stability databases. Preserve stable Spacegate object identities independently of every Gaia release.",
       "retirement_gates": [
         "not_retirable_permanent_identity_work"
       ],

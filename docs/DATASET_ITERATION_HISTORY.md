@@ -3330,6 +3330,25 @@ Representative commits:
   acquisition. Candidate, rollback, raw, typed, E4, and report artifacts remain
   protected; no ambiguous cleanup or additional large build is authorized.
 
+### 123) Permanent Hierarchy Is an Identity Seed, Not Scientific Authority
+
+- E7 now exports the reviewed canonical hierarchy as permanent identity seed
+  `5c878083872c738415971864`. Its two Parquet products contain 11,759,440 nodes
+  and 5,886,947 containment/component relationships while explicitly
+  prohibiting mass, distance, position, temperature, spectral, orbital, and
+  other scientific scalar columns.
+- The first full export exposed 5,092 reused numeric edge IDs with 6,936
+  collision rows. Relationship tuples themselves were unique. The accepted
+  compiler deterministically rekeys complete relationship identities and keeps
+  the old ID only as migration lineage, producing zero duplicate nodes, output
+  edge IDs, relationships, missing endpoints, or canonical objects without a
+  hierarchy node.
+- Production compilation takes 30.48 seconds and produces 402.2 MiB. An
+  isolated USB-backed reproduction takes 30.63 seconds, matches both Parquet
+  hashes and sizes, and removes scratch. Future authoritative compilers may read
+  this retained identity seed but may not reopen stability databases for
+  identity or scientific values.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

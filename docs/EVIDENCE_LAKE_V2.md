@@ -8,7 +8,7 @@ Corrected E6 v7 shadow, clean reproduction, scientific A/B, public slice,
 four-radius map verification, bounded simulation-cache measurement, and
 API/search verification pass. Its tile payload contract is exactly equivalent
 to the production-browser-tested v6 candidate. The machine E0-E7 completion
-audit passes all 23 available checkpoint checks and reports `incomplete` with
+audit passes all 26 available checkpoint checks and reports `incomplete` with
 six explicit E7 gates. E7 operator review remains in progress. Nothing is
 promoted or deployed.
 
@@ -1883,7 +1883,10 @@ The executable pre-promotion plan is documented in
 `e7_legacy_path_inventory.json`, `gaia_dr4_adapter_plan.json`, and
 `e0_e7_acceptance.json` are verified by `scripts/verify_e7_cutover_plan.py` and
 `scripts/audit_evidence_lake_completion.py`. The completion audit distinguishes
-23 passing checkpoint checks from six open or blocked E7 gates. The ledger
+26 passing checkpoint checks from six open or blocked E7 gates. Permanent
+identity seed `5c878083872c738415971864` now preserves the exact hierarchy in
+two deterministic identity-only Parquet products without scientific scalar
+columns. The ledger
 records that E6 v7 still
 composes permanent inventory from the stability databases, so bootstrap
 cookers, `ingest_core.py`, and `build_arm.py` cannot yet be retired. The

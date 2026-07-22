@@ -1,0 +1,80 @@
+{
+  "schema_version": "spacegate.permanent_identity_seed_policy.v1",
+  "policy_version": "2026-07-22.e7-permanent-identity-seed.1",
+  "compiler_version": "e7_permanent_identity_seed_compiler_v1",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "hierarchy_source_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
+  "migration_role": "one_time_permanent_identity_and_hierarchy_seed",
+  "scientific_authority": false,
+  "source_columns": {
+    "hierarchy_nodes": [
+      "hierarchy_node_key",
+      "node_kind",
+      "component_family",
+      "component_type",
+      "canonical_key",
+      "display_name",
+      "wds_id",
+      "member_role",
+      "source_basis"
+    ],
+    "hierarchy_edges": [
+      "hierarchy_edge_id",
+      "parent_node_key",
+      "child_node_key",
+      "edge_kind",
+      "member_role",
+      "source_basis",
+      "confidence_score",
+      "supporting_edge_count"
+    ]
+  },
+  "tables": {
+    "hierarchy_nodes": [
+      "hierarchy_node_key",
+      "node_kind",
+      "component_family",
+      "component_type",
+      "canonical_key",
+      "display_name",
+      "wds_id",
+      "member_role",
+      "source_basis"
+    ],
+    "hierarchy_edges": [
+      "hierarchy_edge_id",
+      "source_hierarchy_edge_id",
+      "parent_node_key",
+      "child_node_key",
+      "edge_kind",
+      "member_role",
+      "source_basis",
+      "confidence_score",
+      "supporting_edge_count"
+    ]
+  },
+  "prohibited_scientific_column_tokens": [
+    "age",
+    "distance",
+    "luminosity",
+    "mass",
+    "metallicity",
+    "orbit",
+    "parallax",
+    "photometry",
+    "position",
+    "radius",
+    "spectral",
+    "temperature",
+    "velocity"
+  ],
+  "rules": {
+    "preserve_stable_spacegate_ids": true,
+    "preserve_component_case": true,
+    "allow_scientific_values": false,
+    "allow_named_object_conditions": false,
+    "future_builds_may_read_stability_databases": false,
+    "seed_is_retained_permanent_identity_work": true
+  }
+}

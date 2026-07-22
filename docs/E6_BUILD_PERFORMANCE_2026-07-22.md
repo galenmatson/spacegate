@@ -457,3 +457,22 @@ API integration 41.11 seconds, and the strict twelve-system benchmark 39.68
 seconds. Parsed v7 tile `counts` and complete `tiles` arrays equal v6 at every
 radius, so the accepted v6 production-browser screenshots and 312 performance
 checks remain directly applicable; no frontend or renderer code changed.
+
+## Permanent Identity Seed
+
+E7 identity seed `5c878083872c738415971864` exports the permanent hierarchy
+contract without copying any scientific scalar from the stability databases.
+It contains 11,759,440 hierarchy nodes and 5,886,947 relationships in 402.2 MiB
+of compressed Parquet. The production compile takes 30.48 wall seconds, 53.26
+CPU-seconds, peaks at 5.42 GiB RSS, and writes 402.2 MiB. An isolated USB-backed
+reproduction takes 30.63 seconds, matches both Parquet hashes and byte sizes,
+and removes its scratch tree.
+
+The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
+collision rows. The full relationship tuples were all unique. The accepted seed
+therefore assigns deterministic sequential edge IDs from the complete ordered
+relationship identity and preserves the old numeric ID only as migration
+lineage. Verification reports zero duplicate nodes, output edge IDs,
+relationships, missing endpoints, or canonical objects without hierarchy
+nodes. This correction belongs in the identity migration boundary rather than
+being propagated into a new authoritative compiler.

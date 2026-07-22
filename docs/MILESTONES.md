@@ -1202,7 +1202,7 @@ pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 23 checkpoint checks and
+in progress. The fail-closed completion audit passes 26 checkpoint checks and
 reports six open E7 gates rather than declaring the compiler cut over.
 
 Goal:
@@ -2435,13 +2435,17 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 23 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 26 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
 - the refreshed E0 schema audit passes 47 registered sources, 148 active
   artifacts, 6,227 fields, and four retained superseded artifacts; the storage
   audit is intentionally not acquisition-ready at about 70.6 GiB free
+- permanent identity seed `5c878083872c738415971864` exports all 11,759,440
+  hierarchy nodes and 5,886,947 unique relationships without scientific scalar
+  columns; a clean USB-backed reproduction matches both Parquet hashes and
+  removes scratch
 - local promotion, rollback timing, authoritative entrypoint replacement, and
   actual legacy retirement remain open; this checkpoint authorizes no cleanup
 
