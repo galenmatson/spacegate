@@ -2149,6 +2149,24 @@ no coordinates, physical parameters, or orbital elements. The 4.22-second build,
 byte-identical Parquet products and removed scratch. Runtime Solar orbit and
 physical selection still remains to be compiled from this identity foundation.
 
+Selected Solar runtime build `9175e1163df1ec5234ccf7ae` completes that next
+selection boundary without a stability read. It joins the permanent identity
+artifact directly to the exact E4 relation, orbital-solution, and physical-set
+evidence. All 71 solutions retain target and center identity, source record,
+relation claim, TDB epoch, ICRF/ecliptic frame, model, method, response quality,
+and all twelve normalized Horizons elements. Thirty-six natural targets retain
+their source-native radius/mass parameter sets.
+
+The selector does not manufacture orbital periods for unbound trajectories.
+Sixty-eight solutions are complete periodic orbits; Voyager 1, Voyager 2, and
+New Horizons are complete hyperbolic trajectories with negative semimajor axes,
+eccentricities above one, and source-null periods. Sixty-seven accepted periodic
+solutions are marked directly renderable by the current orbit renderer, three
+are typed `hyperbolic_trajectory`, and the Sun's Solar System barycenter solution
+is non-renderable reference context. All 71 pass the epoch/frame/method/model
+contract and zero relations promote canonical containment. Independent audit and
+byte-exact clean reproduction pass.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

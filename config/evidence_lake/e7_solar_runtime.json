@@ -1,0 +1,50 @@
+{
+  "schema_version": "spacegate.e7_solar_runtime_policy.v1",
+  "policy_version": "2026-07-22.e7-solar-runtime.1",
+  "compiler_version": "e7_solar_runtime_compiler_v1",
+  "inputs": {
+    "scientific_evidence": {
+      "build_id": "b4edc4ea6eccba69794a92df",
+      "relative_path": "derived/evidence_lake_v2/scientific_evidence/b4edc4ea6eccba69794a92df",
+      "manifest_sha256": "dc36e3b5e3fd67513ff3b632255e125ba9e4556a5c9049766474fd230cd7f20e"
+    },
+    "solar_identity": {
+      "build_id": "9f9f8ef5e690d3390d36f482",
+      "relative_path": "derived/evidence_lake_v2/solar_identity/9f9f8ef5e690d3390d36f482",
+      "manifest_sha256": "b4f7c379bf00701e6374fb2a416d86ea7e1eedb4262f2ccf35fdf9342213b3a4"
+    }
+  },
+  "solution_contract": {
+    "method": "jpl_horizons_elements_api",
+    "model": "JPL Horizons osculating elements",
+    "frame": "ICRF with ecliptic reference plane; TDB epoch; AU-D output units",
+    "normalization_version": "jpl_horizons_complete_elements_au_d_icrf_ecliptic_v2",
+    "physical_parameter_set_kind": "jpl_horizons_physical_parameters",
+    "physical_normalization_version": "jpl_horizons_source_native_v1"
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "source_relations_create_canonical_containment": false,
+    "reference_origin_solutions_renderable": false,
+    "complete_epoch_frame_contract_required": true,
+    "artificial_and_natural_identity_scopes_remain_distinct": true
+  },
+  "acceptance": {
+    "target_bindings": 71,
+    "natural_targets": 60,
+    "artificial_targets": 11,
+    "relation_bindings": 71,
+    "relations_accepted": 70,
+    "relations_reference_origin": 1,
+    "orbital_solutions": 71,
+    "runtime_eligible_orbital_solutions": 70,
+    "periodic_renderable_solutions": 67,
+    "hyperbolic_trajectory_solutions": 3,
+    "reference_context_solutions": 1,
+    "contract_valid_orbital_solutions": 71,
+    "complete_periodic_solutions": 68,
+    "complete_hyperbolic_solutions": 3,
+    "physical_parameter_sets": 36,
+    "canonical_containment_promotions": 0
+  }
+}

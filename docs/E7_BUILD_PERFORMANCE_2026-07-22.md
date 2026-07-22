@@ -97,6 +97,13 @@ compile/audit/reproduction takes 8.23 seconds with a 279,780 KiB peak. These are
 separate named stages in the eventual E7 critical path; they replace an implicit
 stability-ARM identity lookup rather than adding optional duplicate work.
 
+Selected Solar runtime compilation takes 0.14 seconds external wall time and
+peaks at 91,940 KiB RSS. Independent verification takes 0.12 seconds; isolated
+byte-exact compile/audit/reproduction takes 0.18 seconds. The stage is retained
+separately because its policy distinction between periodic, hyperbolic, and
+reference-origin solutions is scientifically material even though its runtime is
+negligible.
+
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical

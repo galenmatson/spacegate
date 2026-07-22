@@ -760,6 +760,13 @@ JPL target/center relation outcomes are preserved with zero canonical-containmen
 promotions. Runtime orbit and physical selection must consume this identity
 artifact rather than the old stability-bound target table.
 
+Selected runtime artifact `9175e1163df1ec5234ccf7ae` now performs that clean
+join for both natural and artificial targets. It preserves 68 complete periodic
+solutions, three complete period-null hyperbolic escape trajectories, one
+barycenter reference context, and 36 natural-body physical parameter sets.
+Periodic renderability and hyperbolic trajectory eligibility remain distinct;
+the selector does not invent a period for an unbound path.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)

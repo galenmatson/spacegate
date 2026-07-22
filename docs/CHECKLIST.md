@@ -1759,6 +1759,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   natural/artificial identities, preserve all legacy component keys as an
   explicit crosswalk, account all 71 target/center relations without containment
   promotion, and pass independent audit plus byte-exact reproduction
+- [x] E7 selected Solar runtime evidence: compile build
+  `9175e1163df1ec5234ccf7ae` from pinned E4 evidence and permanent Solar
+  identity; preserve all 71 epoch/frame-bound solutions, distinguish 68 complete
+  periodic solutions from three valid hyperbolic escape trajectories, retain one
+  non-renderable barycenter reference context, select 36 physical parameter
+  sets, and pass independent audit plus byte-exact reproduction
 - [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
   selected Solar runtime projections, and TESS candidate compatibility without
   relation-to-containment promotion or independent scientific fallback logic

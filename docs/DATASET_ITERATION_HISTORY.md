@@ -3645,6 +3645,26 @@ Representative commits:
   physical-parameter, and presentation projections remain subsequent selection
   work rather than identity authority.
 
+### 138) Hyperbolic Trajectories Do Not Have Orbital Periods
+
+- Clean Solar runtime build `9175e1163df1ec5234ccf7ae` selects all 71 natural
+  and artificial JPL solutions through permanent Solar identity, preserving
+  exact target/center relation, epoch, frame, model, method, response quality,
+  and twelve-element lineage without opening a stability database.
+- A naive complete-orbit gate initially counted three rows as incomplete because
+  their period is null. The rows are Voyager 1, Voyager 2, and New Horizons;
+  each has a negative signed semimajor axis and eccentricity above one. A period
+  is physically undefined for these unbound hyperbolic trajectories, so filling
+  one would corrupt valid source semantics.
+- The corrected contract accounts 68 complete periodic solutions and three
+  complete hyperbolic trajectories. Sixty-seven accepted periodic solutions are
+  directly renderable, the three hyperbolic rows remain typed trajectory data,
+  and the Sun's Solar System barycenter solution remains non-renderable reference
+  context.
+- Thirty-six natural-body physical parameter sets are selected. Independent
+  source/identity audit and byte-exact isolated reproduction pass; no source
+  relation is promoted into canonical containment.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

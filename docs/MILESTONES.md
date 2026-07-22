@@ -2543,6 +2543,13 @@ Pre-promotion planning checkpoint (July 22, 2026):
   identities, retains three identifiers and one alias each, and resolves all 71
   orbit-center claims with zero canonical-containment promotions. Independent
   audit and isolated byte-exact reproduction pass
+- selected Solar runtime build `9175e1163df1ec5234ccf7ae` joins the permanent
+  identities back to exact E4 JPL evidence and preserves all 71 complete
+  epoch/frame contracts. It distinguishes 68 periodic solutions from the valid
+  period-null hyperbolic trajectories of Voyager 1, Voyager 2, and New Horizons;
+  only 67 accepted periodic solutions are marked directly renderable, while the
+  Sun's barycenter solution remains reference context. Thirty-six natural-body
+  physical sets are selected and no relation creates canonical containment
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176
