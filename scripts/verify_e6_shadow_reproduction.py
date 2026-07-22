@@ -65,6 +65,9 @@ def logical_product_hashes(build_dir: Path, scratch: Path) -> dict[str, dict[str
             "e6_selected_stellar_photometry",
             "e6_selected_stellar_physics",
             "e6_selected_stellar_variability",
+            "e6_selected_stellar_parameter_subject_supplement",
+            "e6_selected_stellar_display_classifications",
+            "stellar_leaf_display_classifications",
         ],
         "canonical_hierarchy.duckdb": ["build_metadata"],
         "disc.duckdb": ["build_metadata"],
@@ -146,6 +149,68 @@ def verify_reproduction(
             "projection_counts_match": int(
                 reproduced_manifest["report"].get("projection_table_counts")
                 != reference_manifest["report"].get("projection_table_counts")
+            ),
+            "selected_consumer_report_match": int(
+                {
+                    key: reproduced_manifest["report"]
+                    .get("selected_consumer_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "projection_version",
+                        "stellar_parameter_rows",
+                        "stellar_classification_rows",
+                        "classification_by_basis",
+                        "classification_conflicts",
+                        "classification_alternative_disagreements",
+                        "checks",
+                    )
+                }
+                != {
+                    key: reference_manifest["report"]
+                    .get("selected_consumer_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "projection_version",
+                        "stellar_parameter_rows",
+                        "stellar_classification_rows",
+                        "classification_by_basis",
+                        "classification_conflicts",
+                        "classification_alternative_disagreements",
+                        "checks",
+                    )
+                }
+            ),
+            "stellar_leaf_report_match": int(
+                {
+                    key: reproduced_manifest["report"]
+                    .get("stellar_leaf_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "schema_version",
+                        "rows",
+                        "by_status",
+                        "classification_conflicts",
+                        "duplicate_leaf_keys",
+                        "invalid_rows",
+                    )
+                }
+                != {
+                    key: reference_manifest["report"]
+                    .get("stellar_leaf_report", {})
+                    .get(key)
+                    for key in (
+                        "status",
+                        "schema_version",
+                        "rows",
+                        "by_status",
+                        "classification_conflicts",
+                        "duplicate_leaf_keys",
+                        "invalid_rows",
+                    )
+                }
             ),
         }
         reproduced_audit = auditor.audit_build(

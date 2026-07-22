@@ -58,7 +58,8 @@ def test_selected_display_classification_uses_shared_general_precedence(
         _quantity_columns(
             [
                 "teff_k", "logg_cgs", "metallicity_m_h", "radius_rsun",
-                "mass_msun", "luminosity_lsun", "age_gyr",
+                "mass_msun", "luminosity_lsun", "luminosity_log10_lsun",
+                "density_g_cm3", "age_gyr",
                 "distance_geometric_pc", "distance_photogeometric_pc",
                 "rotation_period_days",
             ]
@@ -85,11 +86,16 @@ def test_selected_display_classification_uses_shared_general_precedence(
     )
     con.execute(
         "INSERT INTO e6_selected_stellar_physics(star_id,teff_k,teff_k_fact_id,"
-        "mass_msun,mass_msun_fact_id) VALUES "
-        "(1,3200,'teff-1',NULL,NULL),(2,NULL,NULL,NULL,NULL),"
-        "(3,3200,'teff-3',NULL,NULL),(4,5800,'teff-4',NULL,NULL),"
-        "(5,NULL,NULL,NULL,NULL),(6,NULL,NULL,0.5,'mass-6'),"
-        "(7,5000,'teff-7',NULL,NULL),(8,NULL,NULL,NULL,NULL)"
+        "mass_msun,mass_msun_fact_id,luminosity_log10_lsun,"
+        "luminosity_log10_lsun_fact_id,density_g_cm3,density_g_cm3_fact_id) VALUES "
+        "(1,3200,'teff-1',NULL,NULL,NULL,NULL,NULL,NULL),"
+        "(2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),"
+        "(3,3200,'teff-3',NULL,NULL,NULL,NULL,NULL,NULL),"
+        "(4,5800,'teff-4',NULL,NULL,0.1,'lum-4',1.2,'density-4'),"
+        "(5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),"
+        "(6,NULL,NULL,0.5,'mass-6',NULL,NULL,NULL,NULL),"
+        "(7,5000,'teff-7',NULL,NULL,NULL,NULL,NULL,NULL),"
+        "(8,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)"
     )
     con.execute(
         "INSERT INTO e6_selected_stellar_photometry(star_id,gaia_bp_rp_mag,"
@@ -134,7 +140,7 @@ def test_selected_display_classification_uses_shared_general_precedence(
         "e6_selected_stellar_display_classifications WHERE star_id=7"
     ).fetchone() == ("canonical_core_star", "core:star:7")
     assert con.execute(
-        "SELECT teff_k,teff_lo_k,teff_hi_k,context_json "
+        "SELECT teff_k,teff_lo_k,teff_hi_k,luminosity_log10_lsun,density_g_cm3,context_json "
         "FROM e6_selected_stellar_parameters WHERE star_id=4"
-    ).fetchone()[:3] == (5800.0, None, None)
+    ).fetchone()[:5] == (5800.0, None, None, 0.1, 1.2)
     con.close()

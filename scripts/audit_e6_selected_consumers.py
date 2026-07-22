@@ -75,6 +75,46 @@ def _parameter_delta(con: duckdb.DuckDBPyConnection, quantity: str) -> dict[str,
     }
 
 
+def _parameter_loss_sources(
+    con: duckdb.DuckDBPyConnection, quantity: str
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "source_catalog": str(source_catalog or "unknown"),
+            "parameter_source": str(parameter_source or "unknown"),
+            "stars": int(count),
+        }
+        for source_catalog, parameter_source, count in con.execute(
+            f"""
+            WITH legacy AS (
+              SELECT star_id,{quantity} AS value,source_catalog,parameter_source
+              FROM reference.stellar_parameters
+              QUALIFY row_number() OVER (
+                PARTITION BY star_id
+                ORDER BY
+                  CASE parameter_source
+                    WHEN 'nasa_pscomppars_host' THEN 0
+                    WHEN 'gaia_dr3_backbone' THEN 1
+                    ELSE 9
+                  END,
+                  (
+                    CASE WHEN mass_msun IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN radius_rsun IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN luminosity_log10_lsun IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN teff_k IS NOT NULL THEN 1 ELSE 0 END
+                  ) DESC,
+                  stellar_parameter_id
+              )=1
+            )
+            SELECT l.source_catalog,l.parameter_source,count(*)
+            FROM e6_selected_stellar_parameters c JOIN legacy l USING(star_id)
+            WHERE c.{quantity} IS NULL AND l.value IS NOT NULL
+            GROUP BY 1,2 ORDER BY 3 DESC,1,2
+            """
+        ).fetchall()
+    ]
+
+
 def audit(*, candidate_arm: Path, reference_arm: Path, build_id: str) -> dict[str, Any]:
     started = time.perf_counter()
     con = duckdb.connect(str(candidate_arm), read_only=True)
@@ -167,6 +207,10 @@ def audit(*, candidate_arm: Path, reference_arm: Path, build_id: str) -> dict[st
             },
             "parameter_deltas": {
                 quantity: _parameter_delta(con, quantity)
+                for quantity in PARAMETER_QUANTITIES
+            },
+            "parameter_loss_sources": {
+                quantity: _parameter_loss_sources(con, quantity)
                 for quantity in PARAMETER_QUANTITIES
             },
             "checks": checks,

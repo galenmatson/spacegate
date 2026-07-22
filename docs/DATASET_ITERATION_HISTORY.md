@@ -3136,6 +3136,29 @@ Representative commits:
   independent object-scoped audit; it remains unserved pending reproduction
   and E6 A/B.
 
+### 114) E6 Consumer Projections Belong Inside the Immutable Build
+
+- The first v2 E6 consumer experiment materialized selected display and leaf
+  projections after the compiler had already hashed and promoted its product.
+  That diagnostic was scientifically useful but its manifest no longer
+  described its bytes, so it is explicitly ineligible for promotion or clean
+  reproduction.
+- Compiler v2 hashes both auxiliary materializers into build identity and runs
+  them before metadata, product hashing, manifest creation, and atomic
+  promotion. The independent auditor verifies canonical-star inventory,
+  terminal-leaf inventory, classification validity, uniqueness, fact lineage,
+  and manifest counts rather than trusting the compiler report.
+- Integrated candidate `e6_2da376053461c8220bee06ad_shadow` compiles in 166.11
+  wall seconds with no spill and passes the expanded audit in 36.78 seconds.
+  Its A/B changes 338,858 classes, fills 930 unknowns, loses zero known classes,
+  and attributes the remaining legacy physical-value tail to retained
+  lower-authority NASA composite alternatives. A per-field fallback is rejected
+  because it would silently break coherent parameter-set selection.
+- Clean isolated reproduction completes in 311.37 wall seconds and matches the
+  build identity, compiler reports, inventory, and all eighteen generated or
+  mutated logical table hashes. The USB reproduction staging tree is removed
+  automatically after the gate.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

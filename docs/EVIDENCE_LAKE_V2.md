@@ -1787,6 +1787,18 @@ preflight resolves all 132,578 eligible host records and selects 12,210
 lineage-complete stellar facts with zero planet leakage. This is a cheap policy
 gate, not a substitute for the global E5 authority competition and E6 A/B.
 
+E6 policy `2026-07-22.e6-shadow.3` closes the immutable-boundary defect exposed
+by the initial consumer experiment. Shared stellar parameter/display-class and
+hierarchy-leaf projections now run inside compiler v2 before product metadata,
+hashes, manifest creation, and atomic promotion. Auxiliary compiler file hashes
+participate in build identity. Candidate
+`e6_2da376053461c8220bee06ad_shadow` preserves exact stability inventory,
+materializes 5,874,636 canonical-star consumer rows and 5,879,796 terminal
+stellar leaves, and passes the expanded independent audit with zero duplicate,
+invalid, or missing non-unknown classification lineage rows. A clean isolated
+compile/audit/reproduction matches all eighteen generated or mutated logical
+table hashes; physical DuckDB container bytes remain intentionally diagnostic.
+
 ### E7. Promotion, Cutover, and Legacy Retirement
 
 After the E6 scientific review is accepted, promote atomically while retaining

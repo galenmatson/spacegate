@@ -16,6 +16,9 @@ from typing import Any
 
 import duckdb
 
+import materialize_e6_selected_consumers as selected_consumers
+import materialize_stellar_leaf_classifications as leaf_classifications
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e6_shadow_build.json"
@@ -505,10 +508,16 @@ def compile_shadow_build(
         lambda: {name: file_sha256(path) for name, path in base_files.items()},
     )
     compiler_sha = file_sha256(Path(__file__).resolve())
+    selected_consumer_compiler_sha = file_sha256(Path(selected_consumers.__file__).resolve())
+    leaf_classification_compiler_sha = file_sha256(
+        Path(leaf_classifications.__file__).resolve()
+    )
     policy_sha = file_sha256(policy_path)
     build_inputs = {
         "policy_sha256": policy_sha,
         "compiler_sha256": compiler_sha,
+        "selected_consumer_compiler_sha256": selected_consumer_compiler_sha,
+        "leaf_classification_compiler_sha256": leaf_classification_compiler_sha,
         "stability_reference_build_id": base_id,
         "stability_reference_files": base_hashes,
         "selected_artifacts": {
@@ -684,6 +693,29 @@ def compile_shadow_build(
         finally:
             con.close()
 
+        selected_consumer_report = recorder.run(
+            "materialize_selected_consumers",
+            lambda: selected_consumers.materialize(
+                core_db=shadow_core,
+                arm_db=shadow_arm,
+                build_id=build_id,
+            ),
+        )
+        if selected_consumer_report.get("status") != "pass":
+            raise ValueError("E6 selected consumer materialization failed")
+        hierarchy = staging / "canonical_hierarchy.duckdb"
+        stellar_leaf_report = recorder.run(
+            "materialize_stellar_leaf_classifications",
+            lambda: leaf_classifications.materialize(
+                core_db=shadow_core,
+                arm_db=shadow_arm,
+                hierarchy_db=hierarchy,
+                build_id=build_id,
+            ),
+        )
+        if stellar_leaf_report.get("status") != "pass":
+            raise ValueError("E6 stellar-leaf materialization failed")
+
         lineage_timestamp = max(
             str(row["manifest"].get("generated_at") or "") for row in inputs
         ) or "1970-01-01T00:00:00Z"
@@ -703,7 +735,6 @@ def compile_shadow_build(
             "update_arm_metadata",
             lambda: set_key_value_metadata(shadow_arm, metadata),
         )
-        hierarchy = staging / "canonical_hierarchy.duckdb"
         hcon = duckdb.connect(str(hierarchy))
         try:
             hcon.execute("DELETE FROM build_metadata")
@@ -753,6 +784,8 @@ def compile_shadow_build(
             "projection_table_counts": {**copied_tables, **projection_counts},
             "core_updates": core_updates,
             "official_name_alias_additions": alias_additions,
+            "selected_consumer_report": selected_consumer_report,
+            "stellar_leaf_report": stellar_leaf_report,
             "inventory_before": base_inventory,
             "inventory_after": shadow_inventory,
             "inventory_delta": inventory_delta,

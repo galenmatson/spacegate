@@ -233,6 +233,75 @@ def audit_build(
             ).fetchall()
         } else 0
         failures["planet_lifecycle_inventory_mutations"] = lifecycle_inventory_mutations
+
+        selected_consumer_report = manifest["report"].get("selected_consumer_report") or {}
+        stellar_leaf_report = manifest["report"].get("stellar_leaf_report") or {}
+        star_count = inventory["stars"]["after"]
+        consumer_counts = {
+            "parameter_rows": scalar(
+                con, "SELECT count(*) FROM arm.e6_selected_stellar_parameters"
+            ),
+            "classification_rows": scalar(
+                con,
+                "SELECT count(*) FROM arm.e6_selected_stellar_display_classifications",
+            ),
+            "leaf_rows": scalar(
+                con, "SELECT count(*) FROM arm.stellar_leaf_display_classifications"
+            ),
+        }
+        failures["selected_consumer_manifest_status"] = int(
+            selected_consumer_report.get("status") != "pass"
+        )
+        failures["stellar_leaf_manifest_status"] = int(
+            stellar_leaf_report.get("status") != "pass"
+        )
+        failures["selected_parameter_inventory_delta"] = abs(
+            consumer_counts["parameter_rows"] - star_count
+        )
+        failures["selected_classification_inventory_delta"] = abs(
+            consumer_counts["classification_rows"] - star_count
+        )
+        failures["selected_parameter_manifest_delta"] = abs(
+            consumer_counts["parameter_rows"]
+            - int(selected_consumer_report.get("stellar_parameter_rows", -1))
+        )
+        failures["selected_classification_manifest_delta"] = abs(
+            consumer_counts["classification_rows"]
+            - int(selected_consumer_report.get("stellar_classification_rows", -1))
+        )
+        failures["stellar_leaf_manifest_delta"] = abs(
+            consumer_counts["leaf_rows"] - int(stellar_leaf_report.get("rows", -1))
+        )
+        failures["duplicate_selected_classification"] = scalar(
+            con,
+            "SELECT count(*)-count(DISTINCT star_id) "
+            "FROM arm.e6_selected_stellar_display_classifications",
+        )
+        failures["invalid_selected_classification"] = scalar(
+            con,
+            "SELECT count(*) FROM arm.e6_selected_stellar_display_classifications "
+            "WHERE classification_value NOT IN "
+            "('O','B','A','F','G','K','M','L','T','Y','WR','WD','NS','PULSAR',"
+            "'MAGNETAR','BLACK HOLE','UNKNOWN')",
+        )
+        failures["missing_selected_classification_lineage"] = scalar(
+            con,
+            "SELECT count(*) FROM arm.e6_selected_stellar_display_classifications "
+            "WHERE classification_value<>'UNKNOWN' AND lineage_id IS NULL",
+        )
+        failures["duplicate_stellar_leaf"] = scalar(
+            con,
+            "SELECT count(*)-count(DISTINCT hierarchy_node_key) "
+            "FROM arm.stellar_leaf_display_classifications",
+        )
+        failures["invalid_stellar_leaf"] = scalar(
+            con,
+            "SELECT count(*) FROM arm.stellar_leaf_display_classifications "
+            "WHERE classification_value NOT IN "
+            "('O','B','A','F','G','K','M','L','T','Y','WR','WD','NS','PULSAR',"
+            "'MAGNETAR','BLACK HOLE','UNKNOWN') "
+            "OR classification_status NOT IN ('source','derived','assumed','missing')",
+        )
     finally:
         con.close()
 
@@ -248,6 +317,7 @@ def audit_build(
         "projection_lineage": projection_lineage,
         "core_checks": core_checks,
         "official_aliases": aliases,
+        "selected_consumers": consumer_counts,
         "checks": failures,
         "failing_checks": failing,
     }

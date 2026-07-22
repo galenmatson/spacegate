@@ -16,7 +16,7 @@ import duckdb
 from materialize_stellar_leaf_classifications import spectral_class_sql
 
 
-PROJECTION_VERSION = "e6_selected_consumer_projection_v1"
+PROJECTION_VERSION = "e6_selected_consumer_projection_v2"
 VALID_CLASSES = (
     "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WR", "WD",
     "NS", "PULSAR", "MAGNETAR", "BLACK HOLE", "UNKNOWN",
@@ -126,10 +126,13 @@ def materialize(*, core_db: Path, arm_db: Path, build_id: str) -> dict[str, Any]
               NULL::DOUBLE AS radius_err_minus_rsun,
               p.mass_msun,NULL::DOUBLE AS mass_err_plus_msun,
               NULL::DOUBLE AS mass_err_minus_msun,
-              CASE WHEN p.luminosity_lsun>0 THEN log10(p.luminosity_lsun) END AS luminosity_log10_lsun,
+              coalesce(
+                CASE WHEN p.luminosity_lsun>0 THEN log10(p.luminosity_lsun) END,
+                p.luminosity_log10_lsun
+              ) AS luminosity_log10_lsun,
               NULL::DOUBLE AS luminosity_err_plus_log10_lsun,
               NULL::DOUBLE AS luminosity_err_minus_log10_lsun,
-              NULL::DOUBLE AS density_g_cm3,NULL::DOUBLE AS density_err_plus_g_cm3,
+              p.density_g_cm3,NULL::DOUBLE AS density_err_plus_g_cm3,
               NULL::DOUBLE AS density_err_minus_g_cm3,
               p.age_gyr,NULL::DOUBLE AS age_err_plus_gyr,NULL::DOUBLE AS age_err_minus_gyr,
               p.rotation_period_days,a.radial_velocity_km_s AS radial_velocity_kms,
@@ -155,6 +158,8 @@ def materialize(*, core_db: Path, arm_db: Path, build_id: str) -> dict[str, Any]
                 'teff_fact_id',p.teff_k_fact_id,'mass_fact_id',p.mass_msun_fact_id,
                 'radius_fact_id',p.radius_rsun_fact_id,
                 'luminosity_fact_id',p.luminosity_lsun_fact_id,
+                'luminosity_log10_fact_id',p.luminosity_log10_lsun_fact_id,
+                'density_fact_id',p.density_g_cm3_fact_id,
                 'distance_geometric_fact_id',p.distance_geometric_pc_fact_id,
                 'distance_photogeometric_fact_id',p.distance_photogeometric_pc_fact_id,
                 'spectral_type_optical_fact_id',c.spectral_type_optical_fact_id,
@@ -166,7 +171,9 @@ def materialize(*, core_db: Path, arm_db: Path, build_id: str) -> dict[str, Any]
               NULL::VARCHAR AS source_url,s.stable_object_key::VARCHAR AS source_pk,
               sha256(concat_ws('|',s.stable_object_key,{sql_literal(PROJECTION_VERSION)},
                 coalesce(p.teff_k_fact_id,''),coalesce(p.mass_msun_fact_id,''),
-                coalesce(p.radius_rsun_fact_id,''),coalesce(p.luminosity_lsun_fact_id,'')))
+                coalesce(p.radius_rsun_fact_id,''),coalesce(p.luminosity_lsun_fact_id,''),
+                coalesce(p.luminosity_log10_lsun_fact_id,''),
+                coalesce(p.density_g_cm3_fact_id,'')))
                 AS source_row_hash,
               NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
               NULL::VARCHAR AS ingested_at,{sql_literal(PROJECTION_VERSION)}::VARCHAR AS transform_version

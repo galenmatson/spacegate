@@ -1,10 +1,10 @@
 {
   "schema_version": "spacegate.e6_shadow_build_policy.v1",
-  "policy_version": "2026-07-22.e6-shadow.1",
-  "compiler_version": "e6_shadow_compiler_v1",
+  "policy_version": "2026-07-22.e6-shadow.3",
+  "compiler_version": "e6_shadow_compiler_v2",
   "stability_reference_build_id": "20260717T0614Z_f452835_side",
   "selected_artifacts": [
-    {"family": "selected_facts", "build_id": "0a57f778ce13de1c2c800103", "database": "selected_facts.duckdb", "arm_prefix": "e6_fact", "acceptance_mode": "report_status_pass"},
+    {"family": "selected_facts", "build_id": "16708b8ed193aeae9b2ab995", "database": "selected_facts.duckdb", "arm_prefix": "e6_fact", "acceptance_mode": "report_status_pass"},
     {"family": "selected_relations", "build_id": "c59bf6664db0b60960dc36a1", "database": "selected_relations.duckdb", "arm_prefix": "e6_relation", "acceptance_mode": "legacy_zero_verification"},
     {"family": "selected_components", "build_id": "f5358c0a0983958e5d4f76c5", "database": "selected_components.duckdb", "arm_prefix": "e6_component", "acceptance_mode": "legacy_zero_verification"},
     {"family": "selected_clusters", "build_id": "a6169c9ec351db81104e8518", "database": "selected_clusters.duckdb", "arm_prefix": "e6_cluster", "acceptance_mode": "top_level_status_pass"},
@@ -40,7 +40,8 @@
       "table": "e6_selected_stellar_physics",
       "quantities": [
         "teff_k", "logg_cgs", "metallicity_m_h", "alpha_fe", "radius_rsun",
-        "mass_msun", "luminosity_lsun", "age_gyr", "distance_geometric_pc",
+        "mass_msun", "luminosity_lsun", "luminosity_log10_lsun",
+        "density_g_cm3", "age_gyr", "distance_geometric_pc",
         "distance_photogeometric_pc", "projected_rotation_velocity_km_s",
         "rotation_period_days", "gravitational_redshift_velocity_km_s"
       ]

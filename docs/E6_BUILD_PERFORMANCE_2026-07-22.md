@@ -93,6 +93,47 @@ input verification, and global selection. E6 optimization should not distract
 from those measured E5 targets unless downstream regeneration changes this
 ranking.
 
+## Integrated Selected-Consumer Candidate
+
+Policy `2026-07-22.e6-shadow.3` and compiler v2 move the shared selected-star
+consumer and complete hierarchy-leaf classification into the immutable build
+boundary. The earlier v2 output was useful for scientific diagnosis, but its
+post-build materialization made its recorded product hashes stale; it is not a
+promotion or reproduction candidate.
+
+Integrated candidate `e6_2da376053461c8220bee06ad_shadow` completes in 166.11
+wall seconds and 1,062.95 CPU-seconds with 34.15 GiB peak RSS, no swap, and no
+external spill. It writes approximately 17.8 GiB at the filesystem accounting
+layer. Its independent integrity, inventory, hierarchy, selected-value,
+consumer-lineage, leaf-lineage, and lifecycle audit passes in 36.78 wall
+seconds with 8.19 GiB peak RSS.
+
+The added immutable phases are:
+
+| Phase | Wall s | CPU s | Observation |
+|---|---:|---:|---|
+| Shared selected consumers | 9.61 | 167.69 | 5,874,636 parameter/classification subjects |
+| Classification candidates | 6.86 | 129.08 | Dominant consumer subphase |
+| Classification indexes | 1.43 | 11.48 | Stable star/system lookup indexes |
+| Consumer verification | 0.74 | 17.77 | Inventory, class, and lineage gates |
+| Stellar hierarchy leaves | 24.01 | 149.63 | 5,879,796 exact terminal leaves |
+| Final product hashing | 9.38 | 9.38 | Four immutable product files |
+
+The integrated compile is only 38.1 seconds slower than the original
+foundation while adding both downstream projections and their internal gates.
+The A/B auditor takes 7.92 seconds and reports 338,858 classification changes,
+930 unknown-to-known transitions, zero known-to-unknown transitions, and exact
+source attribution for every residual legacy parameter tail.
+
+Clean isolated compile, expanded independent audit, and logical reproduction
+complete in 311.37 process wall seconds (309.72 seconds measured inside the
+runner), peaking at 34.09 GiB RSS. All eighteen generated or mutated table
+multisets match cryptographic logical hashes, including the selected consumer
+supplement, canonical-star display classification, and terminal-leaf
+classification. DuckDB container bytes again differ, as expected; build
+identity, scientific content, inventories, compiler reports, and product sets
+all match. The reproduction work tree on `/mnt/space` is removed on completion.
+
 ## Selected Consumer Checkpoint
 
 The first full selected-consumer run on USB scratch established the shared

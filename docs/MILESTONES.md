@@ -2296,7 +2296,8 @@ Foundation checkpoint (July 22, 2026):
 - the general star-scoped NASA host policy now passes a hash-verified fast
   preflight: 132,578 eligible source records are exhaustively resolved as
   27,945 accepted, 104,628 missing, and five ambiguous, producing 12,210
-  lineage-complete host facts in 6.42 seconds. The full E5/E6 cutover and A/B
+  lineage-complete host facts in 7.60 seconds including immutable input
+  attestation. The full E5/E6 cutover and A/B
   remain open; the fast gate prevents another 25-minute compile from being the
   first place host-policy defects appear
 - unserved E5 candidate `16708b8ed193aeae9b2ab995` passes all 103 compiler
@@ -2304,6 +2305,13 @@ Foundation checkpoint (July 22, 2026):
   Its 29:00 measured run confirms Gaia direct materialization (571.1 seconds),
   export (225.4), Bailer-Jones (206.2), and immutable verification (160.4) as
   the ranked optimization targets. Clean reproduction and E6 A/B remain open
+- policy `2026-07-22.e6-shadow.3` and compiler v2 produce immutable integrated
+  candidate `e6_2da376053461c8220bee06ad_shadow`; selected consumers and all
+  5,879,796 hierarchy-leaf classifications now materialize before checkpoint,
+  product hashing, manifest creation, and atomic promotion. The 166.11-second
+  build and 36.78-second independent audit pass without spill; isolated
+  compile/audit/reproduction passes all eighteen logical table hashes in
+  311.37 seconds
 
 Deliverables:
 
