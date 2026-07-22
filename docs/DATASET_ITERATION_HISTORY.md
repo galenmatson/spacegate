@@ -2925,6 +2925,26 @@ Representative commits:
   completes the multiplicity E5 policy batch and confirms it is not a dominant
   contributor to the 1,441.5-second full selected-fact build.
 
+### 103) Cluster Membership Probability Is Not Containment
+
+- Cluster policy v1 binds Hunt/Reffert cluster identities only through exact
+  published source and literature designations after a conservative
+  space/hyphen normalization. It also checks the inverse mapping. This accepts
+  62 of 465 source clusters, leaves 393 outside the current reference, and
+  marks 10 ambiguous rather than collapsing multiple source clusters or the
+  mutually claimed NGC 2451A/B identities.
+- Only the 62 accepted coherent Hunt/Reffert posterior sets become eligible for
+  later cluster-quantity selection. The remaining characterization and
+  literature-crossmatch rows retain their exact source identity and reason.
+- Member identity is resolved independently through exact Gaia DR3 IDs. Of
+  51,017 source membership claims, 17,273 member endpoints resolve and 4,247
+  claims have both cluster and member endpoints accepted. All HDBSCAN
+  probabilities, including values of one, remain probability-bearing evidence;
+  no threshold or source row creates canonical containment.
+- Artifact `a6169c9ec351db81104e8518` passes independent audit and byte-identical
+  reproduction in about 2.2 wall seconds at about 1.1 GiB peak RSS. This
+  focused compiler is not a material contributor to the slow full E5 build.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

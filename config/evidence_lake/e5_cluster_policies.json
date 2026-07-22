@@ -1,0 +1,45 @@
+{
+  "schema_version": "spacegate.e5_cluster_policies.v1",
+  "policy_version": "2026-07-22.e5-clusters.1",
+  "compiler_version": "selected_cluster_evidence_compiler_v1",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "sources": [
+    {
+      "source_id": "clusters.hunt_reffert_2024",
+      "release_id": "vizier_j_aa_686_a42",
+      "evidence_build_id": "7e66e0690aa962c837d43a86",
+      "cluster_binding_method": "exact_source_designation_to_unique_canonical_cluster",
+      "cluster_name_namespaces": [
+        "cluster_name",
+        "cluster_literature_designation"
+      ],
+      "designation_normalization": "lower_trim_space_hyphen_to_underscore_v1",
+      "cluster_authority": "hunt_reffert_2024_coherent_cluster_parameter_posterior",
+      "membership_authority": "hunt_reffert_2024_probability_bearing_membership",
+      "membership_semantics": "Preserve the source-published HDBSCAN probability on independently resolved cluster and Gaia DR3 member endpoints. No probability threshold creates canonical containment.",
+      "canonical_containment_promotion": false,
+      "acceptance": {
+        "expected_cluster_bindings": 465,
+        "expected_clusters_accepted": 62,
+        "expected_clusters_missing": 393,
+        "expected_clusters_ambiguous": 10,
+        "expected_cluster_evidence": 916,
+        "expected_cluster_characterizations": 465,
+        "expected_cluster_characterizations_eligible": 62,
+        "expected_crossmatch_context": 225,
+        "expected_memberships": 51017,
+        "expected_member_endpoints_accepted": 17273,
+        "expected_member_endpoints_missing": 33744,
+        "expected_member_endpoints_ambiguous": 0,
+        "expected_memberships_both_accepted": 4247,
+        "expected_memberships_cluster_accepted_member_missing": 16677,
+        "expected_memberships_cluster_ambiguous_member_accepted": 3000,
+        "expected_memberships_cluster_ambiguous_member_missing": 1359,
+        "expected_memberships_cluster_missing_member_accepted": 10026,
+        "expected_memberships_both_missing": 15708,
+        "expected_canonical_containment_rows": 0
+      }
+    }
+  ]
+}

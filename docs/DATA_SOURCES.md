@@ -193,6 +193,15 @@ through the pinned query output-name contract rather than losing lineage when a
 legal Parquet alias is required. Membership remains evidence, never canonical
 containment.
 
+E5 cluster artifact `a6169c9ec351db81104e8518` resolves the two endpoint
+families independently. Exact published source/literature designations bind 62
+clusters one-to-one, leave 393 outside the current reference, and retain 10
+ambiguous collision outcomes instead of collapsing distinct source clusters.
+Only accepted coherent cluster posterior sets are quantity-selection inputs.
+Exact Gaia DR3 identity binds 17,273 of 51,017 member endpoints; 4,247 claims
+have both endpoints accepted. Published HDBSCAN probabilities remain evidence
+and never create canonical containment.
+
 SIMBAD is not bulk-mirrored or used as inventory: its release-pinned Gaia DR3
 bridge is intersected locally before targeted alias, basic-data, and
 bibliography acquisition. Full TIC, Gaia observation products, and survey

@@ -2068,6 +2068,14 @@ Foundation checkpoint (July 21, 2026):
   `f5358c0a0983958e5d4f76c5` independently audits and reproduces in about 24.7
   seconds wall time with about 5.2 GiB peak RSS; the multiplicity policy batch
   is complete
+- cluster policy v1 independently binds Hunt/Reffert cluster and Gaia DR3
+  member endpoints. Exact published designations accept 62 of 465 clusters,
+  leave 393 missing, and quarantine 10 ambiguous source/canonical collisions.
+  It makes only the 62 coherent posterior sets eligible, preserves all 51,017
+  membership probabilities, resolves 17,273 member endpoints and 4,247 complete
+  cluster/member pairs, and creates no canonical containment. Artifact
+  `a6169c9ec351db81104e8518` independently audits and reproduces in about 2.2
+  seconds wall time with about 1.1 GiB peak RSS
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

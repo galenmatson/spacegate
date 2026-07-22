@@ -1424,9 +1424,9 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.14` records 18 completed sources and eight
-remaining blockers after the TESS EB target-context projection. The
-multiplicity batch is complete.
+Ledger `2026-07-22.e5-policy-batches.15` records 19 completed sources and seven
+remaining blockers after the Hunt/Reffert cluster projection. The multiplicity
+batch is complete; the cluster/extended/Solar batch has three active sources.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1476,6 +1476,19 @@ component endpoints. No row becomes a canonical component, containment edge,
 selected scalar, or simulation-ready orbit. Combined artifact
 `f5358c0a0983958e5d4f76c5` independently audits and reproduces in 24.7 seconds
 wall time with about 5.2 GiB peak RSS.
+
+Cluster policy v1 treats Hunt/Reffert cluster identity and member identity as
+separate endpoints. Exact published designations bind 62 of 465 clusters
+one-to-one to current canonical clusters; 393 are absent and 10 are ambiguous.
+The ambiguous set includes mutually claimed NGC 2451A/B identities and four
+canonical designations claimed by multiple release-scoped source clusters, so
+the inverse collision safeguard refuses to collapse them. Only the 62 coherent
+cluster posterior sets are eligible for later quantity selection. Of 51,017
+probability-bearing membership claims, 17,273 Gaia DR3 member endpoints resolve
+exactly and 4,247 claims have both endpoints accepted. Every source probability
+is preserved, but no threshold creates canonical containment. Artifact
+`a6169c9ec351db81104e8518` independently audits and reproduces in about 2.2
+seconds wall time with about 1.1 GiB peak RSS.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

@@ -501,6 +501,12 @@ component role of `9e59131b92205068f7246a94`, but the older artifact remains a
 retention dry-run candidate rather than a manual deletion target until the
 schema-aware audit confirms rollback and report references.
 
+E5 cluster artifact `a6169c9ec351db81104e8518`, its ordered Parquet
+projections, compiler policy, compile and clean-reproduction reports, and
+independent artifact audit are protected E5/E6 inputs. Hunt/Reffert E4 artifact
+`7e66e0690aa962c837d43a86` and its raw/typed lineage remain protected source
+inputs; neither is a manual cleanup target.
+
 The white-dwarf adapter's first v21 attempt failed closed before promotion when
 an unqualified source column collided with compiler lineage `source_id`. Its
 hidden temporary artifact remains a retention dry-run candidate; the v22

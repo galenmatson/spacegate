@@ -379,6 +379,13 @@ Evidence Lake v2 staging rule:
   containing system as context. Because the source does not expose inspectable
   physical endpoints, these rows require relation adjudication and cannot emit
   selected component facts, containment, or a simulation-ready orbit.
+- Cluster selection has two independent identity axes: the release-scoped
+  cluster and the proposed member. A coherent cluster parameter set is eligible
+  only when exact published designations resolve one-to-one to a canonical
+  cluster, including an inverse collision check that prevents two source
+  clusters from collapsing onto one target. Membership retains the source
+  probability only when each endpoint has its own binding outcome. Even a
+  probability of one remains evidence and does not emit canonical containment.
 - SBX uses the same general contracts with source-native `primary`/`secondary`
   component endpoints and separate `child_subsystem`/`parent_subsystem`
   hierarchy endpoints. Only configuration rows with an asserted parent emit a
