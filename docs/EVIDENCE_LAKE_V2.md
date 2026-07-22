@@ -1883,7 +1883,7 @@ The executable pre-promotion plan is documented in
 `e7_legacy_path_inventory.json`, `gaia_dr4_adapter_plan.json`, and
 `e0_e7_acceptance.json` are verified by `scripts/verify_e7_cutover_plan.py` and
 `scripts/audit_evidence_lake_completion.py`. The completion audit distinguishes
-30 passing checkpoint checks from six open or blocked E7 gates. Permanent
+35 passing checkpoint checks from six open or blocked E7 gates. Permanent
 identity seed `5c878083872c738415971864` now preserves the exact hierarchy in
 two deterministic identity-only Parquet products without scientific scalar
 columns. The ledger
@@ -1979,6 +1979,25 @@ seconds and peak RSS from 26.16 to 17.42 GiB. The isolated compile plus
 independent audit takes 71.18 seconds. The
 end-to-end E7 timing report remains open and must identify cache state for every
 step.
+
+## E7 Stability Migration and Identity Vocabulary
+
+Machine contract `config/evidence_lake/e7_stability_table_migration.json`
+accounts every table in stability CORE, ARM, hierarchy, and DISC exactly once.
+The audit passes all 74 tables with exact database checksums: five table owners
+are verified artifacts, eight empty compatibility tables are safe to omit, and
+61 clean compiler or compatibility replacements remain open. Passing this audit
+means the migration inventory is complete; it does not authorize the clean
+compiler to read stability databases or imply cutover completion.
+
+Permanent identity vocabulary seed `6b4fb210e1b1bcf61299fe7f` migrates all
+1,026,480 aliases from the reviewed identity state onto permanent stable object
+and system keys. Its 25.7-MiB Parquet contains alias spelling, normalization,
+kind, priority, primary status, and source lineage only. It has zero missing
+identities, empty normalized aliases, semantic duplicates, or prohibited
+scientific columns. Production and isolated USB-backed compilation produce the
+same hash and the reproduction removes scratch. Future clean builds read this
+seed, not the migration CORE.
 
 ## Hard Gates
 

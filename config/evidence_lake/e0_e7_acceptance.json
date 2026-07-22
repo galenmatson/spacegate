@@ -118,6 +118,26 @@
       "stage": "E7",
       "path": "e5_system_placement_reproduction.json",
       "expect": {"status": "pass", "build_id": "22e9a59dd02484454a629df7", "scratch_removed": true, "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_stability_table_migration_audit.json",
+      "expect": {"status": "pass", "completion_status": "incomplete", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_identity_vocabulary_compile.json",
+      "expect": {"status": "pass", "seed_id": "6b4fb210e1b1bcf61299fe7f", "scientific_authority": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_identity_vocabulary_audit.json",
+      "expect": {"status": "pass", "seed_id": "6b4fb210e1b1bcf61299fe7f", "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_identity_vocabulary_reproduction.json",
+      "expect": {"status": "pass", "seed_id": "6b4fb210e1b1bcf61299fe7f", "scratch_removed": true, "failing_checks": []}
     }
   ],
   "required_artifacts": [
@@ -127,14 +147,15 @@
     "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
     "derived/evidence_lake_v2/permanent_identity_seed/5c878083872c738415971864/manifest.json",
-    "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json"
+    "derived/evidence_lake_v2/selected_system_placements/22e9a59dd02484454a629df7/manifest.json",
+    "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json"
   ],
   "open_gates": [
     {
       "gate_id": "clean_pinned_input_authoritative_entrypoint",
       "stage": "E7",
       "status": "open",
-      "reason": "Permanent identity and system placement now have clean pinned-input projections, but E6 v7 still copies remaining scientific and presentation projections from the stability CORE, ARM, hierarchy, and DISC databases."
+      "reason": "Permanent identity, hierarchy, aliases, and system placement now have clean pinned-input projections, but 61 scientific, compatibility, search, metadata, and presentation table replacements remain before E6 can stop opening stability databases."
     },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",

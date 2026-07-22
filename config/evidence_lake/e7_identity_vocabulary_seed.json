@@ -1,0 +1,48 @@
+{
+  "schema_version": "spacegate.permanent_identity_vocabulary_policy.v1",
+  "policy_version": "2026-07-22.e7-identity-vocabulary.1",
+  "compiler_version": "e7_identity_vocabulary_compiler_v1",
+  "scientific_authority": false,
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "identity_graph_sha256": "a73ca688ebdf47e930be0f116643bc7575fba93080191e7f8633159e22d3862e",
+  "migration_source_build_id": "20260717T0614Z_f452835_side",
+  "migration_source_core_sha256": "2d792e1912d7bd93ad4ebea8e2515381052d2c5d0dfda1388f0ecc4086558e5b",
+  "output_columns": [
+    "alias_seed_id",
+    "stable_object_key",
+    "system_stable_object_key",
+    "target_type",
+    "alias_raw",
+    "alias_norm",
+    "alias_kind",
+    "alias_priority",
+    "is_primary",
+    "source_catalog",
+    "source_version",
+    "source_pk"
+  ],
+  "prohibited_scientific_columns": [
+    "ra_deg",
+    "dec_deg",
+    "distance_pc",
+    "dist_ly",
+    "parallax_mas",
+    "pmra_mas_yr",
+    "pmdec_mas_yr",
+    "mass_msun",
+    "radius_rsun",
+    "teff_k",
+    "spectral_type",
+    "spectral_class",
+    "luminosity_lsun",
+    "orbital_period_days",
+    "semi_major_axis_au",
+    "eccentricity"
+  ],
+  "rules": {
+    "future_clean_build_reads_migration_core": false,
+    "all_aliases_require_permanent_identity": true,
+    "semantic_alias_duplicates_allowed": false,
+    "empty_normalized_aliases_allowed": false
+  }
+}

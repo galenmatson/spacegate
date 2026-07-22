@@ -1,0 +1,184 @@
+{
+  "schema_version": "spacegate.e7_stability_table_migration.v1",
+  "contract_version": "2026-07-22.e7-stability-table-migration.1",
+  "stability_build_id": "20260717T0614Z_f452835_side",
+  "rules": {
+    "all_tables_must_be_owned_once": true,
+    "stability_scientific_values_may_enter_clean_build": false,
+    "identity_migration_seed_may_contain_scientific_scalars": false,
+    "retire_empty_requires_zero_rows": true,
+    "clean_compiler_must_not_open_stability_databases": true
+  },
+  "database_contracts": [
+    {
+      "database": "core.duckdb",
+      "sha256": "2d792e1912d7bd93ad4ebea8e2515381052d2c5d0dfda1388f0ecc4086558e5b",
+      "groups": [
+        {
+          "group_id": "core.canonical_inventory",
+          "disposition": "clean_compiler_required",
+          "replacement": "E2 canonical object nodes, E7 hierarchy seed, E7 selected system placements, and E5 selected facts/planet evidence",
+          "tables": ["systems", "stars", "planets"]
+        },
+        {
+          "group_id": "core.identity_vocabulary",
+          "disposition": "verified_artifact",
+          "replacement": "E7 permanent alias vocabulary seed 6b4fb210e1b1bcf61299fe7f keyed by permanent stable object identity",
+          "tables": ["aliases"]
+        },
+        {
+          "group_id": "core.release_scoped_identifiers",
+          "disposition": "verified_artifact",
+          "replacement": "E2 canonical identifier bindings and identity quarantine",
+          "tables": ["object_identifiers", "identifier_quarantine"]
+        },
+        {
+          "group_id": "core.search",
+          "disposition": "clean_compiler_required",
+          "replacement": "Deterministic search projections from clean names, aliases, and identifiers",
+          "tables": ["system_search_terms", "extended_object_search_terms"]
+        },
+        {
+          "group_id": "core.selected_domains",
+          "disposition": "clean_compiler_required",
+          "replacement": "Accepted E5 compact, component/TESS EB, cluster, and extended-object artifacts",
+          "tables": [
+            "compact_objects",
+            "eclipsing_binaries",
+            "extended_object_aliases",
+            "extended_object_identifiers",
+            "extended_object_identity_quarantine",
+            "extended_object_source_reconciliation",
+            "extended_objects",
+            "open_cluster_memberships",
+            "open_clusters",
+            "superstellar_objects"
+          ]
+        },
+        {
+          "group_id": "core.empty_planet_lifecycle_compatibility",
+          "disposition": "retire_empty",
+          "replacement": "E5 selected planet evidence projections in ARM",
+          "tables": ["planet_catalog_observations", "planet_reclassification_audit", "planet_status_history"]
+        },
+        {
+          "group_id": "core.metadata",
+          "disposition": "clean_compiler_required",
+          "replacement": "Clean build manifest and key/value build metadata",
+          "tables": ["build_metadata"]
+        }
+      ]
+    },
+    {
+      "database": "arm.duckdb",
+      "sha256": "73d31674ee976318bdb4ce5424ebc05c147c3932afa3ad89126a952dff3a2d9a",
+      "groups": [
+        {
+          "group_id": "arm.selected_science_compatibility",
+          "disposition": "clean_compiler_required",
+          "replacement": "E5 selected facts, relations, components, clusters, extended objects, planets, Solar System, and compact-object artifacts",
+          "tables": [
+            "component_entities",
+            "derived_physical_parameters",
+            "extended_object_distance_evidence",
+            "extended_object_geometry_evidence",
+            "extended_object_relations",
+            "extended_object_source_records",
+            "msc_component_details",
+            "msc_orbit_details",
+            "msc_orbit_reconciliation",
+            "msc_system_details",
+            "multiple_component_evidence_matches",
+            "multiple_component_stellar_evidence",
+            "orbit_edges",
+            "orbital_solutions",
+            "sb9_aliases",
+            "sb9_orbits",
+            "sb9_systems",
+            "sol_artificial_objects",
+            "sol_small_body_objects",
+            "stellar_parameters",
+            "system_hierarchy_edges",
+            "tess_missing_object_audit",
+            "tess_target_identity",
+            "toi_current_evidence",
+            "toi_disposition_history",
+            "ultracoolsheet_objects",
+            "variability_summary",
+            "vsx_variability",
+            "wds_component_observations",
+            "wds_pair_evidence"
+          ]
+        },
+        {
+          "group_id": "arm.shared_presentation_consumers",
+          "disposition": "clean_compiler_required",
+          "replacement": "Versioned selected-consumer, hierarchy, leaf-classification, animation-readiness, and coolness inputs",
+          "tables": ["animation_readiness", "barycenters", "derived_stellar_classifications", "stellar_leaf_display_classifications"]
+        },
+        {
+          "group_id": "arm.infrared_compatibility",
+          "disposition": "clean_projection_blocker",
+          "replacement": "Source-native WISE/AllWISE/CatWISE evidence and selected-fact projection; image products remain runtime cache metadata",
+          "tables": [
+            "allwise_sources",
+            "catwise_sources",
+            "infrared_candidate_queue",
+            "infrared_motion_evidence",
+            "infrared_photometry",
+            "infrared_source_matches",
+            "wise_sources"
+          ]
+        },
+        {
+          "group_id": "arm.empty_compatibility",
+          "disposition": "retire_empty",
+          "replacement": "Selected evidence projections or bounded runtime cache",
+          "tables": ["infrared_image_products", "planet_catalog_observations", "planet_reclassification_audit", "planet_status_history", "system_neighbors"]
+        },
+        {
+          "group_id": "arm.metadata",
+          "disposition": "clean_compiler_required",
+          "replacement": "Clean build manifest and key/value build metadata",
+          "tables": ["build_metadata"]
+        }
+      ]
+    },
+    {
+      "database": "canonical_hierarchy.duckdb",
+      "sha256": "abe790e9a9e5f26df7f07e3be2dcecac5452f77dc5f1716c36188330370ebe13",
+      "groups": [
+        {
+          "group_id": "hierarchy.permanent_identity",
+          "disposition": "verified_artifact",
+          "replacement": "E7 permanent identity hierarchy seed 5c878083872c738415971864",
+          "tables": ["hierarchy_nodes", "hierarchy_edges"]
+        },
+        {
+          "group_id": "hierarchy.metadata",
+          "disposition": "clean_compiler_required",
+          "replacement": "Clean build manifest and hierarchy build metadata",
+          "tables": ["build_metadata"]
+        }
+      ]
+    },
+    {
+      "database": "disc.duckdb",
+      "sha256": "e6ed88f801057f1f1937f6c260a8bd8bb719941eea08ae1540af25031bca1865",
+      "groups": [
+        {
+          "group_id": "disc.coolness",
+          "disposition": "clean_compiler_required",
+          "replacement": "Versioned DISC coolness profile over clean CORE/ARM selected consumers",
+          "tables": ["coolness_scores"]
+        },
+        {
+          "group_id": "disc.metadata",
+          "disposition": "clean_compiler_required",
+          "replacement": "Clean build manifest and key/value build metadata",
+          "tables": ["build_metadata"]
+        }
+      ]
+    }
+  ]
+}

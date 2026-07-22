@@ -1202,7 +1202,7 @@ pinned; E5 selected-fact v15, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass; E7 operator review remains
-in progress. The fail-closed completion audit passes 30 checkpoint checks and
+in progress. The fail-closed completion audit passes 35 checkpoint checks and
 reports six open E7 gates rather than declaring the compiler cut over.
 
 Goal:
@@ -2435,7 +2435,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   derivation audit again has zero unowned production algorithm markers after
   accounting the ten selected/component/stability classification bases emitted
   by v7
-- `scripts/audit_evidence_lake_completion.py` verifies 30 pinned E0-E7 reports
+- `scripts/audit_evidence_lake_completion.py` verifies 35 pinned E0-E7 reports
   and artifacts, then reports six open gates: clean pinned-input entrypoint,
   shared-consumer cutover, operator acceptance, local promotion/rollback,
   legacy retirement, and promotion/rollback timing
@@ -2450,6 +2450,16 @@ Pre-promotion planning checkpoint (July 22, 2026):
   5,869,091 canonical systems once, preserves exact placement evidence and
   derivation lineage, passes independent verification, and reproduces both
   ordered Parquet hashes without reading stability-database science
+- the stability migration audit owns all 74 tables exactly once: five are now
+  verified artifacts, eight are verified empty retirements, and 61 clean
+  compiler or compatibility replacements remain explicit
+- permanent identity vocabulary seed `6b4fb210e1b1bcf61299fe7f` exports all
+  1,026,480 aliases by permanent stable object key without scientific scalar
+  columns; independent audit and USB-backed reproduction pass
+- exact-candidate retention hash
+  `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
+  retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176
+  allocated bytes while preserving its public artifact and seven reports
 - E7 must publish one end-to-end build-time report with named-step wall/CPU
   time, peak RSS, durable bytes, cache state, critical-path ranking, and
   before/after evidence for every attempted optimization; promotion, rollback,

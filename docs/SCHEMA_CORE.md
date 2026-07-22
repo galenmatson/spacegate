@@ -448,6 +448,11 @@ Required columns:
 Contract notes:
 
 - alias rows enrich lookup and UX only; they do not define canonical star existence.
+- Evidence Lake E7 migration seed `6b4fb210e1b1bcf61299fe7f` preserves all
+  1,026,480 reviewed aliases by permanent `stable_object_key` and
+  `system_stable_object_key`. It deliberately omits legacy numeric target IDs
+  and every scientific scalar; the clean CORE compiler resolves current numeric
+  IDs from E2 canonical object nodes when materializing this table.
 - duplicate aliases must be deduplicated per `(target_type, target_id, alias_norm)` by deterministic precedence.
 - search must resolve against normalized aliases first-class alongside canonical names.
 - Gaia-first builds may use constrained positional matching for named AT-HYG

@@ -3378,6 +3378,30 @@ Representative commits:
   promotion, rollback, and re-promotion step with explicit cache state and
   ranked before/after optimization evidence.
 
+### 125) Stability Cutover Requires Table-Level Ownership
+
+- `e7_stability_table_migration.json` and its independent audit checksum and
+  enumerate every one of the 74 tables in stability CORE, ARM, hierarchy, and
+  DISC. No table is implicitly inherited: five table owners are verified
+  artifacts, eight zero-row compatibility tables are explicit retirements, 54
+  require clean compilation, and seven infrared tables remain one bounded clean
+  projection blocker.
+- The audit deliberately reports `incomplete` with 61 open replacements while
+  passing all accounting gates. This separates complete migration planning from
+  actual clean cutover and prevents a copied compatibility database from being
+  mislabeled as Evidence Lake output.
+- Permanent vocabulary seed `6b4fb210e1b1bcf61299fe7f` closes the alias
+  migration requirement. It maps all 1,026,480 aliases to permanent object and
+  system keys, emits no scientific scalars or legacy numeric target IDs, passes
+  independent audit, and reproduces its 25.7-MiB Parquet hash in isolated USB
+  scratch.
+- A fail-closed retention refresh discovered and required acknowledgement of a
+  newly added storage-report reference before proceeding. Exact set hash
+  `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
+  then retired only the unserved superseded v5 shadow, reclaimed
+  18,582,962,176 allocated bytes, and preserved its public artifact, all seven
+  reports, verified v7, rollback state, and source evidence.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

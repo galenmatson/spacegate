@@ -514,6 +514,13 @@ position epoch; the other two were already J2016. All ten replace the invented
 `sbx_v2026_07_21` label with registered release
 `sbx_tap_full_rolling_snapshot_v1`.
 
+The E7 stability-table accounting pass verifies four cached database checksums
+and inventories 74 table schemas/counts in 4.76 seconds at 83.5 MiB peak RSS.
+Permanent identity vocabulary compilation takes 5.24 seconds at 2.06 GiB peak
+RSS and writes 25.7 MiB; isolated compile plus audit takes 5.66 seconds. These
+steps remain explicit rows in the final E7 critical path even though neither is
+a material runtime bottleneck.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

@@ -21,16 +21,21 @@ Machine contracts:
 - `config/evidence_lake/gaia_dr4_adapter_plan.json`
 - `config/evidence_lake/e0_e7_acceptance.json`
 - `config/evidence_lake/e7_permanent_identity_seed.json`
+- `config/evidence_lake/e7_identity_vocabulary_seed.json`
+- `config/evidence_lake/e7_stability_table_migration.json`
 - `config/evidence_lake/e5_system_placement_policies.json`
 - `scripts/verify_e7_cutover_plan.py`
 - `scripts/audit_evidence_lake_completion.py`
 - `scripts/compile_permanent_identity_seed.py`
 - `scripts/verify_permanent_identity_seed_reproduction.py`
+- `scripts/compile_permanent_identity_vocabulary.py`
+- `scripts/verify_permanent_identity_vocabulary.py`
+- `scripts/audit_e7_stability_table_migration.py`
 - `scripts/compile_selected_system_placements.py`
 - `scripts/verify_selected_system_placements.py`
 - `scripts/verify_selected_system_placement_reproduction.py`
 
-The current completion audit passes all 30 pinned checkpoint checks and reports
+The current completion audit passes all 35 pinned checkpoint checks and reports
 `incomplete`. Its six explicit gates are the clean pinned-input authoritative
 entrypoint, shared selected-fact consumer cutover, operator scientific A/B
 acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
@@ -45,6 +50,13 @@ named-object conditions. It is not scientific authority. Production and clean
 USB-backed compiles produce byte-identical Parquet products. Future canonical
 compilers may consume this retained seed but may not reopen the stability CORE,
 ARM, hierarchy, or DISC databases.
+
+Vocabulary seed `6b4fb210e1b1bcf61299fe7f` is the corresponding one-time
+bridge for 1,026,480 public aliases. It is identity-only, maps every row to a
+permanent object and system key, and reproduces byte-for-byte without retaining
+legacy numeric target IDs. The stability-table migration audit separately owns
+all 74 tables and currently exposes 61 remaining replacements; therefore these
+two migration seeds do not yet close the clean-entrypoint gate.
 
 ## Cutover Sequence
 

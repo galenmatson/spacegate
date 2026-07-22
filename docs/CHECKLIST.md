@@ -1691,7 +1691,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
-- [x] E7 completion audit checkpoint: verify 30 pinned reports/artifacts with no
+- [x] E7 completion audit checkpoint: verify 35 pinned reports/artifacts with no
   failures and expose six open or blocked gates without treating the stability-
   database-backed v7 candidate as a clean authoritative compiler
 - [x] E7 permanent identity seed: export 11,759,440 nodes and 5,886,947
@@ -1702,6 +1702,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   systems through selected stellar facts or explicitly scoped fallbacks, attest
   each consumed quantity partition, independently verify the artifact, and
   reproduce both ordered Parquet hashes without stability-database science
+- [x] E7 stability-table migration audit: account all 74 CORE, ARM, hierarchy,
+  and DISC tables exactly once, enforce zero rows for eight retired-empty
+  compatibility tables, and expose every remaining replacement explicitly
+- [x] E7 permanent identity vocabulary: migrate all 1,026,480 aliases onto
+  permanent stable object keys in a 25.7-MiB identity-only artifact, prohibit
+  scientific scalar columns, and pass independent audit plus clean reproduction
+- [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
+  process to retire only superseded unserved v5 shadow
+  `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its
+  public artifact, and reclaim 18,582,962,176 allocated bytes
 - [ ] E7 end-to-end build-time report: retain wall/CPU time, peak RSS, durable
   bytes, cache state, and named phase timings for every compiler, verifier,
   shadow build, promotion, rollback, and re-promotion step; rank the critical

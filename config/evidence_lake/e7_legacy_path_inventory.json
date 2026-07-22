@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-22.e7-cutover-plan.4",
+  "inventory_version": "2026-07-22.e7-cutover-plan.5",
   "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "pre_promotion": true,
@@ -90,7 +90,10 @@
         "scripts/ingest/emit_canonical_build.py",
         "config/evidence_lake/e7_permanent_identity_seed.json",
         "scripts/compile_permanent_identity_seed.py",
-        "scripts/verify_permanent_identity_seed_reproduction.py"
+        "scripts/verify_permanent_identity_seed_reproduction.py",
+        "config/evidence_lake/e7_identity_vocabulary_seed.json",
+        "scripts/compile_permanent_identity_vocabulary.py",
+        "scripts/verify_permanent_identity_vocabulary.py"
       ],
       "current_state": "retained_foundation",
       "target_state": "retained_release_scoped_identity_compiler",

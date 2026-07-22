@@ -1087,11 +1087,15 @@ avoid a dry-run/apply self-reference loop. `/data` fell from 93% to 89% used.
 A later exact-candidate run used corrected v6 as the verified replacement and
 reclaimed three additional superseded unpromoted shadow directories under set
 hash `3e3f6120d03638cea5e58c410f4a8a61890211ad1b195311719ad0eaebb5cb0d`,
-recovering 55,580,577,792 allocated bytes. The immediately preceding v5 shadow
-and public candidate are now scientifically superseded by v6 but remain
-protected until their own reviewed dry-run can prove they are unserved,
-unreferenced, process-closed, and rollback-ineligible. Documentation does not
-authorize their manual deletion.
+recovering 55,580,577,792 allocated bytes. A refreshed July 22 dry-run then
+used verified v7 as replacement, acknowledged all seven surviving report
+references, and proved the immediately preceding v5 shadow unserved,
+unreferenced, process-closed, and rollback-ineligible. Exact candidate hash
+`d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
+authorized removal of only `e6_6e2449e225cd33f9055df6c0_shadow` and reclaimed
+18,582,962,176 allocated bytes. The v5 public artifact, all seven reports,
+verified v7, served/current/rollback builds, and transitive evidence remain
+protected.
 
 ## WISE Image Cache
 
