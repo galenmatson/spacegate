@@ -3308,6 +3308,28 @@ Representative commits:
   the superseded v5 shadow as an 18.58-GB retention candidate; no artifact is
   deleted, and the separate v5 public product remains outside that contract.
 
+### 122) Completion Audits Must Separate Verified Evidence from Cutover
+
+- A live E0 schema audit found the checked-in baseline lagged the already
+  reviewed JPL Horizons complete-elements snapshots. The corrected baseline
+  accounts 148 active artifacts and 6,227 fields; the 18-field delta is nine
+  orbital-element fields in each of the authority and artificial-object tables.
+  Registry audit passes all 47 sources with four retained superseded artifacts.
+- The v7 legacy-derivation audit also exposed ten unowned classification bases
+  from selected facts, exact MSC components, canonical object type, and the
+  explicitly labeled residual stability fallback. The inventory now owns those
+  markers and again passes with zero unaccounted materialized/source markers;
+  no algorithm or finding was suppressed.
+- `config/evidence_lake/e0_e7_acceptance.json` and
+  `scripts/audit_evidence_lake_completion.py` pin the accepted reports and
+  immutable artifacts. The first audit passes 23 checkpoint checks but reports
+  `incomplete` because six E7 gates remain open or blocked. This prevents a
+  scientifically sound shadow candidate from being mislabeled as the sole clean
+  production compiler.
+- The contemporary storage audit reports about 70.6 GiB free and refuses new
+  acquisition. Candidate, rollback, raw, typed, E4, and report artifacts remain
+  protected; no ambiguous cleanup or additional large build is authorized.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.legacy_derivation_inventory.v1",
-  "inventory_version": "2026-07-21.e5-legacy-inventory.1",
+  "inventory_version": "2026-07-22.e5-legacy-inventory.2",
   "scope": "Production paths that select, derive, infer, assume, classify, or transform astronomy values after canonical ingest and before public presentation.",
   "precedence": [
     "accepted_direct_or_dynamical_evidence",
@@ -122,15 +122,15 @@
       "layer": "arm",
       "value_status": "mixed",
       "outputs": ["classification_value", "classification_status", "evidence_basis"],
-      "inputs": ["canonical_hierarchy_leaf", "core_spectral_class", "component_classification_candidates"],
+      "inputs": ["canonical_hierarchy_leaf", "selected_stellar_classification", "selected_stellar_temperature", "selected_stellar_color", "selected_stellar_mass", "canonical_object_type", "component_classification_candidates", "stability_core_spectral_class_fallback"],
       "algorithm_version": "stellar_leaf_display_classification_v1",
       "applicability": "Exactly one row per eligible stellar hierarchy leaf; aggregate and nonstellar nodes excluded.",
       "uncertainty": "Preserves candidate-class conflict count but selects one deterministic display value.",
       "confidence": "source_to_missing",
-      "provenance": "Exact hierarchy, leaf, evidence-component, source, and projection-version lineage.",
+      "provenance": "Exact hierarchy, leaf, selected-fact or evidence-component lineage, classification basis/status, and projection version. The explicitly labeled stability fallback is retained only for the residual pre-clean-foundation tail.",
       "supersession": {"state": "rebuild_from_selected_facts", "e5_derivation_key": null, "retirement_gate": "E6 shared-consumer badge parity"},
       "implementations": [{"file": "scripts/materialize_stellar_leaf_classifications.py", "symbol": "PROJECTION_VERSION", "markers": ["stellar_leaf_display_classification_v1", "msc_exact_leaf_spectral_type_v1", "mass_main_sequence_prior_v1"]}, {"file": "scripts/materialize_e6_selected_consumers.py", "symbol": "PROJECTION_VERSION", "markers": ["e6_selected_consumer_projection_v3"]}],
-      "materialized_markers": ["stellar_leaf_display_classifications.evidence_basis=core_leaf_source_class_v1", "stellar_leaf_display_classifications.evidence_basis=source_component_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=msc_exact_leaf_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=spectral_type_visual_class_prior_v1", "stellar_leaf_display_classifications.evidence_basis=mass_main_sequence_prior_v1", "stellar_leaf_display_classifications.evidence_basis=no_exact_leaf_classification_evidence"]
+      "materialized_markers": ["stellar_leaf_display_classifications.evidence_basis=core_leaf_source_class_v1", "stellar_leaf_display_classifications.evidence_basis=source_component_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=msc_exact_leaf_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=spectral_type_visual_class_prior_v1", "stellar_leaf_display_classifications.evidence_basis=mass_main_sequence_prior_v1", "stellar_leaf_display_classifications.evidence_basis=no_exact_leaf_classification_evidence", "stellar_leaf_display_classifications.evidence_basis=canonical_object_type", "stellar_leaf_display_classifications.evidence_basis=e6_msc_component_mass_main_sequence_prior_v1", "stellar_leaf_display_classifications.evidence_basis=e6_msc_component_spectral_type_v1", "stellar_leaf_display_classifications.evidence_basis=selected_bp_rp_visual_class_prior", "stellar_leaf_display_classifications.evidence_basis=selected_mass_main_sequence_prior", "stellar_leaf_display_classifications.evidence_basis=selected_spectral_type_infrared", "stellar_leaf_display_classifications.evidence_basis=selected_spectral_type_optical", "stellar_leaf_display_classifications.evidence_basis=selected_spectral_type_simbad", "stellar_leaf_display_classifications.evidence_basis=selected_teff_visual_class_prior", "stellar_leaf_display_classifications.evidence_basis=stability_core_source_class_fallback"]
     },
     {
       "path_id": "api.hierarchy.mass_display_class_fallback",

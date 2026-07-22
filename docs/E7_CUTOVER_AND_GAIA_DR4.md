@@ -19,7 +19,16 @@ Machine contracts:
 
 - `config/evidence_lake/e7_legacy_path_inventory.json`
 - `config/evidence_lake/gaia_dr4_adapter_plan.json`
+- `config/evidence_lake/e0_e7_acceptance.json`
 - `scripts/verify_e7_cutover_plan.py`
+- `scripts/audit_evidence_lake_completion.py`
+
+The current completion audit passes all 23 pinned checkpoint checks and reports
+`incomplete`. Its six explicit gates are the clean pinned-input authoritative
+entrypoint, shared selected-fact consumer cutover, operator scientific A/B
+acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
+and the remaining promotion/rollback timing rows. This is the intended state;
+the report must not translate passing E0-E6 evidence into premature E7 cutover.
 
 ## Cutover Sequence
 

@@ -7,7 +7,9 @@ The active machine-readable source contract is
 domain-specific authority roles, retrieval implementation, license/citation,
 cadence, identifier namespace, frame/epoch context, schema policy, and storage
 class. `config/evidence_lake/schema_baseline.json` pins the current source schema
-and field-disposition baseline.
+and field-disposition baseline. The July 22 reviewed baseline contains 148
+active manifest entries and 6,227 fields; its 18-field delta is the complete
+JPL Horizons element set across the authority and artificial-object tables.
 
 Validate and audit before acquisition:
 
@@ -28,6 +30,12 @@ Full-refresh preflight runs this gate automatically. New manifest entries,
 missing active artifacts, and schema changes fail until the registry and pinned
 baseline are reviewed. Planned sources may lack manifests until E3 acquisition;
 active sources may not.
+
+The current storage audit reports about 70.6 GiB free on `/data` and
+`acquisition_ready=false`. Large acquisition or build work must wait for a
+reviewed retention action or added capacity. The unrecognized E6 build IDs are
+protected candidate/stability products that require explicit retention
+accounting; they are not cleanup permission.
 
 Evidence Lake v2 active storage paths are:
 
@@ -64,6 +72,8 @@ Evidence Lake v2 active storage paths are:
   product, row, byte, upstream-field, and deliberate-omission coverage
 - `reports/evidence_lake_v2/e3_http_acquisition_report.json`: pinned release-
   file completion, byte, checksum, and pending-product coverage
+- `reports/evidence_lake_v2/e0_e7_completion_audit.json`: current checkpoint
+  evidence, missing reports/artifacts, and explicit open E7 gates
 
 Run the complete E1 gates with:
 

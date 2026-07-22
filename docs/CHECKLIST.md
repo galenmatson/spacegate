@@ -1680,17 +1680,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   current candidate, served/current/rollback links, live processes, transitive
   inputs, and reports; review its set hash before reclaiming approximately 66
   GiB of superseded E6 product directories from `/data`
-- [ ] E6: create or bind permanent non-Gaia compact-object identities within
+- [x] E6: create or bind permanent non-Gaia compact-object identities within
   the uncertainty-aware ingestion envelope; keep pulsars/magnetars distinct
   from optical companions, then rerun the compact-scope audit and add typed
   quantity policies only for safe leaves
-- [ ] E6: review and account for every scientific delta using reusable policy;
+- [x] E6: review and account for every scientific delta using reusable policy;
   preserve canonical planet/status integrity and prohibit named-object
   transforms used only to satisfy goldens
 - [x] E7 pre-promotion plan: machine-account seven legacy path families, retain
   permanent identity work, prohibit cleanup before rollback, define atomic
   local cutover and timing steps, and verify a release-scoped Gaia DR4 adapter
   contract with 19/19 plan checks and zero unowned derivation markers
+- [x] E7 completion audit checkpoint: verify 23 pinned reports/artifacts with no
+  failures and expose six open or blocked gates without treating the stability-
+  database-backed v7 candidate as a clean authoritative compiler
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths

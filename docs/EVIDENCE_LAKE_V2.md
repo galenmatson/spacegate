@@ -7,8 +7,10 @@ selected-fact v15, E5 component-scope v9, and E5 compact-identity v1 are pinned.
 Corrected E6 v7 shadow, clean reproduction, scientific A/B, public slice,
 four-radius map verification, bounded simulation-cache measurement, and
 API/search verification pass. Its tile payload contract is exactly equivalent
-to the production-browser-tested v6 candidate. E7 operator review remains in
-progress. Nothing is promoted or deployed.
+to the production-browser-tested v6 candidate. The machine E0-E7 completion
+audit passes all 23 available checkpoint checks and reports `incomplete` with
+six explicit E7 gates. E7 operator review remains in progress. Nothing is
+promoted or deployed.
 
 The consolidated scientific decision record is
 `docs/E6_SCIENTIFIC_AB_2026-07-22.md`.
@@ -19,19 +21,23 @@ E0 checkpoint:
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
 - `config/evidence_lake/schema_baseline.json` pins 148 active manifest entries,
-  6,209 machine-enumerated fields, and exact format contracts for source formats
+  6,227 machine-enumerated fields, and exact format contracts for source formats
   whose schemas live in official source documents. Four superseded artifacts
   remain immutable but are separately checksum-declared rather than treated as
   active. The reviewed baseline fingerprint is
-  `153280e2e3331e06541da100205f36c589a641d9b1ff0b8578a14246dcaa03b6`.
+  `6e244c8ebde90d9d0d69f11cd0bc54cfd00a2d5e90f05edece871a1e4cc96aa0`.
+  The 18-field increase is the reviewed complete-elements expansion across the
+  JPL Horizons authority and artificial-object tables, not unreviewed drift.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
 - Reference-aware retention preserved 11 served/published/rollback lineage
   builds and first reclaimed 196.21 GiB of unreferenced immutable builds. The
   later exact-hash legacy-build pass reclaimed another 364.82 GiB without
-  touching raw, typed, report, or E4 artifacts. Photon has about 489 GiB free
-  on `/data`, above the 300 GiB acquisition floor.
+  touching raw, typed, report, or E4 artifacts. After the complete E4-E6
+  program, Photon has about 70.6 GiB free on `/data`, below the acquisition
+  floor. No further large acquisition/build is authorized until a reviewed
+  retention action or storage expansion restores headroom.
 - Machine reports are under
   `/data/spacegate/state/reports/evidence_lake_v2/`.
 
@@ -1874,8 +1880,11 @@ after the new build is reproducible from pinned inputs.
 
 The executable pre-promotion plan is documented in
 `docs/E7_CUTOVER_AND_GAIA_DR4.md`. Machine contracts
-`e7_legacy_path_inventory.json` and `gaia_dr4_adapter_plan.json` are verified by
-`scripts/verify_e7_cutover_plan.py`. The ledger records that E6 v7 still
+`e7_legacy_path_inventory.json`, `gaia_dr4_adapter_plan.json`, and
+`e0_e7_acceptance.json` are verified by `scripts/verify_e7_cutover_plan.py` and
+`scripts/audit_evidence_lake_completion.py`. The completion audit distinguishes
+23 passing checkpoint checks from six open or blocked E7 gates. The ledger
+records that E6 v7 still
 composes permanent inventory from the stability databases, so bootstrap
 cookers, `ingest_core.py`, and `build_arm.py` cannot yet be retired. The
 canonical identity reducer is retained permanent work and will consume the E2

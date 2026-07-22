@@ -1,0 +1,143 @@
+{
+  "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
+  "contract_version": "2026-07-22.e0-e7-acceptance.1",
+  "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
+  "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
+  "report_checks": [
+    {
+      "stage": "E0",
+      "path": "e0_registry_audit_20260722.json",
+      "expect": {"status": "pass", "errors": []}
+    },
+    {
+      "stage": "E1",
+      "path": "e1_clean_reproduction.json",
+      "expect": {"status": "pass", "clean_temporary_root_removed": true}
+    },
+    {
+      "stage": "E2",
+      "path": "e2_identity_reproduction.json",
+      "expect": {"status": "pass", "errors": []}
+    },
+    {
+      "stage": "E3",
+      "path": "e3_acquisition_report.json",
+      "expect": {"status": "pass"}
+    },
+    {
+      "stage": "E3",
+      "path": "e3_source_coverage_report.json",
+      "expect": {"status": "pass"}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_fact_v15_audit.json",
+      "expect": {"status": "pass", "build_id": "fa4aaed18aebcffb8632d978"}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_fact_v15_reproduction.json",
+      "expect": {"status": "pass", "build_id": "fa4aaed18aebcffb8632d978", "scratch_removed": true}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_component_v9_audit.json",
+      "expect": {"status": "pass", "build_id": "67fea5f99500b57419ebdeb0"}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_component_v9_reproduction.json",
+      "expect": {"status": "pass", "build_id": "67fea5f99500b57419ebdeb0"}
+    },
+    {
+      "stage": "E5",
+      "path": "e5_selected_compact_verification.json",
+      "expect": {"status": "pass", "build_id": "f0d7273f65371efeda365611", "failures": []}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_audit.json",
+      "expect": {"status": "pass", "build_id": "e6_95e7af54d69f3d9602d81e5b_shadow", "failing_checks": {}}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_reproduction.json",
+      "expect": {"status": "pass", "build_id": "e6_95e7af54d69f3d9602d81e5b_shadow", "failing_checks": {}}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_selected_consumer_ab.json",
+      "expect": {"status": "pass", "build_id": "e6_95e7af54d69f3d9602d81e5b_shadow"}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_parameter_loss_accounting.json",
+      "expect": {"status": "pass", "build_id": "e6_95e7af54d69f3d9602d81e5b_shadow", "failing_checks": {}}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_coolness_ab.json",
+      "expect": {"status": "pass", "build_id": "e6_95e7af54d69f3d9602d81e5b_shadow", "failing_checks": {}}
+    },
+    {
+      "stage": "E6",
+      "path": "e6_shadow_v7_map_tiles_verification.json",
+      "expect": {"passed": true, "build_id": "e6_95e7af54d69f3d9602d81e5b_public"}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_plan_verification.json",
+      "expect": {"status": "pass", "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_legacy_derivation_v7_audit.json",
+      "expect": {"status": "pass", "failing_checks": {}}
+    }
+  ],
+  "required_artifacts": [
+    "out/e6_95e7af54d69f3d9602d81e5b_shadow/manifest.json",
+    "out/e6_95e7af54d69f3d9602d81e5b_public/map_tiles/index.json",
+    "derived/evidence_lake_v2/selected_facts/fa4aaed18aebcffb8632d978/manifest.json",
+    "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
+    "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json"
+  ],
+  "open_gates": [
+    {
+      "gate_id": "clean_pinned_input_authoritative_entrypoint",
+      "stage": "E7",
+      "status": "open",
+      "reason": "E6 v7 still copies permanent inventory and hierarchy from the stability CORE, ARM, hierarchy, and DISC databases."
+    },
+    {
+      "gate_id": "shared_selected_fact_consumer_cutover",
+      "stage": "E5_E7",
+      "status": "open",
+      "reason": "Classification, HZ, planet-category, simulation, API, search, map, tag, and AAA consumers have not all retired independent scientific fallback paths."
+    },
+    {
+      "gate_id": "operator_scientific_ab_acceptance",
+      "stage": "E7",
+      "status": "awaiting_operator",
+      "reason": "The consolidated v7 scientific A/B report is complete but has not yet received explicit operator acceptance."
+    },
+    {
+      "gate_id": "local_atomic_promotion_rollback_repromotion",
+      "stage": "E7",
+      "status": "blocked",
+      "reason": "Promotion cannot begin before operator acceptance and the clean authoritative entrypoint gate."
+    },
+    {
+      "gate_id": "legacy_retirement",
+      "stage": "E7",
+      "status": "blocked",
+      "reason": "Legacy paths remain required for stability reproduction and cannot retire before clean reproduction and rollback verification."
+    },
+    {
+      "gate_id": "promotion_rollback_timing_closeout",
+      "stage": "E6_E7",
+      "status": "blocked",
+      "reason": "Build-step timings are published; promotion and rollback timings require the E7 drill."
+    }
+  ]
+}
