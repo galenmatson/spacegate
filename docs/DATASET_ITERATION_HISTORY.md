@@ -3620,6 +3620,31 @@ Representative commits:
   unchanged. Global selected-fact IDs still churn with the policy version; that
   is recorded as a future schema-boundary repair, not scientific change.
 
+### 137) Solar Components Need Permanent Identity Before Runtime Orbits
+
+- The clean runtime ARM audit found that the E5 selected Solar compiler resolved
+  moons and minor bodies through stability-ARM `component_entities`. Fifty-seven
+  natural/artificial ARM-only component identities were absent from the clean
+  permanent identity graph, so copying the selected tables would have preserved
+  a hidden stability dependency.
+- Build `9f9f8ef5e690d3390d36f482` derives permanent Solar identity only from the
+  pinned E4 JPL/operator-seed evidence and clean CORE. The Sun and thirteen
+  canonical planets bind through explicit permanent-key contracts; no object
+  binds by name alone. Moons, minor bodies, and spacecraft use stable numeric
+  operator-seed identities rather than mutable display names.
+- All 71 previous source-facing component keys remain inspectable through a
+  `legacy_component_key` identifier crosswalk. An A/B query confirms that every
+  one of the sixty natural targets matches its prior selected binding through
+  either the canonical key or this crosswalk.
+- The artifact accounts 71 identities, 71 aliases, 213 identifiers, and 71 JPL
+  target/center relation outcomes. Seventy relations resolve to physical centers;
+  the Sun uses the declared Solar System barycenter reference origin. No relation
+  becomes canonical containment, and no scientific scalar enters the identity
+  tables.
+- Independent audit and byte-exact isolated reproduction pass. Runtime orbit,
+  physical-parameter, and presentation projections remain subsequent selection
+  work rather than identity authority.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

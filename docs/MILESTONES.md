@@ -2536,6 +2536,13 @@ Pre-promotion planning checkpoint (July 22, 2026):
   type-partitioned component graph takes 8.94 seconds. Cross-source orbit
   authority, selected Solar runtime surfaces, and TESS compatibility remain open
   rather than being copied from the stability ARM
+- permanent Solar identity build `9f9f8ef5e690d3390d36f482` replaces the hidden
+  stability-ARM binding dependency in the earlier E5 Solar selector. It derives
+  71 identities from exact E4 JPL target and reviewed operator-seed claims,
+  binds the Sun and 13 canonical planets to clean CORE, creates 57 ARM-only
+  identities, retains three identifiers and one alias each, and resolves all 71
+  orbit-center claims with zero canonical-containment promotions. Independent
+  audit and isolated byte-exact reproduction pass
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

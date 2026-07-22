@@ -2124,6 +2124,31 @@ authority, selected Solar minor-body/runtime surfaces, and TESS candidate
 compatibility remain explicit pending work. They may not be satisfied by copying
 stability tables or by promoting relation evidence into containment.
 
+The Solar runtime audit found that the earlier E5 selected Solar artifact bound
+moons and minor bodies through stability-ARM `component_entities`. Those 46
+natural ARM-only identities, plus eleven artificial objects, were absent from
+the clean permanent identity and hierarchy artifacts. Copying the E5 bindings
+would therefore have preserved a hidden stability dependency.
+
+Permanent Solar identity build `9f9f8ef5e690d3390d36f482` repairs that boundary
+from pinned E4 evidence and clean CORE. It preserves 71 exact JPL target claims,
+reviewed operator-seed IDs and names, 71 aliases, 213 identifiers, and 71
+target/center relation outcomes. The Sun and thirteen canonical planets bind by
+configured permanent-key contracts with name agreement as a verification guard;
+no object binds by name alone. The remaining 57 objects receive stable numeric
+operator-seed component identities. Their former name-derived component keys are
+retained only as an explicit identifier crosswalk; all sixty natural objects
+match the prior selected binding keys through canonical identity or that
+crosswalk.
+
+Seventy relation endpoints resolve to physical component identities and the
+Sun's center resolves to the declared Solar System barycenter reference origin.
+Every relation records `canonical_containment = false`. The identity tables carry
+no coordinates, physical parameters, or orbital elements. The 4.22-second build,
+4.09-second independent audit, and 8.23-second isolated reproduction pass with
+byte-identical Parquet products and removed scratch. Runtime Solar orbit and
+physical selection still remains to be compiled from this identity foundation.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

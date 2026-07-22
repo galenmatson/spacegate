@@ -750,6 +750,16 @@ ICRF/ecliptic/AU-D frame, model, method, query/response, and complete 12-element
 lineage. Thirty-six physical sets expose 36 radii and 20 masses on exact targets.
 No source relation is promoted into canonical hierarchy at E5.
 
+E7 permanent Solar identity build `9f9f8ef5e690d3390d36f482` removes the E5
+selector's former stability-ARM component-binding dependency. It consumes the
+same pinned E4 evidence plus clean CORE, binds the Sun and thirteen canonical
+planets through explicit permanent-key contracts, and assigns stable numeric
+operator-seed identities to 57 moons, minor bodies, and artificial objects.
+Legacy name-derived component keys remain identifier crosswalks only. All 71
+JPL target/center relation outcomes are preserved with zero canonical-containment
+promotions. Runtime orbit and physical selection must consume this identity
+artifact rather than the old stability-bound target table.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)

@@ -91,6 +91,12 @@ for reference/rebuilt logical scans, independent verification, report handling,
 and scratch cleanup. It peaks at 47,448,364 KiB RSS, matches all 19 table schemas,
 counts, and logical hashes, and removes the temporary artifact.
 
+Permanent Solar identity compilation adds 4.22 seconds external wall time and
+peaks at 282,888 KiB RSS. Its independent audit takes 4.09 seconds, and isolated
+compile/audit/reproduction takes 8.23 seconds with a 279,780 KiB peak. These are
+separate named stages in the eventual E7 critical path; they replace an implicit
+stability-ARM identity lookup rather than adding optional duplicate work.
+
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical

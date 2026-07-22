@@ -1753,6 +1753,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   component nodes and 5,886,947 canonical hierarchy edges, materialize one
   shared leaf-classification surface, pass independent audit, and reproduce all
   19 table schemas/counts/logical hashes in isolated scratch
+- [x] E7 permanent Solar component identity: compile build
+  `9f9f8ef5e690d3390d36f482` from pinned E4 JPL/operator-seed evidence and clean
+  CORE; bind the Sun and 13 canonical planets exactly, create 57 ARM-only
+  natural/artificial identities, preserve all legacy component keys as an
+  explicit crosswalk, account all 71 target/center relations without containment
+  promotion, and pass independent audit plus byte-exact reproduction
 - [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
   selected Solar runtime projections, and TESS candidate compatibility without
   relation-to-containment promotion or independent scientific fallback logic

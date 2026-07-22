@@ -1,0 +1,49 @@
+{
+  "schema_version": "spacegate.e7_solar_identity_policy.v1",
+  "policy_version": "2026-07-22.e7-solar-identity.1",
+  "compiler_version": "e7_solar_identity_compiler_v1",
+  "inputs": {
+    "scientific_evidence": {
+      "build_id": "b4edc4ea6eccba69794a92df",
+      "relative_path": "derived/evidence_lake_v2/scientific_evidence/b4edc4ea6eccba69794a92df",
+      "manifest_sha256": "dc36e3b5e3fd67513ff3b632255e125ba9e4556a5c9049766474fd230cd7f20e"
+    },
+    "clean_runtime_core": {
+      "build_id": "92da8d31dc0e7dbd4d4d70a5",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5",
+      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224"
+    }
+  },
+  "identity_contract": {
+    "natural_source_table": "sol_system_objects",
+    "artificial_source_table": "sol_artificial_objects",
+    "sol_system_stable_key": "canon:system:stable:system:sol",
+    "sun_stable_object_key": "canon:star:stable:star:sol:sun",
+    "canonical_planet_key_prefix": "canon:planet:nasa_source:",
+    "arm_identity_prefix": "comp:solar:",
+    "external_reference_origins": {
+      "0": "solar_system_barycenter"
+    }
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "scientific_authority": false,
+    "operator_seed_identity_only": true,
+    "name_only_core_binding": false,
+    "source_relations_create_canonical_containment": false,
+    "preserve_legacy_component_key_crosswalk": true
+  },
+  "acceptance": {
+    "identities": 71,
+    "natural_identities": 60,
+    "artificial_identities": 11,
+    "core_bound_identities": 14,
+    "arm_only_identities": 57,
+    "aliases": 71,
+    "identifiers": 213,
+    "relation_outcomes": 71,
+    "relations_accepted": 70,
+    "relations_reference_origin": 1,
+    "canonical_containment_promotions": 0
+  }
+}
