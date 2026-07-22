@@ -569,7 +569,9 @@ Columns:
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
 Notes:
-- Gaia NSS unresolved binaries may emit synthetic companion component keys so source-native orbital evidence can be narrated without fabricating canonical core stars.
+- Gaia NSS unresolved binaries remain observation-target evidence until a
+  reviewed physical relation and permanent component identity exist. Runtime
+  orbit projection must not mint synthetic companions merely to render a fit.
 - Planet rows emit `planetary_orbit` edges from the host system/star component
   to the planet component when a core planet has a resolved system binding.
 - `hierarchical_pair` edges may connect subsystem/group component keys rather
@@ -655,6 +657,17 @@ Rule:
   case-significant source identity set and the casefolded runtime leaf set.
   Missing leaves and case collisions remain evidence; they do not create
   runtime components or orbit edges.
+- Clean ARM build `34069ba67abe3b4331c26adc` applies this gate to the selected
+  cross-source orbit evidence: 3,238 exactly bound relations and 6,518 coherent
+  solutions are projected, with 808 physically valid visual solutions selected
+  for simulation. A preferred visual solution requires positive period and
+  angular semimajor axis plus eccentricity in `[0,1)`; non-null placeholders do
+  not satisfy the gate.
+- Converting an angular semimajor axis to AU requires the selected system
+  distance and records `angular_axis_times_selected_system_distance_v1` in
+  derivation lineage. The source angular value remains present. Epoch values
+  are converted only for explicit JD, MJD, or Julian-year semantics; ambiguous
+  source unit flags remain unnormalized evidence.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
 - Projected-separation support values computed from angular separation and

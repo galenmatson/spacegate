@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v2",
-  "policy_version": "2026-07-22.e7-clean-runtime-arm.2",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v2",
+  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v3",
+  "policy_version": "2026-07-22.e7-clean-runtime-arm.3",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v3",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,
@@ -35,6 +35,16 @@
       "build_id": "0f1ac54fb1d4e9b71472abab",
       "relative_path": "derived/evidence_lake_v2/solar_runtime/0f1ac54fb1d4e9b71472abab",
       "manifest_sha256": "f8cc29bdca3814911728844ab6178950e712b90d131a71adfb1ea6ed985f20bd"
+    },
+    "stellar_orbits": {
+      "build_id": "131d37fd3cdaa3867ff8337b",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/131d37fd3cdaa3867ff8337b",
+      "manifest_sha256": "5f4095e195b070eb0f2b95b2a8db7a08a40e41395f61ece531f794cbceb09eb0"
+    },
+    "stellar_orbit_bridge": {
+      "build_id": "f57b4dfc9f554072bc41fe5d",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_endpoint_bridge/f57b4dfc9f554072bc41fe5d",
+      "manifest_sha256": "ebca4af47542e3ea773a0bab95b668f9eac65e9a69529807de30d8a3737a38f9"
     }
   },
   "selected_science_tables": [
@@ -68,10 +78,19 @@
     "selected_solar_relation_bindings",
     "selected_solar_target_bindings"
   ],
+  "stellar_orbit_tables": [
+    "deferred_stellar_orbit_context",
+    "selected_stellar_orbit_relations",
+    "selected_stellar_orbit_solutions"
+  ],
+  "stellar_orbit_bridge_tables": [
+    "stellar_orbit_endpoint_bindings",
+    "stellar_orbit_relation_bindings"
+  ],
   "runtime_graph_status": {
     "component_containment": "implemented_from_canonical_hierarchy",
     "stellar_leaf_classification": "implemented_from_selected_science_and_scoped_msc_evidence",
-    "cross_source_orbit_selection": "pending_explicit_authority_policy",
+    "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_and_exact_endpoint_bridge",
     "solar_minor_body_projection": "implemented_from_permanent_solar_identity_and_selected_runtime_evidence",
     "tess_candidate_compatibility": "pending_selected_planet_evidence_runtime_projection"
   }

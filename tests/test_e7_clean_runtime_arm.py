@@ -25,7 +25,7 @@ def test_checked_in_policy_is_bounded_and_forbids_stability_authority() -> None:
     assert policy["rules"]["open_stability_databases"] is False
     assert policy["rules"]["source_relation_claims_create_containment"] is False
     assert policy["rules"]["context_only_orbits_create_renderable_edges"] is False
-    assert policy["runtime_graph_status"]["cross_source_orbit_selection"].startswith("pending_")
+    assert policy["runtime_graph_status"]["cross_source_orbit_selection"].startswith("implemented_")
 
 
 def test_policy_rejects_relation_claim_containment() -> None:
@@ -259,7 +259,8 @@ def test_policy_json_is_canonical_object() -> None:
     assert isinstance(value, dict)
     assert set(value["inputs"]) == {
         "clean_runtime_core", "clean_science", "clean_wise",
-        "solar_identity", "solar_runtime",
+        "solar_identity", "solar_runtime", "stellar_orbits",
+        "stellar_orbit_bridge",
     }
 
 
@@ -275,6 +276,8 @@ def test_independent_verifier_contract_matches_compiler_policy() -> None:
     assert set(policy["clean_wise_tables"]) == verifier.WISE_TABLES
     assert set(policy["solar_identity_tables"]) == verifier.SOLAR_IDENTITY_TABLES
     assert set(policy["solar_runtime_tables"]) == verifier.SOLAR_RUNTIME_TABLES
+    assert set(policy["stellar_orbit_tables"]) == verifier.STELLAR_ORBIT_TABLES
+    assert set(policy["stellar_orbit_bridge_tables"]) == verifier.STELLAR_ORBIT_BRIDGE_TABLES
     assert verifier.EXPECTED_VIEWS == {
         "e6_selected_planet_parameters",
         "e6_selected_stellar_display_classifications",

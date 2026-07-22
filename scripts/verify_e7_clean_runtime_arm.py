@@ -46,6 +46,15 @@ SOLAR_RUNTIME_TABLES = {
     "selected_solar_relation_bindings",
     "selected_solar_target_bindings",
 }
+STELLAR_ORBIT_TABLES = {
+    "deferred_stellar_orbit_context",
+    "selected_stellar_orbit_relations",
+    "selected_stellar_orbit_solutions",
+}
+STELLAR_ORBIT_BRIDGE_TABLES = {
+    "stellar_orbit_endpoint_bindings",
+    "stellar_orbit_relation_bindings",
+}
 RUNTIME_TABLES = {
     "build_metadata",
     "component_entities",
@@ -58,7 +67,8 @@ RUNTIME_TABLES = {
 }
 EXPECTED_TABLES = (
     SCIENCE_TABLES | WISE_TABLES | SOLAR_IDENTITY_TABLES
-    | SOLAR_RUNTIME_TABLES | RUNTIME_TABLES
+    | SOLAR_RUNTIME_TABLES | STELLAR_ORBIT_TABLES
+    | STELLAR_ORBIT_BRIDGE_TABLES | RUNTIME_TABLES
 )
 EXPECTED_VIEWS = {
     "e6_selected_planet_parameters",
@@ -122,7 +132,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     started = time.monotonic()
     manifest = load_object(build_dir / "manifest.json")
     failures: dict[str, Any] = {}
-    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v2":
+    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v3":
         failures["manifest_schema"] = manifest.get("schema_version")
     if manifest.get("status") != "pass":
         failures["manifest_status"] = manifest.get("status")
@@ -198,8 +208,13 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "metadata_stability_opened": scalar(con, "SELECT count(*) FROM build_metadata WHERE key='stability_database_opened' AND value<>'0'"),
                 "solar_canonical_containment_promotions": scalar(con, "SELECT (SELECT count(*) FROM solar_relation_identity_outcomes WHERE canonical_containment)+(SELECT count(*) FROM selected_solar_relation_bindings WHERE canonical_containment)+(SELECT count(*) FROM selected_solar_orbital_solutions WHERE canonical_containment)"),
                 "solar_identity_projection_delta": abs(scalar(con, "SELECT count(*) FROM component_entities WHERE source_catalog IN ('sol_authority','sol_artificial')") - scalar(con, "SELECT count(*) FROM solar_component_identities WHERE core_object_id IS NULL")),
-                "solar_orbit_projection_delta": abs(counts.get("orbit_edges", -1) - scalar(con, "SELECT count(*) FROM selected_solar_orbital_solutions WHERE runtime_eligible")),
-                "solar_solution_projection_delta": abs(counts.get("orbital_solutions", -1) - counts.get("orbit_edges", -1)),
+                "solar_orbit_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbit_edges WHERE source_catalog IN ('sol_authority','sol_artificial')") - scalar(con, "SELECT count(*) FROM selected_solar_orbital_solutions WHERE runtime_eligible")),
+                "solar_solution_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbital_solutions WHERE source_catalog IN ('sol_authority','sol_artificial')") - scalar(con, "SELECT count(*) FROM selected_solar_orbital_solutions WHERE runtime_eligible")),
+                "stellar_orbit_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbit_edges WHERE transform_version='e7_selected_stellar_orbit_projection_v1'") - scalar(con, "SELECT count(*) FROM stellar_orbit_relation_bindings WHERE runtime_eligible")),
+                "stellar_solution_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbital_solutions WHERE transform_version='e7_selected_stellar_orbit_projection_v1'") - scalar(con, "SELECT count(*) FROM selected_stellar_orbit_solutions s JOIN stellar_orbit_relation_bindings b USING(relation_id) WHERE b.runtime_eligible")),
+                "stellar_preferred_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbit_edges WHERE transform_version='e7_selected_stellar_orbit_projection_v1' AND preferred_solution_id IS NOT NULL") - scalar(con, "SELECT count(*) FROM stellar_orbit_relation_bindings WHERE simulation_eligible")),
+                "unresolved_stellar_runtime_edges": scalar(con, "SELECT count(*) FROM orbit_edges e JOIN stellar_orbit_relation_bindings b ON b.relation_evidence_id=e.source_pk WHERE NOT b.runtime_eligible"),
+                "nonphysical_stellar_preferences": scalar(con, "SELECT count(*) FROM orbit_edges e JOIN orbital_solutions s ON s.orbital_solution_id=e.preferred_solution_id WHERE e.transform_version='e7_selected_stellar_orbit_projection_v1' AND (s.period_days<=0 OR s.semi_major_axis_arcsec<=0 OR s.eccentricity<0 OR s.eccentricity>=1)"),
                 "orphan_orbit_hosts": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.host_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_orbit_primaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.primary_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_orbit_secondaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.secondary_component_key WHERE c.component_entity_id IS NULL"),
@@ -219,7 +234,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     if nonzero:
         failures["invariants"] = nonzero
     return {
-        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v2",
+        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v3",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "build_id": manifest.get("build_id"),
         "status": "pass" if not failures else "fail",

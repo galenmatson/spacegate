@@ -656,6 +656,54 @@ continue to rank E5 selected facts (about 24.8 minutes), clean selected science
 therefore begin with E5 reusable intermediates and redundant immutable export
 and hashing passes, subject to unchanged logical hashes and coverage.
 
+## E7 Clean ARM Phase Report
+
+Clean ARM v3 build `34069ba67abe3b4331c26adc` records each compiler phase in
+its immutable manifest. It completes in 151.40 wall seconds, produces a
+13,707,784,192-byte DuckDB, and peaks at 45.1 GiB RSS. Independent verification
+takes 8.13 seconds. Isolated compile, logical-table comparison, independent
+audit, and scratch removal take 174.13 seconds total; the reproduced compile is
+150.08 seconds and all logical signatures match.
+
+| Phase group | Wall s | Share of compile |
+|---|---:|---:|
+| Seven multi-million-row selected-science copies | 95.73 | 63.2% |
+| Runtime index construction | 17.60 | 11.6% |
+| CORE/science/hierarchy product checksum verification | 10.30 | 6.8% |
+| Component graph and leaf-classification materialization | 15.38 | 10.2% |
+| Final 13.7-GB database hashing | 6.93 | 4.6% |
+| Stellar-orbit evidence copies and runtime projection | 0.86 | 0.6% |
+| Remaining setup, Solar, WISE, verification, checkpoint, and small tables | 4.60 | 3.0% |
+
+The same compiler before stellar-orbit integration took 148.73 seconds. The
+2.67-second difference is within normal table-copy/index variation; the new
+orbit work measures below one second and is not a regression.
+
+Optimization order:
+
+1. Split immutable selected-science storage from the runtime ARM projection so
+   a new ARM graph build does not rewrite roughly 11 GiB of unchanged selected
+   facts. The runtime can attach a manifest-pinned read-only science artifact,
+   while deployment packages both files atomically. This is the highest-value
+   change but requires explicit multi-artifact runtime and rollback contracts.
+2. If a self-contained ARM remains mandatory, add a content-addressed reusable
+   base ARM layer and compile graph/orbit deltas separately. Do not use DuckDB
+   file copying or mutable in-place updates as a substitute for immutable build
+   identity.
+3. Audit runtime queries before rebuilding the large unique indexes. Attaching
+   the already indexed science artifact could eliminate most of the 17.6-second
+   index phase; any removed index needs query-plan and latency evidence.
+4. Retain full checksum verification for clean builds. A trusted local
+   attestation cache could avoid about ten seconds on iterative builds only if
+   it keys inode/size/mtime plus immutable manifest identity and periodically
+   rehashes; promotion and reproduction must still perform full hashes.
+5. Leave stellar-orbit compilation alone. Its sub-second cost and independent
+   reproducibility make optimization scientifically pointless.
+
+No optimization is implemented at this checkpoint. The report establishes the
+baseline and prevents speed work from weakening provenance, isolation, or
+logical reproduction gates.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

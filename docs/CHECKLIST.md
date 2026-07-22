@@ -1772,23 +1772,26 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   artificial objects, preserve three period-null hyperbolic trajectories, and
   pass independent audit plus isolated logical reproduction
 - [x] E7 cross-source stellar orbit selection: compile artifact
-  `80099350ba26465252053885` from the audited component-scope projection;
+  `131d37fd3cdaa3867ff8337b` from the audited component-scope projection;
   preserve 17,170 coherent MSC/ORB6/SB9/DEBCat solutions on 11,250 exact MSC
-  relations, select 3,292 complete visual solutions for simulation, keep
+  relations, select 1,959 physically valid visual solutions for simulation, keep
   spectroscopic and eclipsing evidence as context, defer SBX/Gaia NSS/TESS EB
   until their required identity or relation adjudication exists, and pass
   independent audit plus byte-exact clean reproduction
 - [x] E7 stellar-orbit endpoint bridge: compile artifact
-  `5d9e530b307ad869142dcdaf`; account all 22,396 selected MSC endpoints against
+  `f57b4dfc9f554072bc41fe5d`; account all 22,396 selected MSC endpoints against
   the clean hierarchy, accept 7,643 exact unique WDS/casefold leaf bindings,
   keep 14,318 missing and 435 case-significant collisions unresolved, make
-  3,238 relations and 1,899 preferred visual solutions runtime-eligible, create
+  3,238 relations and 808 preferred visual solutions runtime-eligible, create
   no component, edge, or containment, and pass independent audit plus byte-exact
   reproduction
-- [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
-  including release-scoped endpoint bridging, and TESS candidate compatibility
-  without relation-to-containment promotion or independent scientific fallback
-  logic
+- [x] E7 clean runtime ARM stellar-orbit projection: build
+  `34069ba67abe3b4331c26adc`; preserve all selected orbit evidence, append only
+  the 3,238 exactly bound relations and their 6,518 coherent solutions, set 808
+  physically valid preferred visual solutions, derive AU scale from selected
+  system distance with lineage, and create no component or containment
+- [ ] E7 clean runtime ARM completion: add TESS candidate compatibility without
+  relation-to-containment promotion or independent scientific fallback logic
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or

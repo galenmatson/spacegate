@@ -2185,7 +2185,7 @@ signature with no differing tables and removes scratch. The accepted compile is
 graph extension, and runtime projection total 0.48 seconds. Cross-source stellar
 orbit authority and TESS candidate compatibility remain explicit ARM work.
 
-Stellar-orbit selector `80099350ba26465252053885` establishes the former
+Stellar-orbit selector `131d37fd3cdaa3867ff8337b` establishes the former
 authority boundary before ARM integration. It consumes audited component-scope
 artifact `67fea5f99500b57419ebdeb0` and preserves 17,170 coherent eligible
 solutions on 11,250 exact MSC endpoint relations: 14,939 MSC, 1,159 ORB6, 1,052
@@ -2194,7 +2194,10 @@ SB9, and 20 DEBCat. It never constructs a field-wise cross-source orbit.
 Authority is applicability-specific. For simulation geometry, a complete ORB6
 published visual solution precedes a complete MSC compiled visual solution,
 with source quality and observation recency used only within the ORB6 family.
-Exactly 3,292 relations receive one preferred coherent simulation set. SB9
+Exactly 1,959 relations receive one preferred coherent simulation set. A visual
+set must have positive period and angular semimajor axis, bounded eccentricity,
+and the required orientation fields; source placeholders and spectroscopic
+zero-axis rows cannot pass by being merely non-null. SB9
 spectroscopic dynamics, DEBCat eclipsing periods, and MSC elementary
 period/separation records remain inspectable context and alternatives. Raw
 parameter JSON, evidence identity, release, method, model, reference, quality,
@@ -2208,7 +2211,7 @@ edge, synthetic companion, or containment. The 0.86-second compile passes a
 0.35-second independent audit and 1.18-second byte-exact isolated reproduction.
 ARM endpoint bridging and compatibility projection remain subsequent work.
 
-Endpoint bridge `5d9e530b307ad869142dcdaf` performs the next identity gate
+Endpoint bridge `f57b4dfc9f554072bc41fe5d` performs the next identity gate
 against clean hierarchy `92da8d31dc0e7dbd4d4d70a5`, not against ARM or the
 stability build. Every one of 22,396 selected source endpoints receives an
 outcome. An endpoint binds only when its exact WDS system and casefolded
@@ -2216,12 +2219,21 @@ component label are unique among accepted case-significant source components
 and unique among clean inferred leaves. This accepts 7,643 endpoints, leaves
 14,318 without a runtime leaf, and quarantines 435 case-significant collisions.
 
-Both endpoints resolve for 3,238 of 11,250 selected relations. Of 3,292
-preferred coherent visual solutions, 1,899 become simulation-eligible, 696 have
-one unresolved endpoint, and 697 have two. Missing and ambiguous endpoints keep
+Both endpoints resolve for 3,238 of 11,250 selected relations. Of 1,959
+preferred coherent visual solutions, 808 become simulation-eligible, 531 have
+one unresolved endpoint, and 620 have two. Missing and ambiguous endpoints keep
 null runtime keys. The bridge creates no component, edge, or containment and
 uses no name or coordinate matching. Its 1.52-second compile, 1.31-second
 independent audit, and 2.83-second byte-exact isolated reproduction pass.
+
+Clean runtime ARM `34069ba67abe3b4331c26adc` preserves the selector and bridge
+tables and projects only the 3,238 accepted relations into runtime orbit edges.
+Their 6,518 coherent source solutions remain intact; 808 selected visual sets
+receive preferred pointers. The projection creates no source-derived component
+or containment. It derives physical semimajor axis as angular semimajor axis
+times the selected system distance with explicit lineage, retains the angular
+source value, and normalizes only epoch units with declared JD, MJD, or Julian
+year semantics. Ambiguous source-native epoch flags remain raw evidence.
 
 ## E7 Permanent Extended-Object Identity
 

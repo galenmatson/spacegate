@@ -776,23 +776,30 @@ reference context remains evidence-only. All component endpoints resolve, no
 source relation becomes canonical containment, and isolated logical reproduction
 passes.
 
-Cross-source stellar-orbit artifact `80099350ba26465252053885` consumes the
+Cross-source stellar-orbit artifact `131d37fd3cdaa3867ff8337b` consumes the
 audited E5 component-scope product without reading a stability database. ORB6
 is authoritative for complete published visual geometry, with MSC compiled
 visual solutions as the simulation fallback. SB9 spectroscopic solutions,
 DEBCat eclipsing periods, and MSC elementary relation periods remain coherent
 context rather than donating individual fields to a composite. The artifact
-accounts 17,170 eligible solutions and selects one complete visual set for
-3,292 of 11,250 exact endpoint relations. SBX, Gaia NSS, and TESS EB deferrals
+accounts 17,170 eligible solutions and selects one physically valid visual set
+for 1,959 of 11,250 exact endpoint relations. Positive period/axis and bounded
+eccentricity are required; source placeholders cannot qualify through non-null
+tests. SBX, Gaia NSS, and TESS EB deferrals
 remain machine-readable and create no runtime relation or containment.
 
-Endpoint artifact `5d9e530b307ad869142dcdaf` then reconciles the selected MSC
+Endpoint artifact `f57b4dfc9f554072bc41fe5d` then reconciles the selected MSC
 source endpoints against the clean runtime hierarchy. Exact WDS scope and a
 label unique before and after casefolding are mandatory; names and coordinates
 are not matching evidence. It accepts 7,643 of 22,396 endpoints and makes 3,238
-relations, including 1,899 preferred visual solutions, eligible for ARM. The
+relations, including 808 preferred visual solutions, eligible for ARM. The
 14,318 missing leaves and 435 case-significant collisions remain explicit and
 cannot create runtime components or edges.
+
+Clean ARM `34069ba67abe3b4331c26adc` consumes both immutable artifacts. It
+retains all selected and deferred evidence tables while projecting 3,238 bound
+relations and 6,518 coherent solutions into compatibility orbit tables. It
+creates no stellar identities or containment from catalog relation claims.
 
 ## 2c) Sol artificial overlay (`sol_artificial`)
 

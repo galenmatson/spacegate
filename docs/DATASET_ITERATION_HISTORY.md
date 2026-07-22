@@ -3690,11 +3690,18 @@ Representative commits:
 
 ### 140) Orbit Authority Depends on the Scientific Use
 
-- Selector `80099350ba26465252053885` preserves 17,170 coherent eligible orbit
+- Initial selector `80099350ba26465252053885` preserved 17,170 coherent eligible
+  orbit solutions but is rejected as a runtime authority artifact. Its visual
+  completeness test checked only for non-null values and admitted 1,405 MSC
+  spectroscopic rows whose angular semimajor axes were zero placeholders, plus
+  three rows with invalid period/eccentricity geometry.
+- Corrected selector `131d37fd3cdaa3867ff8337b` preserves the same 17,170 coherent eligible orbit
   solutions on 11,250 exact MSC endpoint relations. It does not create one
   global catalog rank or select individual fields across sources.
 - ORB6 published visual geometry precedes MSC compiled visual geometry only for
-  simulation. Exactly 3,292 relations have one complete preferred visual set.
+  simulation. Positive period and angular semimajor axis, eccentricity in
+  `[0,1)`, and the required orientation fields are mandatory. Exactly 1,959
+  relations have one physically valid preferred visual set.
   SB9 spectroscopic dynamics, DEBCat eclipsing periods, and MSC elementary
   relation periods remain context and alternatives.
 - The selector carries raw parameter sets and exact evidence/release lineage
@@ -3704,25 +3711,45 @@ Representative commits:
   solutions remain deferred: permanent component identity or physical-relation
   adjudication is missing. System scope is not treated as physical endpoint
   identity.
-- Compilation takes 0.86 seconds, independent audit 0.35 seconds, and isolated
-  byte-exact reproduction 1.18 seconds. This inexpensive selected artifact can
+- Compilation takes 0.81 seconds, independent audit 0.35 seconds, and isolated
+  byte-exact reproduction 1.16 seconds. This inexpensive selected artifact can
   be iterated independently before another 2.5-minute ARM assembly.
 
 ### 141) A Selected Orbit Still Needs Two Physical Runtime Endpoints
 
-- Endpoint bridge `5d9e530b307ad869142dcdaf` accounts all 22,396 distinct MSC
+- The initial endpoint bridge `5d9e530b307ad869142dcdaf` is superseded because
+  it consumed the rejected visual preference set. Corrected endpoint bridge
+  `f57b4dfc9f554072bc41fe5d` accounts all 22,396 distinct MSC
   endpoints used by selected orbit relations against the clean hierarchy.
 - Exact WDS scope is mandatory. Casefolded component labels bind only when the
   accepted case-significant source set and clean runtime leaf set are each
   unique. This accepts 7,643 endpoints, leaves 14,318 missing, and quarantines
   435 source case collisions.
-- Both endpoints resolve for 3,238 relations and 1,899 preferred visual
-  solutions. Another 696 preferred solutions have one unresolved endpoint and
-  697 have two; their science remains selected evidence but they cannot drive a
+- Both endpoints resolve for 3,238 relations and 808 preferred visual
+  solutions. Another 531 preferred solutions have one unresolved endpoint and
+  620 have two; their science remains selected evidence but they cannot drive a
   runtime simulation.
 - The bridge does not add source-scoped pseudo-stars to make the numbers pass.
   No unresolved endpoint creates a component, edge, or containment. Independent
   audit and byte-exact reproduction pass.
+
+### 142) Runtime Stellar Orbits Require Valid Geometry and Exact Identity
+
+- Clean ARM build `34069ba67abe3b4331c26adc` preserves all selector and bridge
+  evidence tables, then appends only the 3,238 relations whose two endpoints
+  bind exactly to existing runtime leaves. It adds no inferred catalog objects.
+- All 6,518 coherent solutions on those relations remain alternatives or
+  context. Exactly 808 physically valid visual solutions receive preferred
+  runtime pointers. Independent verification reports no orphan endpoints,
+  unresolved relation leakage, nonphysical preferred geometry, or containment
+  promotion.
+- Physical semimajor axes are derived from positive source angular axes and the
+  selected system distance. Both the source angular value and derivation method
+  remain inspectable. JD, MJD, and Julian-year epochs are normalized explicitly;
+  ambiguous source-native flags are preserved without interpretation.
+- The compile takes 151.40 seconds, while the stellar runtime projection itself
+  takes less than one second. Bulk copies of unchanged selected-science tables
+  remain the dominant ARM cost and are tracked in the build performance report.
 
 ## Recurrent Defect Classes and Mitigations
 

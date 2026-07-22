@@ -2562,11 +2562,11 @@ Pre-promotion planning checkpoint (July 22, 2026):
   projection total only 0.48 seconds; unchanged selected-stellar table copies
   remain the critical path. Cross-source orbit authority and TESS compatibility
   remain open
-- stellar-orbit runtime selector `80099350ba26465252053885` replaces the idea
+- stellar-orbit runtime selector `131d37fd3cdaa3867ff8337b` replaces the idea
   of one global orbit-catalog ranking with applicability-specific roles. It
   preserves 14,939 eligible MSC, 1,159 ORB6, 1,052 SB9, and 20 DEBCat coherent
   solutions on 11,250 exact MSC relations. ORB6 visual geometry precedes MSC
-  compiled visual geometry only for simulation; 3,292 complete coherent visual
+  compiled visual geometry only for simulation; 1,959 physically valid coherent visual
   sets receive one preferred pointer. SB9 spectroscopy, DEBCat eclipsing
   periods, and MSC relation periods remain context rather than being field-wise
   combined into synthetic solutions
@@ -2575,15 +2575,21 @@ Pre-promotion planning checkpoint (July 22, 2026):
   adjudication, and 2,228 TESS EB timing solutions pending physical endpoints.
   It creates no containment or runtime edge. Compile, independent audit, and
   byte-exact isolated reproduction complete in less than 1.2 seconds
-- endpoint bridge `5d9e530b307ad869142dcdaf` accounts every one of 22,396
+- endpoint bridge `f57b4dfc9f554072bc41fe5d` accounts every one of 22,396
   selected MSC source endpoints against clean canonical hierarchy leaves. The
   only accepted bridge is an exact WDS scope plus a casefolded label that is
   unique on both sides: 7,643 bind, 14,318 have no runtime leaf, and 435 remain
   ambiguous because case-significant source identities collide when folded
-- both endpoints resolve for 3,238 of 11,250 selected relations and 1,899 of
-  3,292 preferred visual solutions. The unresolved tails remain evidence-only;
+- both endpoints resolve for 3,238 of 11,250 selected relations and 808 of
+  1,959 preferred visual solutions. The unresolved tails remain evidence-only;
   they create no runtime component, relation edge, simulation, or containment.
   Independent audit and byte-exact clean reproduction pass
+- clean runtime ARM `34069ba67abe3b4331c26adc` appends those 3,238 exactly
+  bound stellar relations and all 6,518 coherent solutions associated with
+  them. Only the 808 selected visual solutions receive preferred runtime
+  pointers. Angular semimajor axes are converted to AU with the selected system
+  distance and explicit derivation lineage; source-native angular values and
+  ambiguous epoch units remain preserved rather than guessed
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

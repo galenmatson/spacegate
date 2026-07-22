@@ -1171,6 +1171,18 @@ artifacts covering 39 source adapters and is protected. It references the
 Cantat shard through its state symlink; do not copy that database back to
 `/data` merely to satisfy release-set composition.
 
+Corrected stellar-orbit selector `131d37fd3cdaa3867ff8337b`, endpoint bridge
+`f57b4dfc9f554072bc41fe5d`, and clean ARM `34069ba67abe3b4331c26adc`
+are accepted unserved artifacts with compile, audit, and reproduction reports;
+preserve them and every pinned input. Selector `80099350ba26465252053885` and
+bridge `5d9e530b307ad869142dcdaf` are scientifically superseded because the
+former admitted nonphysical zero-axis visual preferences. ARM
+`376285dd79d73a52972d74fd` is the immediate pre-stellar-orbit comparison
+artifact. These superseded artifacts are exact retention candidates only after
+the current clean ARM is incorporated into a reviewed local promotion and a
+dry-run accounts for their reports and state links. Do not delete them
+manually. Reproduction scratch was removed automatically.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and
