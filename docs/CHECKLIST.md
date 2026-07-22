@@ -1505,6 +1505,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   complete models, errors, correlations, diagnostics, frames, and references,
   require relation adjudication, and emit no fabricated companion, relation,
   containment edge, selected scalar, or simulation-ready orbit
+- [x] E5 TESS EB target-context projection: account all 17,605 Villanova rows
+  through exact TIC observation-target identity; preserve positive and negative
+  membership, sectors, morphology, flags, Tmag, target physics, astrometry, and
+  timing solutions; require relation adjudication and emit no component,
+  containment edge, selected scalar, or simulation-ready orbit
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

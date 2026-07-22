@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-22.e5-source-dispositions.15",
+  "disposition_version": "2026-07-22.e5-source-dispositions.16",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -66,16 +66,16 @@
       "disposition": "selected_component_evidence_projection",
       "owner": "E5/E6",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "All 87,075 coherent Gaia NSS source/model solutions receive an exact Gaia DR3 observation-target outcome. The 56,617 solutions on 54,794 current canonical sources remain complete context with model, fitted parameters/errors, correlations, diagnostics, frame, and reference; 30,458 missing-reference outcomes remain explicit. Because NSS exposes no inspectable component endpoints, every solution requires relation adjudication and none creates a companion, containment edge, relation, selected scalar, or simulation-ready orbit."
     },
     "multiplicity.debcat": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "All 374 DEBCat systems receive a priority-aware exact-name outcome. Component physics becomes eligible only through a unique canonical system, exact WDS anchor, and unique period-compatible accepted MSC relation; integrated photometry and metallicity remain system scoped. The projection creates no canonical star or containment edge."
     },
     "multiplicity.el_badry_2021_wide_binary": {
@@ -90,40 +90,40 @@
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "Every release-native MSC component identity, parameter set, classification, photometry row, astrometry row, hierarchy relation, and orbit solution receives an explicit scope outcome. Selectable facts require an accepted WDS-scoped component or exact accepted relation; relative separation remains context-only evidence, and no source component becomes a canonical star or containment edge."
     },
     "multiplicity.orb6": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "Every ORB6 visual-orbit row receives an exact WDS-pair and MSC-endpoint outcome. Published solutions become eligible only when the punctuation-preserving WDS identifier plus combined discoverer/pair designation resolves to one WDS row and the documented component notation resolves to one accepted MSC relation. No system-level orbit fallback or containment is created."
     },
     "multiplicity.sb9": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "Every SB9 relation receives an exact MSC sequence-reference outcome. Component magnitudes, classifications, and spectroscopic orbit solutions become eligible only when exactly one MSC relation carries the sequence and both release-scoped endpoints resolve; missing, duplicate, and unresolved references remain explicit."
     },
     "multiplicity.sbx": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "Every SBX spectroscopic system receives an exact authoritative-identifier consensus outcome, including the official Gaia DR2-to-DR3 route. Primary and secondary components remain release scoped beneath accepted system anchors; their classifications, magnitudes, and orbit solutions become eligible without assuming the catalog observation target is the primary. Astrometry remains system context, source hierarchy claims remain noncanonical relation evidence, and no component or containment edge is promoted into CORE."
     },
     "multiplicity.wds": {
       "disposition": "selected_component_evidence_projection",
       "owner": "E5",
       "blocks_e5": false,
-      "component_policy_version": "2026-07-22.e5-component-scope.7",
-      "component_artifact_id": "9e59131b92205068f7246a94",
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
       "reason": "All 157,299 WDS visual-pair summaries receive a documented component-parser and exact MSC endpoint outcome. The 5,282 uniquely resolved pairs retain scoped spectral, component-magnitude, relative-astrometry, epoch, position, and source-convention proper-motion context. Opaque spectral text is never split onto stars, unspecified-band magnitudes and source-unit astrometry are not selectable facts, the CDS positional bridge is not treated as identity, and no canonical component or containment edge is created."
     },
     "multiplicity.wds_gaia_xmatch": {
@@ -151,10 +151,12 @@
       "reason": "TOI candidates, confirmations, false positives, and transitions must preserve lifecycle polarity and remain separate from canonical planet counts."
     },
     "tess.villanova_eb": {
-      "disposition": "deferred_pending_identity_scope",
-      "owner": "E2/E5",
-      "blocks_e5": true,
-      "reason": "TESS eclipsing-binary target, sector, status, and flag evidence needs host/component binding and relation-aware projection."
+      "disposition": "selected_component_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "component_policy_version": "2026-07-22.e5-component-scope.8",
+      "component_artifact_id": "f5358c0a0983958e5d4f76c5",
+      "reason": "All 17,605 Villanova rows receive an exact release-scoped TIC observation-target outcome. Positive and negative membership, sectors, morphology, source/flags, Tmag, target-context physics, astrometry, and timing solutions remain scoped context. The catalog exposes no inspectable physical endpoints, so every row requires relation adjudication and none creates a component, containment edge, selected scalar, or simulation-ready orbit."
     },
     "ultracool.gaia_dr3_sample": {
       "disposition": "evidence_only",

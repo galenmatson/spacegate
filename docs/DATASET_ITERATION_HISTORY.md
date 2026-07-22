@@ -2905,6 +2905,26 @@ Representative commits:
   seven-source component build takes 23.0 wall seconds, 45.5 CPU-seconds, and
   5.27 GiB peak RSS before clean reproduction.
 
+### 102) TESS EB Targets Are Not Physical Binary Endpoints
+
+- Component policy v8 binds Villanova TESS EB evidence only through exact
+  normalized, release-scoped TIC identity. Of 17,605 rows, 6,605 bind to one
+  canonical observation target and system and 11,000 remain outside the
+  current reference; there are no ambiguous or identifier-less rows.
+- The accepted set retains 2,228 positive and 4,377 negative catalog-membership
+  records. Sectors, morphology, source/flags, Tmag, unresolved target physics,
+  and astrometry stay context on the observation target. Negative evidence is
+  preserved rather than filtered out.
+- All 4,584 eclipse-timing solutions retain their coherent period/epoch/error
+  sets. None has inspectable physical component endpoints, so every solution
+  requires relation adjudication and none creates a component, containment
+  edge, selected scalar, or simulation-ready orbit.
+- Combined artifact `f5358c0a0983958e5d4f76c5` passes independent audit and
+  byte-identical reproduction. The eight-source component build takes 24.7
+  wall seconds, about 42-45 CPU-seconds, and about 5.2 GiB peak RSS. This
+  completes the multiplicity E5 policy batch and confirms it is not a dominant
+  contributor to the 1,441.5-second full selected-fact build.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

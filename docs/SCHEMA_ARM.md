@@ -372,6 +372,13 @@ Evidence Lake v2 staging rule:
   physical-binary endpoint. The full solution remains indivisible, carries no
   `relation_claim_id`, and requires later relation adjudication before any
   orbital parameter can drive a hierarchy or simulation.
+- TESS EB rows follow the same observation-target boundary through exact
+  release-scoped TIC identifiers. Positive and negative membership evidence,
+  sectors, morphology, source/flags, integrated Tmag, target-context physics,
+  astrometry, and eclipse timing remain attached to the canonical target and
+  containing system as context. Because the source does not expose inspectable
+  physical endpoints, these rows require relation adjudication and cannot emit
+  selected component facts, containment, or a simulation-ready orbit.
 - SBX uses the same general contracts with source-native `primary`/`secondary`
   component endpoints and separate `child_subsystem`/`parent_subsystem`
   hierarchy endpoints. Only configuration rows with an asserted parent emit a

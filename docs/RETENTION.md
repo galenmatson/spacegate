@@ -494,6 +494,13 @@ schema-aware retention audit confirms that the WDS-complete successor and its
 rollback coverage are sufficient. Neither it nor the older
 `bbc7f0083646dfd5a602467b` is a manual deletion target.
 
+Combined E5 component artifact `f5358c0a0983958e5d4f76c5`, its compile and
+clean-reproduction reports, independent audit, ordered Parquet projections,
+and source policies are protected E5/E6 inputs. It supersedes the current
+component role of `9e59131b92205068f7246a94`, but the older artifact remains a
+retention dry-run candidate rather than a manual deletion target until the
+schema-aware audit confirms rollback and report references.
+
 The white-dwarf adapter's first v21 attempt failed closed before promotion when
 an unqualified source column collided with compiler lineage `source_id`. Its
 hidden temporary artifact remains a retention dry-run candidate; the v22

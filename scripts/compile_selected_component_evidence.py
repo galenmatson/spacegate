@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss"):
+    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss", "tess_eb"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -251,6 +251,20 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
           binding_method VARCHAR, binding_reason VARCHAR,
           relation_adjudication_required BOOLEAN, policy_version VARCHAR
+        );
+        CREATE TABLE tess_eb_target_bindings (
+          target_binding_id VARCHAR, source_record_id VARCHAR,
+          source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
+          tic_identifier_evidence_id VARCHAR, tic_id_raw VARCHAR,
+          tic_id_normalized VARCHAR, source_identifier_count BIGINT,
+          canonical_object_candidate_count BIGINT,
+          canonical_system_candidate_count BIGINT,
+          canonical_stable_object_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR,
+          catalog_membership_raw VARCHAR, evidence_polarity VARCHAR,
+          binding_status VARCHAR, binding_method VARCHAR,
+          binding_reason VARCHAR, relation_adjudication_required BOOLEAN,
+          policy_version VARCHAR
         );
         """
     )
@@ -1939,6 +1953,232 @@ def compile_gaia_nss(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_tess_eb(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["binding_method"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE tess_eb_target_subjects AS
+        WITH identifiers AS (
+          SELECT source_record_id,min(evidence_id) tic_identifier_evidence_id,
+                 min(identifier_raw) tic_id_raw,
+                 min(identifier_normalized) tic_id_normalized,
+                 count(DISTINCT identifier_normalized) source_identifier_count
+          FROM tess_eb.identifier_claim_evidence
+          WHERE namespace='tic_id'
+          GROUP BY source_record_id
+        ), membership AS (
+          SELECT source_record_id,min(value_raw) catalog_membership_raw
+          FROM tess_eb.variability_activity_rotation_evidence
+          WHERE quantity_key='catalog_membership'
+          GROUP BY source_record_id
+        )
+        SELECT r.source_record_id,i.tic_identifier_evidence_id,i.tic_id_raw,
+               i.tic_id_normalized,coalesce(i.source_identifier_count,0) source_identifier_count,
+               m.catalog_membership_raw
+        FROM tess_eb.source_records r
+        LEFT JOIN identifiers i USING(source_record_id)
+        LEFT JOIN membership m USING(source_record_id)
+        WHERE r.source_id={source_id} AND r.release_id={release_id};
+
+        INSERT INTO tess_eb_target_bindings
+        WITH candidates AS (
+          SELECT s.*,
+                 count(DISTINCT b.stable_object_key) canonical_object_candidate_count,
+                 count(DISTINCT b.system_stable_object_key) canonical_system_candidate_count,
+                 min(b.stable_object_key) candidate_object_key,
+                 min(b.system_stable_object_key) candidate_system_key
+          FROM tess_eb_target_subjects s
+          LEFT JOIN identity.canonical_identifier_bindings b
+            ON b.namespace='tic' AND b.id_value_norm=s.tic_id_normalized
+          GROUP BY ALL
+        )
+        SELECT sha256(concat_ws('|',{source_id},source_record_id,'target',{policy_sql})),
+               source_record_id,{source_id},{release_id},{evidence_build_id},
+               tic_identifier_evidence_id,tic_id_raw,tic_id_normalized,
+               source_identifier_count,canonical_object_candidate_count,
+               canonical_system_candidate_count,
+               CASE WHEN source_identifier_count=1
+                          AND canonical_object_candidate_count=1
+                          AND canonical_system_candidate_count=1
+                    THEN candidate_object_key END,
+               CASE WHEN source_identifier_count=1
+                          AND canonical_object_candidate_count=1
+                          AND canonical_system_candidate_count=1
+                    THEN candidate_system_key END,
+               catalog_membership_raw,
+               CASE lower(catalog_membership_raw)
+                 WHEN 'true' THEN 'positive'
+                 WHEN 'false' THEN 'negative'
+                 ELSE 'unknown' END,
+               CASE WHEN source_identifier_count=0 THEN 'missing_source_identifier'
+                    WHEN source_identifier_count>1 THEN 'ambiguous_source_identifier'
+                    WHEN canonical_object_candidate_count=0
+                      OR canonical_system_candidate_count=0 THEN 'missing_canonical_target'
+                    WHEN canonical_object_candidate_count>1
+                      OR canonical_system_candidate_count>1 THEN 'ambiguous_canonical_target'
+                    ELSE 'accepted' END,
+               {method},
+               CASE WHEN source_identifier_count=0
+                      THEN 'TESS EB record has no release-scoped TIC identifier'
+                    WHEN source_identifier_count>1
+                      THEN 'TESS EB record has multiple release-scoped TIC identifiers'
+                    WHEN canonical_object_candidate_count=0
+                      OR canonical_system_candidate_count=0
+                      THEN 'exact TIC target is outside the current canonical reference'
+                    WHEN canonical_object_candidate_count>1
+                      OR canonical_system_candidate_count>1
+                      THEN 'exact TIC target resolves to multiple canonical targets'
+                    ELSE 'exact TIC identifies one canonical observation target; eclipsing component endpoints remain unresolved' END,
+               true,{policy_sql}
+        FROM candidates;
+
+        CREATE TABLE tess_eb_variability_projection AS
+        SELECT e.*,b.target_binding_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_tic_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['variability_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'TESS EB catalog status, coverage, morphology, source, and flags on the exact unresolved observation target'
+                    ELSE b.binding_reason END projection_reason,
+               b.evidence_polarity,b.relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.variability_activity_rotation_evidence e
+        JOIN tess_eb_target_bindings b USING(source_record_id);
+
+        CREATE TABLE tess_eb_parameter_set_bindings AS
+        SELECT sha256(concat_ws('|',{source_id},p.parameter_set_id,'parameter-set',{policy_sql})) parameter_set_binding_id,
+               p.parameter_set_id,p.source_record_id,{source_id} source_id,{release_id} release_id,
+               {evidence_build_id} evidence_build_id,p.component_scope,
+               b.target_binding_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_tic_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,b.binding_status,b.binding_reason,
+               true relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.stellar_parameter_sets p
+        JOIN tess_eb_target_bindings b USING(source_record_id);
+
+        CREATE TABLE tess_eb_stellar_parameter_projection AS
+        SELECT e.*,p.parameter_set_binding_id,p.target_binding_id,p.target_scope,
+               p.target_key,p.canonical_system_stable_object_key,
+               {sql_literal(source['parameter_authority'])} authority_role,
+               CASE WHEN p.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN p.binding_status='accepted'
+                      THEN 'TIC target-context parameter is not assigned to either eclipsing component'
+                    ELSE p.binding_reason END projection_reason,
+               p.relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.stellar_parameter_evidence e
+        JOIN tess_eb_parameter_set_bindings p USING(parameter_set_id,source_record_id);
+
+        CREATE TABLE tess_eb_photometry_projection AS
+        SELECT e.*,b.target_binding_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_tic_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['photometry_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'integrated TESS-band target photometry is not assigned to either eclipsing component'
+                    ELSE b.binding_reason END projection_reason,
+               true relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.photometry_extinction_evidence e
+        JOIN tess_eb_target_bindings b USING(source_record_id);
+
+        CREATE TABLE tess_eb_astrometry_projection AS
+        SELECT e.*,b.target_binding_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_tic_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['astrometry_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'TESS EB target astrometry remains observation-target context'
+                    ELSE b.binding_reason END projection_reason,
+               true relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.astrometry_distance_evidence e
+        JOIN tess_eb_target_bindings b USING(source_record_id);
+
+        CREATE TABLE tess_eb_orbital_solution_projection AS
+        SELECT e.*,b.target_binding_id,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'canonical_tic_observation_target' END target_scope,
+               b.canonical_stable_object_key target_key,
+               b.canonical_system_stable_object_key,
+               {sql_literal(source['orbit_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'context_only_evidence'
+                    ELSE 'unresolved_identity_evidence' END projection_status,
+               CASE WHEN b.binding_status='accepted'
+                      THEN 'eclipse timing solution is bound to the exact target but has no physical component endpoints'
+                    ELSE b.binding_reason END projection_reason,
+               true relation_adjudication_required,{policy_sql} policy_version
+        FROM tess_eb.orbital_solution_evidence e
+        JOIN tess_eb_target_bindings b USING(source_record_id);
+        """
+    )
+
+    bindings = dict(con.execute(
+        "SELECT binding_status,count(*) FROM tess_eb_target_bindings GROUP BY 1"
+    ).fetchall())
+    membership = dict(con.execute(
+        "SELECT evidence_polarity || ':' || binding_status,count(*) "
+        "FROM tess_eb_target_bindings GROUP BY 1"
+    ).fetchall())
+    context = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='context_only_evidence'"
+    ).fetchone()[0])
+    observed = {
+        "target_bindings": sum(bindings.values()),
+        "targets_accepted": bindings.get("accepted", 0),
+        "targets_missing_canonical": bindings.get("missing_canonical_target", 0),
+        "targets_ambiguous_canonical": bindings.get("ambiguous_canonical_target", 0),
+        "targets_missing_source_identifier": bindings.get("missing_source_identifier", 0),
+        "targets_ambiguous_source_identifier": bindings.get("ambiguous_source_identifier", 0),
+        "positive_targets_accepted": membership.get("positive:accepted", 0),
+        "positive_targets_unresolved": sum(value for key, value in membership.items() if key.startswith("positive:") and key != "positive:accepted"),
+        "negative_targets_accepted": membership.get("negative:accepted", 0),
+        "negative_targets_unresolved": sum(value for key, value in membership.items() if key.startswith("negative:") and key != "negative:accepted"),
+        "variability_evidence": int(con.execute("SELECT count(*) FROM tess_eb_variability_projection").fetchone()[0]),
+        "variability_context_only": context("tess_eb_variability_projection"),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM tess_eb_parameter_set_bindings").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM tess_eb_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_context_only": context("tess_eb_stellar_parameter_projection"),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM tess_eb_photometry_projection").fetchone()[0]),
+        "photometry_context_only": context("tess_eb_photometry_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM tess_eb_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": context("tess_eb_astrometry_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM tess_eb_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_context_only": context("tess_eb_orbital_solution_projection"),
+        "orbital_solutions_selectable": int(con.execute(
+            "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
+        ).fetchone()[0]),
+        "solutions_without_relation_claim": int(con.execute(
+            "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE relation_claim_id IS NULL"
+        ).fetchone()[0]),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"TESS EB acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -2012,6 +2252,17 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "selectable_gaia_nss_solutions": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
         "context_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence' AND (target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "gaia_nss_solutions_with_fabricated_relations": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
+        "duplicate_tess_eb_target_binding_ids": "SELECT count(*)-count(DISTINCT target_binding_id) FROM tess_eb_target_bindings",
+        "accepted_tess_eb_targets_without_targets": "SELECT count(*) FROM tess_eb_target_bindings WHERE binding_status='accepted' AND (canonical_stable_object_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_tess_eb_targets_with_targets": "SELECT count(*) FROM tess_eb_target_bindings WHERE binding_status<>'accepted' AND (canonical_stable_object_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "tess_eb_targets_not_requiring_adjudication": "SELECT count(*) FROM tess_eb_target_bindings WHERE relation_adjudication_required IS DISTINCT FROM true",
+        "selectable_tess_eb_variability": "SELECT count(*) FROM tess_eb_variability_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_parameters": "SELECT count(*) FROM tess_eb_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_photometry": "SELECT count(*) FROM tess_eb_photometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_astrometry": "SELECT count(*) FROM tess_eb_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_orbits": "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_tess_eb_evidence_without_targets": "SELECT (SELECT count(*) FROM tess_eb_variability_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_stellar_parameter_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL)",
+        "tess_eb_orbits_with_fabricated_relations": "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -2039,7 +2290,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
     identity_report_sha = sha256_file(identity_report)
     source_build_ids = [
         policy[name]["evidence_build_id"]
-        for name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss")
+        for name in ("msc", "debcat", "sb9", "orb6", "sbx", "wds", "gaia_nss", "tess_eb")
     ]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
@@ -2071,6 +2322,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("sbx", "evidence_build_id", "sbx"),
             ("wds", "evidence_build_id", "wds"),
             ("nss", "evidence_build_id", "gaia_nss"),
+            ("tess_eb", "evidence_build_id", "tess_eb"),
         ):
             source_db = evidence_root / policy[name][build_id_key] / "scientific_evidence.duckdb"
             if not source_db.is_file():
@@ -2085,6 +2337,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             compile_sbx(con, source=policy["sbx"], policy_version=policy["policy_version"]),
             compile_wds(con, source=policy["wds"], policy_version=policy["policy_version"]),
             compile_gaia_nss(con, source=policy["gaia_nss"], policy_version=policy["policy_version"]),
+            compile_tess_eb(con, source=policy["tess_eb"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -2133,6 +2386,13 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("wds_astrometry_projection", "evidence_id"),
             ("gaia_nss_solution_bindings", "solution_binding_id"),
             ("gaia_nss_orbital_solution_projection", "evidence_id"),
+            ("tess_eb_target_bindings", "target_binding_id"),
+            ("tess_eb_variability_projection", "evidence_id"),
+            ("tess_eb_parameter_set_bindings", "parameter_set_binding_id"),
+            ("tess_eb_stellar_parameter_projection", "evidence_id"),
+            ("tess_eb_photometry_projection", "evidence_id"),
+            ("tess_eb_astrometry_projection", "evidence_id"),
+            ("tess_eb_orbital_solution_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -2151,7 +2411,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v7",
+            "schema_version": "spacegate.e5_selected_components.v8",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

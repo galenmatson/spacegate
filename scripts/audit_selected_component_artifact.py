@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v7"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v8"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -135,6 +135,17 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "selectable_gaia_nss_solutions": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
         "context_gaia_nss_solutions_without_targets": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE projection_status='context_only_evidence' AND (target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "gaia_nss_solutions_with_fabricated_relations": "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
+        "duplicate_tess_eb_target_binding_ids": "SELECT count(*)-count(DISTINCT target_binding_id) FROM tess_eb_target_bindings",
+        "accepted_tess_eb_targets_without_targets": "SELECT count(*) FROM tess_eb_target_bindings WHERE binding_status='accepted' AND (canonical_stable_object_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_tess_eb_targets_with_targets": "SELECT count(*) FROM tess_eb_target_bindings WHERE binding_status<>'accepted' AND (canonical_stable_object_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "tess_eb_targets_not_requiring_adjudication": "SELECT count(*) FROM tess_eb_target_bindings WHERE relation_adjudication_required IS DISTINCT FROM true",
+        "selectable_tess_eb_variability": "SELECT count(*) FROM tess_eb_variability_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_parameters": "SELECT count(*) FROM tess_eb_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_photometry": "SELECT count(*) FROM tess_eb_photometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_astrometry": "SELECT count(*) FROM tess_eb_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "selectable_tess_eb_orbits": "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_tess_eb_evidence_without_targets": "SELECT (SELECT count(*) FROM tess_eb_variability_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_stellar_parameter_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_photometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL) + (SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL)",
+        "tess_eb_orbits_with_fabricated_relations": "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE relation_claim_id IS NOT NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -321,6 +332,44 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     nss_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["gaia_nss"]["acceptance"].items()}
     failures["gaia_nss_acceptance_mismatch"] = int(nss_observed != nss_expected)
+
+    tess_bindings = dict(con.execute(
+        "SELECT binding_status,count(*) FROM tess_eb_target_bindings GROUP BY 1"
+    ).fetchall())
+    tess_membership = dict(con.execute(
+        "SELECT evidence_polarity || ':' || binding_status,count(*) "
+        "FROM tess_eb_target_bindings GROUP BY 1"
+    ).fetchall())
+    context = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='context_only_evidence'"
+    ).fetchone()[0])
+    tess_observed = {
+        "target_bindings": sum(tess_bindings.values()),
+        "targets_accepted": tess_bindings.get("accepted", 0),
+        "targets_missing_canonical": tess_bindings.get("missing_canonical_target", 0),
+        "targets_ambiguous_canonical": tess_bindings.get("ambiguous_canonical_target", 0),
+        "targets_missing_source_identifier": tess_bindings.get("missing_source_identifier", 0),
+        "targets_ambiguous_source_identifier": tess_bindings.get("ambiguous_source_identifier", 0),
+        "positive_targets_accepted": tess_membership.get("positive:accepted", 0),
+        "positive_targets_unresolved": sum(value for key, value in tess_membership.items() if key.startswith("positive:") and key != "positive:accepted"),
+        "negative_targets_accepted": tess_membership.get("negative:accepted", 0),
+        "negative_targets_unresolved": sum(value for key, value in tess_membership.items() if key.startswith("negative:") and key != "negative:accepted"),
+        "variability_evidence": int(con.execute("SELECT count(*) FROM tess_eb_variability_projection").fetchone()[0]),
+        "variability_context_only": context("tess_eb_variability_projection"),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM tess_eb_parameter_set_bindings").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM tess_eb_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_context_only": context("tess_eb_stellar_parameter_projection"),
+        "photometry_evidence": int(con.execute("SELECT count(*) FROM tess_eb_photometry_projection").fetchone()[0]),
+        "photometry_context_only": context("tess_eb_photometry_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM tess_eb_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": context("tess_eb_astrometry_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM tess_eb_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_context_only": context("tess_eb_orbital_solution_projection"),
+        "orbital_solutions_selectable": int(con.execute("SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'").fetchone()[0]),
+        "solutions_without_relation_claim": int(con.execute("SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE relation_claim_id IS NULL").fetchone()[0]),
+    }
+    tess_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["tess_eb"]["acceptance"].items()}
+    failures["tess_eb_acceptance_mismatch"] = int(tess_observed != tess_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -335,6 +384,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
             {"source_id": policy["sbx"]["source_id"], "observed": sbx_observed, "expected": sbx_expected},
             {"source_id": policy["wds"]["source_id"], "observed": wds_observed, "expected": wds_expected},
             {"source_id": policy["gaia_nss"]["source_id"], "observed": nss_observed, "expected": nss_expected},
+            {"source_id": policy["tess_eb"]["source_id"], "observed": tess_observed, "expected": tess_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

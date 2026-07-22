@@ -1424,8 +1424,9 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.13` records 17 completed sources and nine
-remaining blockers after the Gaia NSS solution-context projection.
+Ledger `2026-07-22.e5-policy-batches.14` records 18 completed sources and eight
+remaining blockers after the TESS EB target-context projection. The
+multiplicity batch is complete.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1463,6 +1464,18 @@ adjudication and none becomes a companion, containment edge, relation, selected
 scalar, or simulation-ready orbit. Combined artifact
 `9e59131b92205068f7246a94` independently audits and reproduces in 23.0 seconds
 wall time with 5.27 GiB peak RSS.
+
+Component policy v8 accounts all 17,605 Villanova TESS EB rows through exact
+release-scoped TIC identity. It binds 6,605 rows to one current canonical
+observation target and system; 11,000 remain explicitly outside the reference,
+with no ambiguous or identifier-less rows. The bound set retains 2,228
+positive and 4,377 negative catalog-membership records. Sectors, morphology,
+source/flags, Tmag, unresolved target physics, astrometry, and all 4,584 timing
+solutions remain context because the source exposes no inspectable physical
+component endpoints. No row becomes a canonical component, containment edge,
+selected scalar, or simulation-ready orbit. Combined artifact
+`f5358c0a0983958e5d4f76c5` independently audits and reproduces in 24.7 seconds
+wall time with about 5.2 GiB peak RSS.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

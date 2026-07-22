@@ -32,11 +32,70 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         );
         INSERT INTO canonical_identifier_bindings VALUES
           ('wds','00001+0001','00001 0001','star-wds-1','system-1'),
-          ('gaia_dr3','123','123','canon:star:gaia:123','system-1');
+          ('gaia_dr3','123','123','canon:star:gaia:123','system-1'),
+          ('tic','42','42','canon:star:tic:42','system-1');
         CREATE TABLE dr2_release_outcomes (
           dr2_source_id VARCHAR, outcome VARCHAR,
           canonical_system_stable_object_key VARCHAR
         );
+        """
+    )
+    con.close()
+
+    tess_eb_id = "tess-eb-test"
+    tess_eb_dir = state / "derived/evidence_lake_v2/scientific_evidence" / tess_eb_id
+    tess_eb_dir.mkdir(parents=True)
+    con = duckdb.connect(str(tess_eb_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE source_records (
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR
+        );
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_raw VARCHAR, identifier_normalized VARCHAR
+        );
+        CREATE TABLE variability_activity_rotation_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR,
+          quantity_key VARCHAR, value_raw VARCHAR
+        );
+        CREATE TABLE stellar_parameter_sets (
+          parameter_set_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_evidence (
+          evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+          quantity_key VARCHAR
+        );
+        CREATE TABLE photometry_extinction_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR
+        );
+        CREATE TABLE astrometry_distance_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR
+        );
+        CREATE TABLE orbital_solution_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, relation_claim_id VARCHAR
+        );
+        INSERT INTO source_records VALUES
+          ('te-accepted','tess.villanova_eb','tess-eb-test-release'),
+          ('te-missing','tess.villanova_eb','tess-eb-test-release');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('te-i1','te-accepted','tic_id','0000000042','42'),
+          ('te-i2','te-missing','tic_id','0000000099','99');
+        INSERT INTO variability_activity_rotation_evidence VALUES
+          ('te-v1','te-accepted','catalog_membership','true'),
+          ('te-v2','te-accepted','observed_sectors','1, 2'),
+          ('te-v3','te-missing','catalog_membership','false');
+        INSERT INTO stellar_parameter_sets VALUES
+          ('te-ps1','te-accepted',NULL),('te-ps2','te-missing',NULL);
+        INSERT INTO stellar_parameter_evidence VALUES
+          ('te-p1','te-ps1','te-accepted','effective_temperature'),
+          ('te-p2','te-ps2','te-missing','effective_temperature');
+        INSERT INTO photometry_extinction_evidence VALUES
+          ('te-ph1','te-accepted'),('te-ph2','te-missing');
+        INSERT INTO astrometry_distance_evidence VALUES
+          ('te-a1','te-accepted'),('te-a2','te-missing');
+        INSERT INTO orbital_solution_evidence VALUES
+          ('te-o1','te-accepted',NULL);
         """
     )
     con.close()
@@ -657,6 +716,43 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_solutions_without_relation_claim": 2,
                 },
             },
+            "tess_eb": {
+                "source_id": "tess.villanova_eb",
+                "release_id": "tess-eb-test-release",
+                "evidence_build_id": tess_eb_id,
+                "binding_method": "test-exact-tic-target",
+                "variability_authority": "test-tess-eb-variability",
+                "parameter_authority": "test-tess-eb-parameters",
+                "photometry_authority": "test-tess-eb-photometry",
+                "astrometry_authority": "test-tess-eb-astrometry",
+                "orbit_authority": "test-tess-eb-orbit",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_target_bindings": 2,
+                    "expected_targets_accepted": 1,
+                    "expected_targets_missing_canonical": 1,
+                    "expected_targets_ambiguous_canonical": 0,
+                    "expected_targets_missing_source_identifier": 0,
+                    "expected_targets_ambiguous_source_identifier": 0,
+                    "expected_positive_targets_accepted": 1,
+                    "expected_positive_targets_unresolved": 0,
+                    "expected_negative_targets_accepted": 0,
+                    "expected_negative_targets_unresolved": 1,
+                    "expected_variability_evidence": 3,
+                    "expected_variability_context_only": 2,
+                    "expected_parameter_sets": 2,
+                    "expected_parameter_evidence": 2,
+                    "expected_parameter_evidence_context_only": 1,
+                    "expected_photometry_evidence": 2,
+                    "expected_photometry_context_only": 1,
+                    "expected_astrometry_evidence": 2,
+                    "expected_astrometry_context_only": 1,
+                    "expected_orbital_solutions": 1,
+                    "expected_orbital_solutions_context_only": 1,
+                    "expected_orbital_solutions_selectable": 0,
+                    "expected_solutions_without_relation_claim": 1,
+                },
+            },
         },
     )
 
@@ -784,6 +880,18 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     ).fetchone()[0] == 1
     assert con.execute(
         "SELECT count(*) FROM gaia_nss_orbital_solution_projection WHERE relation_claim_id IS NOT NULL OR projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 0
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM tess_eb_target_bindings GROUP BY 1"
+    ).fetchall()) == {"accepted": 1, "missing_canonical_target": 1}
+    assert con.execute(
+        "SELECT count(*) FROM tess_eb_variability_projection WHERE evidence_polarity='negative'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE projection_status='context_only_evidence' AND target_key='canon:star:tic:42'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM tess_eb_orbital_solution_projection WHERE relation_claim_id IS NOT NULL OR projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 0
     con.close()
 

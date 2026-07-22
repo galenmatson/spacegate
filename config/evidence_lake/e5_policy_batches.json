@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-22.e5-policy-batches.13",
-  "disposition_version": "2026-07-22.e5-source-dispositions.15",
+  "batch_version": "2026-07-22.e5-policy-batches.14",
+  "disposition_version": "2026-07-22.e5-source-dispositions.16",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -41,12 +41,10 @@
     },
     {
       "batch_id": "multiplicity_relations_and_orbits",
-      "status": "planned",
+      "status": "complete",
       "output_contract": "relation_endpoint_and_orbit_projection",
       "depends_on": ["identity_and_naming"],
-      "sources": [
-        "tess.villanova_eb"
-      ],
+      "sources": [],
       "completed_sources": [
         "multiplicity.debcat",
         "multiplicity.el_badry_2021_wide_binary",
@@ -55,7 +53,8 @@
         "multiplicity.sb9",
         "multiplicity.sbx",
         "multiplicity.wds",
-        "gaia.dr3.non_single_star"
+        "gaia.dr3.non_single_star",
+        "tess.villanova_eb"
       ]
     },
     {

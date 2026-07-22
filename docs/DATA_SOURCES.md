@@ -796,7 +796,7 @@ Datasets:
 
 Evidence Lake status:
 
-- E5 artifact `9e59131b92205068f7246a94` accounts all 87,075 coherent NSS
+- E5 artifact `f5358c0a0983958e5d4f76c5` accounts all 87,075 coherent NSS
   source/model solutions. Exact Gaia DR3 identity anchors 56,617 rows on 54,794
   current canonical observation targets; 30,458 rows remain outside the current
   canonical reference and none is ambiguous.
@@ -895,7 +895,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `9e59131b92205068f7246a94` accounts all 374
+- E5 component-scope artifact `f5358c0a0983958e5d4f76c5` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -933,7 +933,7 @@ Classification: `auxiliary`
 
 Evidence Lake status:
 
-- Combined component artifact `9e59131b92205068f7246a94` accounts all 4,080
+- Combined component artifact `f5358c0a0983958e5d4f76c5` accounts all 4,080
   SBX systems and all 8,160 release-scoped primary/secondary identities. Exact
   Gaia DR3, officially reconciled Gaia DR2, HIP, HD, and TIC claims resolve
   2,354 systems uniquely; 1,699 are absent from the current canonical reference
@@ -968,7 +968,7 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `9e59131b92205068f7246a94` now accounts 6,937 WDS systems, 32,790 source
+  `f5358c0a0983958e5d4f76c5` now accounts 6,937 WDS systems, 32,790 source
   component identities, and 15,748 relations. It anchors 24,671 components and
   accepts 12,052 two-endpoint relation-evidence rows while retaining 8,119
   missing components, 3,693 unresolved relations, and three invalid source
@@ -1125,6 +1125,14 @@ Policy:
   normalize to unsigned decimal TIC IDs. `in_catalog=false` rows are negative
   membership evidence and never receive an EB orbit solely because they appear
   in the export.
+- E5 component artifact `f5358c0a0983958e5d4f76c5` gives every one of the
+  17,605 rows an exact TIC observation-target outcome. It binds 6,605 rows and
+  records 11,000 missing-current-reference outcomes, with zero ambiguous or
+  identifier-less records. The bound rows include 2,228 positive and 4,377
+  negative catalog memberships. All sector, morphology, source/flag, Tmag,
+  target-physics, astrometry, and timing evidence remains contextual until both
+  physical binary endpoints are adjudicated; no canonical containment or
+  simulation orbit is created.
 
 ## 13) WISE / CatWISE2020 / AllWISE
 
@@ -1229,7 +1237,7 @@ SB9 policy:
   back to name-only or coordinate-only component assignment
 - DEBCat component evidence uses a separate unique canonical-system + period
   match and the same endpoint-existence gates
-- E5 artifact `9e59131b92205068f7246a94` applies the SB9 rule to all 4,079
+- E5 artifact `f5358c0a0983958e5d4f76c5` applies the SB9 rule to all 4,079
   catalog relations. It accepts 790 unique references with two resolved MSC
   endpoints, retains 3,104 missing references, eight ambiguous references, and
   177 unresolved referenced relations, and makes 874 component magnitudes, 940

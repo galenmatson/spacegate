@@ -29,7 +29,7 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
     assert report["checks"]["unaccounted_sources"] == []
     assert report["checks"]["invalid_dispositions"] == []
     assert report["checks"]["incomplete_dispositions"] == []
-    assert len(report["checks"]["blocking_sources"]) == 9
+    assert len(report["checks"]["blocking_sources"]) == 8
 
 
 def test_e5_disposition_audit_fails_conflicts_and_omissions() -> None:

@@ -2058,6 +2058,16 @@ Foundation checkpoint (July 21, 2026):
   scalar, or simulation orbit. Combined artifact
   `9e59131b92205068f7246a94` independently audits and reproduces in about 23
   seconds wall time with about 5.27 GiB peak RSS
+- component policy v8 accounts all 17,605 Villanova TESS EB rows through exact
+  TIC observation-target identity: 6,605 bind uniquely and 11,000 remain
+  outside the current reference. It preserves 2,228 bound positive and 4,377
+  bound negative membership records plus sectors, morphology, flags, Tmag,
+  target physics, astrometry, and all 4,584 timing solutions as relation-aware
+  context. No endpoint-free solution becomes a component, containment edge,
+  selected scalar, or simulation orbit. Combined artifact
+  `f5358c0a0983958e5d4f76c5` independently audits and reproduces in about 24.7
+  seconds wall time with about 5.2 GiB peak RSS; the multiplicity policy batch
+  is complete
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys

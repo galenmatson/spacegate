@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-22.e5-component-scope.7",
-  "compiler_version": "selected_component_evidence_compiler_v7",
+  "policy_version": "2026-07-22.e5-component-scope.8",
+  "compiler_version": "selected_component_evidence_compiler_v8",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -248,6 +248,45 @@
       "expected_orbital_solutions_context_only": 56617,
       "expected_orbital_solutions_selectable": 0,
       "expected_solutions_without_relation_claim": 87075
+    }
+  },
+  "tess_eb": {
+    "source_id": "tess.villanova_eb",
+    "release_id": "search_results_in_catalog_v1",
+    "evidence_build_id": "255678b2daa6e8bf46e6dcd9",
+    "binding_method": "exact_release_scoped_tic_observation_target",
+    "binding_semantics": "Bind each Villanova row only through its normalized release-scoped TIC identifier to one canonical observation target and system. Do not use coordinates, stellar parameters, or names as identity fallbacks.",
+    "variability_authority": "villanova_tess_eb_catalog_context",
+    "parameter_authority": "villanova_tess_eb_unresolved_target_context",
+    "photometry_authority": "villanova_tess_integrated_target_photometry_context",
+    "astrometry_authority": "villanova_tess_eb_observation_target_astrometry_context",
+    "orbit_authority": "villanova_tess_eb_eclipse_timing_solution_context",
+    "relation_semantics": "The catalog establishes positive or negative eclipsing-binary evidence for an observation target, not inspectable physical component endpoints. Timing solutions remain non-selectable relation context until adjudication binds both endpoints.",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_target_bindings": 17605,
+      "expected_targets_accepted": 6605,
+      "expected_targets_missing_canonical": 11000,
+      "expected_targets_ambiguous_canonical": 0,
+      "expected_targets_missing_source_identifier": 0,
+      "expected_targets_ambiguous_source_identifier": 0,
+      "expected_positive_targets_accepted": 2228,
+      "expected_positive_targets_unresolved": 2356,
+      "expected_negative_targets_accepted": 4377,
+      "expected_negative_targets_unresolved": 8644,
+      "expected_variability_evidence": 57995,
+      "expected_variability_context_only": 22353,
+      "expected_parameter_sets": 16412,
+      "expected_parameter_evidence": 31843,
+      "expected_parameter_evidence_context_only": 13085,
+      "expected_photometry_evidence": 17605,
+      "expected_photometry_context_only": 6605,
+      "expected_astrometry_evidence": 105630,
+      "expected_astrometry_context_only": 39630,
+      "expected_orbital_solutions": 4584,
+      "expected_orbital_solutions_context_only": 2228,
+      "expected_orbital_solutions_selectable": 0,
+      "expected_solutions_without_relation_claim": 4584
     }
   }
 }
