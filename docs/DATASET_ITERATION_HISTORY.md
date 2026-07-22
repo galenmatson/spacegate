@@ -3279,6 +3279,29 @@ Representative commits:
   to the existing shared display-projection inventory restored the independent
   24-path legacy derivation audit to pass without suppressing discovery.
 
+### 121) Compact Objects Need Permanent Non-Gaia Identity Before Selection
+
+- The earlier compact audit correctly rejected the only exact canonical route:
+  ATNF J0437-4715 resolves to an ordinary K-spectrum Gaia leaf representing its
+  optical companion. That proved canonical scope was unsafe, but leaving every
+  ATNF/McGill object evidence-only prevented legitimate source facts from
+  participating in the selected-fact architecture.
+- Legacy `core.compact_objects` keys are not reusable permanent identities. Six
+  collision pairs erase the `+`/`-` sign in coordinate names. E5 compact policy
+  v1 instead preserves ATNF signs in `compact:atnf:name:*` keys and hashes
+  normalized McGill source names. ATNF's own PSRJ claims reconcile 4,482 source
+  names into 4,394 physical release identities; aliases remain evidence.
+- Build `f0d7273f65371efeda365611` contains 4,425 identities and outcomes for
+  every one: 22 accepted by source-distance interval overlap with the 1,250-ly
+  evidence envelope, 421 excluded, and 3,982 missing usable distance evidence.
+  It selects 156 source-backed timing, astrometric, and dispersion facts for
+  accepted objects and keeps J0437-4715 as a candidate-counterpart quarantine.
+- Two compiles produce the same build ID and ordered Parquet hashes. An
+  independent 34-check verifier passes. E6 v7 copies all six compact projection
+  tables into ARM while preserving exact canonical system, star, planet, and
+  hierarchy inventory. No named-object transform or positional identity guess
+  is introduced.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

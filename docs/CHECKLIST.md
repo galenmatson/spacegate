@@ -1567,6 +1567,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   exact SIMBAD/Gaia identity, quarantine PSR J0437-4715 rather than leak pulsar
   facts onto its lone K-spectrum Gaia leaf, and retain both sources as complete
   evidence until distinct compact-object identity exists
+- [x] E5 compact-object identity checkpoint: create 4,425 permanent
+  release-scoped ATNF/McGill identities without reusing the six sign-erasing
+  legacy keys; account every object as accepted, excluded, or missing against
+  the 1,250-ly evidence envelope; select 156 source-backed facts for 22 accepted
+  objects; preserve the J0437-4715 optical counterpart conflict as quarantine;
+  and pass pinned compile, independent verification, and deterministic Parquet
+  reproduction
 - [ ] E5: implement versioned per-quantity selection policies that prefer
   coherent parameter sets, preserve alternatives/conflicts, and point every
   selected fact to exact evidence
@@ -1578,7 +1585,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E5: make HZ, classifications, planet categories, simulations, search,
   map, API, tags, and future AAA packets consume the shared selected-fact
   projection rather than independent scientific fallback logic
-- [x] E6 shadow foundation: materialize all seven accepted E5 projections into
+- [x] E6 shadow foundation: materialize all accepted E5 projections into
   an immutable unserved CORE/ARM/hierarchy/DISC candidate; preserve exact
   inventory/hierarchy/planet lifecycle, attach fact lineage, pass independent
   audit, and pass isolated cryptographic logical-hash reproduction

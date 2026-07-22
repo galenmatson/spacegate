@@ -2232,10 +2232,12 @@ Foundation checkpoint (July 21, 2026):
   ordinary K-spectrum evidence and a legacy pulsar label; it is quarantined as
   unresolved pulsar/optical-companion scope rather than receiving ATNF facts
 - all 91,858 ATNF compact contexts and 139 McGill coherent contexts remain
-  inspectable evidence. E6 must create or bind permanent non-Gaia compact
-  identities inside the ingestion envelope, keep optical companions separate,
-  rerun the audit, and only then enable compact timing/spin/X-ray/activity
-  selection for safe leaves
+  inspectable evidence. E5 compact build `f0d7273f65371efeda365611` now assigns
+  4,425 permanent non-Gaia identities, accounts 22 accepted, 421 excluded, and
+  3,982 missing envelope outcomes, selects 156 source-backed facts, preserves
+  the optical-counterpart conflict, and passes deterministic reproduction plus
+  34 independent checks. E6 v7 projects those tables without promoting a
+  compact object into canonical stellar inventory or public presentation
 
 Deliverables:
 

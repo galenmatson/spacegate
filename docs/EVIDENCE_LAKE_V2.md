@@ -1722,19 +1722,25 @@ SIMBAD database takes 24.8 seconds from page cache, while release-bridge binding
 takes about 4.8 seconds. Machine evidence is in
 `e5_identity_selection_verification.json`.
 
-The compact-object batch closes with an explicit scope disposition rather than
-an unsafe low-yield selection. `scripts/audit_compact_selection_scope.py`
+The compact-object batch first closes unsafe canonical binding with an explicit
+scope disposition rather than a low-yield positional selection.
+`scripts/audit_compact_selection_scope.py`
 crosses 4,482 distinct ATNF names and 55 distinct McGill name claims through
 exact SIMBAD designation/OID/Gaia evidence into the current identity graph. It
 finds one canonical route: ATNF J0437-4715 reaches Gaia DR3
 4789864076732331648, currently a lone leaf with ordinary `K` spectral evidence
 and a legacy `pulsar` object type. That is a pulsar/optical-companion scope
 conflict, not permission to copy 91,858 ATNF parameter/glitch contexts onto the
-Gaia leaf. McGill has no current canonical magnetar route. Both releases remain
-complete evidence-only inputs until E6 creates or binds distinct permanent
-compact-object identities inside the ingestion envelope. The machine audit is
-`e5_compact_selection_scope_audit.json`; it fails when a safe compact leaf
-appears without a corresponding E5 quantity policy.
+Gaia leaf. McGill has no current canonical magnetar route. E5 compact policy
+`2026-07-22.e5-compact-identity.1` therefore creates 4,425 permanent
+release-scoped identities independent of Gaia, accounts 22 accepted, 421
+excluded, and 3,982 missing distance outcomes against the 1,250-ly evidence
+envelope, and selects 156 exact-lineage facts only for accepted identities. The
+J0437-4715 optical route remains a candidate-counterpart quarantine, never an
+identity merge. Build `f0d7273f65371efeda365611` reproduces identical ordered
+Parquet hashes and passes 34 independent checks. E6 v7 copies the identity,
+alias, outcome, fact, and quarantine projections without changing canonical
+star or planet inventory.
 
 Inventory `2026-07-21.e5-legacy-inventory.1` now accounts 24 production paths
 across ARM science derivations, component/classification projections, API and

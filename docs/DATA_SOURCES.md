@@ -528,7 +528,11 @@ Evidence Lake E4 source checkpoints:
   tokens remain source-native evidence rather than placeholder bibliography.
   The E5 compact-scope audit finds no distinct safe canonical pulsar leaf; its
   sole exact current route, J0437-4715, is quarantined as an unresolved
-  pulsar/optical-companion collision rather than selected by name or position
+  pulsar/optical-companion collision rather than selected by name or position.
+  E5 compact build `f0d7273f65371efeda365611` resolves the 4,482 source-native
+  names through ATNF's own PSRJ claims into 4,394 release-scoped physical
+  identities while preserving all 97,516 identifier claims. Twenty-two source
+  parallax intervals overlap the 1,250-ly evidence envelope
 - McGill Magnetar Catalogue `99c17afd7461a9a6972a9348`: all 31 catalog rows
   and 139 separate timing, X-ray, distance, position, and source-context
   parameter sets, now joined only through exact source codes to the pinned
@@ -536,7 +540,9 @@ Evidence Lake E4 source checkpoints:
   reference-code URLs, 208 current-object bibliography links, and all 215 CDS
   references; four historical shorthand codes remain explicitly unresolved
   rather than receiving guessed citations. No exact current canonical magnetar
-  leaf exists, so E5 retains every context as evidence pending E6 identity
+  leaf exists. E5 assigns all 31 rows permanent release-scoped magnetar
+  identities; none has source distance evidence overlapping the current
+  envelope, so no canonical stellar leaf or public inventory row is invented
 - SB9 `72663823963198c8fcbbe569`: all 30,153 ReadMe/system/alias/orbit rows and
   62 table-column occurrences; 4,079 primary/secondary binary claims, 5,099
   linked orbit solutions, 4,079 component spectra, 4,403 component magnitudes,

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e6_shadow_build_policy.v1",
-  "policy_version": "2026-07-22.e6-shadow.6",
-  "compiler_version": "e6_shadow_compiler_v6",
+  "policy_version": "2026-07-22.e6-shadow.7",
+  "compiler_version": "e6_shadow_compiler_v7",
   "coolness_profile": {
     "profile_id": "tuned",
     "profile_version": "20260711T232800Z_198cc957",
@@ -26,7 +26,8 @@
     {"family": "selected_clusters", "build_id": "a6169c9ec351db81104e8518", "database": "selected_clusters.duckdb", "arm_prefix": "e6_cluster", "acceptance_mode": "top_level_status_pass"},
     {"family": "selected_extended_objects", "build_id": "3790054572476ea189aaff06", "database": "selected_extended_objects.duckdb", "arm_prefix": "e6_extended", "acceptance_mode": "top_level_status_pass"},
     {"family": "selected_planet_evidence", "build_id": "86aa5553053db35d81ff26e0", "database": "selected_planet_evidence.duckdb", "arm_prefix": "e6_planet_evidence", "acceptance_mode": "top_level_status_pass"},
-    {"family": "selected_solar_system", "build_id": "d61c6890588ee40c46ea7d56", "database": "selected_solar_system.duckdb", "arm_prefix": "e6_solar", "acceptance_mode": "top_level_status_pass"}
+    {"family": "selected_solar_system", "build_id": "d61c6890588ee40c46ea7d56", "database": "selected_solar_system.duckdb", "arm_prefix": "e6_solar", "acceptance_mode": "top_level_status_pass"},
+    {"family": "selected_compact_objects", "build_id": "f0d7273f65371efeda365611", "database": "selected_compact.duckdb", "arm_prefix": "e6_compact", "acceptance_mode": "top_level_status_pass"}
   ],
   "selected_fact_compact_tables": [
     "evidence_build",
@@ -40,7 +41,8 @@
     "selected_clusters",
     "selected_extended_objects",
     "selected_planet_evidence",
-    "selected_solar_system"
+    "selected_solar_system",
+    "selected_compact_objects"
   ],
   "star_projection_groups": [
     {

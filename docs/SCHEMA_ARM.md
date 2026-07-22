@@ -370,11 +370,15 @@ Evidence Lake v2 staging rule:
   timing, X-ray, distance, position, and association/activity records use this
   contract rather than one incompatible field-wise composite.
 - Compact evidence selection additionally requires a distinct compatible
-  canonical compact-object leaf. Exact designation/OID/Gaia traversal alone is
+  compact-object identity. Exact designation/OID/Gaia traversal alone is
   insufficient when the target carries ordinary stellar evidence consistent
-  with an optical companion. The E5 compact audit therefore quarantines ATNF
-  J0437-4715 instead of copying pulsar facts onto its current K-spectrum Gaia
-  leaf; ATNF and McGill contexts remain evidence until E6 repairs identity.
+  with an optical companion. E5 therefore creates permanent release-scoped
+  `compact:atnf:name:*` and hashed `compact:mcgill:magnetar:*` keys, preserving
+  coordinate signs and source aliases without treating Gaia IDs as compact
+  identities. `compact_envelope_outcomes` accounts every identity against the
+  uncertainty-aware evidence envelope, `selected_compact_facts` retains exact
+  E4 lineage for accepted objects, and `compact_scope_quarantine` keeps ATNF
+  J0437-4715 separate from its current K-spectrum optical Gaia leaf.
 - `relation_claim_evidence` stores `left_component_scope` and
   `right_component_scope` explicitly. Audits resolve each endpoint through an
   identifier claim and its matching binding scope; they do not assume all

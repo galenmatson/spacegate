@@ -19,6 +19,12 @@ import verify_e6_shadow_reproduction as reproduction  # noqa: E402
 def test_e6_policy_maps_only_projected_numeric_quantities() -> None:
     policy = compiler.load_json(ROOT / "config/evidence_lake/e6_shadow_build.json")
     compiler.validate_policy(policy)
+    assert any(
+        artifact["family"] == "selected_compact_objects"
+        and artifact["acceptance_mode"] == "top_level_status_pass"
+        for artifact in policy["selected_artifacts"]
+    )
+    assert "selected_compact_objects" in policy["copy_all_projection_tables_for_families"]
 
     invalid = copy.deepcopy(policy)
     invalid["core_scalar_updates"][0]["quantity"] = "not_projected"

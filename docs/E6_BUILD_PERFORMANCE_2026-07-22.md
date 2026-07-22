@@ -423,3 +423,21 @@ of work is:
    Do not simply add concurrent scene workers: the current sequential outer
    loop already averages 13.6 CPU cores through DuckDB, so unbounded workers
    would increase contention without addressing repeated assembly.
+
+## Compact Identity Integration
+
+E5 compact build `f0d7273f65371efeda365611` compiles in 1.74 seconds with a
+454-MiB peak RSS and reproduces the same build ID and ordered Parquet hashes on
+a second run. Its independent 34-check verifier takes 0.07 seconds. The broader
+scope audit takes 6.31 seconds and peaks at 8.26 GiB because it traverses the
+current canonical identity graph.
+
+E6 v7 shadow `e6_95e7af54d69f3d9602d81e5b_shadow` integrates six compact
+projection tables in 3:35.37, compared with 3:29.60 for v6. Peak RSS is 36.43
+GiB with no swap or external spill. Named phases account for 213.16 seconds.
+The +5.41-second named-phase delta is localized to immutable input verification
+(+3.86 seconds) and evidence projection copying (+1.26 seconds); all scientific
+wide projections, selected consumers, hierarchy leaves, and coolness rescoring
+remain within 0.28 seconds of v6. The strengthened independent E6 audit passes
+in 47.89 seconds and now verifies actual row counts for every copied projection
+table, not only registry hashes.

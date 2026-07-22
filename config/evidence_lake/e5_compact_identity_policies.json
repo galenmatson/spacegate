@@ -1,0 +1,59 @@
+{
+  "schema_version": "spacegate.e5_compact_identity_policies.v1",
+  "policy_version": "2026-07-22.e5-compact-identity.1",
+  "compiler_version": "selected_compact_identity_compiler_v1",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "scope_audit_report": "reports/evidence_lake_v2/e5_compact_selection_scope_audit.json",
+  "envelope": {
+    "public_radius_ly": 1000.0,
+    "evidence_radius_ly": 1250.0,
+    "evidence_radius_pc": 383.30690227467004,
+    "membership_rule": "source_distance_interval_overlaps_evidence_radius_v1",
+    "atnf_distance_policy": "inverse_source_parallax_with_catalog_last_digit_uncertainty_v1",
+    "mcgill_distance_policy": "source_distance_kpc_with_asymmetric_error_or_limit_v1"
+  },
+  "sources": [
+    {
+      "source_id": "compact.atnf",
+      "release_id": "rolling_snapshot_20260709",
+      "evidence_build_id": "64c55c19a5a10a88877d4cd2",
+      "database_sha256": "06b2181f379f87c00b3245aefd95d9c29a237defeb0e9ad128e68c7f0e74844c",
+      "inventory_namespace": "atnf_pulsar_name",
+      "object_family": "neutron_star",
+      "object_type": "pulsar"
+    },
+    {
+      "source_id": "compact.mcgill_magnetar",
+      "release_id": "snapshot_20260721_with_bibliography",
+      "evidence_build_id": "99c17afd7461a9a6972a9348",
+      "database_sha256": "9f2a9766a9afe7c6858e5bba828502715600cd4815d8961e634d67951a032319",
+      "inventory_namespace": "magnetar_name",
+      "object_family": "neutron_star",
+      "object_type": "magnetar"
+    }
+  ],
+  "atnf_selected_quantities": [
+    {"parameter_name": "PX", "quantity_key": "parallax", "unit": "mas", "normalized_unit": "mas"},
+    {"parameter_name": "RAJ", "quantity_key": "right_ascension", "unit": "sexagesimal_hms", "normalized_unit": "deg"},
+    {"parameter_name": "DECJ", "quantity_key": "declination", "unit": "sexagesimal_dms", "normalized_unit": "deg"},
+    {"parameter_name": "P0", "quantity_key": "spin_period", "unit": "s", "normalized_unit": "s"},
+    {"parameter_name": "P1", "quantity_key": "spin_period_derivative", "unit": "s s-1", "normalized_unit": "s s-1"},
+    {"parameter_name": "F0", "quantity_key": "spin_frequency", "unit": "Hz", "normalized_unit": "Hz"},
+    {"parameter_name": "F1", "quantity_key": "spin_frequency_derivative", "unit": "Hz s-1", "normalized_unit": "Hz s-1"},
+    {"parameter_name": "DM", "quantity_key": "dispersion_measure", "unit": "pc cm-3", "normalized_unit": "pc cm-3"},
+    {"parameter_name": "PMRA", "quantity_key": "proper_motion_ra_source_convention", "unit": "mas yr-1", "normalized_unit": "mas yr-1"},
+    {"parameter_name": "PMDEC", "quantity_key": "proper_motion_dec", "unit": "mas yr-1", "normalized_unit": "mas yr-1"}
+  ],
+  "acceptance": {
+    "identity_nodes": 4425,
+    "atnf_identity_nodes": 4394,
+    "mcgill_identity_nodes": 31,
+    "identity_aliases": 97516,
+    "envelope_accepted": 22,
+    "envelope_excluded": 421,
+    "envelope_missing": 3982,
+    "selected_facts": 156,
+    "scope_quarantine": 1
+  }
+}

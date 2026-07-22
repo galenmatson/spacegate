@@ -146,6 +146,28 @@ def audit_build(
                 f"FROM arm.{compiler.sql_identifier(table)}",
             )
 
+        copied_projection_counts: dict[str, dict[str, int]] = {}
+        arm_tables = set(compiler.table_names(con, "arm"))
+        for table, expected in sorted(
+            (manifest.get("report") or {}).get("projection_table_counts", {}).items()
+        ):
+            table = str(table)
+            expected = int(expected)
+            present = table in arm_tables
+            observed = (
+                scalar(con, f"SELECT count(*) FROM arm.{compiler.sql_identifier(table)}")
+                if present
+                else -1
+            )
+            copied_projection_counts[table] = {
+                "expected": expected,
+                "observed": observed,
+            }
+            failures[f"projection_table_missing:{table}"] = int(not present)
+            failures[f"projection_table_row_delta:{table}"] = (
+                abs(observed - expected) if present else expected + 1
+            )
+
         core_checks: list[dict[str, Any]] = []
         for mapping in policy["core_scalar_updates"]:
             object_type = str(mapping["object_type"])
@@ -363,6 +385,7 @@ def audit_build(
         "inventory": inventory,
         "hierarchy": hierarchy_counts,
         "projection_lineage": projection_lineage,
+        "copied_projection_counts": copied_projection_counts,
         "core_checks": core_checks,
         "official_aliases": aliases,
         "selected_consumers": consumer_counts,
