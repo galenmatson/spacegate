@@ -1084,20 +1084,27 @@ Source endpoint:
 Evidence Lake v2 checkpoint:
 
 - raw snapshot `14fd785307af12849666a603`; typed snapshot
-  `32d437d41bfdfa7242bd8a4a`; E4 build `20fdb1c95d25d441160d3bd9`
+  `32d437d41bfdfa7242bd8a4a`; E4 build `a328a9e13d6c2b44f8d57861`
 - all 242 fields are accounted. Direct optical/infrared spectral and gravity
   classifications remain distinct from maintainer numeric encodings, selected
   astrometry, propagated positions, and photometric-distance formulas
 - 23 Pan-STARRS1/Gaia/2MASS/MKO/WISE/Spitzer bandpasses retain values,
   uncertainties, references, and available quality context; literal `nan`,
   `null`, and negative Pan-STARRS uncertainty sentinels cannot normalize
-- Gaia DR2 and DR3 IDs remain release-distinct. Pipe-delimited SIMBAD aliases
-  are retained exactly but not split by an undocumented parser
+- Gaia DR2 and DR3 IDs remain release-distinct. `astrom_Gaia=O` identifies
+  object-owned Gaia astrometry; `astrom_Gaia=P` identifies a higher-mass
+  primary used as the companion row's astrometric proxy. The latter is typed
+  as `associated_primary_astrometric_proxy` and cannot bind object-scoped
+  companion classifications to the primary. Pipe-delimited SIMBAD aliases are
+  retained exactly but not split by an undocumented parser
 - multiplicity and exoplanet flags remain source context until an endpoint- and
   scope-safe relation/lifecycle adapter exists; they do not alter CORE inventory
-- E5 policy v6 independently binds 10,887 populated classification subjects:
-  5,335 resolve to current stars, 5,552 remain explicit missing outcomes, and
-  5,282 selected categorical facts retain exact classification-row lineage
+- E5 policy v15 independently gates all 10,887 populated classification
+  subjects against both claim scope and source astrometry ownership: 4,843 are
+  accepted, 512 proxy-scoped subjects are excluded, and 5,532 are missing from
+  the current canonical identity graph. All 4,843 accepted object-owned facts
+  are selected with exact lineage in verified build
+  `fa4aaed18aebcffb8632d978`
 
 Core bridge diagnostics:
 

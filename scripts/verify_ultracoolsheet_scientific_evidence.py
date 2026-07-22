@@ -232,6 +232,29 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "where i.namespace in ('gaia_dr2_source_id','gaia_dr3_source_id') "
             "group by all order by 1,2,3",
         ),
+        "classification_object_proxy_gaia_collisions": rows(
+            con,
+            "with classification_claims as ("
+            "select ce.evidence_id,ce.classification_scheme,ce.classification_raw,"
+            "json_extract_string(r.source_context_json,'$.astrom_Gaia') astrometry_owner,"
+            "i.identifier_normalized gaia_dr3_source_id "
+            "from stellar_classification_evidence ce "
+            "join source_records r using(source_record_id) "
+            "join identifier_claim_evidence i using(source_record_id) "
+            "where i.namespace='gaia_dr3_source_id') "
+            "select object_row.gaia_dr3_source_id,object_row.classification_scheme,"
+            "count(distinct object_row.evidence_id) object_evidence_count,"
+            "count(distinct proxy_row.evidence_id) proxy_evidence_count,"
+            "string_agg(distinct object_row.classification_raw,' | ' "
+            "order by object_row.classification_raw) object_values,"
+            "string_agg(distinct proxy_row.classification_raw,' | ' "
+            "order by proxy_row.classification_raw) proxy_values "
+            "from classification_claims object_row "
+            "join classification_claims proxy_row "
+            "using(gaia_dr3_source_id,classification_scheme) "
+            "where object_row.astrometry_owner='O' and proxy_row.astrometry_owner='P' "
+            "group by 1,2 order by 1,2",
+        ),
         "classifications_by_scheme": rows(
             con,
             "select classification_scheme,count(*) evidence_count "

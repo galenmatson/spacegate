@@ -1799,6 +1799,24 @@ bindings, and exactly 1,160 fallback objects; it recovers the complete legacy
 tail. Their parallax S/N range of 2.07-7.39 rules out reciprocal parallax as the
 replacement policy.
 
+The E6 coolness A/B then exposed a separate component-scope failure in the
+UltracoolSheet adapter. Some companion rows carry `astrom_Gaia=P`: the Gaia ID
+and astrometry belong to a higher-mass primary proxy, while the spectral and
+youth evidence still describe the ultracool companion. E4 adapter v2 now emits
+those Gaia claims as `associated_primary_astrometric_proxy`; only
+`astrom_Gaia=O` claims retain physical object scope. The source audit accounts
+1,879 DR2 and 1,915 DR3 object-owned claims plus 161 DR2 and 162 DR3 proxy
+claims with zero scope mismatches. E5 policy v15 also applies a reusable
+source-context binding predicate as defense in depth, preserving proxy-row
+evidence while excluding it from selection through the primary.
+Verified E5 build `fa4aaed18aebcffb8632d978` accounts 4,843 accepted, 512
+excluded, and 5,532 missing classification subjects. It removes 452 invalid
+proxy winners but restores 13 object-owned facts that v14 had displaced during
+same-Gaia quantity competition, yielding an exact net reduction of 439 facts
+and decisions. Its 29:58.87 compile, independent artifact audit, and 28:58.22
+clean reproduction pass all 103 phases and logical hash
+`1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`.
+
 E6 policy `2026-07-22.e6-shadow.3` closes the immutable-boundary defect exposed
 by the initial consumer experiment. Shared stellar parameter/display-class and
 hierarchy-leaf projections now run inside compiler v2 before product metadata,

@@ -583,6 +583,28 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 != binding.get("bridge_match_namespace")
             ):
                 raise ValueError(f"invalid release identifier bridge: {source_id}")
+        binding_applicability = source.get("binding_applicability")
+        if binding_applicability is not None:
+            conditions = binding_applicability.get("conditions") or []
+            if (
+                not str(binding_applicability.get("reason") or "").strip()
+                or not isinstance(conditions, list)
+                or not conditions
+            ):
+                raise ValueError(f"invalid binding applicability policy: {source_id}")
+            validate_quality_rule(
+                {"quality_conditions": conditions},
+                source_id=source_id,
+                group_key="binding_applicability",
+            )
+            if any(
+                str(condition.get("scope") or "") != "source_context"
+                for condition in conditions
+            ):
+                raise ValueError(
+                    "binding applicability must use source context: "
+                    f"{source_id}"
+                )
         source_quantities: set[str] = set()
         for group in source.get("quantity_groups") or []:
             group_key = str(group.get("group_key") or "")
@@ -698,7 +720,8 @@ def validate_quality_rule(
         "applicability_parameters", "applicability_quality",
     }
     allowed_operators = {
-        "eq", "ne", "gt", "gte", "lt", "lte", "bitmask_none", "not_null"
+        "eq", "ne", "ne_or_null", "gt", "gte", "lt", "lte",
+        "bitmask_none", "not_null",
     }
     for condition in rule.get("quality_conditions") or []:
         scope = str(condition.get("scope") or "")
@@ -776,6 +799,8 @@ def quality_condition_sql(
     else:
         left = f"try_cast({extracted} AS DOUBLE)"
         right = repr(float(value))
+    if operator == "ne_or_null":
+        return f"({extracted} IS NULL OR {left} <> {right})"
     sql_operator = {
         "eq": "=", "ne": "<>", "gt": ">", "gte": ">=", "lt": "<", "lte": "<=",
     }[operator]
@@ -1364,6 +1389,40 @@ def create_binding(
                 GROUP BY aux.source_record_id
                 """
             )
+    binding_applicability = source.get("binding_applicability")
+    if binding_applicability is not None:
+        binding_conditions = " AND ".join(
+            quality_condition_sql(
+                condition,
+                source_alias="sr",
+                set_alias="sr",
+                evidence_alias="sr",
+            )
+            for condition in binding_applicability["conditions"]
+        )
+        applicability_reason = str(binding_applicability["reason"])
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE binding_applicability_{source_alias} AS
+            SELECT sr.source_record_id,
+                   coalesce(({binding_conditions}), FALSE) applicability_pass
+            FROM {source_alias}.source_records sr
+            """
+        )
+        con.execute(
+            f"""
+            UPDATE eligible_{source_alias} AS eligible
+            SET applicability_pass = eligible.applicability_pass
+                                     AND coalesce(app.applicability_pass, FALSE),
+                applicability_reason = CASE
+                  WHEN coalesce(app.applicability_pass, FALSE)
+                    THEN eligible.applicability_reason
+                  ELSE {sql_literal(applicability_reason)}
+                END
+            FROM binding_applicability_{source_alias} app
+            WHERE app.source_record_id = eligible.source_record_id
+            """
+        )
     eligible_count = int(con.execute(f"SELECT COUNT(*) FROM eligible_{source_alias}").fetchone()[0])
     strategy = binding["strategy"]
     if strategy == "canonical_identifier_consensus":

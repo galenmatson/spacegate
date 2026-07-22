@@ -102,11 +102,14 @@ def make_e4_artifact(
               reference_raw VARCHAR, quality_json JSON
             );
             INSERT INTO source_records VALUES
-              ('class-record', 'classification_table', '{}'),
+              ('class-record', 'classification_table', '{"astrom_Gaia":"P"}'),
+              ('class-record-ir', 'classification_table', '{"astrom_Gaia":"O"}'),
               ('class-missing', 'classification_table', '{}'),
               ('class-scoped', 'classification_table', '{}');
             INSERT INTO identifier_claim_evidence VALUES
               ('class-record', 'gaia_dr3_source_id', 'Gaia DR3 123',
+               'star_or_substellar_object', NULL),
+              ('class-record-ir', 'gaia_dr3_source_id', 'Gaia DR3 123',
                'star_or_substellar_object', NULL),
               ('class-missing', 'gaia_dr3_source_id', 'Gaia DR3 999',
                'star_or_substellar_object', NULL),
@@ -115,7 +118,7 @@ def make_e4_artifact(
             INSERT INTO stellar_classification_evidence VALUES
               ('class-opt', 'class-record', NULL, 'optical_spectral_type',
                'M8', NULL, NULL, 'compiled-optical', NULL, 'opt-ref', '{}'),
-              ('class-ir', 'class-record', NULL, 'infrared_spectral_type',
+              ('class-ir', 'class-record-ir', NULL, 'infrared_spectral_type',
                'L0', NULL, NULL, 'compiled-infrared', NULL, 'ir-ref', '{}'),
               ('class-missing-opt', 'class-missing', NULL, 'optical_spectral_type',
                'T5', NULL, NULL, 'compiled-optical', NULL, 'missing-ref', '{}'),
@@ -1060,6 +1063,33 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
         "ambiguous": 2,
         "missing": 180,
     }
+    ultracool = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "ultracool.ultracoolsheet"
+    )
+    assert ultracool["binding_applicability"] == {
+        "conditions": [
+            {
+                "scope": "source_context",
+                "path": "$.astrom_Gaia",
+                "operator": "ne_or_null",
+                "value": "P",
+                "value_type": "string",
+            }
+        ],
+        "reason": (
+            "UltracoolSheet astrom_Gaia=P rows use a higher-mass primary as an "
+            "astrometric proxy; object-scoped companion evidence cannot bind "
+            "through that primary identifier"
+        ),
+    }
+    assert ultracool["expected_binding_outcomes"] == {
+        "accepted": 4843,
+        "excluded": 512,
+        "missing": 5532,
+    }
+    assert ultracool["expected_selected_facts"] == 4843
     assert {item["derivation_key"] for item in policy["derivations"]} == {
         "stellar_luminosity_stefan_boltzmann",
         "planet_semimajor_axis_kepler",
@@ -1341,6 +1371,76 @@ def test_scoped_classification_requires_explicit_same_record_policy(
     ).fetchone()
     con.close()
     assert scoped == ("accepted", "star-key", "primary")
+
+
+def test_source_context_binding_applicability_excludes_proxy_identifiers(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    policy_path = fixture_policy(state, tmp_path)
+    policy = compiler.load_json(policy_path)
+    classification = next(
+        source
+        for source in policy["selection_sources"]
+        if source["source_id"] == "source.classification"
+    )
+    classification["binding_applicability"] = {
+        "conditions": [
+            {
+                "scope": "source_context",
+                "path": "$.astrom_Gaia",
+                "operator": "ne_or_null",
+                "value": "P",
+                "value_type": "string",
+            }
+        ],
+        "reason": "primary-proxy identifiers cannot bind companion evidence",
+    }
+    classification["expected_binding_outcomes"] = {
+        "accepted": 1,
+        "excluded": 1,
+        "missing": 1,
+        "unresolved": 1,
+    }
+    classification["expected_selected_facts"] = 1
+    write_json(policy_path, policy)
+
+    report = compiler.compile_selected_facts(
+        state_dir=state,
+        policy_path=policy_path,
+        temp_directory=tmp_path / "spill",
+        threads=1,
+        memory_limit="1GB",
+    )
+    assert report["binding_outcomes"]["source.classification"] == {
+        "accepted": 1,
+        "excluded": 1,
+        "missing": 1,
+        "unresolved": 1,
+    }
+    selected = state / "derived/evidence_lake_v2/selected_facts" / report["build_id"]
+    con = duckdb.connect(str(selected / "selected_facts.duckdb"), read_only=True)
+    proxy_bindings = con.execute(
+        "SELECT binding_status,applicability_status,binding_reason "
+        "FROM evidence_object_bindings "
+        "WHERE source_id='source.classification' AND source_record_id='class-record' "
+        "ORDER BY binding_subject_id"
+    ).fetchall()
+    proxy_facts = con.execute(
+        "SELECT COUNT(*) FROM selected_facts "
+        "WHERE source_id='source.classification'"
+    ).fetchone()[0]
+    con.close()
+
+    assert proxy_bindings == [
+        (
+            "excluded",
+            "inapplicable",
+            "source evidence fails the configured applicability predicate: "
+            "primary-proxy identifiers cannot bind companion evidence",
+        )
+    ]
+    assert proxy_facts == 1
 
 
 def test_release_equivalence_binding_requires_authoritative_contract(tmp_path: Path) -> None:

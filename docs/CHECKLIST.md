@@ -1615,6 +1615,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   build `929bf92b4c5dbd5aef7e5972` with 123,289,311 selected facts, then cleanly
   reproduce all 103 phases, every compared report section, and logical content
   hash `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`
+- [x] E5 v15 proxy-scope checkpoint: compile and independently audit unserved
+  build `fa4aaed18aebcffb8632d978` with 123,288,872 selected facts and
+  43,060,870 decisions; account the net 439-fact delta as 452 invalid proxy
+  winners removed plus 13 object-owned collision winners restored; cleanly
+  reproduce all 103 phases and logical hash
+  `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
 - [ ] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
   clean E5 reproduction plus E6 shadow rebuild with the host and GSP-Phot
   policies, then

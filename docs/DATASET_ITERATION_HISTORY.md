@@ -3171,6 +3171,32 @@ Representative commits:
   partition-export attempts remain rejected because they were slower or
   nondeterministic.
 
+### 118) Associated-Primary Astrometry Is Not Companion Identity
+
+- E6 coolness review found that 162 UltracoolSheet companion rows carry
+  `astrom_Gaia=P`: their Gaia DR3 identifier belongs to a higher-mass primary
+  used as an astrometric proxy. Treating it as the companion's identity moved
+  direct ultracool classifications onto the primary; HD 3651 was a diagnostic
+  example, not a production exception.
+- E4 adapter v2 uses existing conditional-identifier contracts to type
+  `astrom_Gaia=O` as object identity and `P` as
+  `associated_primary_astrometric_proxy`. The source audit accounts 3,794
+  object-owned and 323 proxy DR2/DR3 claims with zero scope mismatches; clean
+  reproduction matches build `a328a9e13d6c2b44f8d57861`.
+- E5 policy v15 adds a reusable source-context binding-applicability predicate
+  and preserves every proxy row as evidence while excluding its object-scoped
+  facts from primary-star selection. No name, system ID, or catalog-row branch
+  is present. Release set `51b08e537e768acf63e554e1` pins the corrected shard.
+- The first full v15 compile stopped at its exact source-accounting gate because
+  the preflight forecast subtracted all 452 former proxy winners from the v14
+  total. A source-native audit found 27 object/proxy quantity collisions on the
+  same Gaia target; v14's invalid competition chose the proxy in 13. Removing
+  the proxies correctly restores those 13 object-owned facts, so the exact v15
+  expectation is 4,843 accepted bindings and 4,843 selected facts.
+- Full verification of the 448.8-GB release set takes 6:17.82 and is mostly
+  single-threaded. This is now recorded alongside the 30-minute E5 compiler as
+  an integrity-preserving parallelization or immutable-attestation target.
+
 ### 116) E6 Diagnostics Are Retired Only Through a Reproducible Set Gate
 
 - A dedicated E6 retention tool verifies the replacement's declared product

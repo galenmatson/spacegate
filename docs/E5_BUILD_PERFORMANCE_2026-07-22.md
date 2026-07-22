@@ -14,6 +14,19 @@ The USB device holds staging and spill because the build can allocate more than
 230 GB temporarily. Accepted science inputs remain immutable and checksum-
 verified; this placement is not permission to weaken retention or provenance.
 
+Policy v15 adds no named-object handling. It corrects the general
+UltracoolSheet astrometric-proxy scope contract and compiles against release set
+`51b08e537e768acf63e554e1`. Its full selected-fact timing is appended after the
+instrumented build and clean reproduction complete.
+
+The first instrumented v15 attempt stopped cleanly at source accounting after
+23:39.39. Its predicted 4,830 UltracoolSheet winners omitted 13 object-owned
+facts that had previously lost invalid same-Gaia quantity competition to a
+primary-proxy row. A source-native collision audit accounts 27 object/proxy
+quantity collisions and confirms that v14 selected the proxy in exactly 13.
+The corrected exact gate is therefore 4,843 accepted bindings and 4,843
+selected facts; the gate was not weakened to a minimum.
+
 ## Measured Runs
 
 | Run | Result | Phase wall | External wall | Facts | Decisions | Peak RSS | Peak staging | Peak spill |
@@ -22,6 +35,8 @@ verified; this placement is not permission to weaken retention or provenance.
 | v13 clean reproduction | pass | 1,477.17s | 24:49.54 | 121,306,839 | 41,078,837 | 55.8 GiB | measured | measured |
 | v14 reference compile | pass | 1,822.11s | 30:28.86 | 123,289,311 | 43,061,309 | 35.5 GiB | 70.5 GiB | 150.2 GiB |
 | v14 clean reproduction | pass | 1,783.93s | 29:54.48 | 123,289,311 | 43,061,309 | 35.3 GiB | 70.4 GiB | 149.1 GiB |
+| v15 reference compile | pass | 1,792.16s | 29:58.87 | 123,288,872 | 43,060,870 | 35.4 GiB | 70.6 GiB | 151.2 GiB |
+| v15 clean reproduction | pass | measured | 28:58.22 | 123,288,872 | 43,060,870 | 34.9 GiB | measured | measured |
 
 The compiler accounts all 103 phases. The v14 independent artifact audit takes
 59.77 seconds, peaks at 30.4 GiB RSS, and reports zero schema, scope, lineage,
@@ -32,6 +47,21 @@ The v14 clean run matches build identity
 `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`,
 and every compared report section. Its isolated work tree is removed after the
 gate. No candidate is promoted to the accepted `current` pointer by either run.
+
+V15 build `fa4aaed18aebcffb8632d978` passes the independent artifact audit with
+logical content hash
+`1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`.
+It removes 452 invalid primary-proxy winners and restores 13 object-owned facts
+that had lost same-target competition, for a net reduction of exactly 439
+facts and 439 decisions relative to v14. Clean reproduction passed in 28:58.22,
+matched all 103 compared phase/report sections and the logical hash, and removed
+its scratch tree; v15 is now an accepted unserved E5 checkpoint.
+
+The v15 top phases remain Gaia source direct materialization (554.06 seconds),
+selected-fact export (230.09), global selection (165.21), immutable E4 byte
+verification (158.17), artifact hashing (111.36), Bailer-Jones insertion
+(110.37), and Bailer-Jones binding (92.77). The ranking confirms that the scope
+fix introduced no new performance bottleneck.
 
 ## V14 Ranked Cost
 
@@ -86,6 +116,15 @@ reference value is not a precise standalone benchmark.
    replace byte hashes with size, mtime, or manifest trust. Filesystem-level
    immutability or verity may eventually support a durable verification cache.
 
+## Release Composition Cost
+
+Composing release set `51b08e537e768acf63e554e1` with full checksum
+verification reads 448,814,563,328 database bytes and takes 6:17.82 wall time
+at 72% of one CPU core. This is scientifically authoritative but largely
+single-threaded. A content-addressed unchanged-member attestation or bounded
+parallel hashing pass is a valid optimization target only if it still verifies
+every changed shard byte and fails closed on metadata or inode changes.
+
 ## Identity Churn
 
 Selected fact and decision IDs currently include the global policy version.
@@ -117,6 +156,14 @@ inside the current E6 cutover.
 - `e5_selected_fact_v14_audit.json`
 - `e5_selected_fact_v14_reproduction.json`
 - `e5_selected_fact_v14_reproduction_performance.json`
+- `e4_ultracoolsheet_v2_scope_audit.json` (includes all 27 object/proxy Gaia
+  classification collision groups used to explain the v15 count delta)
+- `e5_selected_fact_v15_compile.json`
+- `e5_selected_fact_v15_compile_timing.json`
+- `e5_selected_fact_v15_performance_analysis.json`
+- `e5_selected_fact_v15_audit.json`
+- `e5_selected_fact_v15_reproduction.json`
+- `e5_selected_fact_v15_reproduction_performance.json`
 
 All paths above are relative to
 `/data/spacegate/state/reports/evidence_lake_v2/`. The compiler log and GNU

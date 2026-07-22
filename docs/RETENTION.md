@@ -392,12 +392,15 @@ and its compile, artifact-audit, source/scope-audit, and clean-reproduction
 reports are protected E4/E5 inputs. The Gaia UCD scientific audit is an
 explicitly allowlisted failed-artifact audit contract; it does not authorize
 removal of this accepted checkpoint or either source snapshot.
-UltracoolSheet checkpoint `20fdb1c95d25d441160d3bd9`, raw snapshot
+UltracoolSheet checkpoint `a328a9e13d6c2b44f8d57861`, raw snapshot
 `14fd785307af12849666a603`, typed snapshot `32d437d41bfdfa7242bd8a4a`,
 and its compile, artifact-audit, source/scope-audit, and clean-reproduction
 reports are protected E4/E5 inputs. The UltracoolSheet scientific audit is an
 explicitly allowlisted failed-artifact audit contract; it does not authorize
-removal of this accepted checkpoint or either source snapshot. Independently
+removal of this accepted checkpoint or either source snapshot. Superseded
+checkpoint `20fdb1c95d25d441160d3bd9` remains protected through E5 v14 and its
+E6 shadow references until replacement promotion and rollback retention are
+complete. Independently
 failed v46-v48 artifacts were retired as whole artifacts only after dry-run
 candidate-set hash
 `9db9a29f47011b94e037d8dee4e0e444e7fc9b3f2f78c403a3e9cedc26c1ea95`
@@ -820,13 +823,15 @@ unreferenced artifacts through the exact-candidate dry-run/apply workflow.
 
 ## E4 Scientific Evidence Release Set
 
-Release set `6c19de054e9b807674c37d3c` under
+Release set `51b08e537e768acf63e554e1` under
 `derived/evidence_lake_v2/scientific_evidence_sets/` is the active E5 input. Its
-manifest references 36 accepted shard directories totaling 448,898,973,696
+manifest references 36 accepted shard directories totaling 448,814,563,328
 database bytes. Every referenced artifact, manifest, database, raw/typed input,
 audit, and reproduction report is protected. The set deliberately stores no
 copied evidence database; deleting a referenced shard would corrupt the set.
-Earlier set `a188a3adc6207d3a217d54a9` remains protected through the verified E5
+Earlier set `6c19de054e9b807674c37d3c` remains protected through verified E5 v14,
+the existing E5 policy-family artifacts, and their E6 rollback lineage. Set
+`a188a3adc6207d3a217d54a9` remains protected through the earlier verified E5
 rollback artifact.
 Retention tooling must resolve active and rollback release-set manifests before
 considering any E4 artifact candidate. Superseded diagnostics remain subject to
@@ -866,6 +871,14 @@ reports are protected E6 inputs. Clean reproduction matches logical hash
 `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`
 and every compared section, then removes its isolated work tree. Neither v13
 nor v14 is the accepted `current` target before E7 promotion.
+Unserved v15 candidate `fa4aaed18aebcffb8632d978` is USB-backed under
+`/mnt/space/spacegate/e5-selection-v15/` with a protected symlink in the normal
+selected-fact namespace. Its 123,288,872 facts, 43,060,870 decisions, manifest,
+compile/timing/performance reports, independent audit, and clean-reproduction
+reports are protected as the current E6 input. Reproduction matched logical
+hash `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
+and every compared section in 28:58.22, then removed scratch. V15 also remains
+unserved until E6 scientific A/B and E7 acceptance.
 The compiler's immutable-input attestation is process-local and is not a durable
 artifact or substitute for a checksum. Each invocation byte-hashes every pinned
 E4 input against its expected SHA; within that process only, the result may be

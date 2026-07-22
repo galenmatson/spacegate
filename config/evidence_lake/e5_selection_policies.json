@@ -1,9 +1,9 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-22.e5-selection.14",
-  "compiler_version": "selected_fact_compiler_v14",
-  "evidence_release_set_id": "6c19de054e9b807674c37d3c",
-  "evidence_release_set_sha256": "6c19de054e9b807674c37d3c2eb9476f4c57a82b425ed9378bf60104016f5aa1",
+  "policy_version": "2026-07-22.e5-selection.15",
+  "compiler_version": "selected_fact_compiler_v15",
+  "evidence_release_set_id": "51b08e537e768acf63e554e1",
+  "evidence_release_set_sha256": "51b08e537e768acf63e554e162b7bdfc968cced23526954ec42f636671d94276",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "selection_sources": [
@@ -796,16 +796,29 @@
       },
       "allowed_claim_scopes": ["star_or_substellar_object"],
       "component_scope_policy": "require_null",
+      "binding_applicability": {
+        "conditions": [
+          {
+            "scope": "source_context",
+            "path": "$.astrom_Gaia",
+            "operator": "ne_or_null",
+            "value": "P",
+            "value_type": "string"
+          }
+        ],
+        "reason": "UltracoolSheet astrom_Gaia=P rows use a higher-mass primary as an astrometric proxy; object-scoped companion evidence cannot bind through that primary identifier"
+      },
       "storage": "classification",
       "classification_evidence_table": "stellar_classification_evidence",
       "minimum_eligible_records": 10800,
-      "minimum_accepted_bindings": 5300,
-      "minimum_selected_facts": 5200,
+      "minimum_accepted_bindings": 4800,
+      "minimum_selected_facts": 4700,
       "expected_binding_outcomes": {
-        "accepted": 5335,
-        "missing": 5552
+        "accepted": 4843,
+        "excluded": 512,
+        "missing": 5532
       },
-      "expected_selected_facts": 5282,
+      "expected_selected_facts": 4843,
       "quantity_groups": [
         {
           "group_key": "stellar_optical_spectral_classification",

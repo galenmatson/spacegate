@@ -2319,6 +2319,15 @@ Foundation checkpoint (July 22, 2026):
   phases, independent artifact audit, identical report sections, and logical
   hash `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`;
   the artifact remains unserved pending E6 scientific A/B
+- E5 policy v15/compiler v15 produces unserved selected-fact build
+  `fa4aaed18aebcffb8632d978` with 123,288,872 facts and 43,060,870 decisions.
+  Its general UltracoolSheet scope contract excludes 512 primary-proxy
+  bindings while retaining them as evidence; 452 invalid proxy winners are
+  removed and 13 object-owned facts previously displaced by same-Gaia
+  competition are restored, for an exactly accounted net delta of 439. The
+  29:58.87 compile, independent audit, and 28:58.22 clean reproduction pass all
+  103 phases and logical hash
+  `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
 - policy `2026-07-22.e6-shadow.3` and compiler v2 produce immutable integrated
   candidate `e6_2da376053461c8220bee06ad_shadow`; selected consumers and all
   5,879,796 hierarchy-leaf classifications now materialize before checkpoint,
