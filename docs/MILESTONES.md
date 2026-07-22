@@ -2313,6 +2313,12 @@ Foundation checkpoint (July 22, 2026):
   fallback objects after geometric Bailer-Jones selection. It recovers every
   legacy missing distance within 0.001 pc. The tail's selected parallax S/N is
   only 2.07-7.39, so inverse parallax is deliberately not substituted
+- E5 policy v14/compiler v14 produces unserved selected-fact build
+  `929bf92b4c5dbd5aef7e5972` with 123,289,311 facts and 43,061,309 decisions.
+  The 30:28.86 reference compile and 29:54.48 clean reproduction pass all 103
+  phases, independent artifact audit, identical report sections, and logical
+  hash `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`;
+  the artifact remains unserved pending E6 scientific A/B
 - policy `2026-07-22.e6-shadow.3` and compiler v2 produce immutable integrated
   candidate `e6_2da376053461c8220bee06ad_shadow`; selected consumers and all
   5,879,796 hierarchy-leaf classifications now materialize before checkpoint,

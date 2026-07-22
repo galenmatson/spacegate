@@ -1,188 +1,132 @@
-# E5 Selected-Fact Build Performance Report
+# E5 Selected-Fact Build Performance - 2026-07-22
 
-Date: 2026-07-22
-Host: Photon
-Accepted build: `0a57f778ce13de1c2c800103`
-Policy/compiler: `2026-07-22.e5-selection.12` / `selected_fact_compiler_v11`
+## Scope
 
-## Result
+This report measures the complete Evidence Lake v2 E5 selected-fact compiler on
+Photon. It covers policy v13 (NASA host evidence) and policy v14 (the same
+selection plus official Gaia GSP-Phot posterior model distance). Compiler phase
+reports are machine-readable under
+`/data/spacegate/state/reports/evidence_lake_v2/`.
 
-The shared-host 8-thread/32-GB build passed compilation and independent audit,
-then reproduced from clean USB-backed scratch with identical report sections
-and logical Parquet hash
-`6ccec12397bbe7d64878c52ead6a06ffca52d686e75020b8fb08831e58c69628`.
-The artifact contains 94,414,212 exhaustive binding outcomes, 164,425 model
-preselections, 41,078,490 coherent-set decisions, 121,304,924 selected facts,
-and 65,104 derivations. All 99 measured phases passed.
+The v14 reference artifact is USB-backed at
+`/mnt/space/spacegate/e5-selection-v14/929bf92b4c5dbd5aef7e5972`.
+The USB device holds staging and spill because the build can allocate more than
+230 GB temporarily. Accepted science inputs remain immutable and checksum-
+verified; this placement is not permission to weaken retention or provenance.
 
-The accepted compile took 1,577.317 measured phase seconds and 1,583.43
-external wall seconds (26:23). Clean reproduction took 1,734.421 measured
-phase seconds and 1,744.31 external wall seconds (29:04). The accepted run used
-7,033.775 CPU-seconds and peaked at 35.25 GiB process RSS, 69.00 GiB staging
-allocation, and 148.59 GiB spill allocation. Reproduction used 7,137.650
-CPU-seconds and peaked at 36.19 GiB RSS, 69.02 GiB staging, and 149.79 GiB
-spill.
+## Measured Runs
 
-## Phase Families
+| Run | Result | Phase wall | External wall | Facts | Decisions | Peak RSS | Peak staging | Peak spill |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| v13 reference compile | pass | 1,733.73s | about 29:00 | 121,306,839 | 41,078,837 | 36.0 GiB | 69.0 GiB | 149.7 GiB |
+| v13 clean reproduction | pass | 1,477.17s | 24:49.54 | 121,306,839 | 41,078,837 | 55.8 GiB | measured | measured |
+| v14 reference compile | pass | 1,822.11s | 30:28.86 | 123,289,311 | 43,061,309 | 35.5 GiB | 70.5 GiB | 150.2 GiB |
+| v14 clean reproduction | pass | 1,783.93s | 29:54.48 | 123,289,311 | 43,061,309 | 35.3 GiB | 70.4 GiB | 149.1 GiB |
 
-Times are wall seconds. The raw timing reports retain every individual phase,
-source, CPU measurement, row count, memory high-water mark, and spill sample.
+The compiler accounts all 103 phases. The v14 independent artifact audit takes
+59.77 seconds, peaks at 30.4 GiB RSS, and reports zero schema, scope, lineage,
+authority, duplication, or completeness failures.
 
-| Phase family | Accepted | Reproduction | Accepted share |
-| --- | ---: | ---: | ---: |
-| Source candidate insertion | 793.392 | 815.678 | 50.30% |
-| Source binding | 216.819 | 225.377 | 13.75% |
-| Deterministic exports | 204.172 | 229.851 | 12.94% |
-| Immutable E4 input verification | 158.633 | 159.480 | 10.06% |
-| Global parameter-set selection | 116.966 | 129.845 | 7.42% |
-| Artifact finalization and hashing | 57.553 | 114.836 | 3.65% |
-| Integrity checks | 20.782 | 41.880 | 1.32% |
-| Preflight | 4.509 | 6.755 | 0.29% |
-| Derivations | 1.645 | 7.121 | 0.10% |
-| Source preselection | 1.337 | 1.393 | 0.09% |
-| Source accounting | 0.681 | 1.408 | 0.04% |
-| Summary accounting | 0.417 | 0.334 | 0.03% |
-| Source preparation | 0.388 | 0.409 | 0.03% |
-| Schema/input attachment | 0.014 | 0.042 | <0.01% |
-| Database open | 0.008 | 0.012 | <0.01% |
+The v14 clean run matches build identity
+`929bf92b4c5dbd5aef7e5972`, logical content hash
+`af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`,
+and every compared report section. Its isolated work tree is removed after the
+gate. No candidate is promoted to the accepted `current` pointer by either run.
 
-The reproduction's larger export and final-hash cost is consistent with its
-artifact being written and read from USB scratch. Scientific compilation varied
-by roughly 0-4% for the dominant sources and produced identical content.
+## V14 Ranked Cost
 
-## Per-Source Work
+| Rank | Phase | Wall | Share |
+|---|---|---:|---:|
+| 1 | Gaia source authoritative-direct materialization | 558.02s | 30.63% |
+| 2 | Selected-fact Parquet export | 221.21s | 12.14% |
+| 3 | Global parameter-set selection | 186.02s | 10.21% |
+| 4 | Immutable E4 byte verification | 158.88s | 8.72% |
+| 5 | Artifact hashing | 119.73s | 6.57% |
+| 6 | Bailer-Jones candidate insertion | 110.68s | 6.07% |
+| 7 | Bailer-Jones identity binding | 93.52s | 5.13% |
+| 8 | Gaia AP candidate insertion | 58.98s | 3.24% |
+| 9 | Gaia supplementary AP candidate insertion | 51.76s | 2.84% |
+| 10 | Gaia source identity binding | 47.05s | 2.58% |
 
-Each total includes prepare, exhaustive binding, preselection, and candidate
-materialization for the accepted run.
+V14 adds 1,982,472 facts, a 1.63% fact increase, while phase time increases by
+88.38 seconds, or 5.10%. Global selection grows disproportionately from 118.65
+to 186.02 seconds in the reference and 141.12 seconds in clean reproduction.
+An independent source-record scalar is therefore paying the cost of the general
+coherent parameter-set competition, although the two-run spread means the
+reference value is not a precise standalone benchmark.
 
-| Source | Wall seconds | CPU seconds | Build share |
-| --- | ---: | ---: | ---: |
-| Gaia DR3 source | 587.457 | 2,701.176 | 37.24% |
-| Bailer-Jones EDR3 distances | 199.640 | 829.424 | 12.66% |
-| Gaia DR3 astrophysical parameters | 85.548 | 466.667 | 5.42% |
-| Gaia DR3 supplementary AP | 67.803 | 344.219 | 4.30% |
-| Gaia DR3 variability | 23.198 | 114.220 | 1.47% |
-| VSX | 12.780 | 67.163 | 0.81% |
-| LAMOST DR11 | 12.504 | 68.006 | 0.79% |
-| APOGEE DR17 | 5.457 | 12.607 | 0.35% |
-| SIMBAD | 5.284 | 25.398 | 0.34% |
-| Gaia EDR3 white dwarfs | 5.174 | 18.091 | 0.33% |
-| NASA Planetary Systems | 3.891 | 9.385 | 0.25% |
-| GALAH DR4 | 2.880 | 5.836 | 0.18% |
-| UltracoolSheet | 0.194 | 0.836 | 0.01% |
-| IAU WGSN | 0.125 | 0.695 | 0.01% |
+## Optimization Order
 
-## Ranked Optimization Work
+1. **Immutable program-level intermediates.** Compile each source/object/scope
+   program into a content-addressed binding and candidate shard keyed by its E4
+   artifact, relevant policy subsection, identity graph, canonical reference,
+   and compiler hash. A one-field Gaia policy addition should not rebuild
+   unchanged Gaia source, Bailer-Jones, spectroscopy, naming, and variability
+   programs.
+2. **Separate direct scalars from coherent parameter sets.** Source-record
+   scalar evidence such as GSP-Phot distance needs authority competition and
+   exact lineage, but not parameter-set preselection. Feed it through a typed
+   direct-scalar lane and reserve the global coherent selector for quantities
+   that can actually conflict as parameter sets.
+3. **Use one durable representation for authoritative-direct facts.** The Gaia
+   source path currently writes about 89 million facts into DuckDB and later
+   exports them again. Test a deterministic Parquet-first path that remains
+   queryable during final conflict checks, rather than paying for two complete
+   materializations.
+4. **Export once and hash while writing.** Measure one-pass stable partitioned
+   export and incremental content hashing. Preserve filenames, ordering,
+   compression, row accounting, and logical hashes before accepting any change.
+5. **Reuse release-scoped identity outcomes.** Binding results depend on the
+   source release, identity graph, component policy, and canonical reference,
+   not on unrelated scientific quantity policies. Promote them to immutable
+   reusable compiler inputs without losing accepted, missing, ambiguous,
+   excluded, or quarantined accounting.
+6. **Keep byte verification authoritative.** Four workers verify 382.7 GB in
+   about 159 seconds. Test worker counts and storage placement, but do not
+   replace byte hashes with size, mtime, or manifest trust. Filesystem-level
+   immutability or verity may eventually support a durable verification cache.
 
-1. **Gaia direct-fact representation (543.136 seconds).** Profile encoding and
-   compare a Parquet-first or single-durable-representation compiler. The
-   current build writes 89,068,940 Gaia source facts into the inspection
-   database and later writes deterministic Parquet partitions. Removing one of
-   those full representations during compilation has the largest plausible
-   payoff, but the inspection and immutable-artifact contracts must remain.
-2. **Deterministic export (204.172 seconds).** Test one-pass partitioned export
-   only in disposable scratch with exact filename, row-order, row-count, and
-   hash gates. Unordered partitioning was faster but nondeterministic; globally
-   ordered and concurrent stable writers were measured and rejected for spill,
-   incomplete throughput, or DuckDB temporary-directory conflicts.
-3. **Bailer-Jones binding and projection (199.640 seconds).** Profile the
-   accepted-versus-missing joins and test deterministic namespace buckets. All
-   17,310,560 outcomes must remain explicit; an optimization may compact the
-   execution path, not discard the unresolved tail.
-4. **Immutable input verification (158.633 seconds warm; 358.4 seconds in the
-   separate cold release-set check).** The current four-worker byte verification
-   is real integrity work over hundreds of gigabytes. Test worker counts and a
-   content-addressed unchanged-member attestation, but do not replace checksums
-   with path, size, or mtime trust. Filesystem-level verified immutability would
-   be a prerequisite for safely avoiding repeated full reads across processes.
-5. **Global coherent-set selection (116.966 seconds).** Profile selection by
-   quantity group and determine whether content-addressed per-group decisions
-   can be composed without changing cross-source authority or winner/runner-up
-   semantics.
-6. **Artifact hashing (57.526 seconds).** Evaluate hashing each deterministic
-   output while it is written. The final artifact must still expose independent
-   hashes and permit a later verifier to reread the bytes.
+## Identity Churn
 
-The previously tested accepted-binding cache is not a candidate: it increased
-Gaia insertion from 540.0 to 661.5 seconds and binding from 44.0 to 48.0
-seconds. The isolated 12-thread/48-GB profile improved the earlier full build by
-only 7.6% while consuming 6.5% more CPU and about 56 GiB RSS. The 8-thread/32-GB
-profile remains the normal setting on the shared Photon host.
+Selected fact and decision IDs currently include the global policy version.
+Consequently, a one-field policy addition changes IDs for otherwise identical
+winners and prevents safe program-level reuse. A future compiler contract should
+derive decision identity from the relevant policy-rule hash while retaining the
+global policy version as artifact lineage. That migration requires an explicit
+schema/version boundary and A/B proof; it must not be changed opportunistically
+inside the current E6 cutover.
 
-## Integrity and Retention
+## Rejected Experiments
 
-The first current-release intermediate exposed an over-strict external audit:
-one alpha-abundance set had no optional `logchisq`, but it was the only
-same-authority candidate. Compiler v11 and the independent auditor now require
-a declared quality score only when a same-authority competitor exists. They
-also verify the exact policy version and policy-file hash. The accepted build
-passes these gates with zero failures.
-
-The rejected intermediate `c27804da6fe9e6ada61184b0` was removed only after
-the policy-v12 compile, independent audit, and clean reproduction passed. The
-fail-closed retention run used candidate-set hash
-`85b3c10f7c0853e994d27e9f59ad51762efb2a48a1d8b57ebe82570c7a295279`
-and reclaimed 74,069,770,240 allocated bytes. Its audit, timing, performance,
-compile, and retention reports remain.
+- A one-time accepted-binding cache increased Gaia source binding from about
+  44.0 to 48.0 seconds and direct insertion from about 540.0 to 661.5 seconds.
+  It is not an optimization candidate in its measured form.
+- Fast one-pass partitioned export produced nondeterministic output bytes.
+  Globally ordered export spilled excessively, and concurrent stable writers
+  contended on DuckDB temporary-directory state. The stable sequential export
+  remains the accepted implementation until a replacement passes exact hashes.
+- A 12-thread/48-GB profile improved the earlier complete build by only 7.6%
+  while consuming 6.5% more CPU and peaking near 56 GiB RSS. The shared-host
+  default remains eight threads and a 32-GB DuckDB limit.
 
 ## Machine Reports
 
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_compile.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_compile_timing.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_performance_analysis.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_artifact_audit.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_reproduction.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_reproduction_timing.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v12_reproduction_performance_analysis.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_policy_v11_retention_applied.json`
+- `e5_selected_fact_v14_compile.json`
+- `e5_selected_fact_v14_compile_timing.json`
+- `e5_selected_fact_v14_performance_analysis.json`
+- `e5_selected_fact_v14_audit.json`
+- `e5_selected_fact_v14_reproduction.json`
+- `e5_selected_fact_v14_reproduction_performance.json`
 
-## Policy v13 NASA Host Candidate
+All paths above are relative to
+`/data/spacegate/state/reports/evidence_lake_v2/`. The compiler log and GNU
+`time -v` reports are retained alongside them so wall time, CPU, RSS, page
+faults, filesystem I/O, and exit status remain independently inspectable.
 
-Unserved USB-backed candidate `16708b8ed193aeae9b2ab995` adds a separately
-accounted star-scoped NASA host program while retaining the existing NASA planet
-program. The 103 instrumented phases pass with 94,546,790 binding outcomes,
-41,078,837 coherent decisions, 121,306,839 selected facts, and 66,834
-derivations. Independent artifact audit passes every scientific, lineage,
-partition, policy-hash, and source/object accounting gate. Clean reproduction
-and E6 A/B remain open, so this candidate is not the normal local `current`
-artifact or a served product.
+## Acceptance Constraints
 
-The compile took 1,733.725 measured phase seconds and 1,739.91 external wall
-seconds (29:00), used 7,153.146 CPU-seconds, and peaked at 35.96 GiB RSS, 69.01
-GiB staging, and 149.67 GiB spill. The independent audit took 30.24 seconds and
-peaked at 30.0 GiB RSS. The dedicated spill was empty after verification; the
-70-GiB candidate remains under `/mnt/space/spacegate/e5-selection-v13` while
-`/data` storage is reviewed.
-
-| Phase family | Wall s | Share |
-| --- | ---: | ---: |
-| Source candidate insertion | 835.052 | 48.17% |
-| Source binding | 228.265 | 13.17% |
-| Deterministic exports | 225.357 | 13.00% |
-| Immutable E4 input verification | 160.402 | 9.25% |
-| Global parameter-set selection | 118.654 | 6.84% |
-| Artifact finalization and hashing | 107.356 | 6.19% |
-| Integrity checks | 41.265 | 2.38% |
-
-Gaia direct fact materialization remains the first optimization target at
-571.078 seconds. Selected-fact and decision export is second at 225.357,
-followed by Bailer-Jones binding/materialization at 206.241 and full immutable
-input verification at 160.402. Artifact hashing varied from 57.5 seconds in the
-v12 reference to 107.3 here and needs repeated I/O evidence before redesign.
-
-The new focused NASA preflight closes the most expensive feedback-loop defect.
-It verifies the 4.50-GB input, identity outcomes, coherent selection, exact
-lineage, object-scope isolation, and expected v12 authority/count impact in 7.60
-seconds. It predicted the exact 415-fact supplementary-Gaia displacement that
-stopped an earlier 22:41 full attempt. Future scoped policy work must pass a
-reference-decision composition gate before the full compiler starts. The two
-rejected attempts retain incremental timing reports; their staging and spill
-were removed only after their processes exited.
-
-Additional machine reports:
-
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_nasa_host_selection_verification.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_compile.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_compile_timing.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_performance_analysis.json`
-- `/data/spacegate/state/reports/evidence_lake_v2/e5_selected_fact_v13_artifact_audit.json`
+Performance changes are acceptable only if they preserve exact source and
+component scope, evidence and binding lineage, authority ordering, coherent-set
+selection, missing/ambiguous/excluded accounting, deterministic partition
+hashes, lower-authority rejection, and clean reproduction. A faster compiler
+that weakens any of those properties is a regression.

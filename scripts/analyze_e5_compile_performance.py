@@ -138,11 +138,23 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
                 "constraint": "Fact identity, exact binding lineage, row counts, and deterministic partition hashes must remain unchanged.",
             }
         )
+    global_selection = candidate_by_key.get(("global_parameter_set_selection", ""))
+    if global_selection:
+        optimization_candidates.append(
+            {
+                "priority": 2,
+                "target": "global_authority_selection",
+                "measured_wall_seconds": global_selection["wall_seconds"],
+                "measured_wall_percent": global_selection["wall_percent"],
+                "next_experiment": "Separate independent source-record scalar facts from coherent parameter-set competitions, then compare logical decisions and hashes against the unified selector.",
+                "constraint": "Authority ordering, coherent-set selection, duplicate prevention, exact evidence lineage, and lower-authority rejection must remain unchanged.",
+            }
+        )
     exports = next((row for row in category_rows if row["category"] == "exports"), None)
     if exports:
         optimization_candidates.append(
             {
-                "priority": 2,
+                "priority": 3,
                 "target": "partitioned_parquet_exports",
                 "measured_wall_seconds": exports["wall_seconds"],
                 "measured_wall_percent": exports["wall_percent"],
@@ -161,7 +173,7 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
     if input_verification:
         optimization_candidates.append(
             {
-                "priority": 3,
+                "priority": 4,
                 "target": "immutable_input_checksum_verification",
                 "measured_wall_seconds": input_verification["wall_seconds"],
                 "measured_wall_percent": input_verification["wall_percent"],
@@ -180,7 +192,7 @@ def analyze(timing: dict[str, Any], compile_report: dict[str, Any]) -> dict[str,
     if bj_source:
         optimization_candidates.append(
             {
-                "priority": 4,
+                "priority": 5,
                 "target": "bailer_jones_binding_and_direct_selection",
                 "measured_wall_seconds": bj_source["wall_seconds"],
                 "measured_wall_percent": bj_source["wall_percent"],

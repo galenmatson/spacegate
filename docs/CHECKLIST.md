@@ -1611,6 +1611,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   as official Gaia GSP-Phot posterior model evidence, select it under a distinct
   `distance_gspphot_pc` quantity after Bailer-Jones posteriors, recover the full
   tail, and reject inverse-parallax substitution for its S/N 2.1-7.4 parallaxes
+- [x] E5 v14 selected-fact checkpoint: compile and independently audit unserved
+  build `929bf92b4c5dbd5aef7e5972` with 123,289,311 selected facts, then cleanly
+  reproduce all 103 phases, every compared report section, and logical content
+  hash `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`
 - [ ] E5/E6 NASA host cutover: pass the complete instrumented E5 compile and
   clean E5 reproduction plus E6 shadow rebuild with the host and GSP-Phot
   policies, then

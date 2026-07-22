@@ -853,10 +853,19 @@ Unserved host-policy candidate `16708b8ed193aeae9b2ab995` is USB-backed under
 `/mnt/space/spacegate/e5-selection-v13/` with a protected symlink in the normal
 selected-fact namespace. Its 121,306,839 facts, manifest, compile and phase
 timing reports, independent audit, and clean-reproduction report remain
-protected while v14 is built. The reproduction ran all 103 phases in 24:49.54,
+protected as the immediate pre-v14 scientific reference. The reproduction ran
+all 103 phases in 24:49.54,
 matched logical hash
 `d7e38431f403844a4a0736201a61200a2ab95070b9192c0b24be83cfd6f01208`,
 and removed its USB scratch tree.
+Unserved v14 candidate `929bf92b4c5dbd5aef7e5972` is USB-backed under
+`/mnt/space/spacegate/e5-selection-v14/` with a protected symlink in the normal
+selected-fact namespace. Its 123,289,311 facts, 43,061,309 decisions, manifest,
+compile/timing/performance reports, independent audit, and clean-reproduction
+reports are protected E6 inputs. Clean reproduction matches logical hash
+`af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`
+and every compared section, then removes its isolated work tree. Neither v13
+nor v14 is the accepted `current` target before E7 promotion.
 The compiler's immutable-input attestation is process-local and is not a durable
 artifact or substitute for a checksum. Each invocation byte-hashes every pinned
 E4 input against its expected SHA; within that process only, the result may be

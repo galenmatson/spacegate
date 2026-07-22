@@ -44,6 +44,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
                 source_id="gaia.dr3.gaia_source",
             ),
             phase("selected_fact_exports", 20, 100),
+            phase("global_parameter_set_selection", 12, 40),
             phase(
                 "immutable_e4_input_verification",
                 10,
@@ -63,7 +64,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
         {"status": "pass", "build_id": "a" * 24, "table_counts": {"selected_facts": 4}},
     )
 
-    assert report["total"]["wall_seconds"] == 100
+    assert report["total"]["wall_seconds"] == 112
     assert report["top_phases"][0]["phase"] == "source_candidate_insertion"
     assert report["categories"][0]["category"] == "source_candidate_insertion"
     assert report["optimization_candidates"][0]["target"] == (
@@ -72,4 +73,7 @@ def test_performance_analysis_ranks_measured_targets() -> None:
     assert "measured and rejected" in report["optimization_candidates"][0][
         "next_experiment"
     ]
+    assert report["optimization_candidates"][1]["target"] == (
+        "global_authority_selection"
+    )
     assert report["peak_spill_allocated_bytes"] == 300

@@ -3152,6 +3152,25 @@ Representative commits:
   GSP-Phot precedence. Supplementary AP library fits remain alternatives rather
   than being flattened into the main-source selection.
 
+### 117) A One-Field Policy Addition Must Not Require a Monolithic Recompile
+
+- E5 policy v14 selects 1,982,472 official GSP-Phot distance facts and restores
+  the 1,160-row legacy distance tail without reciprocal-parallax substitution.
+  Unserved build `929bf92b4c5dbd5aef7e5972` passes independent audit and clean
+  reproduction with 123,289,311 facts, 43,061,309 decisions, and logical hash
+  `af1155454dc91f8d653735e81ae8c153cdb5c7454e93ea4ab69301ea59d4be1f`.
+- The reference compile takes 30:28.86 and clean reproduction 29:54.48. Gaia
+  direct materialization, deterministic export, global selection, immutable
+  byte verification, final hashing, and Bailer-Jones processing dominate. The
+  single independent scalar increases facts by 1.63% but total phase time by
+  5.10%, exposing avoidable global-policy and rebuild coupling.
+- The next compiler architecture should use content-addressed program-level
+  intermediates, release-scoped reusable identity outcomes, and a direct-scalar
+  lane while preserving exact lineage, authority, unresolved accounting, and
+  deterministic hashes. Previously measured accepted-binding-cache and fast
+  partition-export attempts remain rejected because they were slower or
+  nondeterministic.
+
 ### 116) E6 Diagnostics Are Retired Only Through a Reproducible Set Gate
 
 - A dedicated E6 retention tool verifies the replacement's declared product
