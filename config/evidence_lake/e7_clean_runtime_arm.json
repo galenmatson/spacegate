@@ -1,0 +1,56 @@
+{
+  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v1",
+  "policy_version": "2026-07-22.e7-clean-runtime-arm.1",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v1",
+  "rules": {
+    "open_stability_databases": false,
+    "canonical_containment_from_runtime_hierarchy_only": true,
+    "scientific_values_from_selected_facts_only": true,
+    "source_relation_claims_create_containment": false,
+    "context_only_orbits_create_renderable_edges": false,
+    "copy_historical_evidence_warehouse_into_runtime_arm": false
+  },
+  "inputs": {
+    "clean_runtime_core": {
+      "build_id": "92da8d31dc0e7dbd4d4d70a5",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5",
+      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224"
+    },
+    "clean_science": {
+      "build_id": "7c27f1595c69278b8d55c9e4",
+      "relative_path": "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4",
+      "manifest_sha256": "9741a4480ac9b474742644e58d66e93a2ed2476880411cbc0ee68e7da706e79b"
+    },
+    "clean_wise": {
+      "build_id": "ec8e218402c3a4a3b55b2811",
+      "relative_path": "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811",
+      "manifest_sha256": "258e8ddc93f9d5eced0af53eb661164189e75b62bc1cb5f2b3b8540fef6745b3"
+    }
+  },
+  "selected_science_tables": [
+    "selected_planet_parameters",
+    "selected_stellar_astrometry",
+    "selected_stellar_classification",
+    "selected_stellar_display_classifications",
+    "selected_stellar_parameters",
+    "selected_stellar_photometry",
+    "selected_stellar_physics",
+    "selected_stellar_variability"
+  ],
+  "clean_wise_tables": [
+    "allwise_sources",
+    "catwise_sources",
+    "infrared_candidate_queue",
+    "infrared_motion_evidence",
+    "infrared_photometry",
+    "infrared_source_matches",
+    "wise_sources"
+  ],
+  "runtime_graph_status": {
+    "component_containment": "implemented_from_canonical_hierarchy",
+    "stellar_leaf_classification": "implemented_from_selected_science_and_scoped_msc_evidence",
+    "cross_source_orbit_selection": "pending_explicit_authority_policy",
+    "solar_minor_body_projection": "pending_selected_solar_runtime_projection",
+    "tess_candidate_compatibility": "pending_selected_planet_evidence_runtime_projection"
+  }
+}

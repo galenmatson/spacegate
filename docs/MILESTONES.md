@@ -2525,6 +2525,17 @@ Pre-promotion planning checkpoint (July 22, 2026):
   target/catalog outcomes, prevents one infrared source from being accepted to
   multiple targets, keeps CatWISE parallax-like values candidate-only, and
   reproduces all ten canonical Parquet products
+- clean runtime ARM foundation `60435b9d8c85c94b9018ee36` consumes only pinned
+  clean runtime CORE, selected science, and clean WISE artifacts. It preserves
+  all 11,759,440 canonical hierarchy nodes and 5,886,947 edges, resolves
+  noncanonical component ownership through the nearest canonical parent scope,
+  and materializes 5,879,943 leaf classifications without source relation claims
+  creating containment. Independent audit and isolated logical reproduction pass
+- the instrumented ARM compile takes 2:35.95 and peaks at 45.3 GiB RSS; six wide
+  selected-stellar table copies consume 97.2 seconds, while the optimized
+  type-partitioned component graph takes 8.94 seconds. Cross-source orbit
+  authority, selected Solar runtime surfaces, and TESS compatibility remain open
+  rather than being copied from the stability ARM
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

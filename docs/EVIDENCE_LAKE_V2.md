@@ -2084,6 +2084,46 @@ container passes logical verification. Runtime/API consumer cutover remains
 open, so this checkpoint replaces an evidence projection but does not change
 served responses or retire the legacy collector yet.
 
+## E7 Clean Runtime ARM Foundation
+
+Build `60435b9d8c85c94b9018ee36` is the first ARM runtime projection compiled
+without opening a stability CORE, ARM, hierarchy, or DISC database. Its pinned
+inputs are clean runtime CORE `92da8d31dc0e7dbd4d4d70a5`, clean selected science
+`7c27f1595c69278b8d55c9e4`, and clean WISE `ec8e218402c3a4a3b55b2811`.
+Scientific values are copied from the shared selected-fact projection; three
+temporary `e6_*` views are read-only compatibility names over those same tables,
+not another selector.
+
+The runtime component graph contains exactly 11,759,440 component entities and
+5,886,947 canonical hierarchy edges. Systems, stars, and planets bind through
+their permanent canonical keys. Noncanonical leaves inherit system scope from
+their nearest canonical parent rather than a nonunique WDS identifier or every
+reachable system context. This matters for canonical stars that are also shown
+under a broader WDS grouping: their descendants retain the star's own canonical
+`system_id` without deleting the contextual hierarchy edge. The compiler emits
+zero missing, duplicate, orphaned, ambiguously owned, or unbound graph members,
+and no source relation claim creates canonical containment.
+
+One shared leaf-classification surface covers 5,879,943 stellar leaves. Direct
+selected canonical classifications precede scoped MSC component evidence, then
+the labeled MSC mass presentation prior; missing evidence remains `UNKNOWN`.
+Every non-missing result retains evidence and source lineage. Fifteen canonical
+planet identities have no selected parameter row and remain explicit coverage
+accounting rather than receiving invented values.
+
+The instrumented compile completes in 155.95 external wall seconds, uses 429.07
+CPU-seconds, peaks at 47,533,112 KiB RSS without swap, and writes a
+13,698,871,296-byte DuckDB artifact. Independent verification takes 8.01 seconds.
+An isolated rebuild plus logical comparison takes 3:00.75; all 19 table schemas,
+row counts, and logical hashes match, the independent audit passes, and scratch
+is removed. Detailed phase ranking and optimization constraints are retained in
+`docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
+
+This is a bounded foundation, not the final ARM cutover. Cross-source orbit
+authority, selected Solar minor-body/runtime surfaces, and TESS candidate
+compatibility remain explicit pending work. They may not be satisfied by copying
+stability tables or by promoting relation evidence into containment.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

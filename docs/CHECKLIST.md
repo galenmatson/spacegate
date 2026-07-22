@@ -1747,6 +1747,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   typed Parquet, compile build `ec8e218402c3a4a3b55b2811` without legacy CSV or
   stability reads, and account every target/catalog outcome as accepted,
   ambiguous, or missing with collision-safe matching
+- [x] E7 clean runtime ARM foundation: compile build
+  `60435b9d8c85c94b9018ee36` from pinned clean CORE, selected science, and WISE
+  artifacts without opening stability databases; preserve all 11,759,440
+  component nodes and 5,886,947 canonical hierarchy edges, materialize one
+  shared leaf-classification surface, pass independent audit, and reproduce all
+  19 table schemas/counts/logical hashes in isolated scratch
+- [ ] E7 clean runtime ARM completion: add explicit cross-source orbit authority,
+  selected Solar runtime projections, and TESS candidate compatibility without
+  relation-to-containment promotion or independent scientific fallback logic
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or
@@ -1784,7 +1793,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   shadow build, promotion, rollback, and re-promotion step; rank the critical
   path and preserve before/after evidence for accepted or rejected speedups;
   require nested phase totals to reconcile with their process totals and call
-  out untimed overhead rather than allowing work to disappear between timers
+  out untimed overhead rather than allowing work to disappear between timers;
+  maintain the provisional measurements and optimization register in
+  `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`
 - [x] E7 build-time instrumentation checkpoint: add a fail-closed pinned stage
   graph and runner with per-stage GNU-time logs, atomic machine reports,
   concurrent-run exclusion, explicit warm/cold artifact state, and deployment
