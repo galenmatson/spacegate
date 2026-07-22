@@ -251,6 +251,16 @@ retired two manifestless compiler attempts and three independently failed v50-
 v52 artifacts. The apply report reclaimed 2,600,095,744 allocated bytes while
 preserving the v53 artifact, raw/typed snapshots, and all diagnostic reports.
 
+Corrected TESS E4 artifact `03acb9eb0fb2cbc0f8203dd8`, its compile, generic,
+targeted-source, and clean-reproduction reports, and release set
+`6c19de054e9b807674c37d3c` are protected E4/E5 inputs. Initial artifact
+`11aa9bd00cc710f971b01837` remains retained diagnostic history until E6 and a
+reviewed dry run account for its references; it is not the accepted TESS shard.
+E5 artifact `86aa5553053db35d81ff26e0`, its nine Parquet projections, policy,
+compiler, compile/reproduction reports, and independent audit are protected E6
+inputs. No partial projection or transitive E4/identity/canonical input may be
+removed independently.
+
 On July 19, the reviewed dry run
 `e4_simbad_failed_artifact_retention_dry_run.json` identified exactly two closed,
 manifest-less SIMBAD compiler diagnostics affected by the confirmed

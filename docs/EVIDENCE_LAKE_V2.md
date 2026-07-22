@@ -665,7 +665,7 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   columns that collide with lineage names such as `source_id`. Configured
   photometry and domain evidence now record the exact lower/upper source field
   names alongside their values.
-- Targeted TESS checkpoint `11aa9bd00cc710f971b01837` accounts all 122,772
+- Initial targeted TESS checkpoint `11aa9bd00cc710f971b01837` accounts all 122,772
   source rows and 239 field occurrences with no pending field or duplicate row.
   It preserves 27,930 targeted TIC rows, 8,064 TOIs, 29,302 official Gaia
   DR2-to-DR3 neighborhood rows, 137 member-qualified official external
@@ -682,6 +682,13 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   relation endpoint scopes, and 131,309 asymmetric TIC measurements. Clean
   reproduction matches logical hash
   `5e17ca0f67e7d41a9459898ef26efc42dbd4c90f3b58e7ec4f00dd84c2a8c35a`.
+- E5 review found that the TIC `disposition` field was routed to relation
+  evidence but was not inspectable on `SPLIT` or `ARTIFACT` rows without a
+  duplicate endpoint. Compiler v78 adds a general source-context-copy contract
+  so a domain field can retain its typed destination and row context. Corrected
+  TESS build `03acb9eb0fb2cbc0f8203dd8` preserves all 27,406 blank, 428
+  `SPLIT`, 71 `DUPLICATE`, and 25 `ARTIFACT` dispositions and passes generic,
+  targeted-source, and clean-reproduction gates.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
@@ -1436,16 +1443,17 @@ GiB free, below the 300-GiB new-source acquisition floor. E5 policy work may use
 the pinned release set and external scratch, but acquisition of another large
 release is gated.
 
-Policy batches now make that remaining E5 work measurable. The initial ledger
+Policy batches made the then-remaining E5 work measurable. The initial ledger
 assigned all 24 blocking sources exactly once
 across seven dependency-ordered batches and records completed sources
 separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-22.e5-policy-batches.17` records 22 completed sources and four
-remaining blockers after the JPL Horizons natural-object projection. The
-multiplicity and cluster/extended/Solar batches are complete.
+Ledger `2026-07-22.e5-policy-batches.17` was the intermediate checkpoint with
+22 completed sources and four remaining planet/TESS blockers after the JPL
+Horizons natural-object projection. Policy v18 closes those four through
+artifact `86aa5553053db35d81ff26e0`; all seven batches now report zero blockers.
 
 Component policy v5 projects SBX without repeating the legacy assumption that
 the astrometric target is the primary star. Exact Gaia DR3, officially
@@ -1533,6 +1541,25 @@ lineage, and coherent elements. Thirty-six physical parameter sets expose 36
 radius and 20 mass values on exact canonical targets. Artifact
 `d61c6890588ee40c46ea7d56` passes independent audit and byte-identical
 reproduction in about 1.1 seconds with zero canonical relation promotion.
+
+Planet-evidence policy v1 reconciles the three supplemental planet catalogs and
+targeted TESS evidence without changing the 6,311-object canonical planet
+inventory. Exact normalized names bind 4,715 of 8,261 Exoplanet.eu and 5,568 of
+5,599 HWC rows. OEC binds 5,095 of 9,253 structural planet objects through all
+source-native names, leaves 4,154 missing, and quarantines four multi-planet
+alias conflicts. All 17,514 lifecycle rows, 23,100 coherent parameter sets, and
+260,231 parameter facts remain inspectable; HWC is derived comparison evidence,
+not measurement or confirmation authority. The HD 99492 c positive/negative
+cross-source conflict remains explicit.
+
+The same artifact gives all 27,930 targeted TICs official Gaia DR2-to-DR3 graph
+outcomes and retains all 8,064 TOIs: 1,332 confirmed/known, 5,383 candidate,
+1,346 negative, and three unclassified. Exactly 824 confirmed/known TOIs link to
+an existing canonical planet through one accepted host and a unique period;
+all other rows remain evidence. It preserves 24,188 transit and 39,187 planet-
+parameter facts with lineage. Artifact `86aa5553053db35d81ff26e0` passes
+independent audit and byte-identical reproduction in 8.7-10.2 wall seconds with
+zero inventory mutation.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

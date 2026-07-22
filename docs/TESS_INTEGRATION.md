@@ -89,7 +89,7 @@ Canonical projection checkpoint `20260715T2349Z_06ac777_b` (July 15, 2026):
   evidence for future inspectable adjudication, not authority for an automatic
   inventory row
 
-Evidence Lake E1/E4 checkpoint `11aa9bd00cc710f971b01837` (July 19, 2026):
+Evidence Lake E1/E4 checkpoint `03acb9eb0fb2cbc0f8203dd8` (corrected July 22, 2026):
 
 - parser contract v7 preserves exact archive-member lineage for all 137
   combined Gaia external-crossmatch rows; 19 Hipparcos and 118 2MASS rows
@@ -106,7 +106,13 @@ Evidence Lake E1/E4 checkpoint `11aa9bd00cc710f971b01837` (July 19, 2026):
 - 1,332 confirmed/known, 5,383 candidate, and 1,346 negative lifecycle claims
   remain evidence with all bindings unresolved and no canonical inventory table
 - generic artifact, targeted-source, and clean-reproduction gates pass logical
-  hash `5e17ca0f67e7d41a9459898ef26efc42dbd4c90f3b58e7ec4f00dd84c2a8c35a`
+  hash `99e6413f625730c82ada4fc5ffe3d746bf64aa05929a6f2442db1e9c4920494b`
+- compiler v78 preserves every TIC catalog disposition in row context, including
+  428 `SPLIT`, 71 `DUPLICATE`, and 25 `ARTIFACT` records
+- E5 artifact `86aa5553053db35d81ff26e0` accounts all 27,930 target identities
+  and 8,064 TOIs, links 824 confirmed/known signals to existing canonical
+  planets through accepted-host/unique-period evidence, and promotes no
+  candidate or negative row into the 6,311-object canonical planet inventory
 
 ## Source Policy
 

@@ -5735,6 +5735,18 @@ def materialize_source(
                 and rule["disposition"] != "exclude"
             ):
                 context_fields.append(str(field["column_name"]))
+        context_copy_fields = [
+            str(field) for field in table_contract.get("source_context_copy_fields") or []
+        ]
+        missing_context_copy_fields = sorted(set(context_copy_fields) - set(columns))
+        if missing_context_copy_fields:
+            raise ValueError(
+                f"source context copy fields missing from {table_name}: "
+                f"{missing_context_copy_fields}"
+            )
+        context_fields.extend(
+            field for field in context_copy_fields if field not in context_fields
+        )
 
         source_row_hash = "sha256(to_json(source_row))"
         key_json = logical_key_expression(logical_fields, "source_row")

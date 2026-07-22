@@ -1525,9 +1525,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   selected osculating solution with all 12 standard numeric element fields and
   its exact epoch, frame, center, method, model, response, and physical-
   parameter lineage
+- [x] E5 supplemental planet/TESS projection: account every Exoplanet.eu, HWC,
+  OEC, targeted TIC, and TOI object; preserve lifecycle polarity, conflicts,
+  coherent parameter and transit evidence, and explicit identity outcomes; link
+  confirmed TOIs only through an accepted host plus unique period; and emit no
+  canonical planet inventory mutation
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work
+- [x] E5 source-policy closure: account all 38 accepted E4 sources with 14
+  quantity-selection policies and 24 explicit evidence projections or
+  dispositions; complete all seven batches with zero blocking sources
 - [x] E5 Gaia variability checkpoint: select source-native rotation,
   variability-statistic, and classification-membership evidence from its
   matching parameter-set kind; account all 592,197 subjects and pass two-pass

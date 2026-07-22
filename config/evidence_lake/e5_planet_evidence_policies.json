@@ -1,0 +1,84 @@
+{
+  "schema_version": "spacegate.e5_planet_evidence_policies.v1",
+  "policy_version": "2026-07-22.e5-planet-evidence.1",
+  "compiler_version": "selected_planet_evidence_compiler_v1",
+  "evidence_release_set_id": "6c19de054e9b807674c37d3c",
+  "identity_graph_id": "c84389ad55f17081fff008b4",
+  "canonical_reference_build_id": "20260717T0614Z_f452835_side",
+  "sources": {
+    "exoplanet_lifecycle.exoplanet_eu": {
+      "release_id": "rolling_snapshot_20260721",
+      "evidence_build_id": "0a4d68cf938de29a229946a5",
+      "planet_namespace": "exoplanet_eu_planet_name",
+      "binding_strategy": "canonical_unique_normalized_name",
+      "parameter_role": "supplemental_parameter_evidence"
+    },
+    "exoplanet_lifecycle.hwc": {
+      "release_id": "snapshot_20260721_upstream_20240320",
+      "evidence_build_id": "e94a2f86a3410bdf371ef9ef",
+      "planet_namespace": "hwc_planet_name",
+      "binding_strategy": "canonical_unique_normalized_name",
+      "parameter_role": "derived_habitability_comparison_evidence"
+    },
+    "exoplanet_lifecycle.open_exoplanet_catalogue": {
+      "release_id": "git_18fb506ab3a4bb857b453486993bab797a33c5c0",
+      "evidence_build_id": "c2bfe4c2ea04107e81e0de20",
+      "planet_namespace": "oec_object_name",
+      "binding_strategy": "structural_object_all_names_to_canonical_unique_name",
+      "parameter_role": "supplemental_parameter_evidence"
+    },
+    "tess.identity_and_candidate_evidence": {
+      "release_id": "snapshot_d804c4e3aaf3",
+      "evidence_build_id": "03acb9eb0fb2cbc0f8203dd8",
+      "target_namespace": "tic_id",
+      "candidate_namespace": "toi_id",
+      "host_binding_strategy": "official_gaia_dr2_dr3_identity_graph",
+      "confirmed_planet_binding_strategy": "accepted_host_and_unique_period",
+      "period_absolute_tolerance_days": 0.01,
+      "period_relative_tolerance": 0.001
+    }
+  },
+  "authority_policy": {
+    "canonical_planet_inventory": "nasa_rooted_reference_only",
+    "supplemental_lifecycle": "conflict_preserving_evidence_only",
+    "supplemental_parameters": "fallback_candidates_pending_E6_AB_review",
+    "hwc_parameters": "derived_comparison_never_measurement_authority",
+    "toi_confirmed": "link_only_to_existing_canonical_planet",
+    "toi_candidate": "candidate_evidence_never_canonical_inventory",
+    "toi_negative": "negative_evidence_never_canonical_inventory"
+  },
+  "acceptance": {
+    "canonical_inventory_mutations": 0,
+    "canonical_planets_reference": 6311,
+    "eu_planets_accepted": 4715,
+    "eu_planets_ambiguous": 0,
+    "eu_planets_missing": 3546,
+    "hwc_planets_accepted": 5568,
+    "hwc_planets_ambiguous": 0,
+    "hwc_planets_missing": 31,
+    "oec_planets_accepted": 5095,
+    "oec_planets_ambiguous": 4,
+    "oec_planets_missing": 4154,
+    "supplemental_conflict_rows": 1,
+    "supplemental_lifecycle_rows": 17514,
+    "supplemental_parameter_facts": 260231,
+    "supplemental_parameter_sets": 23100,
+    "supplemental_planet_objects": 23113,
+    "supplemental_planets_accepted": 15378,
+    "supplemental_planets_ambiguous": 4,
+    "supplemental_planets_missing": 7731,
+    "tess_candidate_evidence": 5383,
+    "tess_candidates": 8064,
+    "tess_confirmed": 1332,
+    "tess_confirmed_planet_links": 824,
+    "tess_negative_evidence": 1346,
+    "tess_planet_parameter_facts": 39187,
+    "tess_target_bindings": 27930,
+    "tess_targets_accepted": 9886,
+    "tess_targets_ambiguous": 1284,
+    "tess_targets_excluded": 16632,
+    "tess_targets_missing": 128,
+    "tess_transit_facts": 24188,
+    "tess_unclassified_evidence": 3
+  }
+}

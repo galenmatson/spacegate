@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e5_source_dispositions.v1",
-  "disposition_version": "2026-07-22.e5-source-dispositions.19",
+  "disposition_version": "2026-07-22.e5-source-dispositions.20",
   "explicit_dispositions": {
     "classification.gcvs": {
       "disposition": "identity_scope_evidence_only",
@@ -29,22 +29,28 @@
       "reason": "The reproducible compact-scope audit finds no McGill name bound to a distinct current canonical magnetar leaf. Preserve all coherent timing, X-ray, distance, position, association, activity, and bibliography contexts until E6 adds or binds compact-object identity inside the ingestion envelope."
     },
     "exoplanet_lifecycle.exoplanet_eu": {
-      "disposition": "deferred_pending_projection_policy",
-      "owner": "E5/E6",
-      "blocks_e5": true,
-      "reason": "Supplemental lifecycle assertions must be reconciled with NASA and M5.3 while retaining conflicts, transitions, negative evidence, and tombstones."
+      "disposition": "selected_planet_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "planet_policy_version": "2026-07-22.e5-planet-evidence.1",
+      "planet_artifact_id": "86aa5553053db35d81ff26e0",
+      "reason": "All 8,261 source planets receive exact normalized-name outcomes against the NASA-rooted canonical reference: 4,715 bind and 3,546 remain missing. All 8,261 positive lifecycle assertions and 46,819 parameter facts remain conflict-preserving supplemental evidence; none creates inventory or overrides NASA authority."
     },
     "exoplanet_lifecycle.hwc": {
-      "disposition": "deferred_pending_projection_policy",
-      "owner": "E5/E6",
-      "blocks_e5": true,
-      "reason": "Habitability-context lifecycle evidence needs identity reconciliation and must not create canonical planet inventory or status independently."
+      "disposition": "selected_planet_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "planet_policy_version": "2026-07-22.e5-planet-evidence.1",
+      "planet_artifact_id": "86aa5553053db35d81ff26e0",
+      "reason": "All 5,599 HWC rows receive exact normalized-name outcomes: 5,568 bind and 31 remain missing. All 161,706 facts remain explicitly derived habitability-comparison evidence and are never treated as direct measurement authority or lifecycle confirmation."
     },
     "exoplanet_lifecycle.open_exoplanet_catalogue": {
-      "disposition": "deferred_pending_projection_policy",
-      "owner": "E5/E6",
-      "blocks_e5": true,
-      "reason": "OEC lifecycle and parameter evidence requires conflict-preserving reconciliation against the canonical NASA-led planet projection."
+      "disposition": "selected_planet_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "planet_policy_version": "2026-07-22.e5-planet-evidence.1",
+      "planet_artifact_id": "86aa5553053db35d81ff26e0",
+      "reason": "All 9,253 structural planet objects resolve through their complete source-native name sets: 5,095 bind, 4,154 remain missing, and four alias conflicts remain ambiguous. All lifecycle polarities, 9,252 coherent parameter sets, 51,706 facts, and the HD 99492 c positive/negative conflict remain inspectable without canonical status mutation."
     },
     "extended.green_snr": {
       "disposition": "selected_extended_object_evidence_projection",
@@ -153,10 +159,12 @@
       "reason": "All 60 reviewed natural Horizons targets bind through exact source keys or canonical JPL-command metadata. Fifty-nine target/physical-center pairs are epoch/frame-bound orbit-selection inputs; the Sun-to-barycenter solution remains declared reference-origin context. Every solution preserves the complete 12-element source row. All 36 coherent physical sets remain bound to exact natural objects, and no relation is promoted canonically."
     },
     "tess.identity_and_candidate_evidence": {
-      "disposition": "deferred_pending_projection_policy",
-      "owner": "E5/E6",
-      "blocks_e5": true,
-      "reason": "TOI candidates, confirmations, false positives, and transitions must preserve lifecycle polarity and remain separate from canonical planet counts."
+      "disposition": "selected_planet_evidence_projection",
+      "owner": "E5",
+      "blocks_e5": false,
+      "planet_policy_version": "2026-07-22.e5-planet-evidence.1",
+      "planet_artifact_id": "86aa5553053db35d81ff26e0",
+      "reason": "All 27,930 targeted TICs receive official Gaia DR2-to-DR3 graph outcomes and all 8,064 TOIs retain disposition polarity and host status. Exactly 824 confirmed/known TOIs link to existing canonical planets through one accepted host and unique period; 5,383 candidates, 1,346 negative rows, 508 unresolved confirmed rows, and three unclassified rows never enter canonical inventory."
     },
     "tess.villanova_eb": {
       "disposition": "selected_component_evidence_projection",

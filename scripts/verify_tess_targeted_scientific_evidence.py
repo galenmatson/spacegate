@@ -50,6 +50,12 @@ EXPECTED_LIFECYCLE = {
     ("KP", "CONFIRMED", "positive"): 593,
     ("PC", "CANDIDATE", "candidate"): 4_900,
 }
+EXPECTED_TIC_DISPOSITIONS = {
+    "": 27_406,
+    "ARTIFACT": 25,
+    "DUPLICATE": 71,
+    "SPLIT": 428,
+}
 
 
 def scalar(con: duckdb.DuckDBPyConnection, query: str) -> int:
@@ -106,6 +112,13 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         for raw, normalized, polarity, count in con.execute(
             "select disposition_raw,disposition_normalized,evidence_polarity,count(*) "
             "from planet_lifecycle_evidence group by all"
+        ).fetchall()
+    }
+    tic_disposition_counts = {
+        str(disposition or ""): int(count)
+        for disposition, count in con.execute(
+            "select source_context_json->>'disposition',count(*) "
+            "from source_records where source_table='mast_tic_targeted' group by 1"
         ).fetchall()
     }
     target_tics = """
@@ -184,6 +197,14 @@ def audit(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
         ),
         "unexpected_lifecycle_counts": mismatch_count(
             lifecycle_counts, EXPECTED_LIFECYCLE
+        ),
+        "unexpected_tic_disposition_context": mismatch_count(
+            tic_disposition_counts, EXPECTED_TIC_DISPOSITIONS
+        ),
+        "tic_disposition_context_key_missing": scalar(
+            con,
+            "select count(*) from source_records where source_table='mast_tic_targeted' "
+            "and not json_exists(source_context_json,'$.disposition')",
         ),
         "unexpected_unclassified_toi_count": abs(
             (

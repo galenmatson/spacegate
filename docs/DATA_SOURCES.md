@@ -510,11 +510,12 @@ Evidence Lake E4 source checkpoints:
   normalized TIC identity, positive/negative catalog membership, sector,
   morphology, flag, Tmag, astrometry, target-context physics, and 4,584
   positive-member orbit solutions
-- Targeted NASA/MAST/Gaia TIC/TOI `11aa9bd00cc710f971b01837`: 122,772 rows/239
+- Targeted NASA/MAST/Gaia TIC/TOI `03acb9eb0fb2cbc0f8203dd8`: 122,772 rows/239
   fields, 27,930 exact targeted TIC records, 8,064 TOIs, 29,302 official
   DR2-to-DR3 neighborhood rows, 137 member-qualified external best neighbors,
-  and 29,409 targeted Gaia DR3 rows. All bindings remain unresolved; lifecycle
-  evidence cannot alter canonical planet inventory.
+  and 29,409 targeted Gaia DR3 rows. All 524 nonblank TIC dispositions remain
+  row-inspectable. E5 artifact `86aa5553053db35d81ff26e0` gives every target
+  and TOI an explicit outcome while leaving canonical planet inventory unchanged.
 - Gaia EDR3 White Dwarf `486e4975af015d4e5f5a3c9b`: 337,272 posterior-
   interval-overlap candidates from 1,280,266 raw rows, 161 fields accounted,
   and independent H/He/mixed atmosphere parameter sets. E5 policy v6 applies
@@ -1128,7 +1129,7 @@ Artifacts:
 - per-build identity coverage, resolution, and missing-object reports
 - Evidence Lake raw/typed snapshots under
   `$SPACEGATE_STATE_DIR/{raw,typed}/evidence_lake_v2/tess.identity_and_candidate_evidence/`
-- immutable E4 build `11aa9bd00cc710f971b01837` plus compiler, generic
+- immutable E4 build `03acb9eb0fb2cbc0f8203dd8` plus compiler, generic
   artifact, targeted-source audit, and clean-reproduction reports under
   `$SPACEGATE_STATE_DIR/{derived,reports}/evidence_lake_v2/`
 

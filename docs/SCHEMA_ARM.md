@@ -224,6 +224,13 @@ Evidence Lake v2 staging rule:
   populates habitability feature evidence only and cannot create a confirmation
   or canonical planet. Exoplanet.eu confirmations remain corroborating source
   assertions, not a replacement for NASA authority.
+- E5 selected planet-evidence artifact `86aa5553053db35d81ff26e0` is the shared
+  pre-ARM reconciliation contract for supplemental lifecycle and TESS evidence.
+  It exposes exhaustive planet/TIC bindings, conflict-preserving lifecycle
+  rows, coherent parameter-set/fact projections, TOI host and confirmed-planet
+  links, and transit evidence. HWC is comparison-only; supplemental values are
+  fallback candidates pending E6; candidate and negative TOIs cannot mutate
+  CORE inventory or canonical lifecycle status.
 - JPL Horizons natural and artificial sources use the same E4 domain contract
   without merging their release scopes. Exact response bodies are represented
   by `observation_product_lineage`; parsed elements are coherent

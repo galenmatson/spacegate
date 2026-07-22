@@ -2999,6 +2999,38 @@ Representative commits:
   1.1 seconds with no canonical relation promotion. Solar projection itself is
   not a material contributor to the slow full E5 build.
 
+### 107) TIC Disposition Is Row Evidence Even Without a Duplicate Endpoint
+
+- E5 review found that E4 field accounting routed TIC `disposition` to relation
+  evidence, but `SPLIT` and `ARTIFACT` rows without `duplicate_id` had no
+  inspectable status. A general source-context-copy contract now retains a
+  domain field in row context without changing its typed primary destination.
+- Corrected TESS artifact `03acb9eb0fb2cbc0f8203dd8` preserves all 27,406
+  blank, 428 `SPLIT`, 71 `DUPLICATE`, and 25 `ARTIFACT` dispositions and passes
+  generic, targeted-source, and clean-reproduction gates. The current indexless
+  E4 contract reduces its DuckDB from 609,497,088 to 308,555,776 bytes while
+  adding the missing context.
+- Release set `6c19de054e9b807674c37d3c` verifies all 38 sources and
+  448,898,973,696 bytes in 358.4 wall seconds. A one-shard scientific change
+  still rereads the full set, strengthening the case for integrity-preserving
+  unchanged-member attestation in the E5/E6 performance work.
+
+### 108) Supplemental Planets and TOIs Do Not Own Canonical Inventory
+
+- Planet policy v1 binds Exoplanet.eu and HWC by unique normalized canonical
+  planet name and OEC by structural object plus every source-native name. Of
+  23,113 source objects, 15,378 bind, 7,731 remain missing, and four OEC alias
+  conflicts remain ambiguous. All 17,514 lifecycle rows, 23,100 coherent sets,
+  and 260,231 facts remain inspectable. HWC is derived comparison evidence.
+- All 27,930 TIC targets receive official Gaia release-graph outcomes. All
+  8,064 TOIs retain polarity: 1,332 confirmed/known, 5,383 candidate, 1,346
+  negative, and three unclassified. Only 824 confirmed/known signals link to an
+  existing planet through an accepted host and unique period. No row creates a
+  planet or changes the 6,311-object canonical inventory.
+- Artifact `86aa5553053db35d81ff26e0` preserves 24,188 transit and 39,187 TOI
+  parameter facts, passes independent audit and byte-identical reproduction in
+  8.7-10.2 wall seconds, and closes all four remaining source-policy blockers.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

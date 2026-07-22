@@ -2102,6 +2102,21 @@ Foundation checkpoint (July 21, 2026):
   `d61c6890588ee40c46ea7d56` independently audits and reproduces in about 1.1
   seconds with zero canonical relation promotion; the
   cluster/extended/Solar policy batch is complete
+- TESS contract v80 corrects a field-routing omission by retaining all 524
+  nonblank TIC catalog dispositions in source context as well as typed relation
+  evidence. Build `03acb9eb0fb2cbc0f8203dd8` passes generic, source, and clean-
+  reproduction gates. Release set `6c19de054e9b807674c37d3c` composes all 38
+  accepted sources and verifies 448,898,973,696 bytes in 358.4 wall seconds
+- planet-evidence policy v1 accounts 23,113 Exoplanet.eu/HWC/OEC planet objects,
+  17,514 lifecycle rows, 23,100 parameter sets, and 260,231 parameter facts. It
+  binds 15,378 objects, preserves 7,731 missing and four ambiguous outcomes,
+  and retains the HD 99492 c polarity conflict without status mutation
+- the same policy accounts all 27,930 TIC targets and 8,064 TOIs through the
+  official Gaia release graph. It links 824 confirmed/known TOIs to existing
+  planets, preserves every candidate/negative/unclassified row plus 24,188
+  transit and 39,187 parameter facts, and leaves canonical inventory at 6,311.
+  Artifact `86aa5553053db35d81ff26e0` independently audits and reproduces in
+  8.7-10.2 seconds; all seven E5 policy batches now have zero blocking sources
 - the first diagnostic full run completed all scientific tables but was stopped
   after one integrity query consumed 2 hours 25 minutes and nearly 18 CPU-hours;
   its delimiter anti-join inferred bindings through four correlated fact keys
@@ -2125,13 +2140,14 @@ Foundation checkpoint (July 21, 2026):
 - fail-closed scratch and historical E5 retention reclaimed 169,680,891,904
   allocated bytes; current, rollback, passing distance reference, reports, raw,
   typed, and E4 release-set inputs remain protected
-- the refreshed storage audit reports 258.7 GiB free: adequate for measured E5
+- the refreshed storage audit reported 258.7 GiB free: adequate for measured E5
   builds with external spill, but below the 300-GiB acquisition floor, so the
-  remaining policy batches must use already pinned sources
-- policy-batch ledger `2026-07-21.e5-policy-batches.1` assigns all 24 remaining
-  blockers once across seven dependency-ordered batches and separately records
-  resolved sources; the audit fails on missing, duplicate, unknown, or falsely
-  completed assignments
+  then-remaining policy batches used already pinned sources
+- initial policy-batch ledger `2026-07-21.e5-policy-batches.1` assigned all 24
+  blockers once across seven dependency-ordered batches and separately recorded
+  resolved sources; current policy v18 closes all seven batches with zero
+  blockers, while the audit continues to fail on missing, duplicate, unknown,
+  or falsely completed assignments
 - policy v7/compiler v8 generalizes coherent-array selection to heterogeneous
   parameter-set schemas while requiring an explicit source-native kind for each
   group; Gaia variability can therefore select rotation solutions and summary

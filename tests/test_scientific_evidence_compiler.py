@@ -1375,6 +1375,7 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                 "logical_key_fields": ["source_id"],
                 "object_scope": "object",
                 "field_profile": "test",
+                "source_context_copy_fields": ["disposition"],
                 "lifecycle_claims": [
                     {
                         "claim_role": "test_disposition",
@@ -1488,8 +1489,12 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         assert report["exact_duplicate_rows"] == 1
         assert sorted(row[2] for row in records) == [1, 2]
         assert {json.loads(row[3])["note"] for row in records} == {"alpha", "beta"}
+        assert {json.loads(row[3])["disposition"] for row in records} == {
+            "PC",
+            "FP",
+        }
         assert all(
-            set(json.loads(row[3])) == {"note", "lineage_note"}
+            set(json.loads(row[3])) == {"note", "lineage_note", "disposition"}
             for row in records
         )
         assert dispositions == [

@@ -15,7 +15,7 @@ DEFAULT_SELECTION = ROOT / "config/evidence_lake/e5_selection_policies.json"
 DEFAULT_DISPOSITIONS = ROOT / "config/evidence_lake/e5_source_dispositions.json"
 DEFAULT_RELEASE_SET = Path(
     "/data/spacegate/state/derived/evidence_lake_v2/scientific_evidence_sets/"
-    "a188a3adc6207d3a217d54a9/manifest.json"
+    "6c19de054e9b807674c37d3c/manifest.json"
 )
 DEFAULT_REPORT = Path(
     "/data/spacegate/state/reports/evidence_lake_v2/e5_source_disposition_audit.json"
@@ -34,6 +34,7 @@ ALLOWED_DISPOSITIONS = {
     "selected_cluster_evidence_projection",
     "selected_extended_object_evidence_projection",
     "selected_solar_system_evidence_projection",
+    "selected_planet_evidence_projection",
 }
 
 
@@ -159,6 +160,12 @@ def audit(
         if disposition == "selected_solar_system_evidence_projection" and (
             not row.get("solar_system_policy_version")
             or not row.get("solar_system_artifact_id")
+            or row.get("blocks_e5") is not False
+        ):
+            incomplete_dispositions.append(source_id)
+        if disposition == "selected_planet_evidence_projection" and (
+            not row.get("planet_policy_version")
+            or not row.get("planet_artifact_id")
             or row.get("blocks_e5") is not False
         ):
             incomplete_dispositions.append(source_id)

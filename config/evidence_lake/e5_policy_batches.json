@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_policy_batches.v1",
-  "batch_version": "2026-07-22.e5-policy-batches.17",
-  "disposition_version": "2026-07-22.e5-source-dispositions.19",
+  "batch_version": "2026-07-22.e5-policy-batches.18",
+  "disposition_version": "2026-07-22.e5-source-dispositions.20",
   "batches": [
     {
       "batch_id": "gaia_scalar_and_variability",
@@ -59,10 +59,11 @@
     },
     {
       "batch_id": "planet_lifecycle",
-      "status": "planned",
+      "status": "complete",
       "output_contract": "planet_evidence_and_lifecycle_projection",
       "depends_on": ["identity_and_naming"],
-      "sources": [
+      "sources": [],
+      "completed_sources": [
         "exoplanet_lifecycle.exoplanet_eu",
         "exoplanet_lifecycle.hwc",
         "exoplanet_lifecycle.open_exoplanet_catalogue",

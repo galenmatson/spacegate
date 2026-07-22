@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v5",
-  "contract_version": "2026-07-22.e4-foundation.79",
-  "compiler_version": "scientific_evidence_compiler_v77",
+  "contract_version": "2026-07-22.e4-foundation.80",
+  "compiler_version": "scientific_evidence_compiler_v78",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -5706,6 +5706,7 @@
           "logical_key_fields": ["ID"],
           "object_scope": "targeted_tic_catalog_object",
           "field_profile": "tess_mast_tic",
+          "source_context_copy_fields": ["disposition"],
           "identifier_claims": {
             "ID": {"namespace": "tic_id", "claim_scope": "observation_target", "component_scope": "tic_observation_target", "normalization": "unsigned_integer_decimal_v1"},
             "HIP": {"namespace": "hip_id", "claim_scope": "observation_target", "normalization": "unsigned_integer_decimal_v1"},
