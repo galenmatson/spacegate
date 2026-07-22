@@ -367,6 +367,13 @@ Evidence Lake v2 staging rule:
   magnitudes retain primary/secondary scope. Catalog aliases remain
   source/release-scoped observation-target or system claims; co-occurrence does
   not promote a source relation or alias into canonical identity/containment.
+- E5 system anchoring accepts SBX only when exact Gaia DR3, officially
+  reconciled Gaia DR2, HIP, HD, or TIC evidence converges on one canonical
+  system. The resulting `source-component:multiplicity.sbx:<release>:SBX_<sn>:`
+  keys are release-scoped evidence targets, never permanent object IDs.
+  Astrometry targets the accepted canonical system as context only because the
+  source observation may describe an unresolved target or photocenter; it is
+  not copied to `primary` or `secondary`.
 
 ## Artifact Contract
 

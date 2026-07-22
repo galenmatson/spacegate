@@ -62,7 +62,7 @@ def sql_literal(value: Any) -> str:
 def validate_policy(policy: dict[str, Any]) -> None:
     if policy.get("schema_version") != "spacegate.e5_component_scope_policies.v1":
         raise ValueError("unsupported component-scope policy schema")
-    for source_name in ("msc", "debcat", "sb9", "orb6"):
+    for source_name in ("msc", "debcat", "sb9", "orb6", "sbx"):
         if source_name not in policy:
             raise ValueError(f"missing component-scope source policy: {source_name}")
         if policy[source_name].get("canonical_containment_promotion") is not False:
@@ -190,6 +190,44 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           canonical_system_stable_object_key VARCHAR,
           binding_status VARCHAR, binding_method VARCHAR, binding_reason VARCHAR,
           policy_version VARCHAR
+        );
+        CREATE TABLE sbx_system_bindings (
+          system_binding_id VARCHAR, source_record_id VARCHAR, sbx_sequence BIGINT,
+          source_id VARCHAR, release_id VARCHAR, evidence_build_id VARCHAR,
+          canonical_candidate_count BIGINT, identity_evidence_count BIGINT,
+          candidate_namespaces_json JSON, canonical_candidates_json JSON,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_method VARCHAR, binding_reason VARCHAR, policy_version VARCHAR
+        );
+        CREATE TABLE sbx_component_entities (
+          component_entity_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, sbx_sequence BIGINT, component_scope VARCHAR,
+          source_component_raw VARCHAR, source_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR, binding_status VARCHAR,
+          binding_method VARCHAR, binding_reason VARCHAR, scope_semantics VARCHAR,
+          policy_version VARCHAR
+        );
+        CREATE TABLE sbx_relation_evidence_projection (
+          projected_relation_id VARCHAR, relation_evidence_id VARCHAR,
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, relation_kind VARCHAR, relation_scope VARCHAR,
+          left_identity_namespace VARCHAR, left_identity_raw VARCHAR,
+          right_identity_namespace VARCHAR, right_identity_raw VARCHAR,
+          left_target_scope VARCHAR, left_target_key VARCHAR,
+          right_target_scope VARCHAR, right_target_key VARCHAR,
+          left_canonical_system_stable_object_key VARCHAR,
+          right_canonical_system_stable_object_key VARCHAR,
+          evidence_polarity VARCHAR, method VARCHAR, reference_raw VARCHAR,
+          quality_json JSON, projection_status VARCHAR, projection_reason VARCHAR,
+          policy_version VARCHAR
+        );
+        CREATE TABLE sbx_parameter_set_bindings (
+          parameter_set_binding_id VARCHAR, parameter_set_id VARCHAR,
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          evidence_build_id VARCHAR, component_scope VARCHAR, target_scope VARCHAR,
+          target_key VARCHAR, canonical_system_stable_object_key VARCHAR,
+          projected_relation_id VARCHAR, binding_status VARCHAR,
+          binding_reason VARCHAR, policy_version VARCHAR
         );
         """
     )
@@ -1220,6 +1258,311 @@ def compile_orb6(
     return {"source_id": source["source_id"], "observed": observed, "expected": expected}
 
 
+def compile_sbx(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: dict[str, Any],
+    policy_version: str,
+) -> dict[str, Any]:
+    source_id = sql_literal(source["source_id"])
+    release_id = sql_literal(source["release_id"])
+    evidence_build_id = sql_literal(source["evidence_build_id"])
+    policy_sql = sql_literal(policy_version)
+    method = sql_literal(source["system_binding_method"])
+    component_method = sql_literal(source["component_binding_method"])
+
+    con.execute(
+        f"""
+        CREATE TEMP TABLE sbx_system_subjects AS
+        SELECT source_record_id,
+               try_cast(json_extract_string(logical_key_json,'$.sn') AS BIGINT) sbx_sequence
+        FROM sbx.source_records
+        WHERE source_id={source_id} AND release_id={release_id}
+          AND source_table='sbx_systems';
+
+        CREATE TEMP TABLE sbx_identity_claims AS
+        SELECT try_cast(json_extract_string(r.logical_key_json,'$.sn') AS BIGINT) sbx_sequence,
+               i.evidence_id identifier_evidence_id,i.namespace,
+               i.identifier_raw,i.identifier_normalized
+        FROM sbx.identifier_claim_evidence i
+        JOIN sbx.source_records r USING(source_record_id)
+        WHERE r.source_id={source_id} AND r.release_id={release_id}
+          AND r.source_table='sbx_alias';
+
+        CREATE TEMP TABLE sbx_identity_candidates AS
+        SELECT c.sbx_sequence,c.identifier_evidence_id,c.namespace,
+               b.system_stable_object_key canonical_system_stable_object_key
+        FROM sbx_identity_claims c
+        JOIN identity.canonical_identifier_bindings b
+          ON b.namespace=CASE c.namespace
+               WHEN 'gaia_dr3_source_id' THEN 'gaia_dr3'
+               WHEN 'hip_id' THEN 'hip'
+               WHEN 'hd_id' THEN 'hd'
+               WHEN 'tic_id' THEN 'tic' END
+         AND b.id_value_norm=c.identifier_normalized
+        WHERE c.namespace IN ('gaia_dr3_source_id','hip_id','hd_id','tic_id')
+        UNION ALL
+        SELECT c.sbx_sequence,c.identifier_evidence_id,c.namespace,
+               d.canonical_system_stable_object_key
+        FROM sbx_identity_claims c
+        JOIN identity.dr2_release_outcomes d
+          ON d.dr2_source_id=c.identifier_normalized AND d.outcome='accepted'
+        WHERE c.namespace='gaia_dr2_source_id';
+
+        INSERT INTO sbx_system_bindings
+        WITH candidates AS (
+          SELECT s.source_record_id,s.sbx_sequence,
+                 count(DISTINCT c.canonical_system_stable_object_key) canonical_candidate_count,
+                 count(c.identifier_evidence_id) identity_evidence_count,
+                 to_json(list(DISTINCT c.namespace ORDER BY c.namespace)
+                   FILTER (WHERE c.namespace IS NOT NULL)) candidate_namespaces_json,
+                 to_json(list(DISTINCT c.canonical_system_stable_object_key
+                   ORDER BY c.canonical_system_stable_object_key)
+                   FILTER (WHERE c.canonical_system_stable_object_key IS NOT NULL))
+                   canonical_candidates_json,
+                 min(c.canonical_system_stable_object_key) candidate_system_key
+          FROM sbx_system_subjects s
+          LEFT JOIN sbx_identity_candidates c USING(sbx_sequence)
+          GROUP BY s.source_record_id,s.sbx_sequence
+        )
+        SELECT sha256(concat_ws('|',{source_id},sbx_sequence::VARCHAR,'system',{policy_sql})),
+               source_record_id,sbx_sequence,{source_id},{release_id},{evidence_build_id},
+               canonical_candidate_count,identity_evidence_count,
+               coalesce(candidate_namespaces_json,'[]'::JSON),
+               coalesce(canonical_candidates_json,'[]'::JSON),
+               CASE WHEN canonical_candidate_count=1 THEN candidate_system_key END,
+               CASE WHEN canonical_candidate_count=0 THEN 'missing'
+                    WHEN canonical_candidate_count=1 THEN 'accepted'
+                    ELSE 'ambiguous' END,
+               {method},
+               CASE WHEN canonical_candidate_count=0
+                      THEN 'no exact accepted Gaia DR3, official DR2-to-DR3, HIP, HD, or TIC system anchor'
+                    WHEN canonical_candidate_count=1
+                      THEN 'exact accepted identifiers converge on one canonical system anchor'
+                    ELSE 'exact accepted identifiers resolve to multiple canonical system anchors' END,
+               {policy_sql}
+        FROM candidates;
+
+        INSERT INTO sbx_component_entities
+        SELECT sha256(concat_ws('|',{source_id},i.identifier_raw,'component',{policy_sql})),
+               {source_id},{release_id},{evidence_build_id},
+               try_cast(regexp_extract(i.identifier_raw,'^SBX_([0-9]+):',1) AS BIGINT),
+               split_part(i.identifier_raw,':',2),i.identifier_raw,
+               CASE WHEN b.binding_status='accepted' THEN concat(
+                 'source-component:',{source_id},':',{release_id},':',i.identifier_raw) END,
+               CASE WHEN b.binding_status='accepted'
+                    THEN b.canonical_system_stable_object_key END,
+               b.binding_status,{component_method},b.binding_reason,
+               'release-scoped SBX spectroscopic component; not a canonical star or containment claim',
+               {policy_sql}
+        FROM (
+          SELECT DISTINCT identifier_raw
+          FROM sbx.identifier_claim_evidence
+          WHERE namespace='sbx_component'
+        ) i
+        JOIN sbx_system_bindings b
+          ON b.sbx_sequence=try_cast(regexp_extract(i.identifier_raw,'^SBX_([0-9]+):',1) AS BIGINT);
+
+        CREATE TEMP TABLE sbx_source_system_entities AS
+        SELECT sbx_sequence,binding_status,binding_reason,
+               canonical_system_stable_object_key,
+               CASE WHEN binding_status='accepted' THEN concat(
+                 'source-system:',{source_id},':',{release_id},':SBX_',sbx_sequence::VARCHAR) END
+                 source_system_key
+        FROM sbx_system_bindings;
+
+        CREATE TEMP TABLE sbx_relation_targets AS
+        SELECT r.*,
+               CASE WHEN r.left_identity_namespace='sbx_component'
+                      THEN lc.binding_status ELSE ls.binding_status END left_status,
+               CASE WHEN r.right_identity_namespace='sbx_component'
+                      THEN rc.binding_status ELSE rs.binding_status END right_status,
+               CASE WHEN r.left_identity_namespace='sbx_component'
+                      THEN lc.binding_reason ELSE ls.binding_reason END left_reason,
+               CASE WHEN r.right_identity_namespace='sbx_component'
+                      THEN rc.binding_reason ELSE rs.binding_reason END right_reason,
+               CASE WHEN r.left_identity_namespace='sbx_component'
+                      THEN 'sbx_source_component' ELSE 'sbx_source_system' END left_target_scope,
+               CASE WHEN r.right_identity_namespace='sbx_component'
+                      THEN 'sbx_source_component' ELSE 'sbx_source_system' END right_target_scope,
+               CASE WHEN r.left_identity_namespace='sbx_component'
+                      THEN lc.source_component_key ELSE ls.source_system_key END left_target_key,
+               CASE WHEN r.right_identity_namespace='sbx_component'
+                      THEN rc.source_component_key ELSE rs.source_system_key END right_target_key,
+               CASE WHEN r.left_identity_namespace='sbx_component'
+                      THEN lc.canonical_system_stable_object_key
+                    ELSE ls.canonical_system_stable_object_key END left_system_key,
+               CASE WHEN r.right_identity_namespace='sbx_component'
+                      THEN rc.canonical_system_stable_object_key
+                    ELSE rs.canonical_system_stable_object_key END right_system_key
+        FROM sbx.relation_claim_evidence r
+        LEFT JOIN sbx_component_entities lc
+          ON r.left_identity_namespace='sbx_component'
+         AND lc.source_component_raw=r.left_identity_raw
+        LEFT JOIN sbx_component_entities rc
+          ON r.right_identity_namespace='sbx_component'
+         AND rc.source_component_raw=r.right_identity_raw
+        LEFT JOIN sbx_source_system_entities ls
+          ON r.left_identity_namespace='sbx_system'
+         AND ls.sbx_sequence=try_cast(regexp_extract(r.left_identity_raw,'^SBX_([0-9]+)$',1) AS BIGINT)
+        LEFT JOIN sbx_source_system_entities rs
+          ON r.right_identity_namespace='sbx_system'
+         AND rs.sbx_sequence=try_cast(regexp_extract(r.right_identity_raw,'^SBX_([0-9]+)$',1) AS BIGINT);
+
+        INSERT INTO sbx_relation_evidence_projection
+        SELECT sha256(concat_ws('|',{source_id},evidence_id,'relation',{policy_sql})),
+               evidence_id,source_record_id,{source_id},{release_id},{evidence_build_id},
+               relation_kind,relation_scope,left_identity_namespace,left_identity_raw,
+               right_identity_namespace,right_identity_raw,left_target_scope,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                    THEN left_target_key END,
+               right_target_scope,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                    THEN right_target_key END,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                    THEN left_system_key END,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                    THEN right_system_key END,
+               evidence_polarity,method,reference_raw,quality_json,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                          AND relation_kind='hierarchical_parent'
+                      THEN 'accepted_source_hierarchy_evidence'
+                    WHEN left_status='accepted' AND right_status='accepted'
+                      THEN 'accepted_relation_evidence'
+                    ELSE 'unresolved_endpoint_evidence' END,
+               CASE WHEN left_status='accepted' AND right_status='accepted'
+                          AND relation_kind='hierarchical_parent'
+                      THEN 'both release-scoped SBX subsystem endpoints have exact canonical system anchors; no canonical hierarchy promotion'
+                    WHEN left_status='accepted' AND right_status='accepted'
+                      THEN 'both release-scoped SBX component endpoints share the accepted system anchor'
+                    ELSE concat_ws('; ',coalesce(left_reason,'unresolved left endpoint'),
+                                      coalesce(right_reason,'unresolved right endpoint')) END,
+               {policy_sql}
+        FROM sbx_relation_targets;
+
+        INSERT INTO sbx_parameter_set_bindings
+        SELECT sha256(concat_ws('|',{source_id},p.parameter_set_id,{policy_sql})),
+               p.parameter_set_id,p.source_record_id,{source_id},{release_id},
+               {evidence_build_id},p.component_scope,'sbx_source_component',
+               CASE WHEN p.component_scope='primary' THEN l.left_target_key
+                    WHEN p.component_scope='secondary' THEN l.right_target_key END,
+               CASE WHEN p.component_scope='primary' THEN l.left_canonical_system_stable_object_key
+                    WHEN p.component_scope='secondary' THEN l.right_canonical_system_stable_object_key END,
+               l.projected_relation_id,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                          AND p.component_scope IN ('primary','secondary') THEN 'accepted'
+                    ELSE 'unresolved' END,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                          AND p.component_scope IN ('primary','secondary')
+                      THEN 'exact source record pair and release-scoped component endpoint'
+                    ELSE l.projection_reason END,{policy_sql}
+        FROM sbx.stellar_parameter_sets p
+        JOIN sbx_relation_evidence_projection l USING(source_record_id)
+        WHERE l.relation_kind='spectroscopic_binary';
+
+        CREATE TABLE sbx_stellar_parameter_projection AS
+        SELECT p.*,b.parameter_set_binding_id,b.target_scope,b.target_key,
+               b.canonical_system_stable_object_key,b.projected_relation_id,
+               {sql_literal(source['parameter_authority'])} authority_role,
+               CASE WHEN b.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               b.binding_reason projection_reason,{policy_sql} policy_version
+        FROM sbx.stellar_parameter_evidence p
+        JOIN sbx_parameter_set_bindings b USING(parameter_set_id,source_record_id);
+
+        CREATE TABLE sbx_classification_projection AS
+        SELECT p.*,
+               CASE WHEN p.component_scope='primary' THEN l.left_target_key
+                    WHEN p.component_scope='secondary' THEN l.right_target_key END target_key,
+               CASE WHEN p.component_scope='primary' THEN l.left_canonical_system_stable_object_key
+                    WHEN p.component_scope='secondary' THEN l.right_canonical_system_stable_object_key END
+                 canonical_system_stable_object_key,
+               l.projected_relation_id,
+               {sql_literal(source['classification_authority'])} authority_role,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                          AND p.component_scope IN ('primary','secondary')
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               l.projection_reason,{policy_sql} policy_version
+        FROM sbx.stellar_classification_evidence p
+        JOIN sbx_relation_evidence_projection l USING(source_record_id)
+        WHERE l.relation_kind='spectroscopic_binary';
+
+        CREATE TABLE sbx_orbital_solution_projection AS
+        SELECT o.*,l.projected_relation_id,l.left_target_key primary_source_component_key,
+               l.right_target_key secondary_source_component_key,
+               l.left_canonical_system_stable_object_key canonical_system_stable_object_key,
+               {sql_literal(source['orbit_authority'])} authority_role,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                      THEN 'eligible_for_quantity_selection'
+                    ELSE 'unresolved_scope_evidence' END projection_status,
+               l.projection_reason,{policy_sql} policy_version
+        FROM sbx.orbital_solution_evidence o
+        JOIN sbx_relation_evidence_projection l ON l.relation_evidence_id=o.relation_claim_id;
+
+        CREATE TABLE sbx_astrometry_projection AS
+        SELECT a.*,l.left_canonical_system_stable_object_key canonical_system_stable_object_key,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                      THEN 'canonical_system_context' END target_scope,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                      THEN l.left_canonical_system_stable_object_key END target_key,
+               l.projected_relation_id,{sql_literal(source['astrometry_authority'])} authority_role,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                      THEN 'context_only_evidence' ELSE 'unresolved_scope_evidence' END projection_status,
+               CASE WHEN l.projection_status='accepted_relation_evidence'
+                      THEN 'SBX astrometry describes the catalog observation target or photocenter, not a named component'
+                    ELSE l.projection_reason END projection_reason,{policy_sql} policy_version
+        FROM sbx.astrometry_distance_evidence a
+        JOIN sbx_relation_evidence_projection l USING(source_record_id)
+        WHERE l.relation_kind='spectroscopic_binary';
+        """
+    )
+
+    system_counts = dict(con.execute(
+        "SELECT binding_status,count(*) FROM sbx_system_bindings GROUP BY 1"
+    ).fetchall())
+    component_counts = dict(con.execute(
+        "SELECT binding_status,count(*) FROM sbx_component_entities GROUP BY 1"
+    ).fetchall())
+    relation_counts = dict(con.execute(
+        "SELECT relation_kind || ':' || projection_status,count(*) "
+        "FROM sbx_relation_evidence_projection GROUP BY 1"
+    ).fetchall())
+    eligible = lambda table: int(con.execute(
+        f"SELECT count(*) FROM {table} WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0])
+    observed = {
+        "system_bindings": sum(system_counts.values()),
+        "systems_accepted": system_counts.get("accepted", 0),
+        "systems_missing": system_counts.get("missing", 0),
+        "systems_ambiguous": system_counts.get("ambiguous", 0),
+        "component_entities": sum(component_counts.values()),
+        "components_accepted": component_counts.get("accepted", 0),
+        "components_missing": component_counts.get("missing", 0),
+        "components_ambiguous": component_counts.get("ambiguous", 0),
+        "binary_relations": sum(value for key, value in relation_counts.items() if key.startswith("spectroscopic_binary:")),
+        "binary_relations_accepted": relation_counts.get("spectroscopic_binary:accepted_relation_evidence", 0),
+        "binary_relations_unresolved": relation_counts.get("spectroscopic_binary:unresolved_endpoint_evidence", 0),
+        "hierarchy_relations": sum(value for key, value in relation_counts.items() if key.startswith("hierarchical_parent:")),
+        "hierarchy_relations_accepted": relation_counts.get("hierarchical_parent:accepted_source_hierarchy_evidence", 0),
+        "hierarchy_relations_unresolved": relation_counts.get("hierarchical_parent:unresolved_endpoint_evidence", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM sbx_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_eligible": int(con.execute("SELECT count(*) FROM sbx_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM sbx_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("sbx_stellar_parameter_projection"),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM sbx_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("sbx_classification_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM sbx_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("sbx_orbital_solution_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM sbx_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": int(con.execute("SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+    }
+    expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
+    if observed != expected:
+        raise ValueError(f"SBX acceptance counts changed: expected={expected}:observed={observed}")
+    return {"source_id": source["source_id"], "observed": observed, "expected": expected}
+
+
 def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     checks = {
         "duplicate_msc_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM msc_system_bindings",
@@ -1263,6 +1606,19 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "accepted_orb6_relations_without_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status='accepted' AND (wds_source_record_id IS NULL OR msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "unaccepted_orb6_relations_with_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
         "eligible_orb6_orbits_without_relations": "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_sbx_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM sbx_system_bindings",
+        "duplicate_sbx_component_entity_ids": "SELECT count(*)-count(DISTINCT component_entity_id) FROM sbx_component_entities",
+        "duplicate_sbx_relation_projection_ids": "SELECT count(*)-count(DISTINCT projected_relation_id) FROM sbx_relation_evidence_projection",
+        "accepted_sbx_components_without_targets": "SELECT count(*) FROM sbx_component_entities WHERE binding_status='accepted' AND (source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sbx_components_with_targets": "SELECT count(*) FROM sbx_component_entities WHERE binding_status<>'accepted' AND source_component_key IS NOT NULL",
+        "accepted_sbx_binary_relations_without_targets": "SELECT count(*) FROM sbx_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND (left_target_key IS NULL OR right_target_key IS NULL OR left_canonical_system_stable_object_key IS NULL OR right_canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sbx_relations_with_targets": "SELECT count(*) FROM sbx_relation_evidence_projection WHERE projection_status='unresolved_endpoint_evidence' AND (left_target_key IS NOT NULL OR right_target_key IS NOT NULL)",
+        "duplicate_sbx_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM sbx_parameter_set_bindings",
+        "eligible_sbx_parameters_without_targets": "SELECT count(*) FROM sbx_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sbx_classifications_without_targets": "SELECT count(*) FROM sbx_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sbx_orbits_without_relations": "SELECT count(*) FROM sbx_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND projected_relation_id IS NULL",
+        "selectable_sbx_astrometry": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_sbx_astrometry_without_systems": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
         "canonical_containment_rows": "SELECT 0",
     }
     result = {name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()}
@@ -1289,7 +1645,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
         raise FileNotFoundError(f"missing component compiler input: {[str(p) for p in required if not p.is_file()]}")
     identity_report_sha = sha256_file(identity_report)
     source_build_ids = [
-        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9", "orb6")
+        policy[name]["evidence_build_id"] for name in ("msc", "debcat", "sb9", "orb6", "sbx")
     ] + [policy["orb6"]["wds_evidence_build_id"]]
     build_id = sha256_bytes(canonical_json({
         "policy_sha256": policy_sha,
@@ -1318,6 +1674,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("debcat", "evidence_build_id", "debcat"),
             ("sb9", "evidence_build_id", "sb9"),
             ("orb6", "evidence_build_id", "orb6"),
+            ("sbx", "evidence_build_id", "sbx"),
             ("wds", "wds_evidence_build_id", "orb6"),
         ):
             source_db = evidence_root / policy[name][build_id_key] / "scientific_evidence.duckdb"
@@ -1330,6 +1687,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             compile_debcat(con, source=policy["debcat"], policy_version=policy["policy_version"]),
             compile_sb9(con, source=policy["sb9"], policy_version=policy["policy_version"]),
             compile_orb6(con, source=policy["orb6"], policy_version=policy["policy_version"]),
+            compile_sbx(con, source=policy["sbx"], policy_version=policy["policy_version"]),
         ]
         checks = verify(con)
         con.execute(
@@ -1364,6 +1722,14 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
             ("sb9_orbital_solution_projection", "evidence_id"),
             ("orb6_relation_bindings", "relation_binding_id"),
             ("orb6_orbital_solution_projection", "evidence_id"),
+            ("sbx_system_bindings", "system_binding_id"),
+            ("sbx_component_entities", "component_entity_id"),
+            ("sbx_relation_evidence_projection", "projected_relation_id"),
+            ("sbx_parameter_set_bindings", "parameter_set_binding_id"),
+            ("sbx_stellar_parameter_projection", "evidence_id"),
+            ("sbx_classification_projection", "evidence_id"),
+            ("sbx_orbital_solution_projection", "evidence_id"),
+            ("sbx_astrometry_projection", "evidence_id"),
         ]
         for table, order_key in exports:
             con.execute(
@@ -1382,7 +1748,7 @@ def compile_components(*, policy_path: Path, state: Path, output_root: Path, rep
                 }
         deterministic_files = {name: value for name, value in files.items() if name.startswith("parquet/")}
         manifest = {
-            "schema_version": "spacegate.e5_selected_components.v4",
+            "schema_version": "spacegate.e5_selected_components.v5",
             "build_id": build_id,
             "policy_version": policy["policy_version"],
             "policy_sha256": policy_sha,

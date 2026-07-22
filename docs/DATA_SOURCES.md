@@ -869,7 +869,7 @@ Evidence Lake status:
   solutions
 - `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
   visible in source-native rows but are not measurements or classifications
-- E5 component-scope artifact `bbc7f0083646dfd5a602467b` accounts all 374
+- E5 component-scope artifact `7ae9b19a56212bfdc4f44d3b` accounts all 374
   systems through exact priority-aware name resolution. Twenty systems bind to
   one accepted WDS/MSC relation within `max(0.01 day, 1%)`; 337 systems remain
   outside the canonical reference and 17 resolved systems have no compatible
@@ -901,6 +901,25 @@ Source endpoint:
 
 - https://keplerebs.villanova.edu/ (CSV export workflow)
 
+## 8A) SBX (ULB Spectroscopic Binary Catalog)
+
+Classification: `auxiliary`
+
+Evidence Lake status:
+
+- Combined component artifact `7ae9b19a56212bfdc4f44d3b` accounts all 4,080
+  SBX systems and all 8,160 release-scoped primary/secondary identities. Exact
+  Gaia DR3, officially reconciled Gaia DR2, HIP, HD, and TIC claims resolve
+  2,354 systems uniquely; 1,699 are absent from the current canonical reference
+  and 27 retain conflicting system candidates.
+- The accepted projection exposes 2,561 component magnitudes, 2,208 component
+  classifications, and 3,043 published spectroscopic-orbit solutions for later
+  quantity-specific selection. It does not equate the observation target with
+  the primary component.
+- All 20,152 SBX astrometry rows remain observation-target or photocenter
+  context. The 94 source hierarchy claims retain independently resolved
+  endpoints and cannot create CORE containment or canonical ARM hierarchy.
+
 ## 9) MSC (Tokovinin Multiple Star Catalog)
 
 Classification: `auxiliary` (mandatory)
@@ -923,9 +942,9 @@ Policy:
 - E4 checkpoint `fc7e9dcabb0b27167c8f188c` passes complete row/field,
   component-scope, relation-polarity, orbit, citation, zero-sentinel, artifact,
   and clean-reproduction gates. E5 component-scope artifact
-  `bbc7f0083646dfd5a602467b` now accounts 6,937 WDS systems, 32,790 source
+  `7ae9b19a56212bfdc4f44d3b` now accounts 6,937 WDS systems, 32,790 source
   component identities, and 15,748 relations. It anchors 24,671 components and
-  accepts 12,052 two-endpoint relation-evidence rows while retaining 7,347
+  accepts 12,052 two-endpoint relation-evidence rows while retaining 8,119
   missing components, 3,693 unresolved relations, and three invalid source
   self-relations. It also projects 44,130 selectable mass/apparent-V facts,
   16,182 classifications, 54,902 photometry rows, 62,214 astrometry/motion rows,

@@ -27,10 +27,16 @@ def make_fixture(state: Path, policy_path: Path) -> None:
     con.execute(
         """
         CREATE TABLE canonical_identifier_bindings (
-          namespace VARCHAR, id_value_raw VARCHAR, system_stable_object_key VARCHAR
+          namespace VARCHAR, id_value_raw VARCHAR, id_value_norm VARCHAR,
+          system_stable_object_key VARCHAR
         );
         INSERT INTO canonical_identifier_bindings VALUES
-          ('wds','00001+0001','system-1');
+          ('wds','00001+0001','00001 0001','system-1'),
+          ('gaia_dr3','123','123','system-1');
+        CREATE TABLE dr2_release_outcomes (
+          dr2_source_id VARCHAR, outcome VARCHAR,
+          canonical_system_stable_object_key VARCHAR
+        );
         """
     )
     con.close()
@@ -253,6 +259,92 @@ def make_fixture(state: Path, policy_path: Path) -> None:
     )
     con.close()
 
+    sbx_id = "sbx-test"
+    sbx_dir = state / "derived/evidence_lake_v2/scientific_evidence" / sbx_id
+    sbx_dir.mkdir(parents=True)
+    con = duckdb.connect(str(sbx_dir / "scientific_evidence.duckdb"))
+    con.execute(
+        """
+        CREATE TABLE source_records (
+          source_record_id VARCHAR, source_id VARCHAR, release_id VARCHAR,
+          source_table VARCHAR, logical_key_json JSON
+        );
+        CREATE TABLE identifier_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, namespace VARCHAR,
+          identifier_raw VARCHAR, identifier_normalized VARCHAR
+        );
+        CREATE TABLE relation_claim_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR,
+          left_identity_namespace VARCHAR, left_identity_raw VARCHAR,
+          left_component_scope VARCHAR, right_identity_namespace VARCHAR,
+          right_identity_raw VARCHAR, right_component_scope VARCHAR,
+          relation_kind VARCHAR, relation_scope VARCHAR, probability DOUBLE,
+          probability_semantics VARCHAR, confidence_statistic_key VARCHAR,
+          confidence_statistic_value_raw VARCHAR, confidence_statistic_value DOUBLE,
+          confidence_statistic_unit VARCHAR, confidence_statistic_semantics VARCHAR,
+          evidence_polarity VARCHAR, method VARCHAR, reference_raw VARCHAR,
+          epoch_raw VARCHAR, quality_json JSON
+        );
+        CREATE TABLE stellar_parameter_sets (
+          parameter_set_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE stellar_parameter_evidence (
+          evidence_id VARCHAR, parameter_set_id VARCHAR, source_record_id VARCHAR,
+          component_scope VARCHAR, quantity_key VARCHAR
+        );
+        CREATE TABLE stellar_classification_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, component_scope VARCHAR
+        );
+        CREATE TABLE orbital_solution_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, relation_claim_id VARCHAR
+        );
+        CREATE TABLE astrometry_distance_evidence (
+          evidence_id VARCHAR, source_record_id VARCHAR, quantity_key VARCHAR
+        );
+        INSERT INTO source_records VALUES
+          ('sx-s1','multiplicity.sbx','sbx-test-release','sbx_systems','{"sn":"1"}'),
+          ('sx-s2','multiplicity.sbx','sbx-test-release','sbx_systems','{"sn":"2"}'),
+          ('sx-a1','multiplicity.sbx','sbx-test-release','sbx_alias','{"sn":"1"}'),
+          ('sx-a2','multiplicity.sbx','sbx-test-release','sbx_alias','{"sn":"2"}'),
+          ('sx-o1','multiplicity.sbx','sbx-test-release','sbx_orbits','{"sn":"1","on":"1"}'),
+          ('sx-c1','multiplicity.sbx','sbx-test-release','sbx_configurations','{"sn":"1"}');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('sx-seq1','sx-s1','sbx_sequence','1','1'),
+          ('sx-sys1','sx-s1','sbx_system','SBX_1','SBX_1'),
+          ('sx-p1','sx-s1','sbx_component','SBX_1:primary','SBX_1:primary'),
+          ('sx-q1','sx-s1','sbx_component','SBX_1:secondary','SBX_1:secondary'),
+          ('sx-seq2','sx-s2','sbx_sequence','2','2'),
+          ('sx-sys2','sx-s2','sbx_system','SBX_2','SBX_2'),
+          ('sx-p2','sx-s2','sbx_component','SBX_2:primary','SBX_2:primary'),
+          ('sx-q2','sx-s2','sbx_component','SBX_2:secondary','SBX_2:secondary'),
+          ('sx-gaia','sx-a1','gaia_dr3_source_id','123','123'),
+          ('sx-seqa1','sx-a1','sbx_sequence','1','1'),
+          ('sx-seqa2','sx-a2','sbx_sequence','2','2');
+        INSERT INTO relation_claim_evidence VALUES
+          ('sx-r1','sx-s1','sbx_component','SBX_1:primary','primary',
+           'sbx_component','SBX_1:secondary','secondary','spectroscopic_binary',
+           'pair',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'positive','test','ref',NULL,'{}'),
+          ('sx-r2','sx-s2','sbx_component','SBX_2:primary','primary',
+           'sbx_component','SBX_2:secondary','secondary','spectroscopic_binary',
+           'pair',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'positive','test','ref',NULL,'{}'),
+          ('sx-h1','sx-c1','sbx_system','SBX_1','child_subsystem',
+           'sbx_system','SBX_2','parent_subsystem','hierarchical_parent',
+           'system',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'positive','test','ref',NULL,'{}');
+        INSERT INTO stellar_parameter_sets VALUES
+          ('sx-ps1','sx-s1','primary'),('sx-ps2','sx-s2','primary');
+        INSERT INTO stellar_parameter_evidence VALUES
+          ('sx-pe1','sx-ps1','sx-s1','primary','sbx.apparent_magnitude'),
+          ('sx-pe2','sx-ps2','sx-s2','primary','sbx.apparent_magnitude');
+        INSERT INTO stellar_classification_evidence VALUES
+          ('sx-cl1','sx-s1','primary'),('sx-cl2','sx-s2','primary');
+        INSERT INTO orbital_solution_evidence VALUES
+          ('sx-or1','sx-o1','sx-r1');
+        INSERT INTO astrometry_distance_evidence VALUES
+          ('sx-as1','sx-s1','parallax'),('sx-as2','sx-s2','parallax');
+        """
+    )
+    con.close()
+
     wds_id = "wds-test"
     wds_dir = state / "derived/evidence_lake_v2/scientific_evidence" / wds_id
     wds_dir.mkdir(parents=True)
@@ -428,6 +520,44 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_orbital_solutions_eligible": 1,
                 },
             },
+            "sbx": {
+                "source_id": "multiplicity.sbx",
+                "release_id": "sbx-test-release",
+                "evidence_build_id": sbx_id,
+                "system_binding_method": "test-sbx-exact-identifier-consensus",
+                "component_binding_method": "test-sbx-release-component",
+                "parameter_authority": "test-sbx-parameter",
+                "classification_authority": "test-sbx-classification",
+                "orbit_authority": "test-sbx-orbit",
+                "astrometry_authority": "test-sbx-astrometry-context",
+                "canonical_containment_promotion": False,
+                "acceptance": {
+                    "expected_system_bindings": 2,
+                    "expected_systems_accepted": 1,
+                    "expected_systems_missing": 1,
+                    "expected_systems_ambiguous": 0,
+                    "expected_component_entities": 4,
+                    "expected_components_accepted": 2,
+                    "expected_components_missing": 2,
+                    "expected_components_ambiguous": 0,
+                    "expected_binary_relations": 2,
+                    "expected_binary_relations_accepted": 1,
+                    "expected_binary_relations_unresolved": 1,
+                    "expected_hierarchy_relations": 1,
+                    "expected_hierarchy_relations_accepted": 0,
+                    "expected_hierarchy_relations_unresolved": 1,
+                    "expected_parameter_sets": 2,
+                    "expected_parameter_sets_eligible": 1,
+                    "expected_parameter_evidence": 2,
+                    "expected_parameter_evidence_eligible": 1,
+                    "expected_classification_evidence": 2,
+                    "expected_classification_evidence_eligible": 1,
+                    "expected_orbital_solutions": 1,
+                    "expected_orbital_solutions_eligible": 1,
+                    "expected_astrometry_evidence": 2,
+                    "expected_astrometry_context_only": 1,
+                },
+            },
         },
     )
 
@@ -514,6 +644,24 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     assert con.execute(
         "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 1
+    assert dict(con.execute(
+        "SELECT binding_status,count(*) FROM sbx_system_bindings GROUP BY 1"
+    ).fetchall()) == {"accepted": 1, "missing": 1}
+    assert dict(con.execute(
+        "SELECT projection_status,count(*) FROM sbx_relation_evidence_projection GROUP BY 1"
+    ).fetchall()) == {
+        "accepted_relation_evidence": 1,
+        "unresolved_endpoint_evidence": 2,
+    }
+    assert con.execute(
+        "SELECT count(*) FROM sbx_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'"
+    ).fetchone()[0] == 0
     con.close()
 
     audited = artifact_audit.audit(artifact=Path(first["artifact_path"]), policy_path=policy)

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e5_component_scope_policies.v1",
-  "policy_version": "2026-07-21.e5-component-scope.4",
-  "compiler_version": "selected_component_evidence_compiler_v4",
+  "policy_version": "2026-07-21.e5-component-scope.5",
+  "compiler_version": "selected_component_evidence_compiler_v5",
   "identity_graph_id": "c84389ad55f17081fff008b4",
   "canonical_reference_build_id": "20260717T0614Z_f452835_side",
   "msc": {
@@ -155,6 +155,47 @@
       "expected_relations_ambiguous_msc_relation": 0,
       "expected_orbital_solutions": 4051,
       "expected_orbital_solutions_eligible": 1159
+    }
+  },
+  "sbx": {
+    "source_id": "multiplicity.sbx",
+    "release_id": "sbx_tap_full_rolling_snapshot_v1",
+    "evidence_build_id": "37ffa7255d026c8d930af6d4",
+    "system_binding_method": "exact_authoritative_identifier_consensus_with_official_gaia_release_reconciliation",
+    "system_binding_semantics": "Anchor an SBX spectroscopic system only when exact accepted Gaia DR3, officially reconciled Gaia DR2, HIP, HD, or TIC identifiers converge on one canonical system. WDS values are component-qualified observation-target claims and broad catalog aliases are not system identity bridges.",
+    "component_binding_method": "release_scoped_component_under_exact_sbx_system_anchor",
+    "component_identity_semantics": "Materialize SBX primary and secondary as release-scoped spectroscopic components beneath the accepted system anchor. They are neither canonical star identities nor containment claims, and the astrometric observation target is not assumed to be the primary.",
+    "hierarchy_semantics": "Preserve exact SBX source-system hierarchy claims with independently resolved endpoints as source relation evidence only. Never promote them to canonical containment or hierarchy.",
+    "parameter_authority": "sbx_source_component_apparent_magnitude_observation",
+    "classification_authority": "sbx_source_component_spectral_classification",
+    "orbit_authority": "sbx_published_spectroscopic_orbit_solution",
+    "astrometry_authority": "sbx_observation_target_astrometry_context",
+    "canonical_containment_promotion": false,
+    "acceptance": {
+      "expected_system_bindings": 4080,
+      "expected_systems_accepted": 2354,
+      "expected_systems_missing": 1699,
+      "expected_systems_ambiguous": 27,
+      "expected_component_entities": 8160,
+      "expected_components_accepted": 4708,
+      "expected_components_missing": 3398,
+      "expected_components_ambiguous": 54,
+      "expected_binary_relations": 4080,
+      "expected_binary_relations_accepted": 2354,
+      "expected_binary_relations_unresolved": 1726,
+      "expected_hierarchy_relations": 94,
+      "expected_hierarchy_relations_accepted": 70,
+      "expected_hierarchy_relations_unresolved": 24,
+      "expected_parameter_sets": 4498,
+      "expected_parameter_sets_eligible": 2561,
+      "expected_parameter_evidence": 4498,
+      "expected_parameter_evidence_eligible": 2561,
+      "expected_classification_evidence": 3550,
+      "expected_classification_evidence_eligible": 2208,
+      "expected_orbital_solutions": 5169,
+      "expected_orbital_solutions_eligible": 3043,
+      "expected_astrometry_evidence": 20152,
+      "expected_astrometry_context_only": 11686
     }
   }
 }

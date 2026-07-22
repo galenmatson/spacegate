@@ -1424,8 +1424,21 @@ separately. A completed source must be present in the selection policy or have
 an explicit nonblocking evidence disposition. Gaia's DR3 ultracool sample is
 therefore retained as probability-bearing membership context, not treated as
 an independent measured spectral classification.
-Ledger `2026-07-21.e5-policy-batches.10` records 14 completed sources and 12
-remaining blockers after the full MSC projection.
+Ledger `2026-07-21.e5-policy-batches.11` records 15 completed sources and 11
+remaining blockers after the full SBX projection.
+
+Component policy v5 projects SBX without repeating the legacy assumption that
+the astrometric target is the primary star. Exact Gaia DR3, officially
+reconciled Gaia DR2, HIP, HD, and TIC claims anchor 2,354 of 4,080 systems to
+one canonical system; 1,699 remain missing and 27 conflicting systems remain
+ambiguous. The 8,160 primary/secondary identities stay release scoped. Accepted
+anchors expose 2,561 magnitudes, 2,208 classifications, and 3,043 linked orbit
+solutions as later selection inputs. All 20,152 astrometry rows instead remain
+observation-target/photocenter context, including 11,686 rows with an accepted
+system anchor. Seventy of 94 source hierarchy claims have two resolved source
+system endpoints, but none becomes canonical containment or hierarchy.
+Artifact `7ae9b19a56212bfdc4f44d3b` passes independent audit and byte-identical
+reproduction in about 10 seconds for the combined multiplicity projection.
 
 The multiplicity batch begins with a reusable two-endpoint relation contract.
 Each evidence endpoint receives an independent release-scoped identity outcome;

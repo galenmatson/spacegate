@@ -2846,6 +2846,27 @@ Representative commits:
   byte-identical reproduction pass across twenty-four ordered Parquet files in
   about 5.8 seconds per pass.
 
+### 99) SBX Targets Systems Without Inventing Components
+
+- Component policy v5 resolves SBX system identity through exact Gaia DR3,
+  official Gaia DR2-to-DR3, HIP, HD, and TIC evidence. It deliberately excludes
+  broad catalog aliases and component-qualified WDS observation-target strings
+  from system identity. Of 4,080 systems, 2,354 resolve uniquely, 1,699 remain
+  missing, and 27 retain conflicting canonical system candidates.
+- All 8,160 primary/secondary identities remain release scoped. Accepted system
+  anchors make 2,561 magnitudes, 2,208 spectral classifications, and 3,043
+  linked spectroscopic-orbit solutions eligible for later quantity selection;
+  no SBX component becomes a canonical star or containment assertion.
+- The compiler does not assume that the Gaia or catalog observation target is
+  the primary. All 20,152 astrometry rows remain system/photocenter context.
+  Seventy of 94 source hierarchy claims have independently resolved endpoints,
+  but remain noncanonical relation evidence.
+- Combined artifact `7ae9b19a56212bfdc4f44d3b` passes the independent artifact
+  audit and byte-identical reproduction. The complete five-source component
+  build takes about 10.0 wall seconds, 17.9 CPU-seconds, and 1.46 GiB peak RSS,
+  confirming it is not a material contributor to the 24-minute full selected-
+  fact build.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

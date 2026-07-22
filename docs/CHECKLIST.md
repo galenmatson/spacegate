@@ -1490,6 +1490,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   one WDS-qualified accepted MSC relation, retain every unresolved tail, reject
   system-level edge fallback, and pass independent audit plus deterministic
   reproduction
+- [x] E5 SBX component/orbit projection: account all 4,080 systems and 8,160
+  release-scoped components through exact Gaia DR3, official Gaia DR2-to-DR3,
+  HIP, HD, and TIC system anchors; retain missing/conflicting identities,
+  preserve astrometry as observation-target context, and forbid canonical
+  component or hierarchy promotion
 - [x] E5 policy-batch accounting: assign every remaining blocking source to one
   dependency-ordered implementation batch, distinguish resolved sources from
   active blockers, and fail on duplicate, missing, or falsely completed work

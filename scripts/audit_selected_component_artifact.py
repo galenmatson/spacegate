@@ -43,7 +43,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         json.dumps(policy, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     failures: dict[str, int] = {
-        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v4"),
+        "bad_manifest_schema": int(manifest.get("schema_version") != "spacegate.e5_selected_components.v5"),
         "build_id_path_mismatch": int(manifest.get("build_id") != artifact.name),
         "policy_sha256_mismatch": int(manifest.get("policy_sha256") != policy_sha),
         "identity_graph_mismatch": int(manifest.get("identity_graph_id") != policy.get("identity_graph_id")),
@@ -105,6 +105,19 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
         "accepted_orb6_relations_without_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status='accepted' AND (wds_source_record_id IS NULL OR msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "unaccepted_orb6_relations_with_targets": "SELECT count(*) FROM orb6_relation_bindings WHERE binding_status<>'accepted' AND (msc_projected_relation_id IS NOT NULL OR primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
         "eligible_orb6_orbits_without_relation": "SELECT count(*) FROM orb6_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND relation_binding_id IS NULL",
+        "duplicate_sbx_system_binding_ids": "SELECT count(*)-count(DISTINCT system_binding_id) FROM sbx_system_bindings",
+        "duplicate_sbx_component_entity_ids": "SELECT count(*)-count(DISTINCT component_entity_id) FROM sbx_component_entities",
+        "duplicate_sbx_relation_projection_ids": "SELECT count(*)-count(DISTINCT projected_relation_id) FROM sbx_relation_evidence_projection",
+        "accepted_sbx_components_without_targets": "SELECT count(*) FROM sbx_component_entities WHERE binding_status='accepted' AND (source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sbx_components_with_targets": "SELECT count(*) FROM sbx_component_entities WHERE binding_status<>'accepted' AND source_component_key IS NOT NULL",
+        "accepted_sbx_binary_relations_without_targets": "SELECT count(*) FROM sbx_relation_evidence_projection WHERE projection_status='accepted_relation_evidence' AND (left_target_key IS NULL OR right_target_key IS NULL OR left_canonical_system_stable_object_key IS NULL OR right_canonical_system_stable_object_key IS NULL)",
+        "unaccepted_sbx_relations_with_targets": "SELECT count(*) FROM sbx_relation_evidence_projection WHERE projection_status='unresolved_endpoint_evidence' AND (left_target_key IS NOT NULL OR right_target_key IS NOT NULL)",
+        "duplicate_sbx_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM sbx_parameter_set_bindings",
+        "eligible_sbx_parameters_without_target": "SELECT count(*) FROM sbx_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sbx_classifications_without_target": "SELECT count(*) FROM sbx_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
+        "eligible_sbx_orbits_without_relation": "SELECT count(*) FROM sbx_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND projected_relation_id IS NULL",
+        "selectable_sbx_astrometry": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='eligible_for_quantity_selection'",
+        "context_sbx_astrometry_without_system": "SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence' AND target_key IS NULL",
     }
     failures.update({name: int(con.execute(sql).fetchone()[0] or 0) for name, sql in checks.items()})
 
@@ -217,6 +230,41 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
     }
     orb6_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["orb6"]["acceptance"].items()}
     failures["orb6_acceptance_mismatch"] = int(orb6_observed != orb6_expected)
+
+    sbx_systems = dict(con.execute("SELECT binding_status,count(*) FROM sbx_system_bindings GROUP BY 1").fetchall())
+    sbx_components = dict(con.execute("SELECT binding_status,count(*) FROM sbx_component_entities GROUP BY 1").fetchall())
+    sbx_relations = dict(con.execute(
+        "SELECT relation_kind || ':' || projection_status,count(*) "
+        "FROM sbx_relation_evidence_projection GROUP BY 1"
+    ).fetchall())
+    sbx_observed = {
+        "system_bindings": sum(sbx_systems.values()),
+        "systems_accepted": sbx_systems.get("accepted", 0),
+        "systems_missing": sbx_systems.get("missing", 0),
+        "systems_ambiguous": sbx_systems.get("ambiguous", 0),
+        "component_entities": sum(sbx_components.values()),
+        "components_accepted": sbx_components.get("accepted", 0),
+        "components_missing": sbx_components.get("missing", 0),
+        "components_ambiguous": sbx_components.get("ambiguous", 0),
+        "binary_relations": sum(value for key, value in sbx_relations.items() if key.startswith("spectroscopic_binary:")),
+        "binary_relations_accepted": sbx_relations.get("spectroscopic_binary:accepted_relation_evidence", 0),
+        "binary_relations_unresolved": sbx_relations.get("spectroscopic_binary:unresolved_endpoint_evidence", 0),
+        "hierarchy_relations": sum(value for key, value in sbx_relations.items() if key.startswith("hierarchical_parent:")),
+        "hierarchy_relations_accepted": sbx_relations.get("hierarchical_parent:accepted_source_hierarchy_evidence", 0),
+        "hierarchy_relations_unresolved": sbx_relations.get("hierarchical_parent:unresolved_endpoint_evidence", 0),
+        "parameter_sets": int(con.execute("SELECT count(*) FROM sbx_parameter_set_bindings").fetchone()[0]),
+        "parameter_sets_eligible": int(con.execute("SELECT count(*) FROM sbx_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_evidence": int(con.execute("SELECT count(*) FROM sbx_stellar_parameter_projection").fetchone()[0]),
+        "parameter_evidence_eligible": eligible("sbx_stellar_parameter_projection"),
+        "classification_evidence": int(con.execute("SELECT count(*) FROM sbx_classification_projection").fetchone()[0]),
+        "classification_evidence_eligible": eligible("sbx_classification_projection"),
+        "orbital_solutions": int(con.execute("SELECT count(*) FROM sbx_orbital_solution_projection").fetchone()[0]),
+        "orbital_solutions_eligible": eligible("sbx_orbital_solution_projection"),
+        "astrometry_evidence": int(con.execute("SELECT count(*) FROM sbx_astrometry_projection").fetchone()[0]),
+        "astrometry_context_only": int(con.execute("SELECT count(*) FROM sbx_astrometry_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+    }
+    sbx_expected = {key.removeprefix("expected_"): int(value) for key, value in policy["sbx"]["acceptance"].items()}
+    failures["sbx_acceptance_mismatch"] = int(sbx_observed != sbx_expected)
     con.close()
     failing = {name: count for name, count in failures.items() if count}
     return {
@@ -228,6 +276,7 @@ def audit(*, artifact: Path, policy_path: Path) -> dict[str, Any]:
             {"source_id": policy["debcat"]["source_id"], "observed": deb_observed, "expected": deb_expected},
             {"source_id": policy["sb9"]["source_id"], "observed": sb9_observed, "expected": sb9_expected},
             {"source_id": policy["orb6"]["source_id"], "observed": orb6_observed, "expected": orb6_expected},
+            {"source_id": policy["sbx"]["source_id"], "observed": sbx_observed, "expected": sbx_expected},
         ],
         "checks": failures,
         "failing_checks": failing,

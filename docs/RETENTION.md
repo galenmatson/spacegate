@@ -488,6 +488,12 @@ source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.
 
+E5 combined component artifact `7ae9b19a56212bfdc4f44d3b`, its compile report,
+independent audit, and deterministic reproduction evidence are protected. It
+supersedes `bbc7f0083646dfd5a602467b` for active component-policy lineage, but
+the older artifact remains a retention dry-run candidate rather than a manual
+deletion target until the next schema-aware audit proves it unreferenced.
+
 The white-dwarf adapter's first v21 attempt failed closed before promotion when
 an unqualified source column collided with compiler lineage `source_id`. Its
 hidden temporary artifact remains a retention dry-run candidate; the v22
