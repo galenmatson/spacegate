@@ -81,6 +81,16 @@ def validate_config(config: dict[str, Any]) -> None:
     stages = config.get("stages")
     if not isinstance(stages, list) or not stages:
         raise ValueError("pipeline must contain stages")
+    artifact_roots = {
+        "default": config.get("artifact_root"),
+        **(config.get("artifact_roots") or {}),
+    }
+    if not all(
+        isinstance(name, str) and isinstance(path, str) and Path(path).is_absolute()
+        for name, path in artifact_roots.items()
+        if path is not None
+    ):
+        raise ValueError("artifact roots must be named absolute paths")
     seen: set[str] = set()
     for stage in stages:
         if not isinstance(stage, dict):
@@ -102,6 +112,9 @@ def validate_config(config: dict[str, Any]) -> None:
         artifact = stage.get("artifact")
         if artifact is not None and (Path(artifact).is_absolute() or ".." in Path(artifact).parts):
             raise ValueError(f"artifact must be relative and bounded: {stage_id}")
+        root_name = stage.get("artifact_root", "default")
+        if artifact is not None and root_name not in artifact_roots:
+            raise ValueError(f"unknown artifact root for stage {stage_id}: {root_name}")
 
 
 def parse_gnu_time(path: Path) -> dict[str, int | float]:
@@ -197,7 +210,13 @@ def run_pipeline(config: dict[str, Any], mode: str, run_root: Path, report_root:
     run_report_dir.mkdir(parents=True)
     report_path = report_root / f"{run_id}.json"
     latest_path = report_root / "latest.json"
-    artifact_root = Path(config["artifact_root"]).resolve()
+    artifact_roots = {
+        "default": Path(config["artifact_root"]).resolve(),
+        **{
+            name: Path(path).resolve()
+            for name, path in (config.get("artifact_roots") or {}).items()
+        },
+    }
     values = command_values(config, run_report_dir)
     report: dict[str, Any] = {
         "schema_version": "spacegate.e7_timed_pipeline_report.v1",
@@ -219,6 +238,7 @@ def run_pipeline(config: dict[str, Any], mode: str, run_root: Path, report_root:
     total_started = time.monotonic()
     failed = False
     for stage in config["stages"]:
+        artifact_root = artifact_roots[stage.get("artifact_root", "default")]
         artifact = artifact_root / stage["artifact"] if stage.get("artifact") else None
         artifact_present = bool(artifact and (artifact / "manifest.json").is_file())
         if mode == "verify" and stage["kind"] == "compiler":

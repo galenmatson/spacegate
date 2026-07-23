@@ -3986,6 +3986,32 @@ Representative commits:
   facts cannot be mislabeled as source measurements. The staged public
   candidate is unchanged pending a storage-reviewed downstream rebuild.
 
+### 155) Corrected Downstream Build Exposes Physical-Copy Cost
+
+- The planet shard was carried through clean science
+  `3b459ede84873e3adfeeec43`, CORE `85e89d41dd1258e2f3015a7a`,
+  ARM `abf25120b71bc71689790959`, DISC
+  `30280c152441804f449d86b3`, bundle `39b7386d4524ce5b1ff2729f`,
+  and unpromoted public candidate
+  `e7_39b7386d4524ce5b1ff2729f_public`.
+- The scientific A/B reports zero inventory change, zero changed or lost
+  existing planet values, exact ARM/public projection agreement, and exact
+  shard lineage for 461 new semimajor axes, 654 insolations, and 259
+  equilibrium temperatures. Category changes are restricted to previously
+  null values: 89 insolation classes and 56 orbit classes.
+- The corrected compiler path takes 12:34 from the four-second shard through the
+  self-contained public slice, or 16:40 with all four map radii. Clean science,
+  CORE, ARM, and public materialization write about 64.5 GiB in aggregate even
+  though most selected-science content is unchanged.
+- The next performance work is immutable domain-shard reuse, selective runtime
+  indexes, content-addressed or block-reusing public assembly, and one-pass
+  nested-radius map partitioning. More threads are not the default remedy for
+  repeated scans, copies, exports, and hashes.
+- DISC and bundle assembly no longer assume their inputs are sibling
+  directories under one output root. They resolve bounded, manifest-pinned
+  artifact paths through the state registry, preserving independent `/data`
+  and `/mnt/space` storage placement.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

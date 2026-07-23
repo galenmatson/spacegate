@@ -2470,6 +2470,29 @@ gate. Final-candidate API integration, strict search/detail/scene checks, and 12
 applicable desktop/mobile tiled-map Playwright cases pass. Four mobile-only skips
 cover desktop keyboard, exact-density, and 4K contracts by design.
 
+## E7 Planet-Derivation Corrected Candidate
+
+Focused derivation artifact `1dfc750b79b88018983ded82` is consumed by clean
+science `3b459ede84873e3adfeeec43` and carried without independent scientific
+selection through CORE `85e89d41dd1258e2f3015a7a`, ARM
+`abf25120b71bc71689790959`, DISC `30280c152441804f449d86b3`, bundle
+`39b7386d4524ce5b1ff2729f`, and unpromoted public candidate
+`e7_39b7386d4524ce5b1ff2729f_public`.
+
+The machine-readable cutover A/B preserves every inventory count and every
+existing selected planet value. It adds exactly 461 semimajor axes, 654
+insolations, and 259 equilibrium temperatures with shard derivation lineage.
+The only downstream category changes fill 89 previously null insolation
+classes and 56 previously null orbit classes. Clean science, ARM, and the
+public projection agree exactly.
+
+The same audit confirms explicit luminosity semantics for 1,983,744 source
+values and 66,834 derived values, with no selected luminosity missing status or
+derivation lineage. Isolated API integration, strict search/detail/scene
+checks, and bounded cold/warm scene materialization pass against the corrected
+candidate. It remains unpromoted pending the final acceptance contract,
+browser/reproduction gates as required, and explicit operator review.
+
 ## Hard Gates
 
 ### Solar Standards Checkpoint

@@ -68,3 +68,4 @@ def test_compiler_invokes_strict_scoring_mode() -> None:
     source = (ROOT / "scripts/compile_e7_clean_runtime_disc.py").read_text(encoding="utf-8")
     assert "require_selected_surfaces=True" in source
     assert "allow_core_classification_fallback=False" in source
+    assert "resolve_input(state," in source

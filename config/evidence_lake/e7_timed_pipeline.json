@@ -1,8 +1,11 @@
 {
   "schema_version": "spacegate.e7_timed_pipeline.v1",
-  "pipeline_id": "evidence_lake_v2_e7_clean_checkpoint_2026-07-22",
+  "pipeline_id": "evidence_lake_v2_e7_corrected_candidate_2026-07-23",
   "state_dir": "/data/spacegate/state",
   "artifact_root": "/mnt/space/spacegate",
+  "artifact_roots": {
+    "data": "/data/spacegate"
+  },
   "stages": [
     {
       "stage_id": "completion_preflight",
@@ -41,8 +44,8 @@
     {
       "stage_id": "clean_science_compile",
       "kind": "compiler",
-      "expected_build_id": "7c27f1595c69278b8d55c9e4",
-      "artifact": "e7-clean-science/7c27f1595c69278b8d55c9e4",
+      "expected_build_id": "3b459ede84873e3adfeeec43",
+      "artifact": "e7-clean-science/3b459ede84873e3adfeeec43",
       "command": [
         "{python}",
         "scripts/compile_e7_clean_science.py",
@@ -53,12 +56,12 @@
     {
       "stage_id": "clean_science_verify",
       "kind": "verification",
-      "expected_build_id": "7c27f1595c69278b8d55c9e4",
-      "artifact": "e7-clean-science/7c27f1595c69278b8d55c9e4",
+      "expected_build_id": "3b459ede84873e3adfeeec43",
+      "artifact": "e7-clean-science/3b459ede84873e3adfeeec43",
       "command": [
         "{python}",
         "scripts/verify_e7_clean_science.py",
-        "--build-id", "7c27f1595c69278b8d55c9e4",
+        "--build-id", "3b459ede84873e3adfeeec43",
         "--report", "{run_report_dir}/clean_science_verification.json"
       ]
     },
@@ -137,25 +140,93 @@
     {
       "stage_id": "clean_runtime_core_compile",
       "kind": "compiler",
-      "expected_build_id": "92da8d31dc0e7dbd4d4d70a5",
-      "artifact": "e7-clean-runtime-core/92da8d31dc0e7dbd4d4d70a5",
+      "expected_build_id": "85e89d41dd1258e2f3015a7a",
+      "artifact_root": "data",
+      "artifact": "e7-clean-runtime-core/85e89d41dd1258e2f3015a7a",
       "command": [
         "{python}",
         "scripts/compile_e7_clean_runtime_core.py",
         "--state-dir", "{state_dir}",
+        "--output-root", "/data/spacegate/e7-clean-runtime-core",
         "--report", "{run_report_dir}/clean_runtime_core_compile.json"
       ]
     },
     {
       "stage_id": "clean_runtime_core_verify",
       "kind": "verification",
-      "expected_build_id": "92da8d31dc0e7dbd4d4d70a5",
-      "artifact": "e7-clean-runtime-core/92da8d31dc0e7dbd4d4d70a5",
+      "expected_build_id": "85e89d41dd1258e2f3015a7a",
+      "artifact_root": "data",
+      "artifact": "e7-clean-runtime-core/85e89d41dd1258e2f3015a7a",
       "command": [
         "{python}",
         "scripts/verify_e7_clean_runtime_core.py",
-        "--build-id", "92da8d31dc0e7dbd4d4d70a5",
+        "--artifact-root", "/data/spacegate/e7-clean-runtime-core",
+        "--build-id", "85e89d41dd1258e2f3015a7a",
         "--report", "{run_report_dir}/clean_runtime_core_verification.json"
+      ]
+    },
+    {
+      "stage_id": "clean_runtime_arm_compile",
+      "kind": "compiler",
+      "expected_build_id": "abf25120b71bc71689790959",
+      "artifact": "e7-clean-runtime-arm/abf25120b71bc71689790959",
+      "command": [
+        "{python}",
+        "scripts/compile_e7_clean_runtime_arm.py",
+        "--state-dir", "{state_dir}",
+        "--report", "{run_report_dir}/clean_runtime_arm_compile.json"
+      ]
+    },
+    {
+      "stage_id": "clean_runtime_arm_verify",
+      "kind": "verification",
+      "expected_build_id": "abf25120b71bc71689790959",
+      "artifact": "e7-clean-runtime-arm/abf25120b71bc71689790959",
+      "command": [
+        "{python}",
+        "scripts/verify_e7_clean_runtime_arm.py",
+        "--build-id", "abf25120b71bc71689790959",
+        "--report", "{run_report_dir}/clean_runtime_arm_verification.json"
+      ]
+    },
+    {
+      "stage_id": "clean_runtime_disc_compile",
+      "kind": "compiler",
+      "expected_build_id": "30280c152441804f449d86b3",
+      "artifact_root": "data",
+      "artifact": "e7-clean-runtime-disc/30280c152441804f449d86b3",
+      "command": [
+        "{python}",
+        "scripts/compile_e7_clean_runtime_disc.py",
+        "--state-dir", "{state_dir}",
+        "--output-root", "/data/spacegate/e7-clean-runtime-disc",
+        "--report", "{run_report_dir}/clean_runtime_disc_compile.json"
+      ]
+    },
+    {
+      "stage_id": "clean_runtime_disc_verify",
+      "kind": "verification",
+      "expected_build_id": "30280c152441804f449d86b3",
+      "artifact_root": "data",
+      "artifact": "e7-clean-runtime-disc/30280c152441804f449d86b3",
+      "command": [
+        "{python}",
+        "scripts/verify_e7_clean_runtime_disc.py",
+        "--artifact-root", "/data/spacegate/e7-clean-runtime-disc",
+        "--build-id", "30280c152441804f449d86b3",
+        "--report", "{run_report_dir}/clean_runtime_disc_verification.json"
+      ]
+    },
+    {
+      "stage_id": "clean_runtime_bundle_compile",
+      "kind": "compiler",
+      "expected_build_id": "39b7386d4524ce5b1ff2729f",
+      "artifact": "e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f",
+      "command": [
+        "{python}",
+        "scripts/compile_e7_clean_runtime_bundle.py",
+        "--state-dir", "{state_dir}",
+        "--report", "{run_report_dir}/clean_runtime_bundle_compile.json"
       ]
     },
     {

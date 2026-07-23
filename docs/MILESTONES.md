@@ -2675,6 +2675,23 @@ Pre-promotion planning checkpoint (July 22, 2026):
   payload and materialization envelope, preventing a served-build scene from
   leaking into shadow/candidate API verification; runtime-cache artifacts carry
   the same contract and the corrected strict preview gate passes
+- focused planet-derivation shard `1dfc750b79b88018983ded82` is carried through
+  corrected clean science `3b459ede84873e3adfeeec43`, CORE
+  `85e89d41dd1258e2f3015a7a`, ARM `abf25120b71bc71689790959`,
+  DISC `30280c152441804f449d86b3`, bundle `39b7386d4524ce5b1ff2729f`,
+  and unpromoted public candidate
+  `e7_39b7386d4524ce5b1ff2729f_public`
+- the cutover A/B reports no inventory, existing-value, category-regression,
+  ARM-projection, or public-projection mismatch. It adds exactly 461
+  semimajor axes, 654 insolations, and 259 equilibrium temperatures with shard
+  lineage; the only category deltas fill 89 previously null insolation classes
+  and 56 previously null orbit classes
+- the corrected shard-to-public compiler path takes 12:34 and the optional
+  four-radius map extends it to 16:40. Repeated physical copies, exports, and
+  hashes of unchanged selected-science tables dominate, so immutable
+  domain-shard reuse, selective runtime indexes, content-addressed public
+  assembly, and one-pass nested-radius partitioning are the ordered
+  optimization work
 
 Deliverables:
 

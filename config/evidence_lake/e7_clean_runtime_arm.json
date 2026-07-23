@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_arm_policy.v5",
-  "policy_version": "2026-07-23.e7-clean-runtime-arm.9",
+  "policy_version": "2026-07-23.e7-clean-runtime-arm.10",
   "compiler_version": "e7_clean_runtime_arm_compiler_v6",
   "rules": {
     "open_stability_databases": false,
@@ -12,14 +12,14 @@
   },
   "inputs": {
     "clean_runtime_core": {
-      "build_id": "21971e59527ccf5c729b7cab",
-      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/21971e59527ccf5c729b7cab",
-      "manifest_sha256": "88fcca49ec0d930069b08ac629a753caffe05698a988161da2cdb786ef1a5507"
+      "build_id": "85e89d41dd1258e2f3015a7a",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/85e89d41dd1258e2f3015a7a",
+      "manifest_sha256": "d52a80f6bb934c1582c0976152f169d55e5d412addcf7f624e97cfcefbe6572f"
     },
     "clean_science": {
-      "build_id": "2d084ee3c5939878259793bb",
-      "relative_path": "derived/evidence_lake_v2/clean_science/2d084ee3c5939878259793bb",
-      "manifest_sha256": "3e1c99d3ec51d4437f64cccf79a8726ec5d0b1931966fd69519666dabc22a231"
+      "build_id": "3b459ede84873e3adfeeec43",
+      "relative_path": "derived/evidence_lake_v2/clean_science/3b459ede84873e3adfeeec43",
+      "manifest_sha256": "add050acfcfc942ac7d3689f0b5d2905dda964372dc295f19a399af0b91e453b"
     },
     "clean_wise": {
       "build_id": "ec8e218402c3a4a3b55b2811",

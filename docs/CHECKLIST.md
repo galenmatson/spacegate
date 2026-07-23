@@ -1888,7 +1888,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   require nested phase totals to reconcile with their process totals and call
   out untimed overhead rather than allowing work to disappear between timers;
   maintain the provisional measurements and optimization register in
-  `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`
+  `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`; the corrected shard-to-public
+  compiler path and optional map path are now fully measured at 12:34 and 16:40,
+  while promotion, rollback, and re-promotion timings remain open
 - [x] E7 modular Gaia DSC classification checkpoint: compile and independently
   reproduce `3f645ac3de3323637ded93d5`, preserve source-model semantics and
   exact Gaia DR3 binding, and consume it through clean science

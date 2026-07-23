@@ -549,6 +549,81 @@ threads are not the default remedy: the selected-fact compiler remains I/O- and
 spill-sensitive, and the accepted ARM run averaged only 273% CPU while writing
 about 12.9 GiB through the filesystem.
 
+### Planet-Derivation Corrected Candidate - 2026-07-23
+
+The focused planet-derivation shard required one downstream rebuild to prove
+that its 1,374 facts reached every shared consumer. The corrected chain is clean
+science `3b459ede84873e3adfeeec43`, CORE
+`85e89d41dd1258e2f3015a7a`, ARM `abf25120b71bc71689790959`,
+DISC `30280c152441804f449d86b3`, bundle
+`39b7386d4524ce5b1ff2729f`, and unpromoted public candidate
+`e7_39b7386d4524ce5b1ff2729f_public`.
+
+| Corrected stage | Wall | Peak RSS | Filesystem output | Result |
+|---|---:|---:|---:|---|
+| Planet-derivation shard | 4.41s | 2.4 GiB | 1.4 MiB | pass |
+| Clean science compile | 3:24.00 | 37.4 GiB | 17.5 GiB | pass |
+| Clean science independent audit | 10.19s | 2.1 GiB | report only | pass |
+| Runtime CORE compile | 1:18.26 | 27.3 GiB | 11.7 GiB | pass |
+| Runtime CORE independent audit | 7.69s | 2.1 GiB | report only | pass |
+| Runtime ARM compile | 2:38.09 | 46.4 GiB | 12.9 GiB | pass |
+| Runtime ARM independent audit | 8.04s | 2.1 GiB | report only | pass |
+| Runtime classification A/B | 1.6s | 2.4 GiB | report only | pass |
+| Runtime DISC compile | 36.61s | 10.1 GiB | 737 MiB | pass |
+| Runtime DISC independent audit | 1.76s | 2.1 GiB | report only | pass |
+| Runtime bundle composition | 12.03s | 0.04 GiB | manifest only | pass |
+| Self-contained public materialization | 4:20.95 | 31.1 GiB | 22.4 GiB | pass |
+| Four-radius map tiles | 4:05.24 | 11.0 GiB | 412 MiB | pass |
+| Four-radius map verification | 19.6s | 7.8 GiB | report only | pass |
+| Planet derivation cutover A/B | 0.22s | 0.2 GiB | report only | pass |
+| Bounded 24-scene cold / warm | 22.36s / 1.17s | 2.4 GiB | 283 KiB | pass |
+| API integration / strict known systems | 19.29s / 31.30s | client 37 MiB | reports only | pass |
+
+The compiler-only path from the focused shard through the deployable public
+slice takes 12:34.35. Including map tiles takes 16:39.59. Verifiers and bounded
+runtime gates add about 1:43 without map reproduction or browser tests. All
+measurements used GNU `time -v`; compiler reports also retain named internal
+phases.
+
+The cutover A/B proves that inventory and all existing planet values are
+unchanged. Exactly 461 semimajor axes, 654 insolations, and 259 equilibrium
+temperatures appear with shard lineage. The only category changes are 89 new
+insolation classes and 56 new orbit classes where the reference was null.
+CORE, ARM, and public selected values agree exactly. Selected stellar
+luminosity carries 1,983,744 source and 66,834 derived statuses with no missing
+status or lineage mismatch.
+
+This rebuild also exposed an invalid storage assumption: the DISC and bundle
+assemblers resolved sibling paths relative to their output root. That works only
+while every family is on one filesystem. They now resolve bounded,
+release-scoped paths through the state artifact registry, so `/data` and
+`/mnt/space` placement can change independently without weakening manifest
+identity.
+
+The measured optimization order is:
+
+1. Make clean science a manifest of immutable domain shards. Its scientific
+   planet overlay takes 0.31 seconds, while unchanged input verification,
+   Parquet export, and product hashing take 111.46 seconds and unchanged stellar
+   projections consume most of the remainder.
+2. Stop physically recopying unchanged selected-science tables into both CORE
+   and ARM. CORE spends 29.58 seconds on indexes; ARM spends 95.23 seconds on
+   its six largest selected-science copies before graph work.
+3. Replace public materialization with a self-contained content-addressed
+   assembly or reflink/block-reusing materializer. The current stage spends
+   4:21 and writes another 22.4 GiB even though its inputs are already immutable
+   deployable databases.
+4. Build the 1,000-ly selected map rowset once, then partition the nested radii
+   and benchmark deterministic parallel compression. The current map compiler
+   repeats the joined selection for four radii.
+5. Add metadata-backed local hash attestations only for iterative runs. Clean
+   reproduction and promotion continue to perform full byte hashing.
+
+Adding threads is not the first intervention. These stages repeatedly scan,
+copy, export, and hash the same tens of gigabytes; several already peak between
+27 and 46 GiB and do not saturate Photon's CPUs. The durable speedup is immutable
+shard reuse with the same scientific, lineage, atomicity, and rollback gates.
+
 1. Preserve the type-partitioned component graph and compare its exact logical
    output with the canonical hierarchy rather than returning to a multi-inventory
    join.

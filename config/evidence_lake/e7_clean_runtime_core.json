@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_core_policy.v1",
-  "policy_version": "2026-07-23.e7-clean-runtime-core.5",
+  "policy_version": "2026-07-23.e7-clean-runtime-core.6",
   "compiler_version": "e7_clean_runtime_core_compiler_v1",
   "rules": {
     "open_stability_databases": false,
@@ -20,9 +20,9 @@
       "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
     },
     "clean_science": {
-      "build_id": "2d084ee3c5939878259793bb",
-      "relative_path": "derived/evidence_lake_v2/clean_science/2d084ee3c5939878259793bb",
-      "manifest_sha256": "3e1c99d3ec51d4437f64cccf79a8726ec5d0b1931966fd69519666dabc22a231"
+      "build_id": "3b459ede84873e3adfeeec43",
+      "relative_path": "derived/evidence_lake_v2/clean_science/3b459ede84873e3adfeeec43",
+      "manifest_sha256": "add050acfcfc942ac7d3689f0b5d2905dda964372dc295f19a399af0b91e453b"
     },
     "clean_clusters": {
       "build_id": "171d3096b5cd7ad5f53a016b",

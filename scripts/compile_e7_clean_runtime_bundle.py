@@ -30,6 +30,11 @@ INPUT_DIRS = {
     "arm": "e7-clean-runtime-arm",
     "disc": "e7-clean-runtime-disc",
 }
+INPUT_FAMILIES = {
+    "core": "clean_runtime_core",
+    "arm": "clean_runtime_arm",
+    "disc": "clean_runtime_disc",
+}
 
 
 class Timings:
@@ -112,16 +117,19 @@ def validate_policy(policy: dict[str, Any]) -> None:
         relative = Path(str(spec.get("relative_path") or ""))
         if len(str(spec.get("manifest_sha256") or "")) != 64:
             raise ValueError(f"invalid manifest identity: {name}")
-        if relative.parts != ("..", INPUT_DIRS[name], build_id):
+        if relative.parts != (
+            "derived", "evidence_lake_v2", INPUT_FAMILIES[name],
+            build_id,
+        ):
             raise ValueError(f"invalid bounded input path: {name}")
         if set(spec.get("products") or []) != PRODUCT_NAMES[name]:
             raise ValueError(f"invalid product contract: {name}")
 
 
-def resolve_inputs(policy: dict[str, Any], output_root: Path) -> dict[str, Any]:
+def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, Any]:
     resolved: dict[str, Any] = {}
     for name, spec in sorted(policy["inputs"].items()):
-        source_root = (output_root / spec["relative_path"]).resolve()
+        source_root = (state / spec["relative_path"]).resolve()
         manifest_path = source_root / "manifest.json"
         if not manifest_path.is_file() or file_sha256(manifest_path) != spec["manifest_sha256"]:
             raise ValueError(f"input manifest mismatch: {name}")
@@ -180,7 +188,7 @@ def compile_bundle(
     timing = Timings()
     policy = timing.run("load_policy", lambda: load_object(policy_path))
     timing.run("validate_policy", lambda: validate_policy(policy))
-    resolved = timing.run("attest_input_products", lambda: resolve_inputs(policy, output_root))
+    resolved = timing.run("attest_input_products", lambda: resolve_inputs(policy, state))
     compiler_sha = file_sha256(Path(__file__).resolve())
     policy_sha = file_sha256(policy_path)
     identity = {

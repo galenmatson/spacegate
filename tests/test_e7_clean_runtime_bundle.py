@@ -27,6 +27,8 @@ def test_bundle_policy_is_pinned_and_not_directly_served() -> None:
     assert value["rules"]["open_stability_databases"] is False
     assert value["rules"]["mutate_component_artifacts"] is False
     assert value["rules"]["bundle_is_served_directly"] is False
+    source = (ROOT / "scripts/compile_e7_clean_runtime_bundle.py").read_text(encoding="utf-8")
+    assert "resolve_inputs(policy, state)" in source
 
 
 def test_bundle_policy_rejects_path_traversal_and_missing_products() -> None:

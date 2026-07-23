@@ -116,15 +116,16 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if set(policy.get("inputs") or {}) != {"clean_runtime_core", "clean_runtime_arm"}:
         raise ValueError("clean runtime DISC inputs are incomplete")
     expected_input_dirs = {
-        "clean_runtime_core": "e7-clean-runtime-core",
-        "clean_runtime_arm": "e7-clean-runtime-arm",
+        "clean_runtime_core": "clean_runtime_core",
+        "clean_runtime_arm": "clean_runtime_arm",
     }
     for name, spec in policy["inputs"].items():
         relative = Path(str(spec.get("relative_path") or ""))
         if not spec.get("build_id") or len(str(spec.get("manifest_sha256") or "")) != 64:
             raise ValueError(f"invalid input identity: {name}")
         if relative.parts != (
-            "..", expected_input_dirs[name], str(spec["build_id"])
+            "derived", "evidence_lake_v2", expected_input_dirs[name],
+            str(spec["build_id"]),
         ):
             raise ValueError(f"invalid bounded input path: {name}")
     profile = policy.get("coolness_profile") or {}
@@ -144,8 +145,8 @@ def validate_policy(policy: dict[str, Any]) -> None:
         raise ValueError("coolness profile hash mismatch")
 
 
-def resolve_input(output_root: Path, spec: dict[str, Any]) -> dict[str, Any]:
-    root = (output_root / spec["relative_path"]).resolve()
+def resolve_input(state: Path, spec: dict[str, Any]) -> dict[str, Any]:
+    root = (state / spec["relative_path"]).resolve()
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError(manifest_path)
@@ -258,10 +259,10 @@ def compile_runtime_disc(
     policy = timing.run("load_and_validate_policy", lambda: load_object(policy_path))
     validate_policy(policy)
     core_input = timing.run(
-        "verify_core_manifest", lambda: resolve_input(output_root, policy["inputs"]["clean_runtime_core"])
+        "verify_core_manifest", lambda: resolve_input(state, policy["inputs"]["clean_runtime_core"])
     )
     arm_input = timing.run(
-        "verify_arm_manifest", lambda: resolve_input(output_root, policy["inputs"]["clean_runtime_arm"])
+        "verify_arm_manifest", lambda: resolve_input(state, policy["inputs"]["clean_runtime_arm"])
     )
     core_db = timing.run("verify_core_database", lambda: product_path(core_input, "core.duckdb"))
     arm_db = timing.run("verify_arm_database", lambda: product_path(arm_input, "arm.duckdb"))

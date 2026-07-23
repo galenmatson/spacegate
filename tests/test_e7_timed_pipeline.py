@@ -44,6 +44,27 @@ def test_pipeline_rejects_deployment_and_unbounded_artifacts() -> None:
         MODULE.validate_config(base)
 
 
+def test_pipeline_supports_named_bounded_artifact_roots(tmp_path: Path) -> None:
+    config = {
+        "schema_version": "spacegate.e7_timed_pipeline.v1",
+        "artifact_root": str(tmp_path / "bulk"),
+        "artifact_roots": {"data": str(tmp_path / "data")},
+        "stages": [
+            {
+                "stage_id": "data_artifact",
+                "kind": "compiler",
+                "artifact_root": "data",
+                "artifact": "family/build",
+                "command": ["true"],
+            }
+        ],
+    }
+    MODULE.validate_config(config)
+    config["stages"][0]["artifact_root"] = "missing"
+    with pytest.raises(ValueError, match="unknown artifact root"):
+        MODULE.validate_config(config)
+
+
 def test_parse_gnu_time_fields(tmp_path: Path) -> None:
     timing = tmp_path / "time.txt"
     timing.write_text(
