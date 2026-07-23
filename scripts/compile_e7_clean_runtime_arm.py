@@ -104,7 +104,7 @@ class Timings:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v3":
+    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v4":
         raise ValueError("unsupported clean runtime ARM policy")
     required_rules = {
         "open_stability_databases": False,
@@ -121,6 +121,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "clean_runtime_core", "clean_science", "clean_wise",
         "solar_identity", "solar_runtime", "stellar_orbits",
         "stellar_orbit_bridge",
+        "tess_runtime",
     }:
         raise ValueError("clean runtime ARM inputs are incomplete")
     for name, spec in policy["inputs"].items():
@@ -138,9 +139,10 @@ def validate_policy(policy: dict[str, Any]) -> None:
     solar_runtime_tables = [str(value) for value in policy.get("solar_runtime_tables") or []]
     stellar_orbit_tables = [str(value) for value in policy.get("stellar_orbit_tables") or []]
     stellar_orbit_bridge_tables = [str(value) for value in policy.get("stellar_orbit_bridge_tables") or []]
+    tess_runtime_tables = [str(value) for value in policy.get("tess_runtime_tables") or []]
     all_tables = (science_tables + wise_tables + solar_identity_tables
                   + solar_runtime_tables + stellar_orbit_tables
-                  + stellar_orbit_bridge_tables)
+                  + stellar_orbit_bridge_tables + tess_runtime_tables)
     if len(all_tables) != len(set(all_tables)):
         raise ValueError("duplicate runtime ARM input table")
     if "selected_stellar_parameters" not in science_tables:
@@ -212,11 +214,13 @@ def register_parquet_inputs(
     solar_runtime_products: dict[str, Path],
     stellar_orbit_products: dict[str, Path],
     stellar_orbit_bridge_products: dict[str, Path],
+    tess_runtime_products: dict[str, Path],
 ) -> None:
     con.execute("CREATE SCHEMA solar_identity")
     con.execute("CREATE SCHEMA solar_runtime")
     con.execute("CREATE SCHEMA stellar_orbits")
     con.execute("CREATE SCHEMA stellar_orbit_bridge")
+    con.execute("CREATE SCHEMA tess_runtime")
     for table, path in sorted(solar_identity_products.items()):
         con.execute(
             f"CREATE VIEW solar_identity.{table} AS "
@@ -235,6 +239,11 @@ def register_parquet_inputs(
     for table, path in sorted(stellar_orbit_bridge_products.items()):
         con.execute(
             f"CREATE VIEW stellar_orbit_bridge.{table} AS "
+            f"SELECT * FROM read_parquet({sql_literal(path)})"
+        )
+    for table, path in sorted(tess_runtime_products.items()):
+        con.execute(
+            f"CREATE VIEW tess_runtime.{table} AS "
             f"SELECT * FROM read_parquet({sql_literal(path)})"
         )
 
@@ -302,6 +311,13 @@ def copy_selected_surfaces(
             f"copy_stellar_orbit_bridge_{table}",
             lambda table=table: con.execute(
                 f"CREATE TABLE {table} AS SELECT * FROM stellar_orbit_bridge.{table}"
+            ),
+        )
+    for table in policy["tess_runtime_tables"]:
+        timing.run(
+            f"copy_tess_runtime_{table}",
+            lambda table=table: con.execute(
+                f"CREATE TABLE {table} AS SELECT * FROM tess_runtime.{table}"
             ),
         )
 
@@ -964,6 +980,8 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "solar_component_identities", "selected_solar_orbital_solutions",
             "selected_stellar_orbit_relations", "selected_stellar_orbit_solutions",
             "stellar_orbit_endpoint_bindings", "stellar_orbit_relation_bindings",
+            "tess_target_identity", "tess_missing_object_audit",
+            "toi_current_evidence", "toi_disposition_history",
         )
     }
     checks = {
@@ -1063,6 +1081,21 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "AND (s.period_days<=0 OR s.semi_major_axis_arcsec<=0 "
             "OR s.eccentricity<0 OR s.eccentricity>=1)"
         ),
+        "tess_candidate_or_negative_planet_links": scalar(
+            "SELECT count(*) FROM toi_current_evidence "
+            "WHERE disposition IN ('PC','APC','FP','FA') AND planet_id IS NOT NULL"
+        ),
+        "tess_confirmed_link_delta": abs(
+            scalar("SELECT count(*) FROM toi_current_evidence WHERE disposition IN ('CP','KP') AND planet_id IS NOT NULL")
+            - 824
+        ),
+        "tess_target_partition_delta": abs(counts["tess_target_identity"]-27930),
+        "toi_inventory_delta": abs(counts["toi_current_evidence"]-8064),
+        "toi_history_delta": abs(counts["toi_disposition_history"]-8064),
+        "toi_history_orphans": scalar(
+            "SELECT count(*) FROM toi_disposition_history h LEFT JOIN toi_current_evidence t "
+            "USING(source_key) WHERE t.source_key IS NULL"
+        ),
         "orphan_orbit_primaries": scalar(
             "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c "
             "ON c.stable_component_key=e.primary_component_key WHERE c.component_entity_id IS NULL"
@@ -1158,6 +1191,15 @@ def compile_runtime_arm(
         )
         for table in policy["stellar_orbit_bridge_tables"]
     }
+    tess_runtime_products = {
+        table: timing.run(
+            f"verify_tess_runtime_{table}",
+            lambda table=table: product_path(
+                inputs["tess_runtime"], f"{table}.parquet"
+            ),
+        )
+        for table in policy["tess_runtime_tables"]
+    }
     compiler_sha = file_sha256(Path(__file__).resolve())
     policy_sha = file_sha256(policy_path)
     input_identity = {
@@ -1198,6 +1240,7 @@ def compile_runtime_arm(
                     solar_runtime_products=solar_runtime_products,
                     stellar_orbit_products=stellar_orbit_products,
                     stellar_orbit_bridge_products=stellar_orbit_bridge_products,
+                    tess_runtime_products=tess_runtime_products,
                 ),
             )
             copy_selected_surfaces(
@@ -1233,7 +1276,7 @@ def compile_runtime_arm(
             "determinism": "logical_tables",
         }
         manifest = {
-            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v3",
+            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v4",
             "build_id": build_id,
             "status": "pass",
             "generated_at": utc_now(),

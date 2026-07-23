@@ -3767,6 +3767,20 @@ Representative commits:
 - Compile takes 1.45 seconds; independent audit takes 0.29 seconds and isolated
   byte-exact reproduction takes 1.68 seconds total.
 
+### 144) ARM Copies TESS Decisions but Does Not Re-Decide Them
+
+- Clean ARM v4 `e3e82312eaa3cab931e9e756` consumes the verified TESS runtime
+  Parquet products as immutable inputs. The composer does not repeat host,
+  disposition, or planet-link selection.
+- The ARM retains 27,930 target outcomes, 18,044 missing-object audits, 8,064
+  current TOIs, and 8,064 history events. Exactly 824 confirmed/known TOIs link
+  to clean canonical planets; candidate and negative rows have zero planet
+  links, and the canonical inventory remains 6,296 planets.
+- Internal and independent verification pass with no history orphan, count
+  mismatch, or candidate/negative leakage. Compile takes 151.73 seconds; all
+  TESS verification and table-copy phases total 0.31 seconds. Isolated compile,
+  logical comparison, and audit take 178.83 seconds with no differing tables.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

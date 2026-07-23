@@ -2596,6 +2596,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   accounts 27,930 targeted TICs, 18,044 non-accepted audit rows, 8,064 TOIs,
   5,383 candidates, 1,346 negative rows, and 8,064 history events with zero
   canonical inventory mutations; independent audit and byte reproduction pass
+- clean ARM v4 `e3e82312eaa3cab931e9e756` consumes the TESS runtime artifact
+  without re-selection. Its four compatibility tables preserve exact counts,
+  824 confirmed links, and zero candidate/negative planet links. Internal and
+  independent verification pass; the four-table copy costs 0.31 seconds within
+  a 151.73-second ARM compile. Isolated compile/logical comparison/audit takes
+  178.83 seconds with no differing tables
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

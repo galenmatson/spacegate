@@ -1469,6 +1469,10 @@ Implementation notes:
   TOI terms use planet focus only when a confirmed/known TOI is uniquely linked
   to a canonical planet; candidate TOIs focus the resolved host star and do not
   create planet rows.
+- Clean ARM `e3e82312eaa3cab931e9e756` is the compatibility authority for this
+  behavior: its 27,930 TIC outcomes and 8,064 TOIs were rebound to clean CORE.
+  Only 824 confirmed/known TOIs carry `planet_id`; candidate and negative rows
+  are required to keep it null.
 - search result items include `display_name`, `display_name_style`,
   `display_name_source`, `display_aliases`, and `requested_name_style`.
   `display_name_style` is derived display/search metadata, not source identity.

@@ -2246,6 +2246,16 @@ structurally prohibited from receiving `planet_id`. All 27,930 target outcomes,
 events are accounted with zero canonical inventory mutation. Compile,
 independent audit, and byte-exact reproduction complete in under two seconds.
 
+Clean ARM v4 `e3e82312eaa3cab931e9e756` copies those four verified runtime
+surfaces without re-running identity or disposition selection. It contains all
+27,930 target outcomes, 18,044 missing-object audits, 8,064 current TOIs, and
+8,064 history events; 824 confirmed/known rows link to clean canonical planets,
+while candidates and negative evidence have null planet IDs. The clean
+canonical planet inventory remains 6,296 rows. Internal and independent ARM
+verification pass, and TESS table verification/copying adds 0.31 seconds.
+Isolated logical reproduction takes 178.83 seconds and reports no differing
+tables.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

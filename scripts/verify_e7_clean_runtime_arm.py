@@ -55,6 +55,12 @@ STELLAR_ORBIT_BRIDGE_TABLES = {
     "stellar_orbit_endpoint_bindings",
     "stellar_orbit_relation_bindings",
 }
+TESS_RUNTIME_TABLES = {
+    "tess_missing_object_audit",
+    "tess_target_identity",
+    "toi_current_evidence",
+    "toi_disposition_history",
+}
 RUNTIME_TABLES = {
     "build_metadata",
     "component_entities",
@@ -68,7 +74,7 @@ RUNTIME_TABLES = {
 EXPECTED_TABLES = (
     SCIENCE_TABLES | WISE_TABLES | SOLAR_IDENTITY_TABLES
     | SOLAR_RUNTIME_TABLES | STELLAR_ORBIT_TABLES
-    | STELLAR_ORBIT_BRIDGE_TABLES | RUNTIME_TABLES
+    | STELLAR_ORBIT_BRIDGE_TABLES | TESS_RUNTIME_TABLES | RUNTIME_TABLES
 )
 EXPECTED_VIEWS = {
     "e6_selected_planet_parameters",
@@ -102,6 +108,23 @@ REQUIRED_COLUMNS = {
         "period_days", "semi_major_axis_au", "eccentricity", "inclination_deg",
         "normalization_method", "source_catalog", "source_pk", "source_row_hash",
     },
+    "tess_target_identity": {
+        "tess_identity_id", "tic_id", "resolution_status", "star_id", "system_id",
+        "source_row_hash", "retrieval_checksum", "transform_version",
+    },
+    "tess_missing_object_audit": {
+        "audit_id", "tic_id", "resolution_status", "gap_class", "source_row_hash",
+    },
+    "toi_current_evidence": {
+        "toi_evidence_id", "source_key", "tic_id", "toi", "disposition",
+        "star_id", "system_id", "planet_id", "orbital_period_days",
+        "source_row_hash", "retrieval_checksum", "transform_version",
+    },
+    "toi_disposition_history": {
+        "history_id", "source_key", "tic_id", "disposition", "effective_at",
+        "source_row_hash", "first_observed_at", "last_observed_at",
+        "retrieval_checksum", "transform_version",
+    },
 }
 VALID_CLASSES = (
     "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WR", "WD",
@@ -132,7 +155,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     started = time.monotonic()
     manifest = load_object(build_dir / "manifest.json")
     failures: dict[str, Any] = {}
-    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v3":
+    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v4":
         failures["manifest_schema"] = manifest.get("schema_version")
     if manifest.get("status") != "pass":
         failures["manifest_status"] = manifest.get("status")
@@ -215,6 +238,12 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "stellar_preferred_projection_delta": abs(scalar(con, "SELECT count(*) FROM orbit_edges WHERE transform_version='e7_selected_stellar_orbit_projection_v1' AND preferred_solution_id IS NOT NULL") - scalar(con, "SELECT count(*) FROM stellar_orbit_relation_bindings WHERE simulation_eligible")),
                 "unresolved_stellar_runtime_edges": scalar(con, "SELECT count(*) FROM orbit_edges e JOIN stellar_orbit_relation_bindings b ON b.relation_evidence_id=e.source_pk WHERE NOT b.runtime_eligible"),
                 "nonphysical_stellar_preferences": scalar(con, "SELECT count(*) FROM orbit_edges e JOIN orbital_solutions s ON s.orbital_solution_id=e.preferred_solution_id WHERE e.transform_version='e7_selected_stellar_orbit_projection_v1' AND (s.period_days<=0 OR s.semi_major_axis_arcsec<=0 OR s.eccentricity<0 OR s.eccentricity>=1)"),
+                "tess_candidate_or_negative_planet_links": scalar(con, "SELECT count(*) FROM toi_current_evidence WHERE disposition IN ('PC','APC','FP','FA') AND planet_id IS NOT NULL"),
+                "tess_confirmed_link_delta": abs(scalar(con, "SELECT count(*) FROM toi_current_evidence WHERE disposition IN ('CP','KP') AND planet_id IS NOT NULL") - 824),
+                "tess_target_partition_delta": abs(counts.get("tess_target_identity", -1) - 27930),
+                "toi_inventory_delta": abs(counts.get("toi_current_evidence", -1) - 8064),
+                "toi_history_delta": abs(counts.get("toi_disposition_history", -1) - 8064),
+                "toi_history_orphans": scalar(con, "SELECT count(*) FROM toi_disposition_history h LEFT JOIN toi_current_evidence t USING(source_key) WHERE t.source_key IS NULL"),
                 "orphan_orbit_hosts": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.host_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_orbit_primaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.primary_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_orbit_secondaries": scalar(con, "SELECT count(*) FROM orbit_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.secondary_component_key WHERE c.component_entity_id IS NULL"),
@@ -234,7 +263,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     if nonzero:
         failures["invariants"] = nonzero
     return {
-        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v3",
+        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v4",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "build_id": manifest.get("build_id"),
         "status": "pass" if not failures else "fail",

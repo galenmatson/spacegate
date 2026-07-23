@@ -809,6 +809,12 @@ timestamps and is not identity or disposition authority. The artifact preserves
 all current candidates and negative controls while permitting canonical planet
 IDs only on the 824 confirmed/known exact clean-key links.
 
+ARM v4 `e3e82312eaa3cab931e9e756` is the first clean runtime ARM to carry the
+four TESS compatibility tables. It copies the accepted artifact byte content
+into ARM without independent disposition logic, retains the full unresolved
+tail, and preserves the public TIC/TOI consumer contract without contaminating
+canonical planet counts.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)

@@ -710,6 +710,14 @@ seconds, and isolated byte-exact reproduction 1.68 seconds total. Its four
 Parquet products should remain independently reusable rather than being folded
 back into a monolithic selection pass.
 
+ARM v4 `e3e82312eaa3cab931e9e756` compiles in 151.73 seconds, versus 151.40
+seconds for v3. TESS input verification is under 0.01 seconds and copying all
+four compatibility tables takes 0.31 seconds. The result confirms that TESS is
+not responsible for the slow ARM build; unchanged multi-million-row selected
+science copies remain the optimization target.
+Isolated v4 compilation takes 154.01 seconds; full rebuild, logical-table
+comparison, independent audit, and scratch removal take 178.83 seconds.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

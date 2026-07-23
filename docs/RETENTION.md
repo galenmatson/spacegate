@@ -1190,6 +1190,12 @@ unserved candidate inputs. The history seed must not be edited or removed until
 an immutable successor history release preserves every event and cutover plus
 rollback are verified. Reproduction scratch was removed automatically.
 
+Clean ARM v4 `e3e82312eaa3cab931e9e756`, its manifest, audit/reproduction
+reports, and all pinned inputs are protected as the current unserved ARM
+candidate. ARM v3 `34069ba67abe3b4331c26adc` remains its immediate rollback
+and scientific A/B reference until local promotion, rollback, and re-promotion
+are proven. Neither is a manual cleanup target.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

@@ -1469,6 +1469,14 @@ timestamp. Each event records first/last observation timestamps, source row
 hash, retrieval checksum, and transform lineage. A disposition change adds an
 event rather than rewriting prior history.
 
+Clean runtime status: TESS artifact `ab880f46a111428e8021e47e` rebinds stable
+keys against clean CORE and ARM `e3e82312eaa3cab931e9e756` copies its four
+verified surfaces without re-selection. The projection contains 27,930 TIC
+targets, 18,044 non-accepted audits, 8,064 TOIs/history events, and 824
+confirmed/known planet links. Candidate and negative rows must have null
+`planet_id`; this is independently verified and cannot be relaxed by a UI or
+public-slice consumer.
+
 ## Multiple-Component Source Evidence
 
 ### `sb9_systems`, `sb9_aliases`, `sb9_orbits`

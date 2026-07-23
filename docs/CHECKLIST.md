@@ -1796,8 +1796,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   clean numeric IDs, account 27,930 TIC targets and 8,064 TOIs, preserve 824
   confirmed/known planet links, and prove candidates/negative evidence cannot
   mutate or link into canonical planet inventory
-- [ ] E7 clean runtime ARM completion: add TESS candidate compatibility without
-  relation-to-containment promotion or independent scientific fallback logic
+- [x] E7 clean runtime ARM completion: build `e3e82312eaa3cab931e9e756`
+  with clean TESS candidate compatibility; preserve 27,930 TIC identity
+  outcomes, 18,044 missing-object audits, 8,064 current TOIs and history events,
+  retain 824 confirmed/known clean planet links, and prove candidates/negative
+  evidence neither link nor mutate canonical planet inventory; pass independent
+  audit and isolated logical reproduction with no differing tables
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or

@@ -26,6 +26,7 @@ def test_checked_in_policy_is_bounded_and_forbids_stability_authority() -> None:
     assert policy["rules"]["source_relation_claims_create_containment"] is False
     assert policy["rules"]["context_only_orbits_create_renderable_edges"] is False
     assert policy["runtime_graph_status"]["cross_source_orbit_selection"].startswith("implemented_")
+    assert policy["runtime_graph_status"]["tess_candidate_compatibility"].startswith("implemented_")
 
 
 def test_policy_rejects_relation_claim_containment() -> None:
@@ -261,6 +262,7 @@ def test_policy_json_is_canonical_object() -> None:
         "clean_runtime_core", "clean_science", "clean_wise",
         "solar_identity", "solar_runtime", "stellar_orbits",
         "stellar_orbit_bridge",
+        "tess_runtime",
     }
 
 
@@ -278,6 +280,7 @@ def test_independent_verifier_contract_matches_compiler_policy() -> None:
     assert set(policy["solar_runtime_tables"]) == verifier.SOLAR_RUNTIME_TABLES
     assert set(policy["stellar_orbit_tables"]) == verifier.STELLAR_ORBIT_TABLES
     assert set(policy["stellar_orbit_bridge_tables"]) == verifier.STELLAR_ORBIT_BRIDGE_TABLES
+    assert set(policy["tess_runtime_tables"]) == verifier.TESS_RUNTIME_TABLES
     assert verifier.EXPECTED_VIEWS == {
         "e6_selected_planet_parameters",
         "e6_selected_stellar_display_classifications",
