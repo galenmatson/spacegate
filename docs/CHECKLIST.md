@@ -1887,6 +1887,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   path and preserve before/after evidence for accepted or rejected speedups;
   require nested phase totals to reconcile with their process totals and call
   out untimed overhead rather than allowing work to disappear between timers;
+  separate compilation, query, sort, copy, serialization, hash, and verification
+  costs; rank proposed changes by expected wall-time saving, implementation
+  cost, storage impact, and scientific/operational risk; rerun accepted changes
+  under equivalent input and cache conditions;
   maintain the provisional measurements and optimization register in
   `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`; the corrected shard-to-public
   compiler path and optional map path are now fully measured at 12:34 and 16:40,

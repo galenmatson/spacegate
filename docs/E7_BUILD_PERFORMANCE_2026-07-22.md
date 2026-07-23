@@ -22,6 +22,26 @@ An optimization is acceptable only when the same scientific and reproducibility
 gates pass. Reusing or weakening a stability-database path is not a build-time
 optimization.
 
+## Operator Checkpoint - 2026-07-23
+
+The current end-to-end build is operationally too slow. E7 closeout must turn
+the retained timing evidence into an actionable report rather than treating
+instrumentation alone as completion. The report must:
+
+- reconcile every named phase with total process and end-to-end wall time;
+- separate compilation, queries, sorting, copying, serialization, hashing,
+  verification, and uninstrumented overhead;
+- identify whether each measurement was cold, warm, cached, or reused;
+- rank bottlenecks by measured wall time, peak memory, I/O, and durable bytes;
+- estimate the expected saving, implementation cost, and scientific or
+  operational risk of each proposed optimization; and
+- rerun the accepted path after changes so before/after results use equivalent
+  inputs, gates, and cache conditions.
+
+Local promotion correctness remains the immediate E7 gate. Performance work may
+follow the local promotion/rollback drill, but the report and optimization
+backlog are required before the slow-build issue can be considered resolved.
+
 ## Incremental Planet-Derivation Shard
 
 The completion audit found that E5 policy v17 declared Kepler semimajor-axis,
