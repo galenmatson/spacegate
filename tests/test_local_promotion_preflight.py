@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import duckdb
@@ -65,3 +66,33 @@ def test_promote_script_uses_atomic_pointer_replacement() -> None:
     source = (ROOT / "scripts/promote_build.sh").read_text(encoding="utf-8")
     assert "os.replace(temporary, link_path)" in source
     assert "ln -sfn" not in source
+    assert source.index("score_coolness.sh") < source.index("set_current_symlink \"$build_dir\"")
+    assert "refusing to score immutable selected-fact build" in source
+
+
+def test_immutable_build_promotion_defaults_to_no_scoring(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    candidate = make_build(state, "candidate")
+    con = duckdb.connect(str(candidate / "core.duckdb"))
+    con.execute(
+        "INSERT INTO build_metadata VALUES "
+        "('build_kind','e7_clean_runtime_core'),"
+        "('scientific_values_from_selected_facts_only','1')"
+    )
+    con.close()
+    env = {
+        **os.environ,
+        "SPACEGATE_STATE_DIR": str(state),
+        "SPACEGATE_AUTO_SCORE_COOLNESS": "",
+        "SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO": "0",
+    }
+    completed = subprocess.run(
+        [str(ROOT / "scripts/promote_build.sh"), candidate.name],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "Skipping auto coolness scoring" in completed.stdout
+    assert (state / "served/current").resolve() == candidate.resolve()

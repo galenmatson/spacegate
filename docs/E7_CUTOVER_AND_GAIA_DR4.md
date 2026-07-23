@@ -58,6 +58,10 @@ four database build identities, map identity, required products, writable
 served directory, and bounded rollback target. The promotion helper creates a
 temporary relative symlink in `served/` and replaces the pointer with
 `os.replace`, making the transition one atomic rename on the served filesystem.
+Mutable legacy coolness preparation now completes before that pointer
+transition. Selected-fact/Evidence Lake builds default to no scoring and reject
+post-build scoring unless an explicit unsafe mutation override is supplied;
+their DISC products must instead be regenerated through the versioned compiler.
 The actual cutover remains forbidden until explicit operator acceptance.
 
 Permanent identity seed `5c878083872c738415971864` is the one-time bridge from

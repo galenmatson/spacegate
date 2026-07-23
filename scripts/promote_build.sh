@@ -21,7 +21,9 @@ Usage:
   scripts/promote_build.sh [BUILD_ID]
 
 If BUILD_ID is not provided, the latest promotable $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
-By default this also runs coolness scoring for the promoted build; set SPACEGATE_AUTO_SCORE_COOLNESS=0 to skip.
+Legacy builds default to coolness scoring before pointer replacement; set
+SPACEGATE_AUTO_SCORE_COOLNESS=0 to skip. Immutable selected-fact builds default
+to no scoring and reject scoring unless SPACEGATE_ALLOW_IMMUTABLE_BUILD_MUTATION=1.
 Profile-specific SLO checks are opt-in for sliced profile builds; set SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO=1 to enforce.
 USAGE
 }
@@ -205,8 +207,43 @@ require_artifacts() {
   fi
 }
 
+is_immutable_selected_build() {
+  local core_db="$1"
+  local py
+  py="$(resolve_python)"
+  if [[ -z "$py" ]]; then
+    echo "0"
+    return
+  fi
+  "$py" - "$core_db" <<'PY'
+import sys
+import duckdb
+
+con = duckdb.connect(sys.argv[1], read_only=True)
+try:
+    tables = {
+        str(row[0])
+        for row in con.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='main'"
+        ).fetchall()
+    }
+    values = (
+        dict(con.execute("SELECT key,value FROM build_metadata").fetchall())
+        if "build_metadata" in tables
+        else {}
+    )
+finally:
+    con.close()
+immutable = (
+    str(values.get("scientific_values_from_selected_facts_only") or "") == "1"
+    or str(values.get("build_kind") or "").startswith("e7_clean_")
+)
+print("1" if immutable else "0")
+PY
+}
+
 main() {
-  local auto_score_coolness="${SPACEGATE_AUTO_SCORE_COOLNESS:-1}"
+  local auto_score_coolness="${SPACEGATE_AUTO_SCORE_COOLNESS:-}"
   local build_id="${1:-}"
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
@@ -224,6 +261,33 @@ main() {
   fi
 
   require_artifacts "$build_dir"
+  local immutable_selected_build=""
+  immutable_selected_build="$(is_immutable_selected_build "$build_dir/core.duckdb")"
+  if [[ -z "$auto_score_coolness" ]]; then
+    if [[ "$immutable_selected_build" == "1" ]]; then
+      auto_score_coolness="0"
+    else
+      auto_score_coolness="1"
+    fi
+  fi
+  if [[ "$auto_score_coolness" != "0" && "$auto_score_coolness" != "1" ]]; then
+    echo "Error: SPACEGATE_AUTO_SCORE_COOLNESS must be 0 or 1." >&2
+    exit 1
+  fi
+  if [[ "$immutable_selected_build" == "1" && "$auto_score_coolness" == "1" \
+        && "${SPACEGATE_ALLOW_IMMUTABLE_BUILD_MUTATION:-0}" != "1" ]]; then
+    echo "Error: refusing to score immutable selected-fact build $build_id." >&2
+    echo "Rebuild its versioned DISC artifact instead of mutating the candidate." >&2
+    exit 1
+  fi
+
+  # Complete mutable legacy preparation before the atomic pointer transition.
+  if [[ "$auto_score_coolness" == "1" ]]; then
+    echo "Running coolness scoring before promotion: $build_id"
+    "$ROOT_DIR/scripts/score_coolness.sh" score --build-id "$build_id"
+  else
+    echo "Skipping auto coolness scoring (SPACEGATE_AUTO_SCORE_COOLNESS=$auto_score_coolness)"
+  fi
 
   mkdir -p "$SERVED_DIR"
   local previous_target=""
@@ -236,12 +300,6 @@ main() {
 
   printf 'Promoted build %s -> %s/current (%s)\n' "$build_id" "$SERVED_DIR" "$rel_target"
   run_profile_slo_gate "$build_id" "$previous_target"
-  if [[ "$auto_score_coolness" == "1" ]]; then
-    echo "Running coolness scoring for promoted build: $build_id"
-    "$ROOT_DIR/scripts/score_coolness.sh" score --build-id "$build_id"
-  else
-    echo "Skipping auto coolness scoring (SPACEGATE_AUTO_SCORE_COOLNESS=$auto_score_coolness)"
-  fi
   echo "Next: scripts/verify_build.sh to validate the promoted build."
 }
 

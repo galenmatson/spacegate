@@ -4035,6 +4035,21 @@ Representative commits:
   operator acceptance, the local promotion/rollback/re-promotion drill, formal
   legacy deprecation, and promotion timing remain open.
 
+### 157) Promotion Cannot Mutate An Immutable Candidate
+
+- The legacy promotion helper previously switched `served/current` and then
+  ran coolness scoring by default. That ordering could mutate an immutable DISC
+  after review and could leave a partially prepared build served when scoring
+  failed.
+- Promotion now detects selected-fact/Evidence Lake metadata, defaults those
+  builds to no scoring, and rejects an explicit scoring request unless the
+  operator supplies the separately named unsafe mutation override. Scientific
+  or coolness changes require a new versioned artifact.
+- Mutable legacy builds retain their scoring option, but preparation completes
+  before atomic pointer replacement. A temporary-state integration test proves
+  that immutable promotion skips scoring and changes only the bounded served
+  pointer.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

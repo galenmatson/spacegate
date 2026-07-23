@@ -1919,6 +1919,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E7 corrected-candidate promotion preflight: verify candidate database and
   map identities, required products, bounded stability rollback target,
   writable served directory, and zero mutations before operator acceptance
+- [x] Make local promotion fail closed for immutable Evidence Lake candidates:
+  default selected-fact builds to no coolness mutation, reject an explicit
+  scoring request without the unsafe override, and complete any mutable legacy
+  scoring before atomic served-pointer replacement
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
