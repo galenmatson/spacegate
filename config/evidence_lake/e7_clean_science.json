@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_science_policy.v1",
-  "policy_version": "2026-07-23.e7-clean-science.5",
-  "compiler_version": "e7_clean_science_compiler_v3",
+  "policy_version": "2026-07-23.e7-clean-science.6",
+  "compiler_version": "e7_clean_science_compiler_v4",
   "foundation": {
     "build_id": "9c2d08086275ead386f71bf7",
     "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
@@ -22,7 +22,7 @@
     {"family":"selected_planet_evidence","build_id":"86aa5553053db35d81ff26e0","database":"selected_planet_evidence.duckdb","arm_prefix":"planet_evidence","acceptance_mode":"top_level_status_pass"},
     {"family":"selected_solar_system","build_id":"d61c6890588ee40c46ea7d56","database":"selected_solar_system.duckdb","arm_prefix":"solar","acceptance_mode":"top_level_status_pass"},
     {"family":"selected_compact_objects","build_id":"f0d7273f65371efeda365611","database":"selected_compact.duckdb","arm_prefix":"compact","acceptance_mode":"top_level_status_pass"},
-    {"family":"selected_stellar_classifications","build_id":"8cd8c0805875c87fb4afeb4e","database":"selected_stellar_classifications.duckdb","arm_prefix":"stellar_model","acceptance_mode":"top_level_status_pass"}
+    {"family":"selected_stellar_classifications","build_id":"3f645ac3de3323637ded93d5","database":"selected_stellar_classifications.duckdb","arm_prefix":"stellar_model","acceptance_mode":"top_level_status_pass"}
   ],
   "selected_fact_compact_tables": [
     "evidence_build",
@@ -31,6 +31,12 @@
     "selected_fact_derivations"
   ],
   "classification_evidence_sources": {
+    "ultracoolsheet_source_native": {
+      "source_table": "evidence_stellar_model_source_classification_evidence_projection",
+      "candidate_count": 60,
+      "classified_star_count": 51,
+      "selected_without_higher_direct_classification": 49
+    },
     "white_dwarf_catalog_applicability": {
       "source_id": "compact.gaia_edr3_white_dwarf",
       "quantity_key": "teff_k",

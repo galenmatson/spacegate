@@ -22,6 +22,24 @@ An optimization is acceptable only when the same scientific and reproducibility
 gates pass. Reusing or weakening a stability-database path is not a build-time
 optimization.
 
+Corrected modular classification build `3f645ac3de3323637ded93d5` provides the
+clearest current I/O profile. It passes independent verification and isolated
+reproduction with 60 new source-native classification evidence rows:
+
+| Phase | Wall | Peak RSS after phase | Result |
+|---|---:|---:|---|
+| Verify immutable input bytes | 157.76s | 0.07 GiB | pass |
+| Select Gaia DSC white dwarfs | 9.56s | 20.89 GiB | pass |
+| Select source-native UltracoolSheet classes | 0.05s | 20.89 GiB | pass |
+| Index, export, checkpoint, and product hash | 0.88s | 20.89 GiB | pass |
+| Total | 169.20s | 20.89 GiB | pass |
+
+Input hashing consumes 93.2% of wall time. The first optimization experiment
+should cache a content-addressed byte attestation keyed by immutable file
+identity and revalidate it against filesystem metadata during iteration, while
+retaining a full cold hash for clean reproduction and promotion. This is a
+performance optimization only if changed files cannot reuse the attestation.
+
 ## Preliminary Runtime ARM Measurements
 
 The first clean runtime ARM graph implementation used one broad hierarchy join

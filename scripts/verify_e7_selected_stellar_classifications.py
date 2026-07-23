@@ -85,6 +85,25 @@ def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
                     "GROUP BY 1 ORDER BY 1"
                 ).fetchall()
             }
+            source_contract = policy["ultracoolsheet_source_native_classification"]
+            source_outcomes = {
+                str(status): int(count)
+                for status, count in con.execute(
+                    "SELECT binding_status,count(*) FROM source_classification_bindings "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            }
+            source_counts = {
+                "target_identifiers": int(con.execute(
+                    "SELECT count(*) FROM source_classification_bindings"
+                ).fetchone()[0]),
+                "classification_evidence": int(con.execute(
+                    "SELECT count(*) FROM source_classification_evidence_projection"
+                ).fetchone()[0]),
+                "classified_stars": int(con.execute(
+                    "SELECT count(DISTINCT star_id) FROM source_classification_evidence_projection"
+                ).fetchone()[0]),
+            }
             checks = {
                 "threshold_candidate_delta": counts["threshold_candidates"]
                 - int(contract["expected_threshold_candidates"]),
@@ -107,8 +126,10 @@ def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
                      contract["evidence_basis"], contract["probability_threshold"]],
                 ).fetchone()[0]),
                 "identity_or_containment_promotions": int(con.execute(
-                    "SELECT count(*) FROM stellar_model_classification_bindings "
-                    "WHERE creates_canonical_identity OR creates_canonical_containment"
+                    "SELECT (SELECT count(*) FROM stellar_model_classification_bindings "
+                    "WHERE creates_canonical_identity OR creates_canonical_containment) + "
+                    "(SELECT count(*) FROM source_classification_bindings "
+                    "WHERE creates_canonical_identity OR creates_canonical_containment)"
                 ).fetchone()[0]),
                 "unaccepted_with_star": int(con.execute(
                     "SELECT count(*) FROM stellar_model_classification_bindings "
@@ -118,10 +139,39 @@ def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
                     "SELECT count(*) FROM stellar_model_classification_bindings "
                     "WHERE binding_status='accepted' AND star_id IS NULL"
                 ).fetchone()[0]),
+                "source_target_identifier_delta": source_counts["target_identifiers"]
+                    - int(source_contract["expected_target_identifiers"]),
+                "source_binding_partition_delta": source_counts["target_identifiers"]
+                    - sum(source_outcomes.values()),
+                "source_unaccepted_with_star": int(con.execute(
+                    "SELECT count(*) FROM source_classification_bindings "
+                    "WHERE binding_status<>'accepted' AND star_id IS NOT NULL"
+                ).fetchone()[0]),
+                "source_accepted_without_star": int(con.execute(
+                    "SELECT count(*) FROM source_classification_bindings "
+                    "WHERE binding_status='accepted' AND star_id IS NULL"
+                ).fetchone()[0]),
+                "source_classification_without_lineage": int(con.execute(
+                    "SELECT count(*) FROM source_classification_evidence_projection "
+                    "WHERE selected_fact_id IS NULL OR evidence_id IS NULL OR source_record_id IS NULL"
+                ).fetchone()[0]),
             }
             for status, expected in contract["expected_binding_outcomes"].items():
                 checks[f"binding_{status}_delta"] = outcomes.get(status, 0) - int(expected)
-            summaries = {"counts": counts, "binding_outcomes": outcomes}
+            for status, expected in source_contract["expected_binding_outcomes"].items():
+                checks[f"source_binding_{status}_delta"] = source_outcomes.get(status, 0) - int(expected)
+            for scheme, expected in source_contract["expected_classification_evidence"].items():
+                actual = int(con.execute(
+                    "SELECT count(*) FROM source_classification_evidence_projection "
+                    "WHERE classification_scheme=?", [scheme]
+                ).fetchone()[0])
+                checks[f"source_{scheme}_delta"] = actual - int(expected)
+            summaries = {
+                "counts": counts,
+                "binding_outcomes": outcomes,
+                "source_counts": source_counts,
+                "source_binding_outcomes": source_outcomes,
+            }
         finally:
             con.close()
     else:

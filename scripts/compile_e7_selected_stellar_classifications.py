@@ -17,6 +17,8 @@ from typing import Any, Callable
 
 import duckdb
 
+from materialize_stellar_leaf_classifications import spectral_class_sql
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_selected_stellar_classifications.json"
@@ -118,6 +120,15 @@ def validate_policy(policy: dict[str, Any]) -> None:
         or contract.get("classification_value") != "WD"
     ):
         raise ValueError("invalid Gaia DSC white-dwarf contract")
+    ultracool = policy.get("ultracoolsheet_source_native_classification") or {}
+    if (
+        ultracool.get("identifier_namespace") != "ultracoolsheet_name"
+        or ultracool.get("permanent_alias_kind") != "ultracoolsheet_name"
+        or ultracool.get("permanent_source_catalog") != "ultracoolsheet"
+        or ultracool.get("classification_schemes")
+        != ["optical_spectral_type", "infrared_spectral_type"]
+    ):
+        raise ValueError("invalid UltracoolSheet source-native classification contract")
 
 
 def declared_database(manifest: dict[str, Any], database: str) -> tuple[int, str]:
@@ -254,6 +265,114 @@ def materialize(
     }
 
 
+def materialize_ultracool_source_classifications(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    build_id: str,
+    contract: dict[str, Any],
+    source_id: str,
+    release_id: str,
+    policy_version: str,
+) -> dict[str, int]:
+    namespace = sql_literal(str(contract["identifier_namespace"]))
+    alias_kind = sql_literal(str(contract["permanent_alias_kind"]))
+    source_catalog = sql_literal(str(contract["permanent_source_catalog"]))
+    schemes = "(" + ",".join(sql_literal(value) for value in contract["classification_schemes"]) + ")"
+    parsed_class = spectral_class_sql("ce.classification_raw", "NULL", "'star'")
+    con.execute(
+        f"""
+        CREATE TEMP TABLE ultracool_permanent_identifiers AS
+        SELECT trim(alias_raw)::VARCHAR source_native_identifier,
+          count(*)::BIGINT permanent_candidate_count,min(star_id)::HUGEINT star_id,
+          min(system_id)::HUGEINT system_id,min(stable_object_key)::VARCHAR stable_object_key,
+          min(system_stable_object_key)::VARCHAR system_stable_object_key
+        FROM core.aliases
+        WHERE target_type='star' AND alias_kind={alias_kind}
+          AND source_catalog={source_catalog} AND trim(coalesce(alias_raw,''))<>''
+        GROUP BY 1;
+
+        CREATE TEMP TABLE ultracool_release_identifiers AS
+        SELECT trim(identifier_raw)::VARCHAR source_native_identifier,
+          count(*)::BIGINT source_candidate_count,
+          min(source_record_id)::VARCHAR source_record_id,
+          min(evidence_id)::VARCHAR identifier_evidence_id
+        FROM ultracool.identifier_claim_evidence
+        WHERE namespace={namespace} AND trim(coalesce(identifier_raw,''))<>''
+        GROUP BY 1;
+
+        CREATE TABLE source_classification_bindings AS
+        SELECT row_number() OVER(ORDER BY p.source_native_identifier)::BIGINT binding_id,
+          {sql_literal(build_id)}::VARCHAR build_id,
+          {sql_literal(source_id)}::VARCHAR source_id,
+          {sql_literal(release_id)}::VARCHAR release_id,
+          p.source_native_identifier,p.permanent_candidate_count,
+          coalesce(r.source_candidate_count,0)::BIGINT source_candidate_count,
+          r.source_record_id,r.identifier_evidence_id,
+          CASE WHEN p.permanent_candidate_count=1 AND r.source_candidate_count=1
+            THEN p.star_id END::HUGEINT star_id,
+          CASE WHEN p.permanent_candidate_count=1 AND r.source_candidate_count=1
+            THEN p.system_id END::HUGEINT system_id,
+          CASE WHEN p.permanent_candidate_count=1 AND r.source_candidate_count=1
+            THEN p.stable_object_key END::VARCHAR stable_object_key,
+          CASE WHEN p.permanent_candidate_count=1 AND r.source_candidate_count=1
+            THEN p.system_stable_object_key END::VARCHAR system_stable_object_key,
+          CASE WHEN p.permanent_candidate_count>1 THEN 'ambiguous'
+               WHEN r.source_candidate_count IS NULL THEN 'missing'
+               WHEN r.source_candidate_count>1 THEN 'ambiguous'
+               ELSE 'accepted' END::VARCHAR binding_status,
+          CASE WHEN p.permanent_candidate_count>1 THEN 'permanent_source_identifier_collision'
+               WHEN r.source_candidate_count IS NULL THEN 'current_release_identifier_missing'
+               WHEN r.source_candidate_count>1 THEN 'current_release_source_identifier_collision'
+               ELSE 'exact_release_source_native_identifier' END::VARCHAR binding_reason,
+          false::BOOLEAN creates_canonical_identity,
+          false::BOOLEAN creates_canonical_containment,
+          {sql_literal(policy_version)}::VARCHAR policy_version
+        FROM ultracool_permanent_identifiers p
+        LEFT JOIN ultracool_release_identifiers r USING(source_native_identifier)
+        ORDER BY p.source_native_identifier;
+
+        CREATE TABLE source_classification_evidence_projection AS
+        SELECT row_number() OVER(ORDER BY b.star_id,ce.classification_scheme,ce.evidence_id)::BIGINT
+            source_classification_id,
+          {sql_literal(build_id)}::VARCHAR build_id,b.star_id,b.system_id,
+          b.stable_object_key,b.system_stable_object_key,
+          ce.classification_scheme,{parsed_class}::VARCHAR classification_value,
+          'source'::VARCHAR classification_status,
+          concat('selected_ultracoolsheet_',ce.classification_scheme)::VARCHAR evidence_basis,
+          sha256(concat_ws('|',{sql_literal(build_id)},ce.evidence_id,b.stable_object_key,
+            ce.classification_scheme))::VARCHAR selected_fact_id,
+          ce.classification_raw::VARCHAR source_value,
+          CASE WHEN ce.classification_scheme='optical_spectral_type' THEN 0.98 ELSE 0.96 END::DOUBLE
+            confidence_score,
+          b.source_id,b.release_id,ce.evidence_id,ce.source_record_id,
+          ce.method,ce.model,ce.reference_raw,ce.quality_json,
+          {sql_literal(policy_version)}::VARCHAR policy_version
+        FROM source_classification_bindings b
+        JOIN ultracool.stellar_classification_evidence ce USING(source_record_id)
+        WHERE b.binding_status='accepted' AND ce.classification_scheme IN {schemes}
+          AND {parsed_class} IS NOT NULL
+        ORDER BY b.star_id,ce.classification_scheme,ce.evidence_id;
+        """
+    )
+    result = {
+        "target_identifiers": int(con.execute(
+            "SELECT count(*) FROM source_classification_bindings"
+        ).fetchone()[0]),
+        "classification_evidence": int(con.execute(
+            "SELECT count(*) FROM source_classification_evidence_projection"
+        ).fetchone()[0]),
+        "classified_stars": int(con.execute(
+            "SELECT count(DISTINCT star_id) FROM source_classification_evidence_projection"
+        ).fetchone()[0]),
+    }
+    for scheme, count in con.execute(
+        "SELECT classification_scheme,count(*) FROM source_classification_evidence_projection "
+        "GROUP BY 1 ORDER BY 1"
+    ).fetchall():
+        result[f"classification_evidence_{scheme}"] = int(count)
+    return result
+
+
 def compile_selected(
     policy_path: Path,
     state: Path,
@@ -326,6 +445,10 @@ def compile_selected(
                 f"ATTACH {sql_literal(inputs['gaia_ap_evidence']['database_path'])} "
                 "AS gaia_ap (READ_ONLY)"
             )
+            con.execute(
+                f"ATTACH {sql_literal(inputs['ultracool_evidence']['database_path'])} "
+                "AS ultracool (READ_ONLY)"
+            )
             counts = timing.run("select_gaia_dsc_white_dwarfs", lambda: materialize(
                 con,
                 build_id=build_id,
@@ -338,6 +461,24 @@ def compile_selected(
                 str(status): int(count)
                 for status, count in con.execute(
                     "SELECT binding_status,count(*) FROM stellar_model_classification_bindings "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            }
+            ultracool_counts = timing.run(
+                "select_ultracoolsheet_source_native_classifications",
+                lambda: materialize_ultracool_source_classifications(
+                    con,
+                    build_id=build_id,
+                    contract=policy["ultracoolsheet_source_native_classification"],
+                    source_id=inputs["ultracool_evidence"]["source_id"],
+                    release_id=inputs["ultracool_evidence"]["release_id"],
+                    policy_version=policy["policy_version"],
+                ),
+            )
+            source_outcomes = {
+                str(status): int(count)
+                for status, count in con.execute(
+                    "SELECT binding_status,count(*) FROM source_classification_bindings "
                     "GROUP BY 1 ORDER BY 1"
                 ).fetchall()
             }
@@ -358,13 +499,26 @@ def compile_selected(
                     "WHERE selected_fact_id IS NULL OR evidence_id IS NULL"
                 ).fetchone()[0]),
                 "identity_promotions": int(con.execute(
-                    "SELECT count(*) FROM stellar_model_classification_bindings "
-                    "WHERE creates_canonical_identity OR creates_canonical_containment"
+                    "SELECT (SELECT count(*) FROM stellar_model_classification_bindings "
+                    "WHERE creates_canonical_identity OR creates_canonical_containment) + "
+                    "(SELECT count(*) FROM source_classification_bindings "
+                    "WHERE creates_canonical_identity OR creates_canonical_containment)"
                 ).fetchone()[0]),
+                "source_target_identifier_delta": ultracool_counts["target_identifiers"]
+                    - int(policy["ultracoolsheet_source_native_classification"]["expected_target_identifiers"]),
+                "source_binding_partition_delta": ultracool_counts["target_identifiers"]
+                    - sum(source_outcomes.values()),
             }
             expected_outcomes = policy["gaia_dsc_white_dwarf"]["expected_binding_outcomes"]
             for status, expected in expected_outcomes.items():
                 checks[f"binding_{status}_delta"] = outcomes.get(status, 0) - int(expected)
+            source_contract = policy["ultracoolsheet_source_native_classification"]
+            for status, expected in source_contract["expected_binding_outcomes"].items():
+                checks[f"source_binding_{status}_delta"] = source_outcomes.get(status, 0) - int(expected)
+            for scheme, expected in source_contract["expected_classification_evidence"].items():
+                checks[f"source_{scheme}_delta"] = (
+                    ultracool_counts.get(f"classification_evidence_{scheme}", 0) - int(expected)
+                )
             if any(checks.values()):
                 raise ValueError(f"selected stellar classification verification failed: {checks}")
             timing.run("indexes", lambda: con.execute(
@@ -372,11 +526,25 @@ def compile_selected(
                 "selected_stellar_model_classifications(star_id);"
                 "CREATE INDEX model_binding_gaia_idx ON "
                 "stellar_model_classification_bindings(gaia_id);"
+                "CREATE UNIQUE INDEX source_binding_identifier_uq ON "
+                "source_classification_bindings(source_native_identifier);"
+                "CREATE INDEX source_classification_star_idx ON "
+                "source_classification_evidence_projection(star_id);"
             ))
             timing.run("canonical_parquet_export", lambda: (
                 con.execute(
                     f"COPY stellar_model_classification_bindings TO "
                     f"{sql_literal(parquet_dir / 'stellar_model_classification_bindings.parquet')} "
+                    "(FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 250000)"
+                ),
+                con.execute(
+                    f"COPY source_classification_bindings TO "
+                    f"{sql_literal(parquet_dir / 'source_classification_bindings.parquet')} "
+                    "(FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 250000)"
+                ),
+                con.execute(
+                    f"COPY source_classification_evidence_projection TO "
+                    f"{sql_literal(parquet_dir / 'source_classification_evidence_projection.parquet')} "
                     "(FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 250000)"
                 ),
                 con.execute(
@@ -419,8 +587,9 @@ def compile_selected(
                 for name, row in inputs.items()
             },
             "stability_databases_opened": [],
-            "counts": counts,
+            "counts": {**counts, **{f"source_{key}": value for key, value in ultracool_counts.items()}},
             "binding_outcomes": outcomes,
+            "source_binding_outcomes": source_outcomes,
             "verification": checks,
             "products": products,
             "performance": timing.report(),

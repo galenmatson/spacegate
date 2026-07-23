@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import duckdb
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 SPEC = importlib.util.spec_from_file_location(
     "compile_e7_selected_stellar_classifications",
     ROOT / "scripts/compile_e7_selected_stellar_classifications.py",
@@ -22,6 +24,7 @@ def test_checked_in_policy_is_bounded_and_noncanonical() -> None:
     assert policy["gaia_dsc_white_dwarf"]["probability_threshold"] == 0.5
     assert policy["rules"]["create_canonical_identity"] is False
     assert policy["rules"]["create_canonical_containment"] is False
+    assert policy["ultracoolsheet_source_native_classification"]["identifier_namespace"] == "ultracoolsheet_name"
 
 
 def test_materialize_selects_only_thresholded_exact_gaia_bindings() -> None:
@@ -107,3 +110,74 @@ def test_policy_rejects_identity_promotion() -> None:
         assert "unsafe" in str(error)
     else:
         raise AssertionError("identity promotion must fail closed")
+
+
+def test_ultracool_materialize_uses_only_exact_source_native_identifiers() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute("ATTACH ':memory:' AS core; ATTACH ':memory:' AS ultracool")
+    con.execute(
+        """
+        CREATE TABLE core.aliases(
+          target_type VARCHAR,star_id HUGEINT,system_id HUGEINT,
+          stable_object_key VARCHAR,system_stable_object_key VARCHAR,
+          alias_raw VARCHAR,alias_kind VARCHAR,source_catalog VARCHAR
+        );
+        INSERT INTO core.aliases VALUES
+          ('star',1,11,'canon:star:one','canon:system:one','Exact One',
+           'ultracoolsheet_name','ultracoolsheet'),
+          ('star',2,22,'canon:star:missing','canon:system:missing','Missing Current',
+           'ultracoolsheet_name','ultracoolsheet'),
+          ('star',3,33,'canon:star:collision-a','canon:system:collision-a','Permanent Collision',
+           'ultracoolsheet_name','ultracoolsheet'),
+          ('star',4,44,'canon:star:collision-b','canon:system:collision-b','Permanent Collision',
+           'ultracoolsheet_name','ultracoolsheet'),
+          ('star',5,55,'canon:star:no-fuzzy','canon:system:no-fuzzy','No Fuzzy Match',
+           'ultracoolsheet_name','ultracoolsheet');
+        CREATE TABLE ultracool.identifier_claim_evidence(
+          evidence_id VARCHAR,source_record_id VARCHAR,namespace VARCHAR,identifier_raw VARCHAR
+        );
+        INSERT INTO ultracool.identifier_claim_evidence VALUES
+          ('id-one','record-one','ultracoolsheet_name','Exact One'),
+          ('id-collision','record-collision','ultracoolsheet_name','Permanent Collision'),
+          ('id-case','record-case','ultracoolsheet_name','no fuzzy match');
+        CREATE TABLE ultracool.stellar_classification_evidence(
+          evidence_id VARCHAR,source_record_id VARCHAR,classification_scheme VARCHAR,
+          classification_raw VARCHAR,method VARCHAR,model VARCHAR,reference_raw VARCHAR,
+          quality_json JSON
+        );
+        INSERT INTO ultracool.stellar_classification_evidence VALUES
+          ('optical-one','record-one','optical_spectral_type','T8','compiled',NULL,'paper',NULL),
+          ('infrared-one','record-one','infrared_spectral_type','Y0','compiled',NULL,'paper',NULL),
+          ('gravity-one','record-one','infrared_gravity_class','VL-G','compiled',NULL,'paper',NULL),
+          ('collision-class','record-collision','infrared_spectral_type','L5','compiled',NULL,'paper',NULL),
+          ('case-class','record-case','infrared_spectral_type','M9','compiled',NULL,'paper',NULL);
+        """
+    )
+    policy = COMPILER.load_object(COMPILER.DEFAULT_POLICY)
+    counts = COMPILER.materialize_ultracool_source_classifications(
+        con,
+        build_id="test-build",
+        contract=policy["ultracoolsheet_source_native_classification"],
+        source_id="ultracool.ultracoolsheet",
+        release_id="test-release",
+        policy_version="test-policy",
+    )
+    assert counts == {
+        "target_identifiers": 4,
+        "classification_evidence": 2,
+        "classified_stars": 1,
+        "classification_evidence_infrared_spectral_type": 1,
+        "classification_evidence_optical_spectral_type": 1,
+    }
+    assert con.execute(
+        "SELECT binding_status,count(*) FROM source_classification_bindings "
+        "GROUP BY 1 ORDER BY 1"
+    ).fetchall() == [("accepted", 1), ("ambiguous", 1), ("missing", 2)]
+    assert con.execute(
+        "SELECT classification_scheme,classification_value FROM "
+        "source_classification_evidence_projection ORDER BY 1"
+    ).fetchall() == [("infrared_spectral_type", "Y"), ("optical_spectral_type", "T")]
+    assert con.execute(
+        "SELECT count(*) FROM source_classification_bindings "
+        "WHERE creates_canonical_identity OR creates_canonical_containment"
+    ).fetchone()[0] == 0

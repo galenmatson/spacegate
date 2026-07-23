@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_selected_stellar_classifications_policy.v1",
-  "policy_version": "2026-07-23.e7-selected-stellar-classifications.1",
-  "compiler_version": "e7_selected_stellar_classifications_compiler_v1",
+  "policy_version": "2026-07-23.e7-selected-stellar-classifications.2",
+  "compiler_version": "e7_selected_stellar_classifications_compiler_v2",
   "inputs": {
     "clean_foundation": {
       "build_id": "9c2d08086275ead386f71bf7",
@@ -16,6 +16,14 @@
       "database": "scientific_evidence.duckdb",
       "source_id": "gaia.dr3.astrophysical_parameters",
       "release_id": "gaia_dr3_1250ly_parameter_sets_v2"
+    },
+    "ultracool_evidence": {
+      "build_id": "a328a9e13d6c2b44f8d57861",
+      "relative_path": "derived/evidence_lake_v2/scientific_evidence/a328a9e13d6c2b44f8d57861",
+      "manifest_sha256": "266bd16a0f5d4b95b50e1d808e81b70e5efa531095dd70c47a18ff2a1e68ff75",
+      "database": "scientific_evidence.duckdb",
+      "source_id": "ultracool.ultracoolsheet",
+      "release_id": "rolling_snapshot_20260709"
     }
   },
   "gaia_dsc_white_dwarf": {
@@ -33,6 +41,25 @@
       "accepted": 70028,
       "ambiguous": 0,
       "missing": 31709
+    }
+  },
+  "ultracoolsheet_source_native_classification": {
+    "identifier_namespace": "ultracoolsheet_name",
+    "permanent_alias_kind": "ultracoolsheet_name",
+    "permanent_source_catalog": "ultracoolsheet",
+    "classification_schemes": [
+      "optical_spectral_type",
+      "infrared_spectral_type"
+    ],
+    "expected_target_identifiers": 76,
+    "expected_binding_outcomes": {
+      "accepted": 51,
+      "ambiguous": 0,
+      "missing": 25
+    },
+    "expected_classification_evidence": {
+      "optical_spectral_type": 10,
+      "infrared_spectral_type": 50
     }
   },
   "rules": {

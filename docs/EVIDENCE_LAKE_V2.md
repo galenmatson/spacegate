@@ -2384,13 +2384,18 @@ remain rejected.
 
 ## E7 Release-Scoped Stellar Model Classification
 
-Selected stellar-classification artifact `8cd8c0805875c87fb4afeb4e` reads the
-pinned Gaia DR3 AP release and the permanent clean foundation without opening a
-stability database. It preserves 28,851,666 DSC probability bundles, identifies
+Selected stellar-classification artifact `3f645ac3de3323637ded93d5` reads the
+pinned Gaia DR3 AP and UltracoolSheet releases plus the permanent clean
+foundation without opening a stability database. It preserves 28,851,666 DSC
+probability bundles, identifies
 101,737 white-dwarf candidates at the versioned 0.5 probability threshold, and
 binds 70,028 of them through exact Gaia DR3 identity; 31,709 remain explicitly
 missing. The output is source-model evidence, not a direct measurement, and
-creates no identity or containment.
+creates no identity or containment. A separate exact source-native identity
+partition accounts all 76 permanent UltracoolSheet identifiers as 51 accepted
+and 25 missing-current-release, then projects 10 optical and 50 infrared direct
+classifications for 51 stars. It does not use generic names, fuzzy matching, or
+source row position.
 
 Clean science `ba4ac952ef7fc86f1d3150d2` selects 4,054 of those model
 classifications after direct spectral evidence and the dedicated white-dwarf
@@ -2398,13 +2403,14 @@ catalog have precedence. Its independent audit and isolated canonical-Parquet
 reproduction pass. Runtime CORE `9d66ffa81a03a714881be2f3` and runtime ARM
 `c2eda7f868ff8ba2b747d717` also pass independent and isolated reproduction.
 
-The machine-readable runtime classification A/B accounts all 147 clean-only
-hierarchy leaves as MSC inferred leaves and finds no reference-only leaf. All
-240 known-to-UNKNOWN transitions are explicit deferrals: 192 have independently
-recorded case-significant component-scope collisions, and 48 are an unmigrated
-UltracoolSheet classification tail. No Gaia white-dwarf classification regresses
-to UNKNOWN and no transition is unaccounted. This is an adjudication ledger, not
-permission to copy the old values or guess between `AB` and `Ab` scopes.
+The first machine-readable runtime classification A/B accounted all 147
+clean-only hierarchy leaves as MSC inferred leaves and found no reference-only
+leaf. It split 240 known-to-UNKNOWN transitions into 192 independently recorded
+case-significant component-scope collisions and a 48-object UltracoolSheet
+migration tail. The general source-native contract closes the latter; the
+remaining scope collisions stay explicit adjudication deferrals rather than
+permission to copy old values or guess between `AB` and `Ab` scopes. A corrected
+runtime A/B remains required before promotion.
 
 The modular artifact also exposes build architecture debt. Its scientific query
 takes about ten seconds while byte-verifying the 179.4-GB Gaia input takes about

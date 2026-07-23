@@ -3905,6 +3905,28 @@ Representative commits:
   restored after the isolated run. The separate reproduction tree is an exact
   retention candidate, not an untracked served artifact.
 
+### 151) Source-Native Identity Must Bridge Permanent Ultracool Inventory
+
+- The final classification A/B isolated 48 known-to-UNKNOWN transitions to
+  permanent UltracoolSheet inventory objects. Their direct T/Y classifications
+  remained present in accepted E4 evidence, but E5's Gaia-bound selection did
+  not bind the source-native-only permanent identities.
+- Modular classifier `3f645ac3de3323637ded93d5` now reconciles only the exact
+  release-scoped `ultracoolsheet_name` identifier namespace against permanent
+  aliases of the same source and kind. It accounts all 76 targeted identifiers
+  as 51 accepted and 25 missing-current-release, with no ambiguity, fuzzy-name
+  matching, identity creation, or containment creation.
+- The accepted bindings project 60 direct classifications for 51 stars: 10
+  optical and 50 infrared. Clean selection uses them only where the existing
+  selected optical or infrared fact is absent, before temperature, color, and
+  mass presentation priors. Forty-nine stars change selected evidence basis;
+  48 recover a lost T/Y class and one replaces an M-class prior with direct M
+  evidence.
+- The build reproduces logically and byte-for-byte. It also confirms the main
+  iteration cost is integrity I/O: the scientific selection takes 9.56 seconds
+  and the source-native pass 0.05 seconds, while full immutable-input hashing
+  takes 157.76 seconds.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

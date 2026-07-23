@@ -1886,6 +1886,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   for all clean-only leaves and known-to-UNKNOWN transitions, require independent
   case-collision evidence for component deferrals, report the UltracoolSheet
   migration tail, and fail on any unaccounted or Gaia-white-dwarf regression
+- [x] E7 source-native UltracoolSheet classification bridge: compile,
+  independently verify, and reproduce `3f645ac3de3323637ded93d5`; partition all
+  76 permanent source identifiers as 51 accepted and 25 missing, project 60
+  direct classifications with exact release lineage, and prohibit fuzzy names,
+  row-position identity, and canonical identity/containment promotion
 - [x] E7 build-time instrumentation checkpoint: add a fail-closed pinned stage
   graph and runner with per-stage GNU-time logs, atomic machine reports,
   concurrent-run exclusion, explicit warm/cold artifact state, and deployment

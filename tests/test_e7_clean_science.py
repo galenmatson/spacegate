@@ -59,6 +59,11 @@ def test_white_dwarf_catalog_classification_precedes_visual_proxies() -> None:
           star_id HUGEINT,selected_fact_id VARCHAR,source_value VARCHAR,
           confidence_score DOUBLE
         );
+        CREATE TABLE evidence_stellar_model_source_classification_evidence_projection(
+          star_id HUGEINT,classification_scheme VARCHAR,classification_value VARCHAR,
+          classification_status VARCHAR,evidence_basis VARCHAR,selected_fact_id VARCHAR,
+          source_value VARCHAR,confidence_score DOUBLE
+        );
         INSERT INTO core.stars VALUES
           (1,10,'canon:star:wd'),(2,10,'canon:star:direct');
         INSERT INTO selected_stellar_classification VALUES
@@ -119,6 +124,11 @@ def test_gaia_dsc_model_precedes_visual_proxy_but_not_direct_spectrum() -> None:
           star_id HUGEINT,selected_fact_id VARCHAR,source_value VARCHAR,
           confidence_score DOUBLE
         );
+        CREATE TABLE evidence_stellar_model_source_classification_evidence_projection(
+          star_id HUGEINT,classification_scheme VARCHAR,classification_value VARCHAR,
+          classification_status VARCHAR,evidence_basis VARCHAR,selected_fact_id VARCHAR,
+          source_value VARCHAR,confidence_score DOUBLE
+        );
         INSERT INTO core.stars VALUES
           (1,10,'canon:star:model'),(2,20,'canon:star:direct');
         INSERT INTO selected_stellar_classification VALUES
@@ -145,6 +155,54 @@ def test_gaia_dsc_model_precedes_visual_proxy_but_not_direct_spectrum() -> None:
         (1, "WD", "source_model", "selected_gaia_dsc_white_dwarf_probability"),
         (2, "G", "source", "selected_spectral_type_optical"),
     ]
+
+
+def test_source_native_ultracool_classification_precedes_visual_proxy() -> None:
+    policy = compiler.load_object(compiler.DEFAULT_POLICY)
+    con = __import__("duckdb").connect(":memory:")
+    con.execute("ATTACH ':memory:' AS core; ATTACH ':memory:' AS selected")
+    con.execute(
+        """
+        CREATE TABLE core.stars(star_id HUGEINT,system_id HUGEINT,stable_object_key VARCHAR);
+        CREATE TABLE selected_stellar_classification(
+          star_id HUGEINT,spectral_type_optical VARCHAR,spectral_type_optical_fact_id VARCHAR,
+          spectral_type_infrared VARCHAR,spectral_type_infrared_fact_id VARCHAR,
+          spectral_type_simbad VARCHAR,spectral_type_simbad_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_physics(
+          star_id HUGEINT,teff_k DOUBLE,teff_k_fact_id VARCHAR,
+          mass_msun DOUBLE,mass_msun_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_photometry(
+          star_id HUGEINT,gaia_bp_rp_mag DOUBLE,gaia_bp_rp_mag_fact_id VARCHAR
+        );
+        CREATE TABLE selected.selected_facts(
+          selected_fact_id VARCHAR,object_type VARCHAR,stable_object_key VARCHAR,
+          source_id VARCHAR,quantity_key VARCHAR,fact_status VARCHAR
+        );
+        CREATE TABLE evidence_stellar_model_selected_stellar_model_classifications(
+          star_id HUGEINT,selected_fact_id VARCHAR,source_value VARCHAR,confidence_score DOUBLE
+        );
+        CREATE TABLE evidence_stellar_model_source_classification_evidence_projection(
+          star_id HUGEINT,classification_scheme VARCHAR,classification_value VARCHAR,
+          classification_status VARCHAR,evidence_basis VARCHAR,selected_fact_id VARCHAR,
+          source_value VARCHAR,confidence_score DOUBLE
+        );
+        INSERT INTO core.stars VALUES (1,10,'canon:star:ultracool');
+        INSERT INTO selected_stellar_classification VALUES (1,NULL,NULL,NULL,NULL,NULL,NULL);
+        INSERT INTO selected_stellar_physics VALUES (1,2400,'teff-1',0.05,'mass-1');
+        INSERT INTO selected_stellar_photometry VALUES (1,3.0,'color-1');
+        INSERT INTO evidence_stellar_model_source_classification_evidence_projection VALUES
+          (1,'infrared_spectral_type','Y','source',
+           'selected_ultracoolsheet_infrared_spectral_type','ultracool-fact','Y0',0.96);
+        """
+    )
+    compiler.materialize_display_classes(
+        con, "test-build", "selected", policy["classification_evidence_sources"]
+    )
+    assert con.execute(
+        "SELECT classification_value,evidence_basis FROM selected_stellar_display_classifications"
+    ).fetchone() == ("Y", "selected_ultracoolsheet_infrared_spectral_type")
 
 
 def test_failed_phase_is_written_incrementally(tmp_path: Path) -> None:

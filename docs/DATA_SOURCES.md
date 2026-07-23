@@ -1213,6 +1213,13 @@ Evidence Lake v2 checkpoint:
   the current canonical identity graph. All 4,843 accepted object-owned facts
   are selected with exact lineage in verified build
   `fa4aaed18aebcffb8632d978`
+- E7 modular selector `3f645ac3de3323637ded93d5` additionally reconciles the
+  exact release-scoped `ultracoolsheet_name` namespace for permanent
+  source-native inventory objects that lack a usable Gaia binding. All 76
+  targeted identifiers end 51 accepted or 25 missing-current-release; accepted
+  bindings expose 10 optical and 50 infrared direct classifications for 51
+  stars. No generic display-name match, row-number equivalence, identity
+  creation, or containment creation is allowed.
 
 Core bridge diagnostics:
 

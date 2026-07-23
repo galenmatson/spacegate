@@ -185,6 +185,17 @@ def validate_policy(policy: dict[str, Any]) -> None:
     }
     if gaia_dsc != expected_gaia_dsc:
         raise ValueError("invalid Gaia DSC white-dwarf classification contract")
+    ultracool = (policy.get("classification_evidence_sources") or {}).get(
+        "ultracoolsheet_source_native"
+    )
+    expected_ultracool = {
+        "source_table": "evidence_stellar_model_source_classification_evidence_projection",
+        "candidate_count": 60,
+        "classified_star_count": 51,
+        "selected_without_higher_direct_classification": 49,
+    }
+    if ultracool != expected_ultracool:
+        raise ValueError("invalid UltracoolSheet source-native classification contract")
 
 
 def table_names(con: duckdb.DuckDBPyConnection, alias: str) -> list[str]:
@@ -264,7 +275,9 @@ def materialize_display_classes(
     selected_table = f"{sql_identifier(selected_alias)}.selected_facts"
     wd = classification_sources["white_dwarf_catalog_applicability"]
     gaia_dsc = classification_sources["gaia_dsc_white_dwarf_model"]
+    ultracool = classification_sources["ultracoolsheet_source_native"]
     gaia_dsc_table = sql_identifier(str(gaia_dsc["source_table"]))
+    ultracool_table = sql_identifier(str(ultracool["source_table"]))
     con.execute(
         f"""
         CREATE TABLE selected_stellar_display_classifications AS
@@ -288,6 +301,18 @@ def materialize_display_classes(
                  c.spectral_type_simbad,0.94
           FROM core.stars s JOIN selected_stellar_classification c USING(star_id)
           WHERE {simbad} IS NOT NULL
+          UNION ALL
+          SELECT s.star_id,s.system_id,s.stable_object_key,
+                 CASE WHEN u.classification_scheme='optical_spectral_type' THEN 10 ELSE 11 END,
+                 u.classification_value,u.classification_status,u.evidence_basis,
+                 u.selected_fact_id,u.source_value,u.confidence_score
+          FROM core.stars s
+          JOIN {ultracool_table} u USING(star_id)
+          LEFT JOIN selected_stellar_classification c USING(star_id)
+          WHERE (u.classification_scheme='optical_spectral_type'
+                   AND c.spectral_type_optical_fact_id IS NULL)
+             OR (u.classification_scheme='infrared_spectral_type'
+                   AND c.spectral_type_infrared_fact_id IS NULL)
           UNION ALL
           SELECT s.star_id,s.system_id,s.stable_object_key,20,
                  {sql_literal(wd['classification_value'])},
@@ -547,6 +572,25 @@ def compile_science(
                     [policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]["evidence_basis"]],
                 ).fetchone()[0]
             ) - int(policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]["selected_without_higher_evidence"]),
+            "ultracoolsheet_source_native_candidate_delta": int(
+                con.execute(
+                    "SELECT count(*) FROM evidence_stellar_model_source_classification_evidence_projection"
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["ultracoolsheet_source_native"]["candidate_count"]),
+            "ultracoolsheet_source_native_star_delta": int(
+                con.execute(
+                    "SELECT count(DISTINCT star_id) FROM "
+                    "evidence_stellar_model_source_classification_evidence_projection"
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["ultracoolsheet_source_native"]["classified_star_count"]),
+            "ultracoolsheet_source_native_selected_delta": int(
+                con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications "
+                    "WHERE evidence_basis IN "
+                    "('selected_ultracoolsheet_optical_spectral_type',"
+                    "'selected_ultracoolsheet_infrared_spectral_type')"
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["ultracoolsheet_source_native"]["selected_without_higher_direct_classification"]),
         }
         if any(checks.values()):
             raise ValueError(f"clean science verification failed: {checks}")

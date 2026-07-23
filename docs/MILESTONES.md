@@ -2638,6 +2638,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   147 clean MSC inferred leaves are accounted, all 240 known-to-UNKNOWN changes
   are explicit component-scope or UltracoolSheet deferrals, and Gaia
   white-dwarf and unaccounted regressions are zero
+- source-native classifier `3f645ac3de3323637ded93d5` closes the general
+  UltracoolSheet migration gap through the exact release-scoped catalog
+  identifier namespace: 76 targets partition into 51 accepted and 25 missing,
+  yielding 60 direct classifications for 51 stars without identity or
+  containment creation. The corrected clean-science/runtime/public cascade and
+  final A/B remain open
 - local promotion, rollback timing, authoritative entrypoint replacement, and
   actual legacy retirement remain open; this checkpoint authorizes no cleanup
 - clean runtime bundle `fcd4eed36b84cf7a0cba67f3` now pins the accepted CORE,
