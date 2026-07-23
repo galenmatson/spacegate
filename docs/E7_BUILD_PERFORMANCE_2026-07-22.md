@@ -578,6 +578,12 @@ DISC `30280c152441804f449d86b3`, bundle
 | Planet derivation cutover A/B | 0.22s | 0.2 GiB | report only | pass |
 | Bounded 24-scene cold / warm | 22.36s / 1.17s | 2.4 GiB | 283 KiB | pass |
 | API integration / strict known systems | 19.29s / 31.30s | client 37 MiB | reports only | pass |
+| Clean science isolated reproduction | 3:19.97 | 39.9 GiB | scratch removed | exact |
+| Runtime CORE isolated reproduction | 1:19.44 | 27.4 GiB | scratch removed | exact/logical |
+| Runtime ARM isolated reproduction | 2:32.87 | 46.0 GiB | scratch removed | logical exact |
+| Runtime DISC isolated reproduction | 39.71s | 9.5 GiB | scratch removed | exact Parquet |
+| Four-radius isolated map reproduction | 4:04.48 | 11.2 GiB | scratch removed | 3,686 payloads exact |
+| Corrected mounted desktop/mobile Playwright | 1:31.08 | runner 272 MiB | reports/screenshots | 12 pass, 4 intended skips |
 
 The compiler-only path from the focused shard through the deployable public
 slice takes 12:34.35. Including map tiles takes 16:39.59. Verifiers and bounded

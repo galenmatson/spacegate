@@ -11,6 +11,7 @@ const outputRoot = path.join(reportRoot, runId);
 
 export default defineConfig({
   testDir: "./tests/map",
+  globalSetup: "./tests/map/globalSetup.js",
   timeout: 90_000,
   expect: {
     timeout: 12_000,

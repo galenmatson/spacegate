@@ -2,7 +2,7 @@
 
 ## Status
 
-Candidate `e7_73349c253a411945c246d459_public` passes the clean compiler,
+Candidate `e7_39b7386d4524ce5b1ff2729f_public` passes the clean compiler,
 independent verification, isolated reproduction, public-build, tiled-map,
 bounded-scene, API, and browser gates. It is stored on Photon's internal
 `/data` volume but is not promoted or served. Operator acceptance, local atomic
@@ -10,12 +10,12 @@ promotion, rollback, and re-promotion remain open.
 
 ## Immutable Inputs
 
-- clean science: `2d084ee3c5939878259793bb`
-- clean CORE: `21971e59527ccf5c729b7cab`
-- clean ARM: `45d996e094020fa52d8a3f82`
-- clean DISC: `d43e93eeb9c09c9e7445c9d6`
-- runtime bundle: `73349c253a411945c246d459`
-- public candidate: `e7_73349c253a411945c246d459_public`
+- clean science: `3b459ede84873e3adfeeec43`
+- clean CORE: `85e89d41dd1258e2f3015a7a`
+- clean ARM: `abf25120b71bc71689790959`
+- clean DISC: `30280c152441804f449d86b3`
+- runtime bundle: `39b7386d4524ce5b1ff2729f`
+- public candidate: `e7_39b7386d4524ce5b1ff2729f_public`
 
 ## Inventory
 
@@ -31,6 +31,21 @@ promotion, rollback, and re-promotion remain open.
 The public slice trims zero systems, stars, planets, aliases, or search terms.
 Canonical planet inventory is unchanged; TESS candidates and negative evidence
 remain outside canonical planet links.
+
+## Planet Derivations And Shared Consumers
+
+Focused selected-fact shard `1dfc750b79b88018983ded82` adds 461 Kepler
+semimajor axes, 654 inverse-square insolations, and 259 equilibrium
+temperatures. Every new value carries input-fact, algorithm, assumption, and
+policy lineage. No existing selected value changes or disappears.
+
+The downstream A/B finds exactly 89 new insolation classes and 56 new orbit
+classes where the served candidate was null; no existing planet category
+changes. Clean science and ARM projections match exactly, and the public
+planet values match ARM exactly. Selected luminosity now exposes 1,983,744
+source and 66,834 derived statuses, with no missing status or derivation
+lineage mismatch. The API no longer recomputes selected luminosity through an
+independent fallback.
 
 ## Classification
 
@@ -54,7 +69,8 @@ creation is allowed.
 
 ## Runtime And Map
 
-- CORE/ARM/DISC and canonical Parquet products reproduce independently.
+- Clean science, CORE, ARM, DISC, and canonical Parquet products reproduce
+  independently for the corrected build identities.
 - Exact tiled membership covers 10,209 / 206,913 / 1,820,142 / 5,319,825
   systems at 100 / 250 / 500 / 1,000 ly with no missing, extra, duplicate,
   public-name, representative-class, or badge mismatch.
@@ -70,9 +86,11 @@ creation is allowed.
 
 The candidate is scientifically preferable to the served reference: it retains
 canonical inventory, materially enriches search, closes the owned
-UltracoolSheet evidence gap, removes untraceable fallbacks, and makes remaining
-classification uncertainty explicit. No unresolved finding currently requires
-another scientific rebuild before local promotion.
+UltracoolSheet evidence gap, materializes declared planet derivations, removes
+untraceable fallbacks, and makes remaining classification uncertainty explicit.
+The generated v2 review report passes every pre-promotion gate, and the
+acceptance contract passes all 157 pinned checks. No unresolved finding
+currently requires another scientific rebuild before local promotion.
 
 Promotion should proceed only after explicit operator acceptance. The rollback
 drill must retain `20260717T0614Z_f452835_side`, switch atomically to the new

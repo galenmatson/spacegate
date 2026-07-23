@@ -4012,6 +4012,29 @@ Representative commits:
   artifact paths through the state registry, preserving independent `/data`
   and `/mnt/space` storage placement.
 
+### 156) Corrected Candidate Reproduces And Reaches Operator Review
+
+- Clean science `3b459ede84873e3adfeeec43` reproduces every byte-exact
+  canonical Parquet product in 3:20. CORE `85e89d41dd1258e2f3015a7a`
+  reproduces byte-exact products and the complete logical hierarchy in 1:19.
+  ARM `abf25120b71bc71689790959` reproduces every logical table in 2:33.
+  DISC `30280c152441804f449d86b3` reproduces its canonical coolness Parquet in
+  40 seconds. All isolated scratch trees are removed.
+- The corrected four-radius map reproduces in 4:04 with identical normalized
+  manifests and all 3,686 content-addressed payloads. The full mounted
+  Playwright suite passes 12 applicable desktop/mobile cases with four intended
+  skips. An initial setup-only failure is retained: Vite had no tile proxy and
+  returned HTML for manifest requests; the mounted rerun proves the candidate.
+- `scripts/assemble_e7_final_review.py` now derives the review from pinned
+  manifests, database inventory, classification and planet A/B, reproductions,
+  API, scene, and browser reports. It has no named-object scientific
+  conditions and fails if any pre-promotion gate is false.
+- Acceptance contract v17 passes all 157 checks. The read-only local promotion
+  preflight passes with zero mutations and a bounded, available stability
+  rollback target. Shared selected-fact consumer cutover is closed; explicit
+  operator acceptance, the local promotion/rollback/re-promotion drill, formal
+  legacy deprecation, and promotion timing remain open.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1911,6 +1911,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   concurrent-run exclusion, explicit warm/cold artifact state, and deployment
   and promotion command rejection; validate the accepted clean artifacts in
   verification-only mode before running the full compiler path
+- [x] E7 corrected-candidate scientific review: carry the focused planet
+  derivation shard through clean science/CORE/ARM/DISC/public products, prove
+  exact shared-consumer lineage, independently reproduce clean science, CORE,
+  ARM, DISC, and all four map radii, pass API/scene/browser gates, assemble the
+  review from authoritative reports, and pass all 157 acceptance checks
+- [x] E7 corrected-candidate promotion preflight: verify candidate database and
+  map identities, required products, bounded stability rollback target,
+  writable served directory, and zero mutations before operator acceptance
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths

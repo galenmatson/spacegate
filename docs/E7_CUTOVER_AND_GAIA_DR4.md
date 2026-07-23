@@ -7,7 +7,7 @@ No legacy build code or artifact is deleted before the accepted Evidence Lake
 candidate has been promoted locally, exercised through the production service
 topology, rolled back to the stability build, and promoted again.
 
-Final clean candidate `e7_73349c253a411945c246d459_public` composes permanent
+Final clean candidate `e7_39b7386d4524ce5b1ff2729f_public` composes permanent
 identity, selected science, CORE, ARM, DISC, search, map tiles, and simulation
 artifacts without using the stability databases as scientific authority. The
 served pointer still targets stability build `20260717T0614Z_f452835_side`;
@@ -19,9 +19,9 @@ not a retirement target.
 A post-review audit found three declared but unimplemented planet derivations
 and one API selected-luminosity adapter defect. Focused E5 shard
 `1dfc750b79b88018983ded82` corrects the derivation gap, and clean-science policy
-v7 consumes it. The staged final candidate predates that correction, so a
-storage-reviewed downstream rebuild and refreshed scientific A/B are required
-before operator acceptance.
+v7 consumes it. The corrected downstream candidate passes focused value/category
+A/B, clean science/CORE/ARM/DISC/map reproduction, API, scene, and browser
+gates. Explicit operator acceptance is the only remaining pre-promotion gate.
 
 Machine contracts:
 
@@ -44,19 +44,21 @@ Machine contracts:
 - `scripts/verify_selected_system_placement_reproduction.py`
 - `scripts/preflight_local_promotion.py`
 
-The current completion audit passes all 124 pinned checkpoint checks and
-reports `incomplete`. Its five explicit gates are shared selected-fact consumer
-cutover, operator scientific A/B acceptance, local atomic
-promotion/rollback/re-promotion, legacy retirement, and the remaining
-promotion/rollback timing rows. This is the intended state; the report must not
-translate a passing unpromoted candidate into premature E7 cutover.
+The current completion audit passes all 157 pinned checkpoint checks and
+reports `incomplete`. Its four explicit gates are operator scientific A/B
+acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
+and the remaining promotion/rollback timing rows. Shared selected-fact consumer
+cutover is closed by the corrected planet/luminosity A/B. This is the intended
+state; the report must not translate a passing unpromoted candidate into
+premature E7 cutover.
 
-The read-only local cutover preflight passes for the staged candidate and
-stability rollback target without changing `served/current`. The promotion
-helper now creates a temporary relative symlink in `served/` and replaces the
-pointer with `os.replace`, making the pointer transition one atomic rename on
-the served filesystem. The actual cutover remains forbidden until the corrected
-downstream candidate passes review.
+The read-only local cutover preflight passes for the corrected candidate and
+stability rollback target without changing `served/current`. It validates all
+four database build identities, map identity, required products, writable
+served directory, and bounded rollback target. The promotion helper creates a
+temporary relative symlink in `served/` and replaces the pointer with
+`os.replace`, making the transition one atomic rename on the served filesystem.
+The actual cutover remains forbidden until explicit operator acceptance.
 
 Permanent identity seed `5c878083872c738415971864` is the one-time bridge from
 the reviewed canonical hierarchy to the clean compiler. It contains only stable

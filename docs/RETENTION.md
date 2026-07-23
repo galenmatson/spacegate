@@ -1250,6 +1250,25 @@ The exact apply reclaimed 9,576,148,992 allocated bytes and raised
 the tree identity and action. No manifest-bearing, raw, typed, selected,
 served, rollback, or reviewed candidate artifact was removed.
 
+Corrected candidate `e7_39b7386d4524ce5b1ff2729f_public`, bundle
+`39b7386d4524ce5b1ff2729f`, clean science
+`3b459ede84873e3adfeeec43`, CORE `85e89d41dd1258e2f3015a7a`,
+ARM `abf25120b71bc71689790959`, and DISC
+`30280c152441804f449d86b3` are now the protected pre-promotion chain. Their
+reports and transitive inputs are protected through operator review and the
+local rollback drill. Clean science, CORE, ARM, DISC, and map reproduction
+trees were created only under `/tmp` and removed after exact verification; no
+retained duplicate was added to either persistent volume. The setup-failed
+browser report is retained because it documents the missing tile-proxy
+precondition and occupies only about 8.6 MiB.
+
+After the corrected public slice, `/data` has about 23 GiB free and
+`/mnt/space` about 19 GiB free. Both filesystems are above 98% use. Do not run
+another persistent full build, public materialization, or retained
+reproduction before the operator decision. The next cleanup must be a reviewed
+family-aware dry-run after promotion/rollback, never an ad hoc deletion of the
+earlier candidate or its lineage.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

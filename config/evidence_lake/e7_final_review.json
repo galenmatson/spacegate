@@ -1,0 +1,30 @@
+{
+  "schema_version": "spacegate.e7_final_review_config.v1",
+  "reference_build_dir": "/data/spacegate/state/out/20260717T0614Z_f452835_side",
+  "candidate_build_dir": "/data/spacegate/state/out/e7_39b7386d4524ce5b1ff2729f_public",
+  "candidate": {
+    "public_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
+    "clean_science": "3b459ede84873e3adfeeec43",
+    "core": "85e89d41dd1258e2f3015a7a",
+    "arm": "abf25120b71bc71689790959",
+    "disc": "30280c152441804f449d86b3",
+    "bundle": "39b7386d4524ce5b1ff2729f"
+  },
+  "bundle_manifest": "/mnt/space/spacegate/e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json",
+  "arm_manifest": "/mnt/space/spacegate/e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json",
+  "reports": {
+    "classification_ab": "/data/spacegate/reports/evidence_lake_v2/e7_runtime_classification_ab_abf25120_2026-07-23.json",
+    "planet_cutover_ab": "/data/spacegate/reports/evidence_lake_v2/e7_planet_derivation_cutover_ab_2026-07-23.json",
+    "science_reproduction": "/data/spacegate/reports/evidence_lake_v2/e7_clean_science_v7/reproduction.json",
+    "core_reproduction": "/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_core_v6/reproduction.json",
+    "arm_reproduction": "/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_arm_v10/reproduction.json",
+    "disc_reproduction": "/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_disc_v5/reproduction.json",
+    "map_verification": "/data/spacegate/reports/evidence_lake_v2/e7_map_tiles_39b7386d_verify_2026-07-23.json",
+    "map_reproduction": "/data/spacegate/reports/evidence_lake_v2/e7_clean_map_tiles_v5/reproduction_comparison.json",
+    "scene_cold": "/data/spacegate/reports/evidence_lake_v2/e7_scene_v5/cold_report.json",
+    "scene_warm": "/data/spacegate/reports/evidence_lake_v2/e7_scene_v5/warm_report.json",
+    "browser": "/data/spacegate/reports/evidence_lake_v2/e7_browser_v5/tiled-planet-corrected-mounted/playwright-report.json",
+    "api_integration": "/data/spacegate/reports/evidence_lake_v2/e7_api_v5/integration.stdout",
+    "api_known_systems": "/data/spacegate/reports/evidence_lake_v2/e7_api_v5/known_systems.stdout"
+  }
+}

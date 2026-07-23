@@ -1,10 +1,11 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-23.e0-e7-acceptance.16",
-  "candidate_build_id": "e7_73349c253a411945c246d459_public",
-  "shadow_build_id": "73349c253a411945c246d459",
+  "contract_version": "2026-07-23.e0-e7-acceptance.17",
+  "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
+  "shadow_build_id": "39b7386d4524ce5b1ff2729f",
   "artifact_roots": {
-    "bulk": "/mnt/space/spacegate"
+    "bulk": "/mnt/space/spacegate",
+    "data": "/data/spacegate"
   },
   "additional_report_roots": [
     "/data/spacegate/reports/evidence_lake_v2"
@@ -492,6 +493,121 @@
       "stage": "E7",
       "path": "e7_final_scientific_ab_2026-07-23.json",
       "expect": {"status": "pass", "gates.canonical_inventory_stable": true, "gates.classification_ab_pass": true, "gates.map_pass": true, "gates.api_pass": true, "gates.browser_pass": true, "gates.antiproton_deployed": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v7_compile_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "3b459ede84873e3adfeeec43", "stability_databases_opened": [], "stability_scientific_values_copied": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v7_verify_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "3b459ede84873e3adfeeec43", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v7/reproduction.json",
+      "expect": {"status": "pass", "build_id": "3b459ede84873e3adfeeec43", "scratch_removed": true, "failing_checks": [], "differing_byte_exact_products": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v6_compile_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "85e89d41dd1258e2f3015a7a", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v6_verify_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "85e89d41dd1258e2f3015a7a", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v6/reproduction.json",
+      "expect": {"status": "pass", "build_id": "85e89d41dd1258e2f3015a7a", "scratch_removed": true, "differing_files": [], "hierarchy_logical_match": true}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v10_compile_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "abf25120b71bc71689790959", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v10_verify_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "abf25120b71bc71689790959", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v10/reproduction.json",
+      "expect": {"status": "pass", "build_id": "abf25120b71bc71689790959", "failing_checks": [], "differing_tables": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_runtime_classification_ab_abf25120_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "abf25120b71bc71689790959", "checks.unaccounted_known_to_unknown": 0, "checks.gaia_white_dwarf_known_to_unknown": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v5_compile_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "30280c152441804f449d86b3", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v5_verify_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "30280c152441804f449d86b3", "failures": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v5/reproduction.json",
+      "expect": {"status": "pass", "build_id": "30280c152441804f449d86b3", "scratch_removed": true, "canonical_parquet_match.bytes": true, "canonical_parquet_match.determinism": true, "canonical_parquet_match.sha256": true}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_bundle_v5_compile_2026-07-23.json",
+      "expect": {"status": "pass", "build_id": "39b7386d4524ce5b1ff2729f", "stability_databases_opened": [], "served_directly": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_planet_derivation_cutover_ab_2026-07-23.json",
+      "expect": {"status": "pass", "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_map_tiles_39b7386d_verify_2026-07-23.json",
+      "expect": {"passed": true, "build_id": "e7_39b7386d4524ce5b1ff2729f_public"}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_map_tiles_v5/reproduction_comparison.json",
+      "expect": {"passed": true, "timestamp_fields_ignored": ["index.generated_at", "manifest.generated_at"]}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_scene_v5/cold_report.json",
+      "expect": {"ok": true, "build_id": "e7_39b7386d4524ce5b1ff2729f_public", "requested": 24, "generated": 24, "reused": 0, "failed": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_scene_v5/warm_report.json",
+      "expect": {"ok": true, "build_id": "e7_39b7386d4524ce5b1ff2729f_public", "requested": 24, "generated": 0, "reused": 24, "failed": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_browser_v5/tiled-planet-corrected-mounted/playwright-report.json",
+      "expect": {"errors": [], "stats.expected": 12, "stats.skipped": 4, "stats.unexpected": 0, "stats.flaky": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_final_scientific_ab_v2_2026-07-23.json",
+      "expect": {"status": "pass", "gates.candidate_identity_pass": true, "gates.canonical_inventory_stable": true, "gates.classification_ab_pass": true, "gates.planet_cutover_ab_pass": true, "gates.shared_selected_fact_consumer_pass": true, "gates.science_reproduction_pass": true, "gates.core_reproduction_pass": true, "gates.arm_reproduction_pass": true, "gates.disc_reproduction_pass": true, "gates.map_pass": true, "gates.map_reproduction_pass": true, "gates.scene_pass": true, "gates.api_pass": true, "gates.browser_pass": true, "gates.antiproton_deployed": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_local_promotion_preflight_corrected_2026-07-23.json",
+      "expect": {"status": "pass", "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public", "failing_checks": [], "mutations_performed": false, "rollback.exists": true, "rollback.bounded_to_out": true}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_plan_corrected_2026-07-23.json",
+      "expect": {"status": "pass", "failures": null}
     }
   ],
   "required_artifacts": [
@@ -523,30 +639,34 @@
     {"root": "bulk", "path": "e7-clean-runtime-arm/45d996e094020fa52d8a3f82/manifest.json"},
     {"root": "bulk", "path": "e7-clean-runtime-disc/d43e93eeb9c09c9e7445c9d6/manifest.json"},
     {"root": "bulk", "path": "e7-clean-runtime-bundle/73349c253a411945c246d459/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-science/3b459ede84873e3adfeeec43/manifest.json"},
+    {"root": "data", "path": "e7-clean-runtime-core/85e89d41dd1258e2f3015a7a/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json"},
+    {"root": "data", "path": "e7-clean-runtime-disc/30280c152441804f449d86b3/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json"},
     "out/e7_73349c253a411945c246d459_public/core.duckdb",
     "out/e7_73349c253a411945c246d459_public/arm.duckdb",
     "out/e7_73349c253a411945c246d459_public/disc.duckdb",
     "out/e7_73349c253a411945c246d459_public/canonical_hierarchy.duckdb",
-    "out/e7_73349c253a411945c246d459_public/map_tiles/index.json"
+    "out/e7_73349c253a411945c246d459_public/map_tiles/index.json",
+    "out/e7_39b7386d4524ce5b1ff2729f_public/core.duckdb",
+    "out/e7_39b7386d4524ce5b1ff2729f_public/arm.duckdb",
+    "out/e7_39b7386d4524ce5b1ff2729f_public/disc.duckdb",
+    "out/e7_39b7386d4524ce5b1ff2729f_public/canonical_hierarchy.duckdb",
+    "out/e7_39b7386d4524ce5b1ff2729f_public/map_tiles/index.json"
   ],
   "open_gates": [
-    {
-      "gate_id": "shared_selected_fact_consumer_cutover",
-      "stage": "E5_E7",
-      "status": "open",
-      "reason": "The staged clean CORE/ARM/DISC and public candidate select canonical science only from pinned selected-fact artifacts, but they predate focused planet-derivation shard 1dfc750b79b88018983ded82 and embedded luminosity lineage. Rebuild the downstream chain, then distinguish and account retained DISC/rendering assumptions from prohibited independent scientific winner selection before this gate closes."
-    },
     {
       "gate_id": "operator_scientific_ab_acceptance",
       "stage": "E7",
       "status": "open",
-      "reason": "Candidate e7_73349c253a411945c246d459_public passed its consolidated scientific A/B, exact map reproduction, API, scene, and browser gates, but the accepted planet-derivation correction requires a refreshed downstream candidate and A/B before operator acceptance."
+      "reason": "Corrected candidate e7_39b7386d4524ce5b1ff2729f_public passes consolidated scientific A/B, shared-consumer, clean science/CORE/ARM/DISC/map reproduction, API, scene, and browser gates. Explicit operator acceptance is required before local promotion."
     },
     {
       "gate_id": "local_atomic_promotion_rollback_repromotion",
       "stage": "E7",
       "status": "blocked",
-      "reason": "Promotion cannot begin before operator acceptance and the final shared-consumer audit."
+      "reason": "Promotion cannot begin before explicit operator acceptance."
     },
     {
       "gate_id": "legacy_retirement",

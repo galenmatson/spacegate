@@ -17,9 +17,9 @@ def test_checked_in_completion_contract_reports_verified_but_incomplete() -> Non
     assert report["verified_checkpoint_status"] == "pass"
     assert report["completion_status"] == "incomplete"
     assert report["failing_checks"] == []
-    assert report["candidate_build_id"] == "e7_73349c253a411945c246d459_public"
-    assert report["check_count"] > 85
-    assert report["open_gate_count"] >= 3
+    assert report["candidate_build_id"] == "e7_39b7386d4524ce5b1ff2729f_public"
+    assert report["check_count"] >= 157
+    assert report["open_gate_count"] == 4
 
 
 def test_missing_required_report_fails_checkpoint(tmp_path: Path) -> None:
