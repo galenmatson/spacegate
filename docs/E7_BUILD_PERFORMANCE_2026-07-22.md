@@ -176,6 +176,50 @@ behind identical ordered-Parquet and ranking checks. DISC is not the overall
 critical path: ARM takes 151.73 seconds, clean selected science 190.81 seconds,
 and selected facts approximately 25 minutes.
 
+## Clean Runtime Bundle and Public Slice
+
+Clean runtime bundle `fcd4eed36b84cf7a0cba67f3` composes the manifest-pinned
+CORE, hierarchy, ARM, and DISC products as verified relative links. Its first
+implementation re-read all 23.7 GB of linked products after already hashing the
+source targets and took 24.61 seconds. The accepted implementation verifies that
+each link resolves to the exact already-attested target with the registered byte
+size instead of hashing the same bytes twice. It takes 12.31 internal seconds
+and 12.35 seconds externally, peaks at 38,204 KiB RSS, and retains full SHA-256
+verification of every source product. This is a 49.8% wall-time reduction with
+no change to scientific or provenance gates.
+
+Public-slice build `e7_fcd4eed36b84cf7a0cba67f3_public` materializes the clean
+runtime candidate in 278.73 internal seconds and 4:38.96 externally. It uses
+948.98 CPU-seconds, peaks at 32,650,664 KiB RSS without swap, and writes a
+23,623,374,172-byte directory. The no-trim 1,000-ly policy preserves all
+5,869,091 systems, 5,874,636 stars, 6,311 public planet rows, 1,026,480 aliases,
+and 12,768,410 search terms. Derived verification and exact TESS compatibility
+projection pass.
+
+| Public-slice phase | Wall s | Build share |
+|---|---:|---:|
+| ARM materialization | 179.66 | 64.5% |
+| CORE materialization | 62.77 | 22.5% |
+| Canonical hierarchy materialization | 17.71 | 6.4% |
+| CORE Parquet export | 8.75 | 3.1% |
+| DISC materialization | 8.54 | 3.1% |
+| All other measured work | 1.29 | 0.5% |
+
+The comparable E6 public slice took 277.37 seconds, so the clean path has not
+regressed materially. The cost is nevertheless mostly redundant copying: the
+source bundle already contains deployable, content-addressed databases, but the
+current public-slice contract creates another self-contained generation. The
+best optimization target is therefore a manifest-addressed runtime layout or
+block-reusing materializer, not lower scientific coverage, skipped checksums,
+or weaker atomicity. Any prototype must preserve self-contained deployment,
+visible missing-artifact failure, rollback, and exact row-accounting.
+
+The isolated API integration gate against this unpromoted slice takes 16.42
+seconds and passes after adapting the WISE motion schema and hierarchy leaf
+overlay to the clean selected-fact contracts. API latency, rather than compiler
+work, dominates that wall time; client-process CPU is 0.16 seconds and peak RSS
+is 37,588 KiB. Map-tile and simulation-scene measurements remain open.
+
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical
@@ -195,6 +239,10 @@ and selected facts approximately 25 minutes.
 6. Keep the final database hash and clean reproduction. Test parallel or
    write-time hashing only behind identical logical and deterministic product
    gates.
+7. Prototype a manifest-addressed public runtime generation that reuses the
+   clean CORE, hierarchy, ARM, and DISC files. Compare it against the current
+   278.73-second, 23.62-GB materialization while preserving atomic promotion and
+   rollback as one build identity.
 
 ## Required Final Sections
 

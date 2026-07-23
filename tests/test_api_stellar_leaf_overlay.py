@@ -57,6 +57,7 @@ class StellarLeafOverlayTests(unittest.TestCase):
             "classification_value": "M",
             "classification_status": "derived",
             "evidence_basis": "test",
+            "selected_fact_id": "fact:test",
         }
 
         _overlay_stellar_leaf_classifications(hierarchy, [row])
@@ -65,6 +66,46 @@ class StellarLeafOverlayTests(unittest.TestCase):
         self.assertEqual(leaf["stellar_leaf_classification"], row)
         self.assertEqual(leaf["quick_facts"]["stellar_leaf_display_class"], "M")
         self.assertEqual(leaf["quick_facts"]["stellar_leaf_display_class_status"], "derived")
+        self.assertEqual(leaf["quick_facts"]["stellar_leaf_display_class_fact_id"], "fact:test")
+
+    def test_overlay_adapts_selected_source_and_mass_evidence(self) -> None:
+        hierarchy = {
+            "root": {
+                "stable_component_key": "root",
+                "children": [
+                    {"stable_component_key": "leaf:source", "children": []},
+                    {"stable_component_key": "leaf:mass", "children": []},
+                ],
+            }
+        }
+        rows = [
+            {
+                "hierarchy_node_key": "leaf:source",
+                "classification_value": "A",
+                "classification_status": "source",
+                "evidence_basis": "selected_msc_component_spectral_type",
+                "source_value": "A1V",
+                "selected_fact_id": "fact:source",
+            },
+            {
+                "hierarchy_node_key": "leaf:mass",
+                "classification_value": "M",
+                "classification_status": "assumed",
+                "evidence_basis": "selected_msc_component_mass_main_sequence_prior",
+                "source_value": "0.39",
+                "selected_fact_id": "fact:mass",
+            },
+        ]
+
+        _overlay_stellar_leaf_classifications(hierarchy, rows)
+
+        source_facts = hierarchy["root"]["children"][0]["quick_facts"]
+        self.assertEqual(source_facts["spectral_type_raw"], "A1V")
+        self.assertEqual(source_facts["spectral_class"], "A")
+        mass_facts = hierarchy["root"]["children"][1]["quick_facts"]
+        self.assertEqual(mass_facts["mass_msun"], 0.39)
+        self.assertEqual(mass_facts["visual_stellar_class"], "M")
+        self.assertEqual(mass_facts["visual_stellar_class_status"], "assumed")
 
 
 if __name__ == "__main__":

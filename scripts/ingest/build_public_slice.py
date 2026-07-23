@@ -139,6 +139,20 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str, alias: str = "m
     return int(con.execute(f"select count(*)::bigint from {alias}.{table_name}").fetchone()[0] or 0)
 
 
+def copy_optional_core_compatibility_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
+    copied: list[str] = []
+    for table_name in (
+        "planet_catalog_observations",
+        "planet_reclassification_audit",
+        "planet_status_history",
+    ):
+        if not table_exists(con, "src", table_name):
+            continue
+        con.execute(f"create table {table_name} as select * from src.{table_name}")
+        copied.append(table_name)
+    return copied
+
+
 def verify_sliced_tess_projection(con: duckdb.DuckDBPyConnection) -> dict[str, dict[str, int]]:
     comparisons = {
         "tess_target_identity": (
@@ -981,15 +995,7 @@ def build_slice(
             """
         )
         con.execute("create table open_clusters as select * from src.open_clusters")
-        con.execute(
-            "create table planet_catalog_observations as select * from src.planet_catalog_observations"
-        )
-        con.execute(
-            "create table planet_reclassification_audit as select * from src.planet_reclassification_audit"
-        )
-        con.execute(
-            "create table planet_status_history as select * from src.planet_status_history"
-        )
+        copy_optional_core_compatibility_tables(con)
         con.execute("create table superstellar_objects as select * from src.superstellar_objects")
         for table_name in (
             "extended_objects",
@@ -1229,6 +1235,16 @@ def build_slice(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a public core slice from an existing canonical build.")
     parser.add_argument("--build-id", help="Source build id. Defaults to served/current.", default="")
+    parser.add_argument(
+        "--source-build-dir",
+        help="Explicit source build directory; mutually exclusive with --build-id.",
+        default="",
+    )
+    parser.add_argument(
+        "--state-dir",
+        help="Explicit output state root. Defaults to the configured Spacegate state.",
+        default="",
+    )
     parser.add_argument("--slice-build-id", help="Explicit output build id.", default="")
     parser.add_argument("--max-distance-ly", type=float, default=1000.0)
     parser.add_argument("--min-parallax-over-error", type=float, default=5.0)
@@ -1237,8 +1253,16 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
-    state = state_dir(root)
-    source_build_id, source_build_dir = resolve_build_dir(state, args.build_id or None)
+    state = Path(args.state_dir).resolve() if args.state_dir else state_dir(root)
+    if args.source_build_dir and args.build_id:
+        raise SystemExit("--source-build-dir and --build-id are mutually exclusive")
+    if args.source_build_dir:
+        source_build_dir = Path(args.source_build_dir).resolve()
+        if not source_build_dir.is_dir():
+            raise SystemExit(f"Source build directory not found: {source_build_dir}")
+        source_build_id = source_build_dir.name
+    else:
+        source_build_id, source_build_dir = resolve_build_dir(state, args.build_id or None)
     slice_build_id = (
         str(args.slice_build_id).strip()
         if args.slice_build_id

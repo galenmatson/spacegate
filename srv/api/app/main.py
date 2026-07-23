@@ -4521,6 +4521,29 @@ def _overlay_stellar_leaf_classifications(
             facts["stellar_leaf_display_class"] = row.get("classification_value")
             facts["stellar_leaf_display_class_status"] = row.get("classification_status")
             facts["stellar_leaf_display_class_basis"] = row.get("evidence_basis")
+            facts["stellar_leaf_display_class_fact_id"] = row.get("selected_fact_id")
+            status = str(row.get("classification_status") or "").strip().lower()
+            basis = str(row.get("evidence_basis") or "").strip()
+            source_value = str(row.get("source_value") or "").strip()
+            if status == "source" and source_value:
+                if not facts.get("spectral_type_raw"):
+                    facts["spectral_type_raw"] = source_value
+                if not facts.get("spectral_class"):
+                    facts["spectral_class"] = row.get("classification_value")
+            elif basis == "selected_msc_component_mass_main_sequence_prior" and source_value:
+                try:
+                    mass_msun = float(source_value)
+                except ValueError:
+                    mass_msun = None
+                if mass_msun is not None and mass_msun > 0:
+                    if facts.get("mass_msun") is None:
+                        facts["mass_msun"] = mass_msun
+                if not facts.get("visual_stellar_class"):
+                    facts["visual_stellar_class"] = row.get("classification_value")
+                if not facts.get("visual_stellar_class_status"):
+                    facts["visual_stellar_class_status"] = status or "assumed"
+                if not facts.get("visual_stellar_class_basis"):
+                    facts["visual_stellar_class_basis"] = basis
         for child in node.get("children") or []:
             visit(child)
 

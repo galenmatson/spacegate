@@ -2623,6 +2623,15 @@ Pre-promotion planning checkpoint (July 22, 2026):
   and re-promotion timings are part of the same report
 - local promotion, rollback timing, authoritative entrypoint replacement, and
   actual legacy retirement remain open; this checkpoint authorizes no cleanup
+- clean runtime bundle `fcd4eed36b84cf7a0cba67f3` now pins the accepted CORE,
+  hierarchy, ARM, and DISC products without copying them; eliminating a
+  duplicate full-product hash pass reduced runtime from 24.61 to 12.35 seconds
+  while preserving source-product SHA-256 attestation
+- unpromoted public slice `e7_fcd4eed36b84cf7a0cba67f3_public` preserves the
+  full clean inventory and search vocabulary and passes derived, TESS, and API
+  integration gates. Its 278.73-second build is dominated by 179.66 seconds of
+  ARM rematerialization, establishing public runtime composition as the next
+  measured optimization target rather than reducing scientific coverage
 
 Deliverables:
 

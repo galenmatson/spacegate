@@ -216,6 +216,21 @@ def _has_table(
         return False
 
 
+def _table_columns(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    alias: str,
+    table_name: str,
+) -> set[str]:
+    try:
+        return {
+            str(row[0])
+            for row in con.execute(f"DESCRIBE {alias}.{table_name}").fetchall()
+        }
+    except Exception:
+        return set()
+
+
 def _has_local_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
     try:
         row = con.execute(
@@ -1656,6 +1671,18 @@ def fetch_infrared_evidence_for_system(
     if not all(_has_table(con, alias="arm_db", table_name=table) for table in required_tables):
         return {"summary": {"match_count": 0, "catalog_counts": {}}, "stars": {}}
 
+    motion_columns = _table_columns(
+        con, alias="arm_db", table_name="infrared_motion_evidence"
+    )
+    pm_ra_expr = "m.pmra" if "pmra" in motion_columns else "m.pm_ra"
+    pm_dec_expr = "m.pmdec" if "pmdec" in motion_columns else "m.pm_dec"
+    pm_ra_error_expr = (
+        "m.pmra_error" if "pmra_error" in motion_columns else "m.pm_ra_error"
+    )
+    pm_dec_error_expr = (
+        "m.pmdec_error" if "pmdec_error" in motion_columns else "m.pm_dec_error"
+    )
+
     target_ids = sorted({int(value) for value in star_ids if value is not None})
     params: List[Any] = [int(system_id)]
     target_clause = ""
@@ -1708,9 +1735,11 @@ def fetch_infrared_evidence_for_system(
           p.w4_snr,
           p.quality_flags,
           p.artifact_flags,
-          m.pm_ra,
-          m.pm_dec,
+          {pm_ra_expr} AS pm_ra,
+          {pm_dec_expr} AS pm_dec,
           m.pm_unit,
+          {pm_ra_error_expr} AS pm_ra_error,
+          {pm_dec_error_expr} AS pm_dec_error,
           m.parallax_like_arcsec,
           m.parallax_like_error_arcsec,
           m.parallax_like_note
@@ -1767,6 +1796,8 @@ def fetch_infrared_evidence_for_system(
                 "pm_ra": row.get("pm_ra"),
                 "pm_dec": row.get("pm_dec"),
                 "pm_unit": row.get("pm_unit"),
+                "pm_ra_error": row.get("pm_ra_error"),
+                "pm_dec_error": row.get("pm_dec_error"),
                 "parallax_like_arcsec": row.get("parallax_like_arcsec"),
                 "parallax_like_error_arcsec": row.get("parallax_like_error_arcsec"),
                 "parallax_like_note": row.get("parallax_like_note"),
@@ -3010,7 +3041,7 @@ def _fetch_arm_hierarchy_for_system(
             component_family == "star"
             and clean_component_type == "star"
             and clean_core_object_type != "star"
-            and clean_source_catalog in {"msc", "orb6", "sbx", "gaia_nss"}
+            and core_object_id is None
         )
         node_map[str(component_key)] = {
             "stable_component_key": str(component_key),

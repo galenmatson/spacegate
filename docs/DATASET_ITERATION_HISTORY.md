@@ -3797,6 +3797,30 @@ Representative commits:
   verification passes, the 382,894,682-byte canonical Parquet matches exactly,
   and reproduction scratch is removed.
 
+### 146) Runtime Composition Must Not Recompute Scientific Selection
+
+- Clean runtime bundle `fcd4eed36b84cf7a0cba67f3` composes the accepted CORE,
+  canonical hierarchy, ARM, and DISC artifacts exclusively through
+  manifest-pinned, bounded relative links. It performs no selection and opens no
+  stability database.
+- The initial bundle implementation hashed all source products and then hashed
+  the same 23.7 GB again through the links. Verifying link target identity and
+  byte size against the already-attested products removes that duplicate read,
+  reducing wall time from 24.61 to 12.35 seconds without dropping SHA-256 input
+  verification.
+- Public slice `e7_fcd4eed36b84cf7a0cba67f3_public` then materializes the full
+  clean inventory and passes derived, TESS, and isolated API integration gates.
+  Clean WISE column differences and selected hierarchy-leaf classifications are
+  handled by general schema/key adapters, not named-object conditions.
+- The public build takes 278.73 seconds and writes 23.62 GB; 179.66 seconds are
+  ARM copying. A future manifest-addressed or block-reusing runtime may remove
+  this duplication only if it preserves deployment atomicity, rollback,
+  checksums, visible artifact failures, and exact row accounting.
+- Castor's clean selected hierarchy currently has seven classified source
+  leaves rather than the old six-class golden. The integration test now verifies
+  one-to-one selected-fact binding instead of dictating that named inventory;
+  the scientific delta remains explicit for A/B review and adjudication.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

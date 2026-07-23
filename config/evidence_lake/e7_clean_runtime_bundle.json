@@ -1,0 +1,32 @@
+{
+  "schema_version": "spacegate.e7_clean_runtime_bundle_policy.v1",
+  "policy_version": "2026-07-23.e7-clean-runtime-bundle.1",
+  "compiler_version": "e7_clean_runtime_bundle_compiler_v1",
+  "inputs": {
+    "core": {
+      "build_id": "92da8d31dc0e7dbd4d4d70a5",
+      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224",
+      "relative_path": "../e7-clean-runtime-core/92da8d31dc0e7dbd4d4d70a5",
+      "products": ["core.duckdb", "canonical_hierarchy.duckdb"]
+    },
+    "arm": {
+      "build_id": "e3e82312eaa3cab931e9e756",
+      "manifest_sha256": "709fd898814635d2c177dff078d4def431b352704e90fefd58026d0f5d799267",
+      "relative_path": "../e7-clean-runtime-arm/e3e82312eaa3cab931e9e756",
+      "products": ["arm.duckdb"]
+    },
+    "disc": {
+      "build_id": "62c9d909371eef4dfd8b63c9",
+      "manifest_sha256": "731f800b62b9dbcd1d71d4a7d2aad9e68846df22803ddfc527841bd5a8d3b5f3",
+      "relative_path": "../e7-clean-runtime-disc/62c9d909371eef4dfd8b63c9",
+      "products": ["disc.duckdb"]
+    }
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "mutate_component_artifacts": false,
+    "bundle_is_served_directly": false,
+    "public_slice_must_materialize_metadata": true,
+    "all_links_are_manifest_pinned": true
+  }
+}

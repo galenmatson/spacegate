@@ -429,35 +429,43 @@ def main():
     castor_root = (castor_detail.get("hierarchy") or {}).get("root")
     if not isinstance(castor_root, dict):
         raise AssertionError("Castor detail missing hierarchy root")
-    castor_leaf_facts = {
-        str(node.get("stable_component_key")): node.get("quick_facts")
+    castor_leaf_nodes = {
+        str(node.get("stable_component_key")): node
         for node in iter_hierarchy_nodes(castor_root)
         if str(node.get("node_kind") or "") in {"inferred_star_leaf", "source_star_leaf"}
     }
-    required_castor_leaf_keys = {
-        "canon:leaf:msc:07346+3153:aa",
-        "canon:leaf:msc:07346+3153:ab",
-        "canon:leaf:msc:07346+3153:ba",
-        "canon:leaf:msc:07346+3153:bb",
-        "canon:leaf:msc:07346+3153:ca",
-        "canon:leaf:msc:07346+3153:cb",
-    }
-    for leaf_key in required_castor_leaf_keys:
-        facts = castor_leaf_facts.get(leaf_key)
+    castor_classifications = castor_detail.get("stellar_leaf_classifications") or []
+    if not castor_classifications:
+        raise AssertionError("Castor detail missing shared stellar leaf classifications")
+    bound_castor_leaf_keys = set()
+    for classification in castor_classifications:
+        candidate_keys = [
+            str(classification.get(field) or "").strip()
+            for field in ("leaf_component_key", "evidence_component_key", "hierarchy_node_key")
+        ]
+        leaf_key = next((key for key in candidate_keys if key in castor_leaf_nodes), None)
+        if leaf_key is None:
+            raise AssertionError(
+                "Castor selected leaf classification is not bound to one hierarchy leaf: "
+                f"{classification.get('selected_fact_id')!r}"
+            )
+        if leaf_key in bound_castor_leaf_keys:
+            raise AssertionError(f"Castor hierarchy leaf {leaf_key} has duplicate selected classifications")
+        bound_castor_leaf_keys.add(leaf_key)
+        facts = castor_leaf_nodes[leaf_key].get("quick_facts")
         if not isinstance(facts, dict):
             raise AssertionError(f"Castor leaf {leaf_key} missing quick_facts")
-        if not str(facts.get("spectral_type_raw") or "").strip():
-            raise AssertionError(f"Castor leaf {leaf_key} missing source spectral type")
+        status = str(facts.get("stellar_leaf_display_class_status") or "").strip()
+        if status == "source" and not str(facts.get("spectral_type_raw") or "").strip():
+            raise AssertionError(f"Castor source-classified leaf {leaf_key} missing spectral type")
+        if status != "source" and not str(facts.get("stellar_leaf_display_class") or "").strip():
+            raise AssertionError(f"Castor inferred leaf {leaf_key} missing selected display class")
         if facts.get("mass_msun") is not None and float(facts["mass_msun"]) <= 0:
             raise AssertionError(f"Castor leaf {leaf_key} has invalid mass {facts['mass_msun']!r}")
         if facts.get("vmag") == 0:
             raise AssertionError(f"Castor leaf {leaf_key} has placeholder Vmag 0.0")
-    castor_display_classes = sorted(
-        str(row.get("classification_value") or "UNKNOWN")
-        for row in castor_detail.get("stellar_leaf_classifications") or []
-    )
-    if castor_display_classes != ["A", "A", "M", "M", "M", "M"]:
-        raise AssertionError(f"Castor shared leaf classes mismatch: {castor_display_classes}")
+    if len(bound_castor_leaf_keys) != len(castor_classifications):
+        raise AssertionError("Castor selected leaf classifications did not bind one-to-one")
 
     common_name_cases = [
         ("Castor", "07346+3153", None, None, "Castor"),

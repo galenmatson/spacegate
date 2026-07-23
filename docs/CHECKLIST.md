@@ -1809,6 +1809,18 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   canonical systems exactly once, independently audit the query and Parquet
   products, and reproduce the canonical Parquet byte-for-byte in isolated
   scratch
+- [x] E7 clean runtime bundle checkpoint: compose manifest-pinned CORE,
+  hierarchy, ARM, and DISC products as immutable verified links in build
+  `fcd4eed36b84cf7a0cba67f3`; retain full source-product checksums while
+  eliminating the duplicate post-link hash pass (24.61s to 12.35s)
+- [x] E7 clean public-slice checkpoint: materialize unpromoted build
+  `e7_fcd4eed36b84cf7a0cba67f3_public`, retain the complete clean inventory and
+  search vocabulary, pass derived/TESS projection verification, and pass the
+  isolated API integration gate through clean WISE and selected leaf contracts
+- [ ] E7 public-runtime materialization optimization: evaluate manifest-addressed
+  or block-reusing assembly against the measured 278.73-second, 23.62-GB copy
+  without weakening self-contained deployment, checksums, atomic promotion,
+  rollback, visible failure, or exact scientific row accounting
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or

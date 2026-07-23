@@ -2279,6 +2279,34 @@ and removes scratch afterward. The production compile takes 39.91 seconds and
 peaks at 10,088,360 KiB RSS; detailed phase timings are in
 `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
 
+## E7 Clean Runtime Composition and Public Slice
+
+Runtime bundle `fcd4eed36b84cf7a0cba67f3` composes the checksum-pinned clean
+CORE, canonical hierarchy, ARM, and DISC artifacts without copying or mutating
+them. It opens no stability database and is not itself a served generation.
+Every relative link is bounded by policy, resolves to the registered input, and
+retains the upstream product checksum. Removing an unnecessary second read of
+all linked products reduced composition from 24.61 to 12.35 seconds while
+preserving full input attestation.
+
+Unpromoted public slice `e7_fcd4eed36b84cf7a0cba67f3_public` materializes that
+bundle through the existing deployment-shaped contract. It retains all
+5,869,091 systems, 5,874,636 stars, 6,311 public planet rows, 1,026,480 aliases,
+and 12,768,410 search terms with zero radius trimming. Derived verification,
+TESS compatibility projection, and isolated API integration pass. The API now
+adapts both legacy and clean WISE proper-motion column names to one response
+contract, and binds selected stellar leaf classifications by stable hierarchy,
+leaf, or evidence component key rather than relying on retired named keys.
+
+The public materialization takes 278.73 seconds and produces 23.62 GB. ARM
+copying alone takes 179.66 seconds, making deployment-shaped duplication the
+dominant measured cost. A manifest-addressed or block-reusing public runtime is
+an optimization candidate, but it may not weaken atomic generation identity,
+rollback, checksum, visible-failure, or exact row-accounting guarantees. Castor
+currently exposes seven selected source leaves, including a low-mass `L` prior;
+that inventory delta remains a scientific A/B review item and did not receive a
+named production transform.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

@@ -119,3 +119,18 @@ def test_build_telemetry_emits_machine_readable_phase_metrics() -> None:
             "details": {"rows": 7},
         }
     ]
+
+
+def test_optional_legacy_planet_tables_do_not_block_clean_core() -> None:
+    con = duckdb.connect()
+    con.execute("attach ':memory:' as src")
+    try:
+        assert MODULE.copy_optional_core_compatibility_tables(con) == []
+        con.execute("create table src.planet_status_history(event_id bigint)")
+        con.execute("insert into src.planet_status_history values (7)")
+        assert MODULE.copy_optional_core_compatibility_tables(con) == [
+            "planet_status_history"
+        ]
+        assert con.execute("select * from planet_status_history").fetchall() == [(7,)]
+    finally:
+        con.close()

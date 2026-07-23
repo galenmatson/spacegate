@@ -1204,6 +1204,16 @@ Earlier stability/shadow DISC files remain A/B and rollback inputs until public
 slice verification and the local promotion/rollback/re-promotion drill pass;
 none is a manual cleanup target.
 
+Clean runtime bundle `fcd4eed36b84cf7a0cba67f3` and public slice
+`e7_fcd4eed36b84cf7a0cba67f3_public` are protected unserved E7 review
+artifacts. The bundle contains only bounded relative links but pins the clean
+CORE, hierarchy, ARM, and DISC inputs, so neither it nor those targets may be
+removed independently. The 23,623,374,172-byte public generation, its reports,
+and API verification evidence must remain through scientific A/B and the local
+promotion/rollback/re-promotion drill. Preliminary bundle
+`09c725e8313029866aec2f47` is a future exact retention candidate retained only
+for the before/after timing comparison; do not delete it manually.
+
 Provisional predecessor `04962848f58540b448eb6558` has identical scoring
 science but predates the exact selected-surface inventory and bounded-path
 policy gates. It is an unserved exact future retention candidate, not a manual
