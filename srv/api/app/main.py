@@ -1880,11 +1880,16 @@ def _solution_by_orbit_edge_id(arm: Dict[str, Any]) -> Dict[int, Dict[str, Any]]
     return out
 
 
+def _is_planetary_orbit_relation(relation_kind: Any) -> bool:
+    """Accept the legacy and Evidence Lake v2 canonical-planet relation tokens."""
+    return str(relation_kind or "").strip().lower() in {"planetary_orbit", "planet"}
+
+
 def _planet_orbit_solutions_by_stable_key(arm: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     solution_by_edge_id = _solution_by_orbit_edge_id(arm)
     out: Dict[str, Dict[str, Any]] = {}
     for edge in ((arm.get("orbit_edges") or {}).get("items") or []):
-        if str(edge.get("relation_kind") or "") != "planetary_orbit":
+        if not _is_planetary_orbit_relation(edge.get("relation_kind")):
             continue
         secondary_key = str(edge.get("secondary_component_key") or "")
         prefix = "comp:planet:"
@@ -2826,11 +2831,10 @@ def _render_scene_contract(
         return render_key
 
     has_stellar_orbit_edges = any(
-        str(edge.get("relation_kind") or "") != "planetary_orbit"
-        for edge in orbit_rows
+        not _is_planetary_orbit_relation(edge.get("relation_kind")) for edge in orbit_rows
     )
     for edge in orbit_rows:
-        if has_stellar_orbit_edges and str(edge.get("relation_kind") or "") == "planetary_orbit":
+        if has_stellar_orbit_edges and _is_planetary_orbit_relation(edge.get("relation_kind")):
             continue
         for key_name in ("primary_component_key", "secondary_component_key"):
             component_key = str(edge.get(key_name) or "")
@@ -3082,7 +3086,7 @@ def _render_scene_contract(
             and secondary_child_keys
         )
         if not is_direct_star_orbit and not is_group_orbit:
-            if str(edge.get("relation_kind") or "") != "planetary_orbit":
+            if not _is_planetary_orbit_relation(edge.get("relation_kind")):
                 if primary_key and not primary_child_keys and primary_render_key not in render_stars:
                     unmatched_orbit_endpoint_keys.add(primary_key)
                 if secondary_key and not secondary_child_keys and secondary_render_key not in render_stars:
@@ -3477,7 +3481,7 @@ def _render_scene_contract(
     hierarchy_planet_count = int(((hierarchy or {}).get("counts") or {}).get("type_counts", {}).get("planet") or 0)
     if len(render_planets) < hierarchy_planet_count:
         for idx, edge in enumerate(orbit_rows):
-            if str(edge.get("relation_kind") or "") != "planetary_orbit":
+            if not _is_planetary_orbit_relation(edge.get("relation_kind")):
                 continue
             planet_key = str(edge.get("secondary_component_key") or "")
             if not planet_key or planet_key in rendered_planet_keys:

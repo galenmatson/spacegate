@@ -104,7 +104,7 @@ class Timings:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v4":
+    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v5":
         raise ValueError("unsupported clean runtime ARM policy")
     required_rules = {
         "open_stability_databases": False,
@@ -360,6 +360,13 @@ def component_key_sql(alias: str) -> str:
 def create_component_graph(con: duckdb.DuckDBPyConnection, build_id: str) -> None:
     con.execute(
         f"""
+        CREATE TEMP TABLE canonical_incoming_member_labels AS
+        SELECT child_node_key,min(trim(member_role))::VARCHAR AS member_role
+        FROM hierarchy.hierarchy_edges
+        WHERE nullif(trim(member_role),'') IS NOT NULL
+        GROUP BY child_node_key
+        HAVING count(DISTINCT lower(trim(member_role)))=1;
+
         CREATE TEMP TABLE canonical_runtime_component_nodes AS
         SELECT n.*,
           ('comp:system:' || n.canonical_key)::VARCHAR AS stable_component_key,
@@ -375,9 +382,13 @@ def create_component_graph(con: duckdb.DuckDBPyConnection, build_id: str) -> Non
         UNION ALL
         SELECT n.*,'comp:star:' || n.canonical_key,'star','star',
           s.system_id,s.star_id,s.ra_deg,s.dec_deg,
-          s.dist_ly/{PARSECS_TO_LIGHT_YEARS},nullif(trim(s.component),'')
+          s.dist_ly/{PARSECS_TO_LIGHT_YEARS},
+          coalesce(nullif(trim(s.component),''),nullif(trim(n.member_role),''),
+                   incoming.member_role)::VARCHAR
         FROM hierarchy.hierarchy_nodes n
         JOIN core.stars s ON n.canonical_key=s.stable_object_key
+        LEFT JOIN canonical_incoming_member_labels incoming
+          ON incoming.child_node_key=n.hierarchy_node_key
         WHERE n.node_kind='star'
         UNION ALL
         SELECT n.*,'comp:planet:' || n.canonical_key,'planet','planet',
@@ -843,27 +854,115 @@ def extend_stellar_runtime_orbits(
 
 def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -> None:
     msc_class = spectral_class_sql("cp.classification_raw", "cp.classification_normalized", "'star'")
+    sb9_class = spectral_class_sql("sb9.classification_raw", "sb9.classification_normalized", "'star'")
+    debcat_class = spectral_class_sql(
+        "debcat.classification_raw", "debcat.classification_normalized", "'star'"
+    )
     con.execute(
         f"""
+        CREATE TEMP TABLE runtime_stellar_leaves AS
+        SELECT n.*,
+          sys.stable_object_key AS system_stable_object_key,
+          sys.wds_id AS system_wds_id,
+          CASE WHEN n.node_kind='star' THEN n.core_object_id END::HUGEINT AS star_id,
+          CASE WHEN n.node_kind='star' THEN n.canonical_key END::VARCHAR AS stable_object_key,
+          n.stable_component_key AS leaf_component_key,
+          CASE WHEN n.node_kind='inferred_star_leaf'
+            THEN n.stable_component_key END::VARCHAR AS evidence_component_key
+        FROM runtime_component_nodes n
+        LEFT JOIN core.systems sys ON sys.system_id=n.system_id
+        WHERE n.component_family='star'
+          AND NOT EXISTS (
+            SELECT 1 FROM hierarchy.hierarchy_edges e
+            JOIN hierarchy.hierarchy_nodes child
+              ON child.hierarchy_node_key=e.child_node_key
+            WHERE e.parent_node_key=n.hierarchy_node_key
+              AND child.component_family='star'
+          );
+
+        CREATE TABLE msc_runtime_leaf_bindings AS
+        WITH source_groups AS (
+          SELECT trim(wds_id_raw) AS wds_id,
+            lower(trim(component_label_normalized)) AS casefold_label,
+            count(*)::BIGINT AS source_candidate_count
+          FROM science.evidence_component_msc_component_entities
+          WHERE binding_status='accepted'
+            AND nullif(trim(wds_id_raw),'') IS NOT NULL
+            AND nullif(trim(component_label_normalized),'') IS NOT NULL
+          GROUP BY 1,2
+        ), direct_runtime_groups AS (
+          SELECT hierarchy_node_key,
+            count(*)::BIGINT AS runtime_candidate_count,
+            min(leaf_component_key)::VARCHAR AS runtime_component_key,
+            min(system_stable_object_key)::VARCHAR AS runtime_system_stable_object_key
+          FROM runtime_stellar_leaves
+          WHERE hierarchy_node_key LIKE 'canon:leaf:msc:%'
+          GROUP BY 1
+        ), scoped_runtime_groups AS (
+          SELECT trim(system_wds_id) AS wds_id,
+            lower(trim(catalog_component_label)) AS casefold_label,
+            count(*)::BIGINT AS runtime_candidate_count,
+            min(hierarchy_node_key)::VARCHAR AS hierarchy_node_key,
+            min(leaf_component_key)::VARCHAR AS runtime_component_key,
+            min(system_stable_object_key)::VARCHAR AS runtime_system_stable_object_key
+          FROM runtime_stellar_leaves
+          WHERE nullif(trim(system_wds_id),'') IS NOT NULL
+            AND nullif(trim(catalog_component_label),'') IS NOT NULL
+          GROUP BY 1,2
+        )
+        SELECT row_number() OVER (ORDER BY ce.component_entity_id)::BIGINT AS binding_id,
+          {sql_literal(build_id)}::VARCHAR AS build_id,
+          ce.component_entity_id,ce.source_component_key,ce.source_id,ce.release_id,
+          ce.wds_id_raw,ce.component_label_raw,ce.component_label_normalized,
+          ce.canonical_system_stable_object_key AS source_system_stable_object_key,
+          ce.binding_status AS source_binding_status,ce.binding_method,ce.binding_reason,
+          coalesce(s.source_candidate_count,0)::BIGINT AS source_candidate_count,
+          coalesce(d.runtime_candidate_count,r.runtime_candidate_count,0)::BIGINT
+            AS runtime_candidate_count,
+          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+                THEN coalesce(d.hierarchy_node_key,r.hierarchy_node_key) END
+            AS hierarchy_node_key,
+          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+                THEN coalesce(d.runtime_component_key,r.runtime_component_key) END
+            AS runtime_component_key,
+          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+                THEN coalesce(d.runtime_system_stable_object_key,
+                  r.runtime_system_stable_object_key) END
+            AS runtime_system_stable_object_key,
+          CASE WHEN ce.binding_status<>'accepted' THEN ce.binding_status
+               WHEN s.source_candidate_count>1 THEN 'ambiguous'
+               WHEN coalesce(d.runtime_candidate_count,r.runtime_candidate_count) IS NULL
+                 THEN 'missing'
+               WHEN coalesce(d.runtime_candidate_count,r.runtime_candidate_count)>1
+                 THEN 'ambiguous'
+               ELSE 'accepted' END::VARCHAR AS runtime_binding_status,
+          CASE WHEN ce.binding_status<>'accepted' THEN 'source_component_not_accepted'
+               WHEN s.source_candidate_count>1 THEN 'case_significant_source_collision'
+               WHEN d.runtime_candidate_count=1 THEN 'exact_msc_hierarchy_leaf_key'
+               WHEN r.runtime_candidate_count IS NULL THEN 'runtime_leaf_missing'
+               WHEN r.runtime_candidate_count>1 THEN 'runtime_leaf_collision'
+               ELSE 'exact_wds_unique_casefold_component' END::VARCHAR
+            AS runtime_binding_reason,
+          false::BOOLEAN AS canonical_containment,
+          'e7_msc_runtime_leaf_binding_v1'::VARCHAR AS policy_version
+        FROM science.evidence_component_msc_component_entities ce
+        LEFT JOIN source_groups s
+          ON s.wds_id=trim(ce.wds_id_raw)
+         AND s.casefold_label=lower(trim(ce.component_label_normalized))
+        LEFT JOIN direct_runtime_groups d
+          ON d.hierarchy_node_key=('canon:leaf:msc:' || lower(trim(ce.wds_id_raw)) ||
+            ':' || lower(trim(ce.component_label_normalized)))
+        LEFT JOIN scoped_runtime_groups r
+          ON r.wds_id=trim(ce.wds_id_raw)
+         AND r.casefold_label=lower(trim(ce.component_label_normalized))
+        ORDER BY ce.component_entity_id;
+
         CREATE TABLE stellar_leaf_display_classifications AS
         WITH leaves AS (
-          SELECT n.*,
-            sys.stable_object_key AS system_stable_object_key,
-            CASE WHEN n.node_kind='star' THEN n.core_object_id END::HUGEINT AS star_id,
-            CASE WHEN n.node_kind='star' THEN n.canonical_key END::VARCHAR AS stable_object_key,
-            n.stable_component_key AS leaf_component_key,
-            CASE WHEN n.node_kind='inferred_star_leaf'
-              THEN n.stable_component_key END::VARCHAR AS evidence_component_key
-          FROM runtime_component_nodes n
-          LEFT JOIN core.systems sys ON sys.system_id=n.system_id
-          WHERE n.component_family='star'
-            AND NOT EXISTS (
-              SELECT 1 FROM hierarchy.hierarchy_edges e
-              JOIN hierarchy.hierarchy_nodes child
-                ON child.hierarchy_node_key=e.child_node_key
-              WHERE e.parent_node_key=n.hierarchy_node_key
-                AND child.component_family='star'
-            )
+          SELECT * FROM runtime_stellar_leaves
         ), candidates AS (
           SELECT l.hierarchy_node_key,0::INTEGER evidence_rank,
             d.classification_value,d.classification_status,d.evidence_basis,
@@ -879,14 +978,41 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             'selected_msc_component_spectral_type',cp.evidence_id,
             cp.classification_raw,0.90,ce.source_id,ce.release_id,cp.evidence_id
           FROM leaves l
+          JOIN msc_runtime_leaf_bindings b
+            ON b.runtime_binding_status='accepted'
+           AND b.hierarchy_node_key=l.hierarchy_node_key
           JOIN science.evidence_component_msc_component_entities ce
-            ON ce.binding_status='accepted'
-           AND ce.canonical_system_stable_object_key=l.system_stable_object_key
-           AND lower(ce.component_label_normalized)=lower(l.catalog_component_label)
+            ON ce.component_entity_id=b.component_entity_id
           JOIN science.evidence_component_msc_classification_projection cp
             ON cp.component_entity_id=ce.component_entity_id
            AND cp.projection_status='eligible_for_quantity_selection'
-          WHERE l.node_kind='inferred_star_leaf' AND {msc_class} IS NOT NULL
+          WHERE {msc_class} IS NOT NULL
+          UNION ALL
+          SELECT l.hierarchy_node_key,9,{sb9_class}::VARCHAR,'source',
+            'selected_sb9_component_spectral_type',sb9.evidence_id,
+            sb9.classification_raw,0.92,'multiplicity.sb9'::VARCHAR,
+            'cds_b_sb9_snapshot_20260715'::VARCHAR,sb9.evidence_id
+          FROM leaves l
+          JOIN msc_runtime_leaf_bindings b
+            ON b.runtime_binding_status='accepted'
+           AND b.hierarchy_node_key=l.hierarchy_node_key
+          JOIN science.evidence_component_sb9_classification_projection sb9
+            ON sb9.target_key=b.source_component_key
+           AND sb9.projection_status='eligible_for_quantity_selection'
+          WHERE {sb9_class} IS NOT NULL
+          UNION ALL
+          SELECT l.hierarchy_node_key,8,{debcat_class}::VARCHAR,'source',
+            'selected_debcat_component_spectral_type',debcat.evidence_id,
+            debcat.classification_raw,0.94,'multiplicity.debcat'::VARCHAR,
+            'debcat_2025-12-08'::VARCHAR,debcat.evidence_id
+          FROM leaves l
+          JOIN msc_runtime_leaf_bindings b
+            ON b.runtime_binding_status='accepted'
+           AND b.hierarchy_node_key=l.hierarchy_node_key
+          JOIN science.evidence_component_debcat_classification_projection debcat
+            ON debcat.target_key=b.source_component_key
+           AND debcat.projection_status='eligible_for_quantity_selection'
+          WHERE {debcat_class} IS NOT NULL
           UNION ALL
           SELECT l.hierarchy_node_key,20,
             CASE WHEN sp.normalized_value<0.08 THEN 'L'
@@ -899,15 +1025,15 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             'assumed','selected_msc_component_mass_main_sequence_prior',sp.evidence_id,
             sp.value_raw,0.35,ce.source_id,ce.release_id,sp.evidence_id
           FROM leaves l
+          JOIN msc_runtime_leaf_bindings b
+            ON b.runtime_binding_status='accepted'
+           AND b.hierarchy_node_key=l.hierarchy_node_key
           JOIN science.evidence_component_msc_component_entities ce
-            ON ce.binding_status='accepted'
-           AND ce.canonical_system_stable_object_key=l.system_stable_object_key
-           AND lower(ce.component_label_normalized)=lower(l.catalog_component_label)
+            ON ce.component_entity_id=b.component_entity_id
           JOIN science.evidence_component_msc_stellar_parameter_projection sp
             ON sp.component_entity_id=ce.component_entity_id
            AND sp.projection_status='eligible_for_quantity_selection'
            AND sp.quantity_key='mass' AND sp.normalized_value>0
-          WHERE l.node_kind='inferred_star_leaf'
         ), ranked AS (
           SELECT *,row_number() OVER (PARTITION BY hierarchy_node_key
             ORDER BY evidence_rank,confidence_score DESC,selected_fact_id,classification_value) rn
@@ -954,6 +1080,8 @@ def create_indexes(con: duckdb.DuckDBPyConnection) -> None:
         "CREATE INDEX hierarchy_child_idx ON system_hierarchy_edges(child_component_key)",
         "CREATE UNIQUE INDEX leaf_hierarchy_uq ON stellar_leaf_display_classifications(hierarchy_node_key)",
         "CREATE INDEX leaf_system_idx ON stellar_leaf_display_classifications(system_id)",
+        "CREATE UNIQUE INDEX msc_runtime_binding_component_uq ON msc_runtime_leaf_bindings(component_entity_id)",
+        "CREATE INDEX msc_runtime_binding_leaf_idx ON msc_runtime_leaf_bindings(hierarchy_node_key)",
         "CREATE UNIQUE INDEX selected_stellar_parameters_star_uq ON selected_stellar_parameters(star_id)",
         "CREATE UNIQUE INDEX selected_display_star_uq ON selected_stellar_display_classifications(star_id)",
         "CREATE UNIQUE INDEX selected_planet_parameters_planet_uq ON selected_planet_parameters(planet_id)",
@@ -974,6 +1102,7 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         for table in (
             "component_entities", "system_hierarchy_edges",
             "stellar_leaf_display_classifications", "selected_stellar_parameters",
+            "msc_runtime_leaf_bindings",
             "selected_stellar_display_classifications", "selected_planet_parameters",
             "selected_stellar_variability", "wise_sources", "orbit_edges",
             "orbital_solutions", "sol_small_body_objects", "sol_artificial_objects",
@@ -1015,6 +1144,26 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         "duplicate_leaf_keys": scalar(
             "SELECT count(*) FROM (SELECT hierarchy_node_key FROM stellar_leaf_display_classifications "
             "GROUP BY 1 HAVING count(*)<>1)"
+        ),
+        "msc_runtime_binding_inventory_delta": abs(
+            counts["msc_runtime_leaf_bindings"]
+            - scalar("SELECT count(*) FROM science.evidence_component_msc_component_entities")
+        ),
+        "duplicate_msc_runtime_component_bindings": scalar(
+            "SELECT count(*) FROM (SELECT component_entity_id FROM msc_runtime_leaf_bindings "
+            "GROUP BY 1 HAVING count(*)<>1)"
+        ),
+        "accepted_msc_runtime_bindings_without_leaf": scalar(
+            "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_status='accepted' "
+            "AND (hierarchy_node_key IS NULL OR runtime_component_key IS NULL "
+            "OR runtime_system_stable_object_key IS NULL)"
+        ),
+        "unaccepted_msc_runtime_bindings_with_leaf": scalar(
+            "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_status<>'accepted' "
+            "AND (hierarchy_node_key IS NOT NULL OR runtime_component_key IS NOT NULL)"
+        ),
+        "msc_runtime_containment_promotions": scalar(
+            "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE canonical_containment"
         ),
         "selected_stellar_inventory_delta": abs(
             counts["selected_stellar_parameters"] - scalar("SELECT count(*) FROM core.stars")
@@ -1276,7 +1425,7 @@ def compile_runtime_arm(
             "determinism": "logical_tables",
         }
         manifest = {
-            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v4",
+            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v5",
             "build_id": build_id,
             "status": "pass",
             "generated_at": utc_now(),

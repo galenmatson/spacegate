@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v4",
-  "policy_version": "2026-07-23.e7-clean-runtime-arm.4",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v4",
+  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v5",
+  "policy_version": "2026-07-23.e7-clean-runtime-arm.7",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v6",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,
@@ -12,14 +12,14 @@
   },
   "inputs": {
     "clean_runtime_core": {
-      "build_id": "92da8d31dc0e7dbd4d4d70a5",
-      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5",
-      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224"
+      "build_id": "1a3e15f2620f877881988bdc",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/1a3e15f2620f877881988bdc",
+      "manifest_sha256": "06d54bfc4cf0b3632e18428c5b89817b32e64cb5431439ec7956934bcdf1e336"
     },
     "clean_science": {
-      "build_id": "7c27f1595c69278b8d55c9e4",
-      "relative_path": "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4",
-      "manifest_sha256": "9741a4480ac9b474742644e58d66e93a2ed2476880411cbc0ee68e7da706e79b"
+      "build_id": "90c218f01cbbb1aececbfd56",
+      "relative_path": "derived/evidence_lake_v2/clean_science/90c218f01cbbb1aececbfd56",
+      "manifest_sha256": "a838f22c2bb97845de5e100ab205312c4bca710d31379aca68ac965b4e46d90f"
     },
     "clean_wise": {
       "build_id": "ec8e218402c3a4a3b55b2811",
@@ -100,7 +100,7 @@
   ],
   "runtime_graph_status": {
     "component_containment": "implemented_from_canonical_hierarchy",
-    "stellar_leaf_classification": "implemented_from_selected_science_and_scoped_msc_evidence",
+    "stellar_leaf_classification": "implemented_from_selected_science_and_release_scoped_component_evidence",
     "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_and_exact_endpoint_bridge",
     "solar_minor_body_projection": "implemented_from_permanent_solar_identity_and_selected_runtime_evidence",
     "tess_candidate_compatibility": "implemented_from_clean_key_rebound_selected_tess_evidence"

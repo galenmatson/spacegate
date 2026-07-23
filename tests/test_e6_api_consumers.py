@@ -9,7 +9,38 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "srv" / "api"))
 
-from app.queries import _enrich_hierarchy_star_nodes  # noqa: E402
+from app.queries import (  # noqa: E402
+    _enrich_hierarchy_star_nodes,
+    _normalize_hierarchy_self_star_counts,
+)
+
+
+def test_hierarchy_star_counts_do_not_count_decomposed_catalog_container() -> None:
+    node_map = {
+        "root": {"component_family": "system", "component_type": "system", "node_kind": "system"},
+        "catalog-star": {"component_family": "star", "component_type": "star", "node_kind": "star"},
+        "leaf-a": {"component_family": "star", "component_type": "star", "node_kind": "source_star_leaf"},
+        "leaf-b": {"component_family": "star", "component_type": "star", "node_kind": "inferred_star_leaf"},
+        "brown-dwarf": {
+            "component_family": "star",
+            "component_type": "brown_dwarf",
+            "node_kind": "source_star_leaf",
+        },
+        "ordinary-star": {"component_family": "star", "component_type": "star", "node_kind": "star"},
+    }
+    children_map = {
+        "root": ["catalog-star", "ordinary-star", "brown-dwarf"],
+        "catalog-star": ["leaf-a", "leaf-b"],
+    }
+
+    _normalize_hierarchy_self_star_counts(node_map, children_map)
+
+    assert node_map["root"]["self_star_count"] == 0
+    assert node_map["catalog-star"]["self_star_count"] == 0
+    assert node_map["leaf-a"]["self_star_count"] == 1
+    assert node_map["leaf-b"]["self_star_count"] == 1
+    assert node_map["brown-dwarf"]["self_star_count"] == 0
+    assert node_map["ordinary-star"]["self_star_count"] == 1
 
 
 def test_hierarchy_quick_facts_prefer_e6_selected_parameters(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_science_policy.v1",
-  "policy_version": "2026-07-22.e7-clean-science.2",
-  "compiler_version": "e7_clean_science_compiler_v1",
+  "policy_version": "2026-07-23.e7-clean-science.4",
+  "compiler_version": "e7_clean_science_compiler_v2",
   "foundation": {
     "build_id": "9c2d08086275ead386f71bf7",
     "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
@@ -14,7 +14,7 @@
     "copy_all_domain_projection_tables": true
   },
   "selected_artifacts": [
-    {"family":"selected_facts","build_id":"33006bde9bedd1fb365238b5","database":"selected_facts.duckdb","arm_prefix":"fact","acceptance_mode":"report_status_pass"},
+    {"family":"selected_facts","build_id":"5d9ec188dc2aab4c19439b89","database":"selected_facts.duckdb","arm_prefix":"fact","acceptance_mode":"report_status_pass"},
     {"family":"selected_relations","build_id":"c59bf6664db0b60960dc36a1","database":"selected_relations.duckdb","arm_prefix":"relation","acceptance_mode":"legacy_zero_verification"},
     {"family":"selected_components","build_id":"67fea5f99500b57419ebdeb0","database":"selected_components.duckdb","arm_prefix":"component","acceptance_mode":"legacy_zero_verification"},
     {"family":"selected_clusters","build_id":"a6169c9ec351db81104e8518","database":"selected_clusters.duckdb","arm_prefix":"cluster","acceptance_mode":"top_level_status_pass"},
@@ -29,6 +29,19 @@
     "source_parameter_set_preselections",
     "selected_fact_derivations"
   ],
+  "classification_evidence_sources": {
+    "white_dwarf_catalog_applicability": {
+      "source_id": "compact.gaia_edr3_white_dwarf",
+      "quantity_key": "teff_k",
+      "fact_status": "source_selected",
+      "classification_value": "WD",
+      "classification_status": "source",
+      "evidence_basis": "selected_white_dwarf_catalog_applicability",
+      "confidence_score": 0.95,
+      "candidate_count": 164425,
+      "selected_without_higher_direct_classification": 78157
+    }
+  },
   "star_projection_groups": [
     {
       "table": "selected_stellar_astrometry",

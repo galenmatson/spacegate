@@ -8,12 +8,56 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 
 from app.main import (  # noqa: E402
+    _is_planetary_orbit_relation,
     _overlay_stellar_leaf_classifications,
+    _planet_orbit_solutions_by_stable_key,
     _stellar_leaf_classification_lookup,
 )
 
 
 class StellarLeafOverlayTests(unittest.TestCase):
+    def test_planet_orbit_lookup_accepts_legacy_and_evidence_lake_tokens(self) -> None:
+        arm = {
+            "orbit_edges": {
+                "items": [
+                    {
+                        "orbit_edge_id": 1,
+                        "relation_kind": "planetary_orbit",
+                        "secondary_component_key": "comp:planet:legacy:planet",
+                    },
+                    {
+                        "orbit_edge_id": 2,
+                        "relation_kind": "planet",
+                        "secondary_component_key": "comp:planet:canon:planet:nasa_source:4",
+                    },
+                    {
+                        "orbit_edge_id": 3,
+                        "relation_kind": "satellite",
+                        "secondary_component_key": "comp:planet:not-a-canonical-planet",
+                    },
+                ]
+            },
+            "orbital_solutions": {
+                "items": [
+                    {"orbit_edge_id": 1, "solution_rank": 1, "period_days": 10.0},
+                    {"orbit_edge_id": 2, "solution_rank": 1, "period_days": 365.25},
+                    {"orbit_edge_id": 3, "solution_rank": 1, "period_days": 27.0},
+                ]
+            },
+        }
+
+        lookup = _planet_orbit_solutions_by_stable_key(arm)
+
+        self.assertEqual(lookup["legacy:planet"]["period_days"], 10.0)
+        self.assertEqual(lookup["canon:planet:nasa_source:4"]["period_days"], 365.25)
+        self.assertNotIn("not-a-canonical-planet", lookup)
+
+    def test_planetary_relation_vocabulary_is_bounded(self) -> None:
+        self.assertTrue(_is_planetary_orbit_relation("planetary_orbit"))
+        self.assertTrue(_is_planetary_orbit_relation("planet"))
+        self.assertFalse(_is_planetary_orbit_relation("satellite"))
+        self.assertFalse(_is_planetary_orbit_relation("source_elementary_binary"))
+
     def test_lookup_accepts_canonical_and_evidence_component_keys(self) -> None:
         row = {
             "hierarchy_node_key": "canon:star:test",

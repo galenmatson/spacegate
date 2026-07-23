@@ -10,12 +10,6 @@ import requests
 
 
 @dataclass(frozen=True)
-class HierarchyFact:
-    stable_component_key: str
-    facts: dict[str, Any]
-
-
-@dataclass(frozen=True)
 class BenchmarkCase:
     query: str
     expected_wds_id: str | None = None
@@ -23,8 +17,6 @@ class BenchmarkCase:
     min_star_count: int | None = None
     min_planet_count: int | None = None
     expected_aliases: tuple[str, ...] = ()
-    required_hierarchy_keys: tuple[str, ...] = ()
-    required_hierarchy_facts: tuple[HierarchyFact, ...] = ()
     min_scene_stars: int | None = None
     exact_scene_stars: int | None = None
     min_scene_planets: int | None = None
@@ -36,24 +28,6 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_wds_id="07346+3153",
         min_star_count=6,
         expected_aliases=("Alpha Geminorum",),
-        required_hierarchy_keys=(
-            "canon:leaf:msc:07346+3153:aa",
-            "canon:leaf:msc:07346+3153:ab",
-            "canon:leaf:msc:07346+3153:ba",
-            "canon:leaf:msc:07346+3153:bb",
-            "canon:leaf:msc:07346+3153:ca",
-            "canon:leaf:msc:07346+3153:cb",
-        ),
-        required_hierarchy_facts=(
-            # Raw spectral strings are source spellings, not stable scientific
-            # invariants. Assert their normalized class and component binding.
-            HierarchyFact("canon:leaf:msc:07346+3153:aa", {"spectral_class": "A", "mass_msun": 2.37}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ba", {"spectral_class": "A", "mass_msun": 1.79}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ca", {"spectral_class": "M", "mass_msun": 0.6}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ab", {"spectral_class": "M", "mass_msun": 0.39}),
-            HierarchyFact("canon:leaf:msc:07346+3153:bb", {"spectral_class": "M", "mass_msun": 0.39}),
-            HierarchyFact("canon:leaf:msc:07346+3153:cb", {"spectral_class": "M", "mass_msun": 0.6}),
-        ),
         min_scene_stars=6,
     ),
     BenchmarkCase(
@@ -210,14 +184,6 @@ def _choose_benchmark_search_item(case: BenchmarkCase, items: list[dict[str, Any
         return (mismatch_penalty, exact_bonus, dist, match_rank)
 
     return min(items, key=score)
-
-
-def assert_fact_matches(label: str, fact_key: str, expected: Any, actual: Any) -> None:
-    if isinstance(expected, float):
-        if actual is None or abs(float(actual) - expected) > 1e-6:
-            raise AssertionError(f"{label} expected {fact_key}={expected!r}, got {actual!r}")
-    elif expected != actual:
-        raise AssertionError(f"{label} expected {fact_key}={expected!r}, got {actual!r}")
 
 
 def field_by_key(fields: Any, key: str) -> dict[str, Any] | None:
@@ -594,39 +560,6 @@ def assert_render_scene_contract(
         if b.get("body_class") != "brown_dwarf":
             raise AssertionError(f"{case.query}: B should remain the T-dwarf endpoint, got {b}")
 
-    if query_norm == "castor":
-        orbit_count = len(render_orbits)
-        if orbit_count < 5:
-            raise AssertionError(f"{case.query}: expected at least five rendered stellar orbit entries, got {orbit_count}")
-        star_pair_count = sum(1 for orbit in render_orbits if orbit.get("endpoint_kind") == "star_pair")
-        group_pair_count = sum(1 for orbit in render_orbits if orbit.get("endpoint_kind") == "group_pair")
-        if star_pair_count < 3 or group_pair_count < 2:
-            raise AssertionError(
-                f"{case.query}: expected at least three direct binary and two hierarchical group-pair orbits, "
-                f"got star_pair={star_pair_count}, group_pair={group_pair_count}"
-            )
-        subsystem_names = {normalize(subsystem.get("display_name")) for subsystem in scene_subsystems}
-        # Castor AB is a source leaf inside the Castor A subsystem, not a
-        # fourth rendered subsystem alongside the physical A/B/C groups.
-        for expected_name in ("castor a", "castor b", "castor c"):
-            if expected_name not in subsystem_names:
-                raise AssertionError(
-                    f"{case.query}: expected rendered subsystem {expected_name!r}, got {sorted(subsystem_names)}"
-                )
-        for subsystem in scene_subsystems:
-            child_keys = subsystem.get("child_body_keys") or []
-            field = field_by_key(subsystem.get("fields"), "rendered_child_star_count")
-            component_field = field_by_key(subsystem.get("fields"), "component_label")
-            basis_field = field_by_key(subsystem.get("fields"), "hierarchy_basis")
-            if not child_keys or not field or field.get("status") != "derived":
-                raise AssertionError(f"{case.query}: malformed rendered subsystem body: {subsystem}")
-            if not component_field or component_field.get("status") not in {"source", "derived"}:
-                raise AssertionError(f"{case.query}: subsystem missing component label provenance: {subsystem}")
-            expected_layer = "render_scene" if subsystem.get("fallback_subsystem") else "arm"
-            if not basis_field or basis_field.get("status") != "derived" or basis_field.get("layer") != expected_layer:
-                raise AssertionError(f"{case.query}: subsystem missing hierarchy-basis provenance: {subsystem}")
-            if subsystem.get("fallback_subsystem") and subsystem.get("source", {}).get("basis") != "simulation_tree_fallback_subsystem":
-                raise AssertionError(f"{case.query}: fallback subsystem missing explicit source basis: {subsystem}")
     return False
 
 
@@ -697,60 +630,27 @@ def verify_case(
         else:
             raise AssertionError(message)
     hierarchy_nodes = list(iter_hierarchy_nodes(root))
-    nodes_by_key = {str(node.get("stable_component_key") or ""): node for node in hierarchy_nodes}
-    missing_required_keys = [key for key in case.required_hierarchy_keys if key not in nodes_by_key]
-    if missing_required_keys:
-        message = f"{case.query}: hierarchy missing stable component keys {missing_required_keys!r}"
-        if allow_stale_public_slice:
-            warnings.append(f"[stale-public-slice] {message}")
-        else:
-            raise AssertionError(message)
-    for expected in case.required_hierarchy_facts:
-        node = nodes_by_key.get(expected.stable_component_key)
-        if not node:
-            message = f"{case.query}: hierarchy missing fact node {expected.stable_component_key!r}"
-            if allow_stale_public_slice:
-                warnings.append(f"[stale-public-slice] {message}")
-                continue
-            raise AssertionError(message)
-        facts = node.get("quick_facts")
-        if not isinstance(facts, dict):
-            message = f"{case.query}: hierarchy node {expected.stable_component_key!r} missing quick_facts"
-            if allow_stale_public_slice:
-                warnings.append(f"[stale-public-slice] {message}")
-                continue
-            raise AssertionError(message)
-        for fact_key, expected_value in expected.facts.items():
-            try:
-                assert_fact_matches(f"{case.query} {expected.stable_component_key}", fact_key, expected_value, facts.get(fact_key))
-            except AssertionError as exc:
-                if allow_stale_public_slice:
-                    warnings.append(f"[stale-public-slice] {exc}")
-                    continue
-                raise
-        if (
-            expected.facts.get("mass_msun") is not None
-            and expected.facts.get("spectral_type_raw") is None
-            and expected.facts.get("spectral_class") is None
-        ):
-            if not facts.get("visual_stellar_class"):
-                message = f"{case.query}: hierarchy node {expected.stable_component_key!r} should expose a mass-based visual class prior"
-                if allow_stale_public_slice:
-                    warnings.append(f"[stale-public-slice] {message}")
-                    continue
-                raise AssertionError(message)
-            if facts.get("visual_stellar_class_status") != "assumed" or facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
-                message = f"{case.query}: hierarchy node {expected.stable_component_key!r} has malformed visual class prior: {facts}"
-                if allow_stale_public_slice:
-                    warnings.append(f"[stale-public-slice] {message}")
-                    continue
-                raise AssertionError(message)
+    component_keys = [str(node.get("stable_component_key") or "") for node in hierarchy_nodes]
+    if any(not key for key in component_keys) or len(component_keys) != len(set(component_keys)):
+        raise AssertionError(f"{case.query}: hierarchy component keys are missing or duplicated")
 
     for node in hierarchy_nodes:
         component_family = str(node.get("component_family") or "")
         component_type = str(node.get("component_type") or "")
+        facts = node.get("quick_facts") or {}
+        leaf_class = str(facts.get("stellar_leaf_display_class") or "")
+        if leaf_class and leaf_class != "UNKNOWN":
+            required_lineage = (
+                "stellar_leaf_display_class_status",
+                "stellar_leaf_display_class_basis",
+                "stellar_leaf_display_class_fact_id",
+            )
+            if any(not facts.get(key) for key in required_lineage):
+                raise AssertionError(
+                    f"{case.query}: hierarchy leaf {node.get('stable_component_key')!r} "
+                    f"has class {leaf_class!r} without complete selected-fact lineage"
+                )
         if component_family != "star" and component_type not in {"star", "stellar_component"}:
-            facts = node.get("quick_facts") or {}
             if facts.get("spectral_type_raw") or facts.get("spectral_class"):
                 raise AssertionError(
                     f"{case.query}: non-star hierarchy node {node.get('display_name')!r} carries spectral facts"

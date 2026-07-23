@@ -2881,24 +2881,7 @@ def _fetch_canonical_hierarchy_for_system(
                 node["core_object_type"] = object_type
                 node["core_object_id"] = id_by_key[canonical_key]
 
-    for node_key, node in node_map.items():
-        if _clean_name(node.get("component_family")).lower() != "star":
-            node["self_star_count"] = 0
-            continue
-        if _clean_name(node.get("component_type")).lower() in {"brown_dwarf", "substellar"}:
-            node["self_star_count"] = 0
-            continue
-        if node.get("node_kind") == "inferred_star_leaf":
-            node["self_star_count"] = 1
-            continue
-        child_keys = children_map.get(node_key, [])
-        has_leaf_children = any(
-            _clean_name(node_map.get(child_key, {}).get("node_kind")).lower() == "inferred_star_leaf"
-            and _clean_name(node_map.get(child_key, {}).get("component_type")).lower()
-            not in {"brown_dwarf", "substellar"}
-            for child_key in child_keys
-        )
-        node["self_star_count"] = 0 if has_leaf_children else 1
+    _normalize_hierarchy_self_star_counts(node_map, children_map)
 
     arm_attached = _attach_side_db(con, arm_db_path, alias="arm_db")
     _enrich_hierarchy_star_nodes(
@@ -3201,6 +3184,7 @@ def _fetch_arm_hierarchy_for_system(
                 secondary_node["orbit"] = orbit_payload
                 secondary_node["orbit_relation_kind"] = relation or None
 
+    _normalize_hierarchy_self_star_counts(node_map, children_map)
     _enrich_hierarchy_star_nodes(
         con,
         node_map=node_map,
@@ -3225,6 +3209,32 @@ def _fetch_arm_hierarchy_for_system(
         "preferred_root_key": preferred_root_key,
         "root_keys_considered": candidate_keys,
     }
+
+
+def _normalize_hierarchy_self_star_counts(
+    node_map: Dict[str, Dict[str, Any]],
+    children_map: Dict[str, List[str]],
+) -> None:
+    """Count physical stellar leaves without double-counting their catalog containers."""
+    leaf_kinds = {"inferred_star_leaf", "source_star_leaf"}
+    nonstellar_types = {"brown_dwarf", "substellar"}
+    for node_key, node in node_map.items():
+        if _clean_name(node.get("component_family")).lower() != "star":
+            node["self_star_count"] = 0
+            continue
+        if _clean_name(node.get("component_type")).lower() in nonstellar_types:
+            node["self_star_count"] = 0
+            continue
+        if _clean_name(node.get("node_kind")).lower() in leaf_kinds:
+            node["self_star_count"] = 1
+            continue
+        has_stellar_leaf_children = any(
+            _clean_name(node_map.get(child_key, {}).get("node_kind")).lower() in leaf_kinds
+            and _clean_name(node_map.get(child_key, {}).get("component_type")).lower()
+            not in nonstellar_types
+            for child_key in children_map.get(node_key, [])
+        )
+        node["self_star_count"] = 0 if has_stellar_leaf_children else 1
 
 
 def _hierarchy_payload_star_count(payload: Optional[Dict[str, Any]]) -> int:

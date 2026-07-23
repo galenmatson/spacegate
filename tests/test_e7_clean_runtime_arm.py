@@ -158,8 +158,11 @@ def test_component_graph_projects_each_node_kind_without_cross_product_joins() -
            'G2V',0.99,'selected_fact','fact-1',1,'[\"G\"]',1,'[\"G\"]',false,false,'v1');
         CREATE TABLE science.evidence_component_msc_component_entities(
           component_entity_id VARCHAR,source_id VARCHAR,release_id VARCHAR,
-          binding_status VARCHAR,canonical_system_stable_object_key VARCHAR,
-          component_label_normalized VARCHAR
+          evidence_build_id VARCHAR,source_component_raw VARCHAR,wds_id_raw VARCHAR,
+          component_label_raw VARCHAR,component_label_normalized VARCHAR,
+          system_binding_id VARCHAR,canonical_system_stable_object_key VARCHAR,
+          source_component_key VARCHAR,binding_status VARCHAR,binding_method VARCHAR,
+          binding_reason VARCHAR,scope_semantics VARCHAR,policy_version VARCHAR
         );
         CREATE TABLE science.evidence_component_msc_classification_projection(
           component_entity_id VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
@@ -169,13 +172,33 @@ def test_component_graph_projects_each_node_kind_without_cross_product_joins() -
           component_entity_id VARCHAR,projection_status VARCHAR,quantity_key VARCHAR,
           normalized_value DOUBLE,evidence_id VARCHAR,value_raw VARCHAR
         );
+        CREATE TABLE science.evidence_component_sb9_classification_projection(
+          target_key VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
+          classification_normalized VARCHAR,evidence_id VARCHAR
+        );
+        CREATE TABLE science.evidence_component_debcat_classification_projection(
+          target_key VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
+          classification_normalized VARCHAR,evidence_id VARCHAR
+        );
+        INSERT INTO science.evidence_component_msc_component_entities VALUES
+          ('msc-b','multiplicity.msc','newmsc-test','e5-test','12345+6789:B',
+           '12345+6789','B','B','system-binding','canon:system:wds:12345+6789',
+           'comp:msc:newmsc-test:12345+6789:B','accepted',
+           'exact_canonical_wds_system_identifier','test accepted system binding',
+           'source-defined component; not canonical containment','test-policy');
+        INSERT INTO science.evidence_component_msc_classification_projection VALUES
+          ('msc-b','eligible_for_quantity_selection','M3V','M','msc-class-b');
         """
     )
     COMPILER.create_leaf_classifications(con, "test-build")
     rows = con.execute(
         "SELECT hierarchy_node_key,classification_value FROM stellar_leaf_display_classifications ORDER BY 1"
     ).fetchall()
-    assert rows == [("canon:leaf:msc:12345+6789:b", "UNKNOWN")]
+    assert rows == [("canon:leaf:msc:12345+6789:b", "M")]
+    assert con.execute(
+        "SELECT runtime_binding_status,runtime_binding_reason,canonical_containment "
+        "FROM msc_runtime_leaf_bindings WHERE component_entity_id='msc-b'"
+    ).fetchone() == ("accepted", "exact_msc_hierarchy_leaf_key", False)
 
 
 def test_solar_runtime_projection_preserves_compatibility_and_hyperbolic_null_period() -> None:

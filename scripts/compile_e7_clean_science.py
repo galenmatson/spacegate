@@ -155,6 +155,22 @@ def validate_policy(policy: dict[str, Any]) -> None:
         star_projected | planet_projected
     ):
         raise ValueError("invalid selected quantity type contract")
+    wd = (policy.get("classification_evidence_sources") or {}).get(
+        "white_dwarf_catalog_applicability"
+    )
+    expected_wd = {
+        "source_id": "compact.gaia_edr3_white_dwarf",
+        "quantity_key": "teff_k",
+        "fact_status": "source_selected",
+        "classification_value": "WD",
+        "classification_status": "source",
+        "evidence_basis": "selected_white_dwarf_catalog_applicability",
+        "confidence_score": 0.95,
+        "candidate_count": 164425,
+        "selected_without_higher_direct_classification": 78157,
+    }
+    if wd != expected_wd:
+        raise ValueError("invalid white-dwarf classification evidence contract")
 
 
 def table_names(con: duckdb.DuckDBPyConnection, alias: str) -> list[str]:
@@ -222,10 +238,17 @@ def materialize_selected_parameters(con: duckdb.DuckDBPyConnection) -> int:
     return int(con.execute("SELECT count(*) FROM selected_stellar_parameters").fetchone()[0])
 
 
-def materialize_display_classes(con: duckdb.DuckDBPyConnection, build_id: str) -> int:
+def materialize_display_classes(
+    con: duckdb.DuckDBPyConnection,
+    build_id: str,
+    selected_alias: str,
+    classification_sources: dict[str, Any],
+) -> int:
     optical = spectral_class_sql("c.spectral_type_optical", "NULL", "'star'")
     infrared = spectral_class_sql("c.spectral_type_infrared", "NULL", "'star'")
     simbad = spectral_class_sql("c.spectral_type_simbad", "NULL", "'star'")
+    selected_table = f"{sql_identifier(selected_alias)}.selected_facts"
+    wd = classification_sources["white_dwarf_catalog_applicability"]
     con.execute(
         f"""
         CREATE TABLE selected_stellar_display_classifications AS
@@ -249,6 +272,20 @@ def materialize_display_classes(con: duckdb.DuckDBPyConnection, build_id: str) -
                  c.spectral_type_simbad,0.94
           FROM core.stars s JOIN selected_stellar_classification c USING(star_id)
           WHERE {simbad} IS NOT NULL
+          UNION ALL
+          SELECT s.star_id,s.system_id,s.stable_object_key,20,
+                 {sql_literal(wd['classification_value'])},
+                 {sql_literal(wd['classification_status'])},
+                 {sql_literal(wd['evidence_basis'])},f.selected_fact_id,
+                 concat(f.source_id,':Pwd>0.75'),
+                 {float(wd['confidence_score'])}::DOUBLE
+          FROM core.stars s
+          JOIN {selected_table} f
+            ON f.object_type='star'
+           AND f.stable_object_key=s.stable_object_key
+           AND f.source_id={sql_literal(wd['source_id'])}
+           AND f.quantity_key={sql_literal(wd['quantity_key'])}
+           AND f.fact_status={sql_literal(wd['fact_status'])}
           UNION ALL
           SELECT s.star_id,s.system_id,s.stable_object_key,30,
                  CASE WHEN p.teff_k>=30000 THEN 'O' WHEN p.teff_k>=10000 THEN 'B'
@@ -410,7 +447,15 @@ def compile_science(
             ),
         )
         parameter_count = timing.run("materialize_selected_stellar_parameters", lambda: materialize_selected_parameters(con))
-        display_count = timing.run("materialize_selected_display_classifications", lambda: materialize_display_classes(con, build_id))
+        display_count = timing.run(
+            "materialize_selected_display_classifications",
+            lambda: materialize_display_classes(
+                con,
+                build_id,
+                selected_alias,
+                policy["classification_evidence_sources"],
+            ),
+        )
         projection_counts["selected_stellar_parameters"] = parameter_count
         projection_counts["selected_stellar_display_classifications"] = display_count
         timing.run("shared_consumer_indexes", lambda: con.execute(
@@ -449,6 +494,23 @@ def compile_science(
             "selected_display_without_fact": int(con.execute("SELECT count(*) FROM selected_stellar_display_classifications WHERE classification_status<>'missing' AND selected_fact_id IS NULL").fetchone()[0]),
             "stability_classification_basis": int(con.execute("SELECT count(*) FROM selected_stellar_display_classifications WHERE lower(evidence_basis) LIKE '%stability%' OR lower(evidence_basis) LIKE '%core%fallback%'").fetchone()[0]),
             "unknown_selected_planet_keys": int(con.execute("SELECT count(*) FROM selected_planet_parameters p LEFT JOIN core.planets c USING(planet_id) WHERE c.planet_id IS NULL").fetchone()[0]),
+            "white_dwarf_catalog_candidate_delta": int(
+                con.execute(
+                    f"SELECT count(*) FROM {sql_identifier(selected_alias)}.selected_facts "
+                    "WHERE object_type='star' AND source_id=? AND quantity_key=? AND fact_status=?",
+                    [
+                        policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["source_id"],
+                        policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["quantity_key"],
+                        policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["fact_status"],
+                    ],
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["candidate_count"]),
+            "white_dwarf_catalog_selected_delta": int(
+                con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications WHERE evidence_basis=?",
+                    [policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["evidence_basis"]],
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["selected_without_higher_direct_classification"]),
         }
         if any(checks.values()):
             raise ValueError(f"clean science verification failed: {checks}")

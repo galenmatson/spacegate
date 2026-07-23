@@ -301,6 +301,76 @@ CPU work and which fluctuate with storage state.
 
 ## Current Optimization Candidates
 
+### Corrected Classification Cascade - 2026-07-23
+
+The classification A/B exposed missing release-scoped white-dwarf and multiple-
+component selection paths, so the clean science, runtime CORE, and runtime ARM
+stages were rerun under corrected general policies. These are required scientific
+rebuilds, not performance experiments, and their accepted and intermediate
+timings remain part of the end-to-end cost record.
+
+| Step | Build | Wall | Peak RSS | Result |
+|---|---|---:|---:|---|
+| Clean science compile | `90c218f01cbbb1aececbfd56` | 3:48.63 | 37.5 GiB | pass |
+| Clean science independent audit | same | 11.92s | not separately sampled | pass |
+| Clean science isolated reproduction | same | 4:02.97 | 37.3 GiB | pass |
+| Runtime CORE compile | `1a3e15f2620f877881988bdc` | 1:42.79 | 27.0 GiB | pass |
+| Runtime CORE independent audit | same | 7.7s | not separately sampled | pass |
+| Runtime CORE isolated reproduction | same | 1:34.70 | 27.3 GiB | pass |
+| Runtime ARM intermediate compile | `87080fbb6f2764743e3676ca` | 2:35.13 | 46.4 GiB | superseded after A/B |
+| Runtime ARM accepted compile | `63cd3372d4bc8d32841dd08c` | 2:42.76 | 45.8 GiB | pass |
+| Runtime ARM independent audit | same | 8.12s | not separately sampled | pass |
+| Runtime ARM isolated reproduction | same | 2:58.53 | 46.4 GiB | pass |
+
+No run swapped. Machine reports and GNU resource logs are retained under
+`/data/spacegate/reports/evidence_lake_v2/e7_clean_science_v4`,
+`e7_clean_runtime_core_v4`, `e7_clean_runtime_arm_v5`, and
+`e7_clean_runtime_arm_v6`.
+
+The accepted clean-science compiler accounts 228.16 internal seconds. Immutable
+input verification takes 54.68 seconds, product hashing 43.71, canonical Parquet
+export 37.30, and all scientific materialization and indexing 92.47. Integrity
+and export work therefore consumes 59.5% of this stage. The isolated rebuild
+reproduces every canonical Parquet hash exactly.
+
+The corrected CORE compiler accounts 102.61 internal seconds. Index creation is
+the largest single phase at 34.72 seconds in reproduction; stellar projection
+takes 9.81, Parquet export 10.59, identity projection 7.15, and selected-science
+verification 5.30. The accepted hierarchy is logically identical on rebuild and
+all byte-exact products match.
+
+The accepted ARM compiler accounts 162.54 internal seconds. Reproduction shows
+component graph construction at 10.57 seconds and the complete release-scoped
+leaf classification stage at 7.87 seconds. The broad selected-science copies and
+indexes still dominate. The intermediate build is retained because its A/B
+review reduced 5,938 old known-to-UNKNOWN leaf regressions to 1,549; the accepted
+policy then reduced the tail to 372 while preserving genuine case-sensitive
+component ambiguity rather than guessing.
+
+The next optimization work is ordered by measured return:
+
+1. Split clean science into content-addressed domain products. A classification-
+   only policy change currently rebuilds unchanged astrometry, physics,
+   photometry, and variability projections and then re-exports and re-hashes all
+   of them.
+2. Make runtime CORE and ARM manifest assemblies reference immutable scientific
+   shards, or reuse unchanged physical blocks. This removes repeated broad table
+   copies while preserving one atomic release identity, visible missing-artifact
+   failure, and rollback.
+3. Measure every CORE/ARM index against actual API, build, audit, and promotion
+   query plans. Build only proven runtime indexes before promotion; keep audit-
+   only indexes out of the deployable artifact when a logically identical scan
+   is cheaper.
+4. Add a content-addressed local attestation cache for iterative builds only.
+   Clean reproduction and promotion must continue to byte-hash all pinned inputs
+   and products.
+
+These experiments must compare logical table signatures, canonical Parquet
+hashes, independent verification, API latency, and rollback behavior. More
+threads are not the default remedy: the selected-fact compiler remains I/O- and
+spill-sensitive, and the accepted ARM run averaged only 273% CPU while writing
+about 12.9 GiB through the filesystem.
+
 1. Preserve the type-partitioned component graph and compare its exact logical
    output with the canonical hierarchy rather than returning to a multi-inventory
    join.

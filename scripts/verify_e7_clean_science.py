@@ -15,6 +15,7 @@ import duckdb
 
 
 DEFAULT_ROOT = Path("/mnt/space/spacegate/e7-clean-science")
+DEFAULT_POLICY = Path(__file__).resolve().parents[1] / "config/evidence_lake/e7_clean_science.json"
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -32,9 +33,10 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def verify(build_dir: Path) -> dict[str, Any]:
+def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     started = time.monotonic()
     manifest = load_object(build_dir / "manifest.json")
+    policy = load_object(policy_path)
     failures: dict[str, Any] = {}
     if manifest.get("status") != "pass":
         failures["manifest_status"] = manifest.get("status")
@@ -42,6 +44,17 @@ def verify(build_dir: Path) -> dict[str, Any]:
         failures["stability_databases_opened"] = manifest.get("stability_databases_opened")
     if manifest.get("stability_scientific_values_copied") is not False:
         failures["stability_values_copied"] = manifest.get("stability_scientific_values_copied")
+    if manifest.get("policy_sha256") != file_sha256(policy_path):
+        failures["policy_sha256"] = {
+            "expected": manifest.get("policy_sha256"),
+            "actual": file_sha256(policy_path),
+        }
+    manifest_verification = manifest.get("verification") or {}
+    nonzero_manifest_checks = {
+        key: value for key, value in manifest_verification.items() if value != 0
+    }
+    if nonzero_manifest_checks:
+        failures["manifest_verification"] = nonzero_manifest_checks
     product_failures: dict[str, Any] = {}
     for relative, expected in sorted((manifest.get("products") or {}).items()):
         path = build_dir / relative
@@ -81,6 +94,26 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "stability_basis": int(con.execute("SELECT count(*) FROM selected_stellar_display_classifications WHERE lower(evidence_basis) LIKE '%stability%' OR lower(evidence_basis) LIKE '%core%fallback%'").fetchone()[0]),
                 "metadata_stability_opened": int(con.execute("SELECT count(*) FROM build_metadata WHERE key='stability_database_opened' AND value<>'0'").fetchone()[0]),
             }
+            wd_contract = policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]
+            wd_selected = int(con.execute(
+                "SELECT count(*) FROM selected_stellar_display_classifications WHERE evidence_basis=?",
+                [wd_contract["evidence_basis"]],
+            ).fetchone()[0])
+            checks.update({
+                "white_dwarf_selected_count_delta": wd_selected
+                - int(wd_contract["selected_without_higher_direct_classification"]),
+                "white_dwarf_selected_contract_mismatch": int(con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications "
+                    "WHERE evidence_basis=? AND (classification_value<>? OR classification_status<>? "
+                    "OR selected_fact_id IS NULL OR source_value<>?)",
+                    [
+                        wd_contract["evidence_basis"],
+                        wd_contract["classification_value"],
+                        wd_contract["classification_status"],
+                        f"{wd_contract['source_id']}:Pwd>0.75",
+                    ],
+                ).fetchone()[0]),
+            })
             summaries = {
                 "display_classification_status": {
                     str(row[0]): int(row[1]) for row in con.execute(
@@ -115,9 +148,10 @@ def main() -> None:
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artifact-root",type=Path,default=DEFAULT_ROOT)
     parser.add_argument("--build-id",required=True)
+    parser.add_argument("--policy",type=Path,default=DEFAULT_POLICY)
     parser.add_argument("--report",type=Path)
     args=parser.parse_args()
-    report=verify(args.artifact_root.resolve()/args.build_id)
+    report=verify(args.artifact_root.resolve()/args.build_id,args.policy.resolve())
     rendered=json.dumps(report,indent=2,sort_keys=True)+"\n"
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)

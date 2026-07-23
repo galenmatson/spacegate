@@ -28,6 +28,66 @@ def test_policy_rejects_stability_fallback() -> None:
         compiler.validate_policy(policy)
 
 
+def test_white_dwarf_catalog_classification_precedes_visual_proxies() -> None:
+    policy = compiler.load_object(compiler.DEFAULT_POLICY)
+    con = __import__("duckdb").connect(":memory:")
+    con.execute("ATTACH ':memory:' AS core")
+    con.execute("ATTACH ':memory:' AS selected")
+    con.execute(
+        """
+        CREATE TABLE core.stars(
+          star_id HUGEINT,system_id HUGEINT,stable_object_key VARCHAR
+        );
+        CREATE TABLE selected_stellar_classification(
+          star_id HUGEINT,spectral_type_optical VARCHAR,
+          spectral_type_optical_fact_id VARCHAR,spectral_type_infrared VARCHAR,
+          spectral_type_infrared_fact_id VARCHAR,spectral_type_simbad VARCHAR,
+          spectral_type_simbad_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_physics(
+          star_id HUGEINT,teff_k DOUBLE,teff_k_fact_id VARCHAR,
+          mass_msun DOUBLE,mass_msun_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_photometry(
+          star_id HUGEINT,gaia_bp_rp_mag DOUBLE,gaia_bp_rp_mag_fact_id VARCHAR
+        );
+        CREATE TABLE selected.selected_facts(
+          selected_fact_id VARCHAR,object_type VARCHAR,stable_object_key VARCHAR,
+          source_id VARCHAR,quantity_key VARCHAR,fact_status VARCHAR
+        );
+        INSERT INTO core.stars VALUES
+          (1,10,'canon:star:wd'),(2,10,'canon:star:direct');
+        INSERT INTO selected_stellar_classification VALUES
+          (1,NULL,NULL,NULL,NULL,NULL,NULL),
+          (2,'G2V','direct-fact',NULL,NULL,NULL,NULL);
+        INSERT INTO selected_stellar_physics VALUES
+          (1,12000,'wd-fact',0.6,'wd-mass'),
+          (2,12000,'wd-fact-2',0.6,'wd-mass-2');
+        INSERT INTO selected_stellar_photometry VALUES
+          (1,0.0,'color-1'),(2,0.0,'color-2');
+        INSERT INTO selected.selected_facts VALUES
+          ('wd-fact','star','canon:star:wd','compact.gaia_edr3_white_dwarf','teff_k','source_selected'),
+          ('wd-fact-2','star','canon:star:direct','compact.gaia_edr3_white_dwarf','teff_k','source_selected');
+        """
+    )
+
+    compiler.materialize_display_classes(
+        con,
+        "test-build",
+        "selected",
+        policy["classification_evidence_sources"],
+    )
+
+    rows = con.execute(
+        "SELECT star_id,classification_value,evidence_basis,has_classification_conflict "
+        "FROM selected_stellar_display_classifications ORDER BY star_id"
+    ).fetchall()
+    assert rows == [
+        (1, "WD", "selected_white_dwarf_catalog_applicability", False),
+        (2, "G", "selected_spectral_type_optical", True),
+    ]
+
+
 def test_failed_phase_is_written_incrementally(tmp_path: Path) -> None:
     trace = tmp_path / "trace.json"
     timings = compiler.Timings(trace)
