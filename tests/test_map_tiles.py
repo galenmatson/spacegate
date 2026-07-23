@@ -19,9 +19,10 @@ from scripts.build_map_tiles import (
     performance_delta,
     performance_token,
     read_profile,
+    tile_query,
     tile_id,
 )
-from scripts.verify_map_tiles import read_tile
+from scripts.verify_map_tiles import expected_selected_leaf_badges, read_tile
 
 
 class MapTileContractTests(unittest.TestCase):
@@ -132,6 +133,38 @@ class MapTileContractTests(unittest.TestCase):
         self.assertEqual(profile["profile_version"], "1")
         self.assertEqual(profile["profile_hash"], "pinned-hash")
 
+    def test_tile_profile_accepts_clean_disc_lineage_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            core = root / "core.duckdb"
+            disc = root / "disc.duckdb"
+            con = duckdb.connect(str(core))
+            con.execute("CREATE TABLE build_metadata(key VARCHAR,value VARCHAR)")
+            con.execute("INSERT INTO build_metadata VALUES ('build_id','clean-build')")
+            con.close()
+            con = duckdb.connect(str(disc))
+            con.execute("CREATE TABLE build_metadata(key VARCHAR,value VARCHAR)")
+            con.execute(
+                "INSERT INTO build_metadata VALUES "
+                "('profile_id','clean'),"
+                "('profile_version','3'),"
+                "('profile_hash','clean-hash')"
+            )
+            con.execute(
+                "CREATE TABLE coolness_scores(profile_id VARCHAR,profile_version VARCHAR)"
+            )
+            con.execute("INSERT INTO coolness_scores VALUES ('clean','3')")
+            con.close()
+            con = duckdb.connect(str(core), read_only=True)
+            con.execute(f"ATTACH '{disc}' AS disc_db (READ_ONLY)")
+            try:
+                profile = read_profile(root / "state", con)
+            finally:
+                con.close()
+        self.assertEqual(profile["profile_id"], "clean")
+        self.assertEqual(profile["profile_version"], "3")
+        self.assertEqual(profile["profile_hash"], "clean-hash")
+
     def test_performance_phase_includes_resource_and_output_accounting(self) -> None:
         token = performance_token()
         phase = performance_delta(
@@ -146,6 +179,33 @@ class MapTileContractTests(unittest.TestCase):
         self.assertGreater(phase["peak_rss_kib"], 0)
         self.assertEqual(phase["output_bytes"], 42)
         self.assertEqual(phase["details"], {"radius_ly": 100})
+
+    def test_tile_query_uses_selected_leaf_mass_without_legacy_msc_table(self) -> None:
+        query = tile_query(1000)
+        self.assertNotIn("msc_system_details", query)
+        self.assertIn("selected_msc_component_mass_main_sequence_prior", query)
+        self.assertIn("try_cast(l.source_value AS DOUBLE)", query)
+
+    def test_verifier_uses_shared_leaf_badge_projection(self) -> None:
+        con = duckdb.connect()
+        con.execute("ATTACH ':memory:' AS arm_db")
+        con.execute(
+            "CREATE TABLE systems(system_id BIGINT,dist_ly DOUBLE,x_helio_ly DOUBLE,"
+            "y_helio_ly DOUBLE,z_helio_ly DOUBLE)"
+        )
+        con.execute("INSERT INTO systems VALUES (1,10,1,2,3)")
+        con.execute(
+            "CREATE TABLE arm_db.stellar_leaf_display_classifications("
+            "system_id BIGINT,classification_value VARCHAR,hierarchy_node_key VARCHAR)"
+        )
+        con.execute(
+            "INSERT INTO arm_db.stellar_leaf_display_classifications VALUES "
+            "(1,'M','leaf:b'),(1,'A','leaf:a')"
+        )
+        try:
+            self.assertEqual(expected_selected_leaf_badges(con, 100), {1: ["A", "M"]})
+        finally:
+            con.close()
 
 
 if __name__ == "__main__":

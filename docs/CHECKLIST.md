@@ -1656,6 +1656,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   component-scope v9 as `e6_cfcdf2d9add2cd7e2b96af68_shadow`; pass all 194
   independent checks, clean logical reproduction, selected-consumer A/B,
   parameter-loss accounting, and coolness A/B
+- [x] E5 v17 non-Gaia classification bridge checkpoint: retain the authoritative
+  SIMBAD OID-to-Gaia path, permit exact same-object HIP/HD fallback only when no
+  Gaia target claim exists, account all 435,079 attempted bindings, select
+  324,062 distinct classifications, and pass independent audit plus isolated
+  logical/partition reproduction for build `5d9ec188dc2aab4c19439b89`
 - [x] E6 corrected public/map checkpoint: preserve all 5,869,091 public systems
   in `e6_cfcdf2d9add2cd7e2b96af68_public` and pass exact 100/250/500/1,000-ly
   coverage, checksum, name, representative, and badge verification with zero

@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.selected_fact_policy.v1",
-  "policy_version": "2026-07-22.e5-selection.16",
-  "compiler_version": "selected_fact_compiler_v15",
+  "policy_version": "2026-07-23.e5-selection.17",
+  "compiler_version": "selected_fact_compiler_v16",
   "evidence_release_set_id": "5a1ccc6c67d9a27d4aeddc08",
   "evidence_release_set_sha256": "5a1ccc6c67d9a27d4aeddc084f3bbac51d50709171157903df3bf7b9bcba4fc2",
   "identity_graph_id": "c84389ad55f17081fff008b4",
@@ -641,7 +641,19 @@
         "bridge_match_namespace": "simbad_oid",
         "bridge_target_namespace": "gaia_dr3_source_id",
         "canonical_namespace": "gaia_dr3",
-        "normalization": "unsigned_decimal"
+        "normalization": "unsigned_decimal",
+        "fallback_identifier_namespaces": [
+          {
+            "claim_namespace": "hip_id",
+            "canonical_namespace": "hip",
+            "normalization": "unsigned_decimal"
+          },
+          {
+            "claim_namespace": "hd_id",
+            "canonical_namespace": "hd",
+            "normalization": "unsigned_decimal"
+          }
+        ]
       },
       "component_scope_policy": "require_null",
       "storage": "classification",
@@ -650,11 +662,11 @@
       "minimum_accepted_bindings": 320000,
       "minimum_selected_facts": 320000,
       "expected_binding_outcomes": {
-        "accepted": 321584,
-        "ambiguous": 8,
-        "missing": 113487
+        "accepted": 324277,
+        "ambiguous": 10,
+        "missing": 110792
       },
-      "expected_selected_facts": 321584,
+      "expected_selected_facts": 324062,
       "quantity_groups": [
         {
           "group_key": "stellar_simbad_spectral_classification",
@@ -668,7 +680,7 @@
             {
               "rank": 40,
               "method": "simbad_basic_source_classification",
-              "reason": "SIMBAD source-compiled spectral classification linked through a unique same-release SIMBAD object-to-Gaia DR3 bridge"
+              "reason": "SIMBAD source-compiled spectral classification linked through a unique same-release Gaia DR3 bridge, or through unique same-object HIP/HD evidence only when no Gaia bridge exists"
             }
           ]
         }
@@ -677,7 +689,7 @@
         {
           "channel": "stellar_classification_evidence.spectral_type",
           "disposition": "selected",
-          "reason": "Source-compiled spectral class is a lower-authority fallback only when its SIMBAD object has one release-native Gaia DR3 bridge target."
+          "reason": "Source-compiled spectral class is a lower-authority fallback when its SIMBAD object has one release-native Gaia DR3 bridge target, or a unique HIP/HD canonical target when no Gaia bridge exists."
         },
         {
           "channel": "identifier_claim_evidence",

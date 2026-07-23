@@ -1046,10 +1046,22 @@ def test_checked_in_selection_policy_is_valid_for_promoted_release_set() -> None
         if source["source_id"] == "identity.simbad"
     )
     assert simbad["binding"]["strategy"] == "release_identifier_bridge"
+    assert simbad["binding"]["fallback_identifier_namespaces"] == [
+        {
+            "claim_namespace": "hip_id",
+            "canonical_namespace": "hip",
+            "normalization": "unsigned_decimal",
+        },
+        {
+            "claim_namespace": "hd_id",
+            "canonical_namespace": "hd",
+            "normalization": "unsigned_decimal",
+        },
+    ]
     assert simbad["expected_binding_outcomes"] == {
-        "accepted": 321584,
-        "ambiguous": 8,
-        "missing": 113487,
+        "accepted": 324277,
+        "ambiguous": 10,
+        "missing": 110792,
     }
     wgsn = next(
         source
@@ -1342,6 +1354,137 @@ def test_one_source_can_select_star_and_planet_scopes_without_leakage(
         ("star", "star-key", "mass_msun"),
     ]
     con.close()
+
+
+def test_release_bridge_uses_same_object_identifier_fallback_only_without_primary(
+    tmp_path: Path,
+) -> None:
+    source_db = tmp_path / "source.duckdb"
+    identity_db = tmp_path / "identity.duckdb"
+    output_db = tmp_path / "selected.duckdb"
+
+    con = duckdb.connect(str(source_db))
+    con.execute(
+        """
+        CREATE TABLE source_records(source_record_id VARCHAR);
+        CREATE TABLE identifier_claim_evidence(
+          source_record_id VARCHAR,namespace VARCHAR,identifier_normalized VARCHAR,
+          claim_scope VARCHAR,component_scope VARCHAR
+        );
+        CREATE TABLE stellar_classification_evidence(
+          evidence_id VARCHAR,source_record_id VARCHAR,component_scope VARCHAR,
+          classification_scheme VARCHAR,classification_raw VARCHAR
+        );
+        INSERT INTO source_records VALUES ('basic-fallback'),('basic-primary'),
+          ('basic-conflict'),('ids-fallback'),('ids-primary'),('ids-conflict-a'),
+          ('ids-conflict-b');
+        INSERT INTO stellar_classification_evidence VALUES
+          ('class-fallback','basic-fallback',NULL,'spectral_type','A1V'),
+          ('class-primary','basic-primary',NULL,'spectral_type','F5V'),
+          ('class-conflict','basic-conflict',NULL,'spectral_type','K2V');
+        INSERT INTO identifier_claim_evidence VALUES
+          ('basic-fallback','simbad_oid','1','object',NULL),
+          ('ids-fallback','simbad_oid','1','object',NULL),
+          ('ids-fallback','hip_id','101','object',NULL),
+          ('basic-primary','simbad_oid','2','object',NULL),
+          ('ids-primary','simbad_oid','2','object',NULL),
+          ('ids-primary','gaia_dr3_source_id','202','object',NULL),
+          ('ids-primary','hip_id','102','object',NULL),
+          ('basic-conflict','simbad_oid','3','object',NULL),
+          ('ids-conflict-a','simbad_oid','3','object',NULL),
+          ('ids-conflict-a','hip_id','103','object',NULL),
+          ('ids-conflict-b','simbad_oid','3','object',NULL),
+          ('ids-conflict-b','hd_id','203','object',NULL);
+        """
+    )
+    con.close()
+
+    con = duckdb.connect(str(identity_db))
+    con.execute(
+        """
+        CREATE TABLE canonical_identifier_bindings(
+          namespace VARCHAR,id_value_norm VARCHAR,object_node_key VARCHAR,
+          stable_object_key VARCHAR,system_stable_object_key VARCHAR
+        );
+        CREATE TABLE canonical_object_nodes(
+          object_node_key VARCHAR,stable_object_key VARCHAR,
+          system_stable_object_key VARCHAR,object_type VARCHAR
+        );
+        INSERT INTO canonical_identifier_bindings VALUES
+          ('hip','101','fallback-node','fallback-star','fallback-system'),
+          ('gaia_dr3','202','primary-node','primary-star','primary-system'),
+          ('hip','102','wrong-node','wrong-star','wrong-system'),
+          ('hip','103','conflict-a','conflict-star-a','conflict-system'),
+          ('hd','203','conflict-b','conflict-star-b','conflict-system');
+        INSERT INTO canonical_object_nodes VALUES
+          ('fallback-node','fallback-star','fallback-system','star'),
+          ('primary-node','primary-star','primary-system','star'),
+          ('wrong-node','wrong-star','wrong-system','star'),
+          ('conflict-a','conflict-star-a','conflict-system','star'),
+          ('conflict-b','conflict-star-b','conflict-system','star');
+        """
+    )
+    con.close()
+
+    source = {
+        "source_id": "identity.test",
+        "object_type": "star",
+        "binding_scope": "star",
+        "binding": {
+            "strategy": "release_identifier_bridge",
+            "claim_namespace": "simbad_oid",
+            "bridge_match_namespace": "simbad_oid",
+            "bridge_target_namespace": "gaia_dr3_source_id",
+            "canonical_namespace": "gaia_dr3",
+            "normalization": "unsigned_decimal",
+            "fallback_identifier_namespaces": [
+                {
+                    "claim_namespace": "hip_id",
+                    "canonical_namespace": "hip",
+                    "normalization": "unsigned_decimal",
+                },
+                {
+                    "claim_namespace": "hd_id",
+                    "canonical_namespace": "hd",
+                    "normalization": "unsigned_decimal",
+                },
+            ],
+        },
+        "storage": "classification",
+        "classification_evidence_table": "stellar_classification_evidence",
+        "component_scope_policy": "require_null",
+        "quantity_groups": [
+            {
+                "group_key": "classification",
+                "quantities": {"spectral_type": {"quantity_key": "spectral_type_simbad", "numeric": False}},
+                "authorities": [{"rank": 40, "method": "test", "reason": "test"}],
+            }
+        ],
+        "_policy_version": "test",
+    }
+    con = duckdb.connect(str(output_db))
+    compiler.create_schema(con)
+    con.execute(f"ATTACH '{source_db}' AS source (READ_ONLY)")
+    con.execute(f"ATTACH '{identity_db}' AS identity (READ_ONLY)")
+    eligible, accepted = compiler.create_binding(
+        con,
+        source=source,
+        source_alias="source",
+        member={"build_id": "e4-test"},
+        release_id="r1",
+    )
+    rows = con.execute(
+        "SELECT binding_subject_id,stable_object_key,binding_status,binding_method "
+        "FROM evidence_object_bindings ORDER BY binding_subject_id"
+    ).fetchall()
+    con.close()
+
+    assert (eligible, accepted) == (3, 2)
+    assert rows == [
+        ("class-conflict", None, "ambiguous", "release_same_object_identifier_fallback"),
+        ("class-fallback", "fallback-star", "accepted", "release_same_object_identifier_fallback"),
+        ("class-primary", "primary-star", "accepted", "release_identifier_bridge"),
+    ]
 
 
 def test_policy_rejects_duplicate_selection_program_scope(tmp_path: Path) -> None:

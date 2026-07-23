@@ -583,6 +583,20 @@ def validate_policy(policy: dict[str, Any], release_manifest: dict[str, Any]) ->
                 != binding.get("bridge_match_namespace")
             ):
                 raise ValueError(f"invalid release identifier bridge: {source_id}")
+            fallback_namespaces = binding.get("fallback_identifier_namespaces") or []
+            if (
+                not isinstance(fallback_namespaces, list)
+                or any(
+                    not isinstance(row, dict)
+                    or not str(row.get("claim_namespace") or "").strip()
+                    or not str(row.get("canonical_namespace") or "").strip()
+                    or row.get("normalization") != "unsigned_decimal"
+                    for row in fallback_namespaces
+                )
+                or len({str(row["claim_namespace"]) for row in fallback_namespaces})
+                != len(fallback_namespaces)
+            ):
+                raise ValueError(f"invalid release bridge fallback identifiers: {source_id}")
         binding_applicability = source.get("binding_applicability")
         if binding_applicability is not None:
             conditions = binding_applicability.get("conditions") or []
@@ -1517,6 +1531,55 @@ def create_binding(
           WHERE TRUE {scope_candidate_filter}
         """
     elif strategy == "release_identifier_bridge":
+        fallback_namespaces = binding.get("fallback_identifier_namespaces") or []
+        fallback_sql = ""
+        if fallback_namespaces:
+            namespace_rows = ",".join(
+                "(" + ",".join(
+                    [
+                        sql_literal(str(row["claim_namespace"])),
+                        sql_literal(str(row["canonical_namespace"])),
+                    ]
+                ) + ")"
+                for row in fallback_namespaces
+            )
+            fallback_sql = f"""
+          UNION ALL
+          SELECT e.source_record_id, e.binding_subject_kind, e.binding_subject_id,
+                 b.object_node_key, b.stable_object_key, b.system_stable_object_key,
+                 o.object_type target_object_type,
+                 fallback_claim.claim_scope identifier_claim_scope,
+                 'release_same_object_identifier_fallback' AS binding_method,
+                 0::BIGINT bridge_target_claim_count
+          FROM eligible_{source_alias} e
+          JOIN {source_alias}.identifier_claim_evidence source_claim
+            ON source_claim.source_record_id = e.source_record_id
+           AND source_claim.namespace = {sql_literal(binding['claim_namespace'])}
+          JOIN {source_alias}.identifier_claim_evidence same_object
+            ON same_object.namespace = {sql_literal(binding['bridge_match_namespace'])}
+           AND same_object.identifier_normalized = source_claim.identifier_normalized
+          JOIN {source_alias}.identifier_claim_evidence fallback_claim
+            ON fallback_claim.source_record_id = same_object.source_record_id
+          JOIN (VALUES {namespace_rows}) AS fallback_map(
+            claim_namespace, canonical_namespace
+          ) ON fallback_map.claim_namespace = fallback_claim.namespace
+          JOIN identity.canonical_identifier_bindings b
+            ON b.namespace = fallback_map.canonical_namespace
+           AND b.id_value_norm = regexp_extract(
+                 fallback_claim.identifier_normalized, '([0-9]+)$', 1
+               )
+          JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
+          WHERE TRUE {scope_candidate_filter}
+            AND NOT EXISTS (
+              SELECT 1
+              FROM {source_alias}.identifier_claim_evidence primary_match
+              JOIN {source_alias}.identifier_claim_evidence primary_target
+                ON primary_target.source_record_id = primary_match.source_record_id
+               AND primary_target.namespace = {sql_literal(binding['bridge_target_namespace'])}
+              WHERE primary_match.namespace = {sql_literal(binding['bridge_match_namespace'])}
+                AND primary_match.identifier_normalized = source_claim.identifier_normalized
+            )
+            """
         candidate_sql = f"""
           WITH bridge_target_stats AS (
             SELECT bridge_match.identifier_normalized bridge_match_identifier,
@@ -1554,6 +1617,7 @@ def create_binding(
                )
           JOIN identity.canonical_object_nodes o ON o.object_node_key = b.object_node_key
           WHERE TRUE {scope_candidate_filter}
+          {fallback_sql}
         """
     else:
         if binding.get("normalization") != "spacegate_public_name_v1":
@@ -1643,7 +1707,10 @@ def create_binding(
         accepted_reason = "all matched source identifiers converge on one current canonical target"
     elif strategy == "release_identifier_bridge":
         configured_method = "release_identifier_bridge"
-        accepted_reason = "unique same-release bridge target and unique current canonical target"
+        accepted_reason = (
+            "unique authoritative same-object release identifier path and unique "
+            "current canonical target"
+        )
     else:
         configured_method = "canonical_unique_name"
         accepted_reason = "unique normalized current canonical name"

@@ -1198,7 +1198,7 @@ July 17, 2026 catalog-wide follow-up:
 
 Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
 registered E3 acquisition completed July 20, 2026; accepted E4 release set v5 is
-pinned; E5 selected-fact v16, component-scope v9, and compact-identity v1 are
+pinned; E5 selected-fact v17, component-scope v9, and compact-identity v1 are
 accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass. Clean runtime CORE v2 is
@@ -2346,6 +2346,14 @@ Foundation checkpoint (July 22, 2026):
   29:58.87 compile, independent audit, and 28:58.22 clean reproduction pass all
   103 phases and logical hash
   `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`
+- E5 policy v17/compiler v16 produces unserved selected-fact build
+  `5d9ec188dc2aab4c19439b89` with 123,291,351 facts and 43,063,349 decisions.
+  A release-scoped same-object HIP/HD fallback applies only when a SIMBAD record
+  has no Gaia bridge target; it recovers 2,693 distinct targets while preserving
+  10 ambiguous and 110,792 missing outcomes. Independent audit and a 42:13.96
+  isolated reproduction pass the exact logical and partition hashes. The
+  41:59.62 accepted compile is now phase-profiled for optimization and remains
+  unserved pending downstream E7 composition
 - policy `2026-07-22.e6-shadow.3` and compiler v2 produce immutable integrated
   candidate `e6_2da376053461c8220bee06ad_shadow`; selected consumers and all
   5,879,796 hierarchy-leaf classifications now materialize before checkpoint,

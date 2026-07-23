@@ -112,6 +112,39 @@ def expected_public_names(
     }
 
 
+def expected_selected_leaf_badges(
+    con: duckdb.DuckDBPyConnection,
+    radius: int,
+) -> dict[int, list[str]]:
+    return {
+        int(system_id): [str(value or "UNKNOWN") for value in list(values or [])[:16]]
+        for system_id, values in con.execute(
+            """
+            SELECT l.system_id,
+              list(l.classification_value ORDER BY
+                CASE l.classification_value
+                  WHEN 'BLACK HOLE' THEN 0 WHEN 'WR' THEN 1 WHEN 'O' THEN 2
+                  WHEN 'B' THEN 3 WHEN 'A' THEN 4 WHEN 'NS' THEN 5
+                  WHEN 'PULSAR' THEN 5 WHEN 'MAGNETAR' THEN 5 WHEN 'F' THEN 6
+                  WHEN 'G' THEN 7 WHEN 'K' THEN 8 WHEN 'WD' THEN 9 WHEN 'M' THEN 10
+                  WHEN 'L' THEN 11 WHEN 'T' THEN 12 WHEN 'Y' THEN 13 ELSE 99
+                END,
+                l.hierarchy_node_key
+              ) AS stellar_class_badges
+            FROM arm_db.stellar_leaf_display_classifications l
+            JOIN systems s USING(system_id)
+            WHERE s.dist_ly <= ?
+              AND s.x_helio_ly IS NOT NULL
+              AND s.y_helio_ly IS NOT NULL
+              AND s.z_helio_ly IS NOT NULL
+            GROUP BY l.system_id
+            ORDER BY l.system_id
+            """,
+            [radius],
+        ).fetchall()
+    }
+
+
 def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) -> dict[str, Any]:
     manifest_path = build_dir / "map_tiles" / f"radius-{radius}" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -176,28 +209,19 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
                     "expected": expected_class,
                     "observed": observed_class,
                 })
-        castor = con.execute(
-            "select system_id from systems where wds_id = '07346+3153' and dist_ly <= ? order by system_id limit 1",
-            [radius],
-        ).fetchone()
-        castor_badges = observed_badges.get(int(castor[0])) if castor else None
-        if castor_badges != ["A", "A", "M", "M", "M", "M"]:
+        for system_id, expected_badges in expected_selected_leaf_badges(con, radius).items():
+            actual_badges = observed_badges.get(system_id)
+            if actual_badges == expected_badges:
+                continue
+            system_name = con.execute(
+                "SELECT system_name FROM systems WHERE system_id = ?",
+                [system_id],
+            ).fetchone()
             class_mismatches.append({
-                "system_name": "Castor",
-                "expected_badges": ["A", "A", "M", "M", "M", "M"],
-                "observed_badges": castor_badges,
-            })
-        lawd = con.execute(
-            "select system_id, star_count from systems where system_name = 'LAWD 25' and dist_ly <= ? order by system_id limit 1",
-            [radius],
-        ).fetchone()
-        lawd_badges = observed_badges.get(int(lawd[0])) if lawd else None
-        if not lawd_badges or lawd_badges[0] != "WD" or len(lawd_badges) != int(lawd[1]):
-            class_mismatches.append({
-                "system_name": "LAWD 25",
-                "expected_badge_prefix": "WD",
-                "expected_badge_count": int(lawd[1]) if lawd else None,
-                "observed_badges": lawd_badges,
+                "system_id": system_id,
+                "system_name": str(system_name[0]) if system_name else None,
+                "expected_badges": expected_badges,
+                "observed_badges": actual_badges,
             })
     passed = (
         missing == 0
@@ -233,6 +257,8 @@ def main() -> None:
     build_dir = (args.build_dir or (args.state_dir / "served" / "current")).resolve()
     radii = [int(value) for value in args.radii.split(",") if value.strip()]
     con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
+    arm_path = str(build_dir / "arm.duckdb").replace("'", "''")
+    con.execute(f"ATTACH '{arm_path}' AS arm_db (READ_ONLY)")
     try:
         results = [verify_radius(build_dir, con, radius) for radius in radii]
         build_id = str(con.execute("select value from build_metadata where key='build_id'").fetchone()[0])

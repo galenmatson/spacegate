@@ -364,17 +364,16 @@ def tile_query(radius: int) -> str:
         SELECT l.system_id, l.classification_value AS stellar_class
         FROM arm_db.stellar_leaf_display_classifications l
         LEFT JOIN stellar_class_candidates s ON s.star_id = l.star_id
-        LEFT JOIN arm_db.msc_system_details mp
-          ON mp.primary_component_key = l.evidence_component_key
-        LEFT JOIN arm_db.msc_system_details ms
-          ON ms.secondary_component_key = l.evidence_component_key
         QUALIFY row_number() OVER (
           PARTITION BY l.system_id
           ORDER BY
             coalesce(
               s.mass_proxy_msun,
-              mp.mass_primary_msun,
-              ms.mass_secondary_msun,
+              CASE
+                WHEN l.evidence_basis = 'selected_msc_component_mass_main_sequence_prior'
+                THEN try_cast(l.source_value AS DOUBLE)
+                ELSE NULL
+              END,
               CASE l.classification_value
                 WHEN 'BLACK HOLE' THEN 8.0 WHEN 'WR' THEN 20.0 WHEN 'O' THEN 20.0
                 WHEN 'B' THEN 5.0 WHEN 'A' THEN 2.0
@@ -665,15 +664,22 @@ def read_profile(state_dir: Path, con: duckdb.DuckDBPyConnection) -> dict[str, A
             """
             SELECT key,value FROM disc_db.build_metadata
             WHERE key IN (
+              'profile_id','profile_version','profile_hash',
               'e6_coolness_profile_id','e6_coolness_profile_version',
               'e6_coolness_profile_hash'
             )
             """
         ).fetchall()
     )
-    profile_id = str(metadata.get("e6_coolness_profile_id") or (row[0] if row else "unknown"))
+    profile_id = str(
+        metadata.get("profile_id")
+        or metadata.get("e6_coolness_profile_id")
+        or (row[0] if row else "unknown")
+    )
     profile_version = str(
-        metadata.get("e6_coolness_profile_version") or (row[1] if row else "unknown")
+        metadata.get("profile_version")
+        or metadata.get("e6_coolness_profile_version")
+        or (row[1] if row else "unknown")
     )
     active_matches = (
         str(active.get("profile_id") or "") == profile_id
@@ -684,7 +690,8 @@ def read_profile(state_dir: Path, con: duckdb.DuckDBPyConnection) -> dict[str, A
         "profile_id": profile_id,
         "profile_version": profile_version,
         "profile_hash": str(
-            metadata.get("e6_coolness_profile_hash")
+            metadata.get("profile_hash")
+            or metadata.get("e6_coolness_profile_hash")
             or (active.get("profile_hash") if active_matches else None)
             or "unrecorded"
         ),

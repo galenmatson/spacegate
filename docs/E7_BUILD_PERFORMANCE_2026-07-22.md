@@ -220,6 +220,85 @@ overlay to the clean selected-fact contracts. API latency, rather than compiler
 work, dominates that wall time; client-process CPU is 0.16 seconds and peak RSS
 is 37,588 KiB. Map-tile and simulation-scene measurements remain open.
 
+## Selected-Fact Compiler Phase Profile
+
+The first fully instrumented selected-fact v17 run used a 48-GB DuckDB memory
+limit, 16 threads, and USB-SSD spill storage. It failed closed at the final
+source-accounting gate because the new SIMBAD policy initially equated accepted
+source-record bindings with selected canonical facts. The run published no
+artifact and removed its 39.2-GB staging database and 69.2-GB spill allocation.
+It remains a valid performance measurement of every expensive compiler phase.
+
+GNU `time -v` measured 28:35.67 wall time, 7,038.26 CPU-seconds, 60,050,964 KiB
+peak RSS, no swap, approximately 580.8 GB of filesystem input, and 320.5 GB of
+filesystem output. Named phases account for 1,703.95 of 1,715.67 wall seconds.
+The largest completed phases were:
+
+| Selected-fact phase | Wall s | CPU s |
+|---|---:|---:|
+| Gaia source candidate insertion | 793.93 | 3,119.14 |
+| Global parameter-set selection | 294.68 | 861.42 |
+| Immutable E4 input verification | 158.88 | 252.07 |
+| Bailer-Jones binding | 83.23 | 442.38 |
+| Bailer-Jones candidate insertion | 87.92 | 462.42 |
+| Gaia AP supplement candidate insertion | 54.43 | 355.34 |
+| Gaia AP candidate insertion | 47.38 | 330.10 |
+| Gaia source binding | 35.65 | 376.73 |
+
+The Gaia candidate insertion alone consumed 46.3% of process wall time and the
+global selection over 123,224,517 source-selected facts consumed another 17.2%.
+The process averaged only 410% CPU despite 16 configured threads and allocated
+up to 69.2 GB of spill, so increasing thread count or memory without changing
+the query plan is not an accepted optimization. The first prototype should
+profile Gaia candidate construction independently, reduce repeated scans and
+wide temporary materialization, and compare logical hashes before and after.
+
+The failed gate exposed a useful accounting distinction rather than a science
+error: 324,277 SIMBAD source records bind uniquely, while duplicate records for
+the same canonical target collapse to 324,062 winning spectral-classification
+facts. Both counts remain pinned independently. The corrected rerun must produce
+the same binding outcomes and expensive-phase row counts before it can be
+accepted.
+
+The corrected build `5d9ec188dc2aab4c19439b89` passed all compiler integrity
+gates and an independent artifact audit. Direct artifact queries confirm 324,277
+accepted SIMBAD records, 324,062 distinct accepted targets, and 2,693 distinct
+targets recovered through the no-Gaia HIP/HD fallback. Sirius A now carries the
+selected `A0mA1Va` SIMBAD classification and literature reference through that
+general release-scoped policy.
+
+The accepted compiler run took 41:59.62 under GNU `time -v`, used 9,073.21
+CPU-seconds, peaked at 55,692,780 KiB RSS without swap, read approximately
+692.98 GB from the filesystem, and wrote approximately 355.36 GB. Its 107 named
+phases account for 2,511.05 of 2,519.62 wall seconds. It produced 123,291,351
+selected facts, 43,063,349 selection decisions, a 39,127,101,440-byte DuckDB,
+and 71 GB of immutable database, Parquet, and manifest products.
+
+| Accepted selected-fact phase | Wall s | Build share |
+|---|---:|---:|
+| Gaia source candidate insertion | 888.12 | 35.2% |
+| Global parameter-set selection | 366.75 | 14.6% |
+| Selected-fact Parquet exports | 312.29 | 12.4% |
+| Artifact hashing | 204.22 | 8.1% |
+| Immutable E4 input verification | 157.98 | 6.3% |
+| Bailer-Jones binding and insertion | 175.35 | 7.0% |
+| Selection-decision exports | 40.19 | 1.6% |
+
+The identical accepted configuration was 13:23.95 slower than the failed run;
+the failed run stopped before exports and hashing, so only like-for-like phase
+comparisons are meaningful.
+Gaia candidate CPU time changed by less than 1%, but its wall time increased by
+94.19 seconds; global selection increased by 72.07 seconds. This confirms
+substantial external-I/O sensitivity. The independent audit took 31.26 seconds,
+252.07 CPU-seconds, and 32,264,892 KiB peak RSS. Clean reproduction timing and
+hash comparison pass: the isolated run takes 42:13.96, uses 9,178.46
+CPU-seconds, peaks at 54,367,020 KiB RSS without swap, matches the logical hash
+`2c7e2b27a98305993437181953aeaab58d2d0858627b6e4f47f6ac04073c4c1c`
+and every partition hash, and removes its scratch tree. Its Gaia candidate
+insertion takes 920.22 seconds, global selection 340.54, selected-fact export
+299.58, and hashing 165.35; this third profile confirms which costs are stable
+CPU work and which fluctuate with storage state.
+
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical

@@ -3,7 +3,7 @@
 Status: active main quest. E0-E2 completed July 18, 2026; registered E3
 acquisition completed July 20, 2026 and received the reviewed lifecycle/McGill
 bibliography supplement on July 21; the accepted E4 release set, E5
-selected-fact v15, E5 component-scope v9, and E5 compact-identity v1 are pinned.
+selected-fact v17, E5 component-scope v9, and E5 compact-identity v1 are pinned.
 Corrected E6 v7 shadow, clean reproduction, scientific A/B, public slice,
 four-radius map verification, bounded simulation-cache measurement, and
 API/search verification pass. Its tile payload contract is exactly equivalent
@@ -1859,6 +1859,21 @@ same-Gaia quantity competition, yielding an exact net reduction of 439 facts
 and decisions. Its 29:58.87 compile, independent artifact audit, and 28:58.22
 clean reproduction pass all 103 phases and logical hash
 `1b4fd75c00f9a21deb69e0c2136c9c39f7b25bb082b3bd378c260487d417685e`.
+
+Policy v17 extends the release-scoped SIMBAD identity bridge without treating
+Gaia, HIP, or HD identifiers as interchangeable. The existing OID-to-Gaia DR3
+path remains authoritative. Only SIMBAD records with no Gaia target claim may
+fall back through exact same-object HIP or HD claims, and multiple canonical
+targets remain ambiguous. The compiler accounts 324,277 accepted SIMBAD source
+records, 10 ambiguous, and 110,792 missing; accepted duplicates collapse to
+324,062 distinct selected classifications. The fallback recovers 2,693 distinct
+targets, including Sirius A's referenced `A0mA1Va` classification, through one
+general policy with no named-object transform. Selected-fact build
+`5d9ec188dc2aab4c19439b89` contains 123,291,351 facts and 43,063,349 decisions,
+passes independent audit, and reproduces the exact logical and partition hashes
+in isolated scratch. It remains unserved pending downstream E7 composition.
+Detailed phase and I/O measurements are retained in
+`docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
 
 E6 policy `2026-07-22.e6-shadow.3` closes the immutable-boundary defect exposed
 by the initial consumer experiment. Shared stellar parameter/display-class and

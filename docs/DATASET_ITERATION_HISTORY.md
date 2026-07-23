@@ -3821,6 +3821,28 @@ Representative commits:
   one-to-one selected-fact binding instead of dictating that named inventory;
   the scientific delta remains explicit for A/B review and adjudication.
 
+### 147) Non-Gaia Classifications Require Release-Scoped Identity Evidence
+
+- Clean map verification exposed Sirius as `WD`, not because the renderer chose
+  incorrectly, but because its canonical HIP leaf had no selected classification
+  while the companion white dwarf did. The same gap affected nearly every
+  non-Gaia canonical leaf and could not be repaired in map or display code.
+- SIMBAD already carries Sirius A's `A0mA1Va` classification and exact HIP claim.
+  E5 policy v17 therefore adds a general same-release HIP/HD fallback only for
+  SIMBAD source objects with no Gaia target claim. Existing Gaia bridges always
+  win; conflicting HIP/HD targets remain ambiguous; no named object appears in
+  a production transform.
+- Build `5d9ec188dc2aab4c19439b89` accounts 324,277 accepted SIMBAD records,
+  324,062 distinct accepted targets, 2,693 distinct fallback targets, 10
+  ambiguous records, and 110,792 missing records. It selects 123,291,351 total
+  facts, passes independent audit, and reproduces identical logical and
+  partition hashes in disposable scratch.
+- The accepted 41:59.62 compile and 42:13.96 reproduction prove the dominant
+  costs are the 888-second Gaia candidate insertion, 367-second global
+  selection, 312-second fact export, and 204-second artifact hash. More threads
+  do not remove the spill-heavy I/O path; optimization must preserve identical
+  scientific row accounting and hashes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
