@@ -44,7 +44,7 @@ Machine contracts:
 - `scripts/verify_selected_system_placement_reproduction.py`
 - `scripts/preflight_local_promotion.py`
 
-The current completion audit passes all 157 pinned checkpoint checks and
+The current completion audit passes all 158 pinned checkpoint checks and
 reports `incomplete`. Its four explicit gates are operator scientific A/B
 acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
 and the remaining promotion/rollback timing rows. Shared selected-fact consumer
@@ -130,17 +130,25 @@ exposes them and may not hide cold work inside a warm-cache total.
 
 The measured optimization order is:
 
-1. content-addressed program-level E5 intermediates and reusable identity
-   outcomes;
-2. remove broad simulation-scene prewarming from the critical build path and
-   use the bounded Admin/runtime cache;
-3. prove a public-slice full-identity reuse path before avoiding its 195-second
-   ARM reconstruction;
-4. precompute tile display names and add bounded deterministic encoding workers;
-5. optimize smaller E6 verification phases only after the dominant costs.
+1. make clean science a manifest of immutable domain shards so a small policy
+   change does not export and hash unchanged scientific domains;
+2. stop physically copying unchanged selected-science tables into both CORE
+   and ARM while keeping runtime products self-contained and visibly complete;
+3. replace the measured 4:21, 22.4-GiB public copy with content-addressed or
+   verified reflink/block-reusing assembly;
+4. build the selected 1,000-ly map rowset once and partition its nested radii,
+   then benchmark bounded deterministic compression parallelism against the
+   measured 4:05 map build; and
+5. use content-addressed attestations to accelerate iterative builds only,
+   retaining full byte hashing for clean reproduction and promotion.
 
 Every accepted optimization requires unchanged scientific logical hashes,
 coverage/accounting reports, and a measured before/after row.
+
+The operator recovery contract is also machine-checked. Cutover verification
+requires `docs/INGEST_RECOVERY.md` to identify the legacy refresh commands as
+stability-only, identify the non-mutating Evidence Lake verification runner,
+and keep promotion a separate operator-approved action.
 
 The checked-in `config/evidence_lake/e7_timed_pipeline.json` and
 `scripts/run_e7_timed_pipeline.py` now provide the E7 timing harness. The

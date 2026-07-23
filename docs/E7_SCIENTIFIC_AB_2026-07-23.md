@@ -89,7 +89,7 @@ canonical inventory, materially enriches search, closes the owned
 UltracoolSheet evidence gap, materializes declared planet derivations, removes
 untraceable fallbacks, and makes remaining classification uncertainty explicit.
 The generated v2 review report passes every pre-promotion gate, and the
-acceptance contract passes all 157 pinned checks. No unresolved finding
+acceptance contract passes all 158 pinned checks. No unresolved finding
 currently requires another scientific rebuild before local promotion.
 
 Promotion should proceed only after explicit operator acceptance. The rollback

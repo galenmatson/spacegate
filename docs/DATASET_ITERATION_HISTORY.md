@@ -4029,7 +4029,7 @@ Representative commits:
   manifests, database inventory, classification and planet A/B, reproductions,
   API, scene, and browser reports. It has no named-object scientific
   conditions and fails if any pre-promotion gate is false.
-- Acceptance contract v17 passes all 157 checks. The read-only local promotion
+- Acceptance contract v18 passes all 158 checks. The read-only local promotion
   preflight passes with zero mutations and a bounded, available stability
   rollback target. Shared selected-fact consumer cutover is closed; explicit
   operator acceptance, the local promotion/rollback/re-promotion drill, formal
@@ -4049,6 +4049,21 @@ Representative commits:
   before atomic pointer replacement. A temporary-state integration test proves
   that immutable promotion skips scoring and changes only the bounded served
   pointer.
+
+### 158) Recovery Documentation Separates Evidence Lake From Stability
+
+- `docs/INGEST_RECOVERY.md` no longer presents the legacy
+  `refresh_core.sh`/`ingest_core.py`/`build_arm.py` path as the normal
+  scientific refresh. It is retained and documented only for stability
+  reproduction and rollback recovery.
+- The pinned E7 timing runner is the non-mutating verification and recovery
+  surface for clean artifacts. Full mode is explicit and expensive; neither
+  mode promotes, deploys, mutates Proton, or changes the served pointer.
+- The cutover performance order now reflects the corrected candidate's measured
+  costs: immutable science-shard reuse, removal of duplicate CORE/ARM copies,
+  the 4:21 public materialization, one-pass nested-radius map construction, and
+  iterative-only content attestations. Full byte hashing remains mandatory for
+  reproduction and promotion.
 
 ## Recurrent Defect Classes and Mitigations
 

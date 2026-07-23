@@ -1,8 +1,40 @@
 # Ingest Recovery + Runtime Tuning
 
-## Differential Refresh Entry Point
+## Authority Status
 
-Use `scripts/refresh_core.sh` for normal refresh operations.
+The commands in the legacy sections below reproduce and recover the retained
+stability build. They are not the authoritative scientific refresh path for
+Evidence Lake v2. In particular, do not use `scripts/refresh_core.sh`,
+`scripts/ingest_core.py`, or `scripts/build_arm.py` to incorporate a new source
+release after the Evidence Lake cutover.
+
+The release-scoped path pins raw and typed releases, compiles domain evidence,
+resolves identity and scope, selects facts through per-quantity policy, and
+builds clean CORE/ARM/DISC/public projections. The E7 checkpoint is described
+by:
+
+- `docs/EVIDENCE_LAKE_V2.md`;
+- `config/evidence_lake/e0_e7_acceptance.json`;
+- `config/evidence_lake/e7_timed_pipeline.json`; and
+- `scripts/run_e7_timed_pipeline.py`.
+
+Use the timed runner's default `--mode verify` to recover context and validate
+the pinned clean artifacts without recompiling them:
+
+```bash
+.venv/bin/python scripts/run_e7_timed_pipeline.py --mode verify
+```
+
+`--mode full` is an explicit, expensive clean compile. It writes immutable,
+content-addressed artifacts and records per-stage timing; it does not promote,
+deploy, mutate proton, or change `served/current`. Missing or corrupt artifacts
+must fail visibly. Promotion remains a separate operator-approved action after
+scientific review, retention preflight, and the local rollback drill.
+
+## Legacy Differential Refresh Entry Point
+
+Use `scripts/refresh_core.sh` only to reproduce or recover the retained
+pre-Evidence-Lake stability path.
 
 Default behavior:
 
@@ -61,7 +93,7 @@ Incremental checkpoint behavior:
 - unchanged star/system artifacts remain inherited from parent build
 - successful finalize promotes `out/<build_id>.tmp` to `out/<build_id>`
 
-## Finalize From Temp Build
+## Legacy Finalize From Temp Build
 
 If ingest fails after core tables are already built (for example, QC gate tuning), recover without recomputing heavy stages:
 
@@ -76,7 +108,11 @@ The finalize helper:
 3. Builds `arm.duckdb`.
 4. Promotes `<build_id>.tmp` to `<build_id>`.
 
-## Resource Tuning Notes (Proton)
+## Legacy Resource Tuning Notes (Proton)
+
+These measurements document the former Proton path. Do not mutate Proton while
+performing Evidence Lake work. Photon compiler measurements and optimization
+decisions belong in `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
 
 Useful env knobs before ingest:
 
@@ -90,7 +126,7 @@ Observed stable setting on Proton for the Gaia-first core:
 
 If OOM appears during identifier merge or alias stage, reduce threads first, then adjust memory.
 
-## Benchmark Matrix Runner
+## Legacy Benchmark Matrix Runner
 
 Use the matrix runner to measure ingest wall-clock and per-stage durations across thread/memory combinations:
 

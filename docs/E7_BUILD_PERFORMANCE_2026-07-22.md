@@ -650,6 +650,44 @@ copy, export, and hash the same tens of gigabytes; several already peak between
 27 and 46 GiB and do not saturate Photon's CPUs. The durable speedup is immutable
 shard reuse with the same scientific, lineage, atomicity, and rollback gates.
 
+## Measured Optimization Backlog
+
+The targets below are validation thresholds, not claimed results. Each change
+must be benchmarked against an equivalent accepted input set and cache state.
+
+| Rank | Measured opportunity | First implementation | Initial validation target | Principal constraint |
+| --- | ---: | --- | ---: | --- |
+| 1 | Public materialization: 260.95s and 22.4 GiB written | Content-addressed assembly or verified reflink/block reuse | Remove at least 50% of stage wall time and physical writes | Candidate must remain self-contained, checksum-verifiable, atomically promotable, and independently rollbackable |
+| 2 | Clean science: 199.97s reproduction; 111.46s in unchanged verification/export/hash work | Manifest of immutable domain shards with one final projection | Remove at least 60s when only one bounded domain changes | Clean reproduction and promotion still perform full content verification |
+| 3 | ARM: 152.87s reproduction; 95.23s copying six selected-science tables | Reference or block-reuse immutable selected-science tables | Remove at least 60s without increasing API latency | Runtime failure must remain visible and deployable products must not acquire hidden host-path dependencies |
+| 4 | Four map radii: 245.24s | Select the 1,000-ly rowset once, partition nested radii, then test bounded encoding workers | Instrument query/partition/encode/compress phases before setting a savings gate | All 3,686 payloads and normalized manifests must reproduce exactly |
+| 5 | CORE: 79.44s reproduction; 29.58s index construction | Measure every index against API/search/build query plans | Remove or defer only indexes with no accepted consumer | No unbounded request-time scan or search regression |
+
+These changes should be implemented separately so their scientific and
+performance effects remain attributable. Combining several structural changes
+into the accepted E7 cutover candidate would invalidate the completed A/B and
+reproduction review for little operational benefit.
+
+## Recovery Verification - 2026-07-23
+
+Verification run `20260723T091436Z_2034145` passed the current pinned artifact
+graph in 50.63 seconds pipeline wall time. Executed verifiers used 141.63 CPU
+seconds, peaked at 7,200,552 KiB RSS, read 29,798,416 filesystem blocks, and
+wrote 480 blocks. Compiler rows were explicitly recorded as attested reuse;
+none was reported as a zero-cost build.
+
+The run was made while documentation changes were uncommitted, so it is a
+recovery-command validation rather than promotion-grade repository evidence.
+Its machine report is:
+
+`/data/spacegate/state/reports/evidence_lake_v2/e7_build_runs/20260723T091436Z_2034145.json`
+
+At the checkpoint, `/data` had 23 GiB free and `/mnt/space` had 19 GiB free.
+That is insufficient headroom for another persistent 64.5-GiB downstream
+cascade. No full compiler run should begin until retention review establishes
+safe scratch/output placement or reclaims specifically reviewed superseded
+artifacts.
+
 1. Preserve the type-partitioned component graph and compare its exact logical
    output with the canonical hierarchy rather than returning to a multi-inventory
    join.

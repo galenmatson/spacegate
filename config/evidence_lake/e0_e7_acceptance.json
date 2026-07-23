@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-23.e0-e7-acceptance.17",
+  "contract_version": "2026-07-23.e0-e7-acceptance.18",
   "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
   "shadow_build_id": "39b7386d4524ce5b1ff2729f",
   "artifact_roots": {
@@ -608,6 +608,15 @@
       "stage": "E7",
       "path": "e7_cutover_plan_corrected_2026-07-23.json",
       "expect": {"status": "pass", "failures": null}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_plan_documentation_v2_2026-07-23.json",
+      "expect": {
+        "status": "pass",
+        "recovery_document_sha256": "fe1ea4c9205b8fabc10b3ead40ad4e9695666b8e4b034a1a7e22011f819a4dc9",
+        "failing_checks": []
+      }
     }
   ],
   "required_artifacts": [

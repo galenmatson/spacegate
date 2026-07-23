@@ -1919,7 +1919,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   derivation shard through clean science/CORE/ARM/DISC/public products, prove
   exact shared-consumer lineage, independently reproduce clean science, CORE,
   ARM, DISC, and all four map radii, pass API/scene/browser gates, assemble the
-  review from authoritative reports, and pass all 157 acceptance checks
+  review from authoritative reports, and pass all 158 acceptance checks,
+  including the machine-pinned operator recovery/legacy-authority contract
 - [x] E7 corrected-candidate promotion preflight: verify candidate database and
   map identities, required products, bounded stability rollback target,
   writable served directory, and zero mutations before operator acceptance

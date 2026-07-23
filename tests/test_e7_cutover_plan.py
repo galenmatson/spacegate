@@ -16,7 +16,7 @@ def test_checked_in_e7_cutover_and_dr4_plans_pass() -> None:
 
     assert report["status"] == "pass"
     assert report["failing_checks"] == []
-    assert len(report["checks"]) == 19
+    assert len(report["checks"]) == 21
 
 
 def test_dr4_plan_rejects_interchangeable_release_ids(tmp_path: Path) -> None:
@@ -30,4 +30,30 @@ def test_dr4_plan_rejects_interchangeable_release_ids(tmp_path: Path) -> None:
     assert report["status"] == "fail"
     assert [item["name"] for item in report["failing_checks"]] == [
         "dr3_dr4_not_interchangeable"
+    ]
+
+
+def test_cutover_plan_rejects_legacy_refresh_as_normal_authority(
+    tmp_path: Path,
+) -> None:
+    recovery = tmp_path / "INGEST_RECOVERY.md"
+    recovery.write_text(
+        cutover.DEFAULT_RECOVERY.read_text(encoding="utf-8").replace(
+            "Use `scripts/refresh_core.sh` only to reproduce or recover the retained\n"
+            "pre-Evidence-Lake stability path.",
+            "Use scripts/refresh_core.sh for normal refresh operations.",
+        ),
+        encoding="utf-8",
+    )
+
+    report = cutover.verify(
+        ROOT,
+        cutover.DEFAULT_LEGACY,
+        cutover.DEFAULT_DR4,
+        recovery,
+    )
+
+    assert report["status"] == "fail"
+    assert [item["name"] for item in report["failing_checks"]] == [
+        "recovery_authority_separated"
     ]

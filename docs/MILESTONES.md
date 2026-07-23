@@ -2696,7 +2696,7 @@ Pre-promotion planning checkpoint (July 22, 2026):
   independently with no differing deterministic Parquet, product files,
   logical tables, hierarchy signatures, manifests, or 3,686 tile payloads;
   every temporary reproduction tree is removed after verification
-- generated scientific review v2 and acceptance contract v17 pass all 157
+- generated scientific review v2 and acceptance contract v18 pass all 158
   pinned pre-promotion checks. The mutation-free cutover preflight validates
   candidate and rollback identities, bounded paths, required products, and
   atomic-pointer prerequisites; explicit operator acceptance remains required
