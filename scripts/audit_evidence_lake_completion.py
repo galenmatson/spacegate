@@ -90,6 +90,15 @@ def audit(contract_path: Path, state_dir: Path) -> dict[str, Any]:
             failures.append({"field": "$file", "expected": "present", "actual": "missing"})
         else:
             report = load_object(report_path)
+            expected_sha256 = requirement.get("sha256")
+            if expected_sha256:
+                actual_sha256 = hashlib.sha256(report_path.read_bytes()).hexdigest()
+                if actual_sha256 != expected_sha256:
+                    failures.append({
+                        "field": "$sha256",
+                        "expected": expected_sha256,
+                        "actual": actual_sha256,
+                    })
             for field, expected in (requirement.get("expect") or {}).items():
                 actual = nested_value(report, field)
                 if actual != expected:

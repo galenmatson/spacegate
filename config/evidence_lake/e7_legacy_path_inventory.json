@@ -1,9 +1,23 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-23.e7-cutover-plan.7",
+  "inventory_version": "2026-07-23.e7-cutover-plan.8",
   "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
-  "pre_promotion": true,
+  "pre_promotion": false,
+  "authoritative_build_path": "evidence_lake_v2",
+  "formal_deprecation_complete": true,
+  "rollback_window_open": true,
+  "cutover_evidence": {
+    "status": "pass",
+    "report_path": "e7_cutover_drill_2026-07-23/cutover_report.json",
+    "report_sha256": "a75095cfeeeb059ed41b4484e963334c791eb5fc8c861826004c399a456232a2",
+    "operator_acceptance_path": "e7_cutover_drill_2026-07-23/operator_acceptance.json",
+    "operator_acceptance_sha256": "a1ed1e116b3d76df3a815cc822a41621c57a12bbcd7c8550128b6dcbc034bea4",
+    "final_served_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
+    "rollback_build_id": "20260717T0614Z_f452835_side",
+    "artifacts_deleted": false,
+    "antiproton_deployed": false
+  },
   "rules": {
     "delete_before_rollback_drill": false,
     "retire_raw_or_typed_source_evidence": false,
@@ -21,7 +35,7 @@
         "scripts/download_core.sh",
         "scripts/cook_core.sh"
       ],
-      "current_state": "transitional_production",
+      "current_state": "deprecated_compatibility_wrapper",
       "target_state": "deprecated_compatibility_wrapper",
       "action": "Replace the authoritative entrypoint with an Evidence Lake release-set, selection, E6 projection, verification, and promotion driver. Keep the old wrapper only for stability reproduction until rollback expires.",
       "retirement_gates": [
@@ -40,7 +54,7 @@
         "scripts/cook_science_catalogs.py",
         "scripts/cook_exoplanet_lifecycle.py"
       ],
-      "current_state": "transitional_stability_input",
+      "current_state": "retired_from_authoritative_build",
       "target_state": "retired_from_authoritative_build",
       "action": "Remove these merged or field-losing projections from the authoritative build graph after every active source has a registered immutable raw, source-native typed, E4, and E5 route.",
       "retirement_gates": [
@@ -68,7 +82,7 @@
         "scripts/verify_selected_system_placement_reproduction.py"
       ],
       "replacement_status": "Corrected clean foundation, selected science, CORE, hierarchy, ARM, DISC, runtime bundle, public slice, map, scene, API, and browser products pass pinned-input verification and isolated reproduction without stability science. The legacy path remains only as the retained rollback reproducer until local cutover completes.",
-      "current_state": "verified_stability_reproducer_pending_cutover",
+      "current_state": "deprecated_stability_reproducer",
       "target_state": "deprecated_stability_reproducer",
       "action": "Replace bootstrap inventory and scientific-value production with release-scoped identity, selected facts, and E6 projections. Do not retire while E6 still composes from the stability databases.",
       "retirement_gates": [
@@ -95,7 +109,7 @@
         "scripts/compile_permanent_identity_vocabulary.py",
         "scripts/verify_permanent_identity_vocabulary.py"
       ],
-      "current_state": "retained_foundation",
+      "current_state": "retained_release_scoped_identity_compiler",
       "target_state": "retained_release_scoped_identity_compiler",
       "action": "Retain the release-scoped identity compiler and the content-addressed identity-only hierarchy migration seed. Adapt canonical emission to consume that seed plus E4/E5 contracts without reopening the stability databases. Preserve stable Spacegate object identities independently of every Gaia release.",
       "retirement_gates": [
@@ -110,7 +124,7 @@
         "config/evidence_lake/e5_legacy_derivation_inventory.json",
         "scripts/audit_legacy_derivation_inventory.py"
       ],
-      "current_state": "verified_replacement_pending_cutover",
+      "current_state": "selected_fact_projection_only",
       "target_state": "selected_fact_projection_only",
       "action": "Shared selected facts and versioned derivations now drive clean CORE, ARM, public planet categories, simulation luminosity, API, search, and map projections. After the promotion/rollback drill, deprecate the remaining legacy scientific selectors as stability-reproduction-only; retain explicitly labeled DISC and rendering presentation transforms.",
       "retirement_gates": [
@@ -142,7 +156,7 @@
         "srv/api/app/main.py",
         "docs/TILED_MAP.md"
       ],
-      "current_state": "deprecated_diagnostic",
+      "current_state": "bounded_diagnostic_or_removed",
       "target_state": "bounded_diagnostic_or_removed",
       "action": "Keep only the bounded parity diagnostic until tiled transport has passed the Evidence Lake local promotion and rollback drill; never restore it as a second production renderer architecture.",
       "retirement_gates": [

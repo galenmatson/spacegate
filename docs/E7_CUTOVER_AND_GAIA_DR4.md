@@ -9,19 +9,21 @@ topology, rolled back to the stability build, and promoted again.
 
 Final clean candidate `e7_39b7386d4524ce5b1ff2729f_public` composes permanent
 identity, selected science, CORE, ARM, DISC, search, map tiles, and simulation
-artifacts without using the stability databases as scientific authority. The
-served pointer still targets stability build `20260717T0614Z_f452835_side`;
-therefore bootstrap cookers, `ingest_core.py`, and `build_arm.py` remain
-rollback dependencies until the local promotion/rollback/re-promotion drill
-passes. The canonical identity reducer remains permanent Spacegate work and is
-not a retirement target.
+artifacts without using the stability databases as scientific authority. On
+July 23, 2026 the operator accepted the scientific A/B and the local
+promotion/rollback/re-promotion drill passed. The served pointer now targets
+the accepted candidate. Stability build `20260717T0614Z_f452835_side` and its
+compatible verifier remain retained rollback dependencies. Bootstrap cookers,
+`ingest_core.py`, and `build_arm.py` are formally deprecated stability
+reproducers, not authoritative build inputs. The canonical identity reducer
+remains permanent Spacegate work and is not a retirement target.
 
 A post-review audit found three declared but unimplemented planet derivations
 and one API selected-luminosity adapter defect. Focused E5 shard
 `1dfc750b79b88018983ded82` corrects the derivation gap, and clean-science policy
 v7 consumes it. The corrected downstream candidate passes focused value/category
 A/B, clean science/CORE/ARM/DISC/map reproduction, API, scene, and browser
-gates. Explicit operator acceptance is the only remaining pre-promotion gate.
+gates. Operator acceptance and the complete local drill now close that gate.
 
 Machine contracts:
 
@@ -44,13 +46,10 @@ Machine contracts:
 - `scripts/verify_selected_system_placement_reproduction.py`
 - `scripts/preflight_local_promotion.py`
 
-The current completion audit passes all 158 pinned checkpoint checks and
-reports `incomplete`. Its four explicit gates are operator scientific A/B
-acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
-and the remaining promotion/rollback timing rows. Shared selected-fact consumer
-cutover is closed by the corrected planet/luminosity A/B. This is the intended
-state; the report must not translate a passing unpromoted candidate into
-premature E7 cutover.
+Pre-promotion contract v18 passed 158 pinned checks but correctly reported
+`incomplete`. Post-promotion contract v19 adds operator acceptance, the machine
+drill report, timings, and post-cutover legacy ledger. It passes 161 checks and
+reports `complete` with zero open gates.
 
 The read-only local cutover preflight passes for the corrected candidate and
 stability rollback target without changing `served/current`. It validates all
@@ -62,7 +61,31 @@ Mutable legacy coolness preparation now completes before that pointer
 transition. Selected-fact/Evidence Lake builds default to no scoring and reject
 post-build scoring unless an explicit unsafe mutation override is supplied;
 their DISC products must instead be regenerated through the versioned compiler.
-The actual cutover remains forbidden until explicit operator acceptance.
+The local cutover is complete. This authorization did not include antiproton
+deployment or artifact cleanup.
+
+## Local Cutover Result
+
+Machine report
+`/data/spacegate/reports/evidence_lake_v2/e7_cutover_drill_2026-07-23/cutover_report.json`
+passes with zero failing checks. Atomic promotion and rollback each take about
+0.36 seconds; warm container recreation takes 6.8 seconds. The first promoted
+container rebuild took 2:42.34 after BuildKit cache cleanup. Candidate strict
+verification peaked at about 4.3 GiB RSS.
+
+The candidate passes required strict build verification, API integration,
+current known-system checks, map-tile identity, and focused desktop/mobile
+browser smoke before and after rollback. The rollback build passes its
+revision-pinned strict verifier and API integration. Current-verifier
+classification expectations and a historical Castor raw-spectral-string golden
+do not apply cleanly to the older artifact; both are recorded as versioned
+verification/consumer-migration findings, not repaired through named-object
+transforms.
+
+Acceptance contract v19 verifies 161 reports and artifacts with zero open
+gates. The legacy ledger is post-promotion: old cookers and bootstrap compilers
+are retired from authoritative use or retained as compatibility/stability
+reproducers, permanent identity remains active, and no files have been deleted.
 
 Permanent identity seed `5c878083872c738415971864` is the one-time bridge from
 the reviewed canonical hierarchy to the clean compiler. It contains only stable

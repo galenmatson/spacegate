@@ -16,7 +16,7 @@ def test_checked_in_e7_cutover_and_dr4_plans_pass() -> None:
 
     assert report["status"] == "pass"
     assert report["failing_checks"] == []
-    assert len(report["checks"]) == 21
+    assert len(report["checks"]) == 22
 
 
 def test_dr4_plan_rejects_interchangeable_release_ids(tmp_path: Path) -> None:

@@ -710,6 +710,48 @@ artifacts.
    278.73-second, 23.62-GB materialization while preserving atomic promotion and
    rollback as one build identity.
 
+## Local Promotion Drill - 2026-07-23
+
+Operator acceptance and the local production-topology drill close the remaining
+E7 timing rows.
+
+| Step | Wall | Peak runner RSS | Result |
+|---|---:|---:|---|
+| Candidate atomic pointer promotion | 0.36s | 60 MiB | pass |
+| Cold image rebuild and service recreation after BuildKit prune | 2:42.34 | 69 MiB | pass |
+| Candidate required strict verification | 30.55s | 4.29 GiB | pass |
+| Candidate API integration | 17.37s | 35 MiB | pass |
+| Candidate current known-system verification | 19.11s | 36 MiB | pass |
+| Candidate focused desktop/mobile browser smoke | 40.25s | 230 MiB | 5 pass, 5 intended skips |
+| Stability atomic rollback | 0.36s | 61 MiB | pass |
+| Stability service recreation | 6.83s | 30 MiB | pass |
+| Stability revision-pinned strict verification | 22.55s | 4.26 GiB | pass |
+| Stability API integration | 36.23s | 35 MiB | pass |
+| Candidate atomic re-promotion | 0.35s | 59 MiB | pass |
+| Candidate service recreation | 6.76s | 30 MiB | pass |
+| Re-promoted required strict verification | 30.33s | 4.21 GiB | pass |
+| Re-promoted API integration / known systems | 17.45s / 18.96s | 36 / 36 MiB | pass |
+| Re-promoted focused browser smoke | 17.60s | 228 MiB | 2 pass, 2 intended skips |
+
+The container rebuild time is a cold post-prune dependency/image result, not a
+database startup cost; reusing the built images reduces service recreation to
+about 6.8 seconds. Pointer changes themselves are sub-second.
+
+The drill exposed three compatibility debts without invalidating cutover:
+
+- the opt-in multiplicity suite still queries deprecated MSC/orbit surfaces and
+  fixed named-system row counts;
+- the current leaf-classification verifier cannot validate the older rollback
+  artifact because it expects 147 post-stability rows, while the verifier pinned
+  to the rollback revision passes;
+- the historical known-system verifier contains a Castor raw spectral-string
+  assertion (`M1_Ve` versus equivalent `dM1e`) and is not a suitable rollback
+  health gate.
+
+These are inputs to M8.3e consumer review. No named-object transform was added.
+Machine timings and checks are in
+`e7_cutover_drill_2026-07-23/cutover_report.json`.
+
 ## Required Final Sections
 
 - complete step inventory and timing table;

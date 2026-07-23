@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the pre-promotion E7 retirement ledger and Gaia DR4 adapter plan."""
+"""Verify the phased E7 retirement ledger and Gaia DR4 adapter plan."""
 
 from __future__ import annotations
 
@@ -47,10 +47,24 @@ def verify(
     entries = legacy.get("entries") or []
     path_ids = [str(item.get("path_id") or "") for item in entries]
     check("legacy_schema", legacy.get("schema_version") == "spacegate.e7_legacy_path_inventory.v1", legacy.get("schema_version"))
-    check("legacy_pre_promotion", legacy.get("pre_promotion") is True, legacy.get("pre_promotion"))
+    pre_promotion = legacy.get("pre_promotion")
+    check("legacy_phase_declared", isinstance(pre_promotion, bool), pre_promotion)
     check("legacy_entries_present", len(entries) >= 7, len(entries))
     check("legacy_path_ids_unique", len(path_ids) == len(set(path_ids)) and all(path_ids), path_ids)
-    check("legacy_no_premature_retirement", all(item.get("current_state") != "retired" for item in entries), [item.get("current_state") for item in entries])
+    states = [str(item.get("current_state") or "") for item in entries]
+    if pre_promotion:
+        lifecycle_ok = all(state != "retired" for state in states)
+    else:
+        lifecycle_ok = (
+            legacy.get("authoritative_build_path") == "evidence_lake_v2"
+            and legacy.get("formal_deprecation_complete") is True
+            and all(
+                not state.startswith("transitional_")
+                and not state.endswith("_pending_cutover")
+                for state in states
+            )
+        )
+    check("legacy_lifecycle_state", lifecycle_ok, states)
     missing_paths = sorted(
         path
         for item in entries
@@ -81,6 +95,20 @@ def verify(
     rules = legacy.get("rules") or {}
     check("raw_typed_never_retired", rules.get("retire_raw_or_typed_source_evidence") is False, rules)
     check("rollback_required", rules.get("require_atomic_promotion_and_rollback") is True, rules)
+    cutover = legacy.get("cutover_evidence") or {}
+    cutover_ok = (
+        pre_promotion is True
+        or (
+            cutover.get("status") == "pass"
+            and cutover.get("final_served_build_id") == legacy.get("candidate_build_id")
+            and cutover.get("rollback_build_id") == legacy.get("stability_build_id")
+            and len(str(cutover.get("report_sha256") or "")) == 64
+            and len(str(cutover.get("operator_acceptance_sha256") or "")) == 64
+            and cutover.get("artifacts_deleted") is False
+            and cutover.get("antiproton_deployed") is False
+        )
+    )
+    check("cutover_evidence", cutover_ok, cutover)
     recovery_authority_markers = [
         "not the authoritative scientific refresh path",
         "legacy differential refresh entry point",

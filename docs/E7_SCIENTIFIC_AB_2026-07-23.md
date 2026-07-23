@@ -4,9 +4,10 @@
 
 Candidate `e7_39b7386d4524ce5b1ff2729f_public` passes the clean compiler,
 independent verification, isolated reproduction, public-build, tiled-map,
-bounded-scene, API, and browser gates. It is stored on Photon's internal
-`/data` volume but is not promoted or served. Operator acceptance, local atomic
-promotion, rollback, and re-promotion remain open.
+bounded-scene, API, and browser gates. The operator accepted it on July 23,
+2026. Local atomic promotion, production-topology verification, rollback to
+`20260717T0614Z_f452835_side`, rollback verification, and re-promotion pass.
+The candidate is now served on Photon; antiproton remains unchanged.
 
 ## Immutable Inputs
 
@@ -92,7 +93,8 @@ The generated v2 review report passes every pre-promotion gate, and the
 acceptance contract passes all 158 pinned checks. No unresolved finding
 currently requires another scientific rebuild before local promotion.
 
-Promotion should proceed only after explicit operator acceptance. The rollback
-drill must retain `20260717T0614Z_f452835_side`, switch atomically to the new
-candidate, verify local containers and APIs, roll back, verify again, and then
-re-promote. No antiproton deployment is authorized by this review.
+The review decision is accepted and the local drill is complete. Machine report
+`e7_cutover_drill_2026-07-23/cutover_report.json` records zero failing checks,
+the retained rollback build, final candidate identities, timings, and
+nonblocking verifier-compatibility findings. No antiproton deployment or
+retention cleanup was authorized or performed.

@@ -2699,7 +2699,21 @@ Pre-promotion planning checkpoint (July 22, 2026):
 - generated scientific review v2 and acceptance contract v18 pass all 158
   pinned pre-promotion checks. The mutation-free cutover preflight validates
   candidate and rollback identities, bounded paths, required products, and
-  atomic-pointer prerequisites; explicit operator acceptance remains required
+  atomic-pointer prerequisites
+- on July 23 the operator accepted the candidate. Atomic promotion takes 0.36
+  seconds; the cold post-cache-prune rebuild/recreate takes 2:42.34. Required
+  strict verification, API integration, current known-system checks, static
+  tile identity, and focused desktop/mobile browser smoke pass
+- rollback to `20260717T0614Z_f452835_side` takes 0.36 seconds plus 6.83 seconds
+  to recreate services. Its revision-pinned strict verifier and API integration
+  pass. The drill records current-verifier contract drift and a brittle Castor
+  raw-string golden rather than modifying the rollback artifact
+- re-promotion takes 0.35 seconds plus 6.76 seconds for service recreation.
+  Required strict, API, current known-system, tile, and browser checks pass
+  again, leaving `e7_39b7386d4524ce5b1ff2729f_public` served locally
+- acceptance contract v19 passes 161 pinned checks with zero open gates.
+  Legacy paths are formally deprecated or retained for stability reproduction;
+  no artifact deletion or antiproton deployment occurs
 
 Deliverables:
 
@@ -2720,6 +2734,9 @@ Success criteria:
   derivation
 - no deployment to antiproton occurs until E0-E6 pass and the user accepts the
   scientific A/B checkpoint
+
+Status: complete locally on Photon. M8.3d is the required capacity/deployment
+gate before transferring this build to antiproton.
 
 ### M8.3d. Post-Promotion Runtime Capacity and Deployment Gate
 

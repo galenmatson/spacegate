@@ -1845,7 +1845,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   build IDs to match active CORE, add the same build/version contract to runtime
   cache files, reject stale served artifacts during candidate tests, and cover
   compatibility, lookup ordering, and runtime writes with focused tests
-- [ ] E7 public-runtime materialization optimization: evaluate manifest-addressed
+- [ ] Post-E7 public-runtime materialization optimization: evaluate manifest-addressed
   or block-reusing assembly against the measured 255.98-second, 23-GB copy
   without weakening self-contained deployment, checksums, atomic promotion,
   rollback, visible failure, or exact scientific row accounting
@@ -1875,13 +1875,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   outcomes, accept 95 HD-to-system bindings, combine only coherent multiple
   illuminators, and select 59 relation-derived distances from clean system
   placements without display-name matching or stability science
-- [ ] E7 extended relation identity tail: account HD 97472 through the normal
+- [ ] Post-E7 extended relation identity tail: account HD 97472 through the normal
   permanent identity recovery/adjudication path; do not add a named-object fix
 - [x] E7 storage headroom checkpoint: use the exact-candidate E6 retention
   process to retire only superseded unserved v5 shadow
   `e6_6e2449e225cd33f9055df6c0_shadow`, retain seven referenced reports and its
   public artifact, and reclaim 18,582,962,176 allocated bytes
-- [ ] E7 end-to-end build-time report: retain wall/CPU time, peak RSS, durable
+- [x] E7 end-to-end build-time report: retain wall/CPU time, peak RSS, durable
   bytes, cache state, and named phase timings for every compiler, verifier,
   shadow build, promotion, rollback, and re-promotion step; rank the critical
   path and preserve before/after evidence for accepted or rejected speedups;
@@ -1893,8 +1893,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   under equivalent input and cache conditions;
   maintain the provisional measurements and optimization register in
   `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`; the corrected shard-to-public
-  compiler path and optional map path are now fully measured at 12:34 and 16:40,
-  while promotion, rollback, and re-promotion timings remain open
+  compiler path and optional map path are fully measured at 12:34 and 16:40;
+  promotion/rollback/re-promotion and service recreation timings are recorded
+  in the July 23 cutover report
 - [x] E7 modular Gaia DSC classification checkpoint: compile and independently
   reproduce `3f645ac3de3323637ded93d5`, preserve source-model semantics and
   exact Gaia DR3 binding, and consume it through clean science
@@ -1928,7 +1929,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   default selected-fact builds to no coolness mutation, reject an explicit
   scoring request without the unsafe override, and complete any mutable legacy
   scoring before atomic served-pointer replacement
-- [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
+- [x] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
 - [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
@@ -1945,7 +1946,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Search, System Page, Peek, Explorer, tiles, scenes, and APIs; produce a
   measured adapt-versus-rewrite decision, versioned target contract, migration
   tests, compatibility window, and retirement plan
-- [ ] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
+- [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 
 ### E2. Later Public Evidence and Observation Tools

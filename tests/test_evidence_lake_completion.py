@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -11,15 +12,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import audit_evidence_lake_completion as completion  # noqa: E402
 
 
-def test_checked_in_completion_contract_reports_verified_but_incomplete() -> None:
+def test_checked_in_completion_contract_reports_complete_after_cutover() -> None:
     report = completion.audit(completion.DEFAULT_CONTRACT, completion.DEFAULT_STATE)
 
     assert report["verified_checkpoint_status"] == "pass"
-    assert report["completion_status"] == "incomplete"
+    assert report["completion_status"] == "complete"
     assert report["failing_checks"] == []
     assert report["candidate_build_id"] == "e7_39b7386d4524ce5b1ff2729f_public"
-    assert report["check_count"] >= 157
-    assert report["open_gate_count"] == 4
+    assert report["check_count"] >= 160
+    assert report["open_gate_count"] == 0
 
 
 def test_missing_required_report_fails_checkpoint(tmp_path: Path) -> None:
@@ -71,6 +72,7 @@ def test_nested_report_fields_and_named_artifact_roots(tmp_path: Path) -> None:
     (reports / "nested.json").write_text(
         json.dumps({"status": "pass", "gates": {"api": True}}), encoding="utf-8"
     )
+    report_sha256 = hashlib.sha256((reports / "nested.json").read_bytes()).hexdigest()
     bulk = tmp_path / "bulk"
     artifact = bulk / "family/build/manifest.json"
     artifact.parent.mkdir(parents=True)
@@ -83,6 +85,7 @@ def test_nested_report_fields_and_named_artifact_roots(tmp_path: Path) -> None:
             {
                 "stage": "E7",
                 "path": "nested.json",
+                "sha256": report_sha256,
                 "expect": {"status": "pass", "gates.api": True},
             }
         ],

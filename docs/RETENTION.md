@@ -1322,6 +1322,25 @@ containerd roots, active image/layer ownership, mount configuration, rollback,
 and the effect on rebuild performance. Do not move a live content store or
 conflate regenerable build cache with Spacegate scientific artifacts.
 
+### July 23 Evidence Lake local cutover
+
+Operator acceptance, atomic promotion, production-topology verification,
+rollback to `20260717T0614Z_f452835_side`, revision-pinned rollback
+verification, and re-promotion of
+`e7_39b7386d4524ce5b1ff2729f_public` all pass. Machine report
+`e7_cutover_drill_2026-07-23/cutover_report.json` records the exact checks and
+timings. The candidate is the local served build; the stability generation
+remains the immediate rollback build.
+
+No retention cleanup was part of the drill. Raw and typed evidence, permanent
+identity seeds, accepted candidate inputs, the served candidate, the stability
+rollback generation, published artifacts, reports, and report-referenced
+reproduction trees remain protected. The successful drill makes a
+family-aware post-cutover retirement dry-run eligible; it does not authorize
+manual deletion. That dry-run must preserve the accepted chain, immediate
+rollback chain, and all transitive inputs, and must enumerate whole immutable
+families rather than individual DuckDB or Parquet files.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

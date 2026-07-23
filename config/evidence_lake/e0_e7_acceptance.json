@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-23.e0-e7-acceptance.18",
+  "contract_version": "2026-07-23.e0-e7-acceptance.19",
   "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
   "shadow_build_id": "39b7386d4524ce5b1ff2729f",
   "artifact_roots": {
@@ -617,6 +617,42 @@
         "recovery_document_sha256": "fe1ea4c9205b8fabc10b3ead40ad4e9695666b8e4b034a1a7e22011f819a4dc9",
         "failing_checks": []
       }
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_drill_2026-07-23/operator_acceptance.json",
+      "sha256": "a1ed1e116b3d76df3a815cc822a41621c57a12bbcd7c8550128b6dcbc034bea4",
+      "expect": {
+        "status": "accepted",
+        "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
+        "rollback_build_id": "20260717T0614Z_f452835_side",
+        "antiproton_deployment_authorized": false,
+        "retention_cleanup_authorized": false
+      }
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_drill_2026-07-23/cutover_report.json",
+      "sha256": "a75095cfeeeb059ed41b4484e963334c791eb5fc8c861826004c399a456232a2",
+      "expect": {
+        "status": "pass",
+        "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
+        "rollback_build_id": "20260717T0614Z_f452835_side",
+        "final_served_target": "/data/spacegate/state/out/e7_39b7386d4524ce5b1ff2729f_public",
+        "failing_checks": [],
+        "retention_cleanup_performed": false,
+        "antiproton_deployment_performed": false
+      }
+    },
+    {
+      "stage": "E7",
+      "path": "e7_cutover_plan_post_promotion_2026-07-23.json",
+      "sha256": "58bdaa45fc619110b42a830249479020c117a8a4fb064e4e67fb7bcffb4f5d2b",
+      "expect": {
+        "status": "pass",
+        "legacy_inventory_hash": "af62a6829da484c1d1fa588e2a5dd7ecc2ea97a165596731aa233bcec9b5c818",
+        "failing_checks": []
+      }
     }
   ],
   "required_artifacts": [
@@ -664,30 +700,5 @@
     "out/e7_39b7386d4524ce5b1ff2729f_public/canonical_hierarchy.duckdb",
     "out/e7_39b7386d4524ce5b1ff2729f_public/map_tiles/index.json"
   ],
-  "open_gates": [
-    {
-      "gate_id": "operator_scientific_ab_acceptance",
-      "stage": "E7",
-      "status": "open",
-      "reason": "Corrected candidate e7_39b7386d4524ce5b1ff2729f_public passes consolidated scientific A/B, shared-consumer, clean science/CORE/ARM/DISC/map reproduction, API, scene, and browser gates. Explicit operator acceptance is required before local promotion."
-    },
-    {
-      "gate_id": "local_atomic_promotion_rollback_repromotion",
-      "stage": "E7",
-      "status": "blocked",
-      "reason": "Promotion cannot begin before explicit operator acceptance."
-    },
-    {
-      "gate_id": "legacy_retirement",
-      "stage": "E7",
-      "status": "blocked",
-      "reason": "Legacy paths remain required for stability reproduction and cannot retire before clean reproduction and rollback verification."
-    },
-    {
-      "gate_id": "promotion_rollback_timing_closeout",
-      "stage": "E6_E7",
-      "status": "blocked",
-      "reason": "Build-step timings are published; promotion and rollback timings require the E7 drill."
-    }
-  ]
+  "open_gates": []
 }

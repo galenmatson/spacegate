@@ -22,13 +22,20 @@ longer a canonical inventory source; its remaining role is transitional alias
 and compatibility enrichment.
 
 The public map now uses versioned spatial tiles and LOD loading through the
-1,000 ly radius. The current main-quest milestone is Evidence Lake v2. Its
-registry, source-native lake, and release-scoped identity/scope graph are
-complete; foundational source acquisition, typed evidence, and deterministic
-value selection now lead to the shadow canonical build. The next canonical
-build must use the richest defensible source data before presentation
-assumptions. The Concept Tag foundation and a secure, citation-backed, reviewed
-AI Astronomy Agency vertical slice follow that scientific checkpoint.
+1,000 ly radius. Evidence Lake v2 is the authoritative local Photon scientific
+build path after its reviewed July 23, 2026 promotion/rollback/re-promotion
+drill. The promoted build compiles release-scoped identity, source-native
+evidence, domain-specific selection, CORE, ARM, DISC, search, map tiles, and
+simulation products without reopening the stability databases as scientific
+authority. The retained stability build remains the rollback artifact; legacy
+collectors and cookers are compatibility/reproduction paths, not authoritative
+refresh entrypoints.
+
+The immediate gate before any antiproton transfer is measured CPU, memory, I/O,
+cache, and concurrency testing under its 6-vCPU/12-GiB envelope. A separate
+Map/Search consumer review will then decide adaptation versus deeper rewrite
+from measured legacy coupling. Concept Tags and a secure, citation-backed,
+reviewed AI Astronomy Agency vertical slice follow these foundation gates.
 
 ## Core Principles
 

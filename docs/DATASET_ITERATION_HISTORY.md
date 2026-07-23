@@ -4065,6 +4065,33 @@ Representative commits:
   iterative-only content attestations. Full byte hashing remains mandatory for
   reproduction and promotion.
 
+### 159) Evidence Lake v2 Promoted Locally With Verified Rollback
+
+- On July 23, 2026 the operator accepted corrected candidate
+  `e7_39b7386d4524ce5b1ff2729f_public` and authorized the local Photon
+  promotion/rollback/re-promotion drill.
+- The atomic pointer transition, rebuilt production topology, required strict
+  verification, API integration, current known-system checks, static map-tile
+  identity, and focused desktop/mobile browser smoke pass against the
+  candidate.
+- Atomic rollback to `20260717T0614Z_f452835_side` passes pointer, API, tile,
+  container-health, API-integration, and revision-pinned strict verification.
+  The current verifier expects 147 post-stability classification rows, proving
+  that rollback verification logic must be retained with the rollback artifact.
+- A historical Castor raw-string golden expects `M1_Ve` while the rollback API
+  exposes equivalent `dM1e`. It is recorded as brittle named-object test debt;
+  no production transform or database correction was added to satisfy it.
+- Re-promotion passes the strict, API, known-system, tile, and browser checks
+  again. The accepted Evidence Lake build remains served locally.
+- Acceptance contract v19 completes all 161 pinned checks with zero open gates.
+  The seven-path legacy ledger now formally retires old cookers from
+  authoritative use, retains compatibility/stability reproducers and permanent
+  identity work, and records that no artifact deletion or antiproton deployment
+  occurred.
+- Atomic promotion/rollback/re-promotion take 0.36/0.36/0.35 seconds. Warm
+  service recreation takes 6.83/6.76 seconds; the first cold image rebuild after
+  BuildKit cleanup takes 2:42.34.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

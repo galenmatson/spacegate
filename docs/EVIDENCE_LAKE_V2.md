@@ -2504,8 +2504,10 @@ The same audit confirms explicit luminosity semantics for 1,983,744 source
 values and 66,834 derived values, with no selected luminosity missing status or
 derivation lineage. Isolated API integration, strict search/detail/scene
 checks, and bounded cold/warm scene materialization pass against the corrected
-candidate. It remains unpromoted pending the final acceptance contract,
-browser/reproduction gates as required, and explicit operator review.
+candidate. The operator accepted that review on July 23, 2026. Atomic local
+promotion, production-topology verification, stability rollback, rollback
+verification, and re-promotion pass; the accepted candidate is now Photon's
+served build. No antiproton deployment or retention cleanup occurred.
 
 ## Hard Gates
 
@@ -2527,7 +2529,8 @@ identity-contract migration must use relevant-rule hashes and retain the global
 policy version as lineage; it may not weaken evidence identity or be disguised
 as a performance-only rewrite.
 
-Evidence Lake v2 is not promotable until:
+Evidence Lake v2 required all of the following before promotion; acceptance
+contract v19 now passes all 161 checks with zero open gates:
 
 - every registered source release and field has an explicit disposition
 - raw snapshots reproduce typed outputs from clean state
