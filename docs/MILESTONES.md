@@ -2776,6 +2776,13 @@ Success criteria:
 - scientific evidence is not discarded merely to fit an unmeasured server
 - unsafe memory, CPU, I/O, or concurrency limits have a concrete architectural,
   configuration, or hosting response before public cutover
+- pre-deployment correctness includes explicit exact-like TIC/TOI miss
+  semantics and restoration of generic source-backed nested stellar
+  `group_pair` orbits lost by the first clean leaf-only endpoint bridge
+- subsystem orbit recovery must bind source-native parent/group endpoints to
+  deterministic accepted descendant sets; it must not infer canonical
+  containment, branch on named systems, or restore the deprecated database as
+  production authority
 
 ### M8.3e. Map and Search Consumer Architecture Review
 

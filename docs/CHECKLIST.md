@@ -1932,6 +1932,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
+- [ ] Correct exact-like TIC/TOI miss behavior before public cutover: an
+  accepted identifier must resolve to its bound system, while a deferred or
+  missing identifier such as TIC 150320610 must return an explicit no-exact-
+  match/deferred result rather than unrelated fuzzy fallback systems; add API
+  and browser regression coverage
+- [ ] Restore generic nested stellar-orbit projection after the Evidence Lake
+  cutover: preserve source-native subsystem/parent endpoints, bind each group
+  to its deterministic accepted descendant-leaf set without promoting source
+  relations into canonical containment, emit `group_pair` scene orbits and
+  recursive `simulation_tree_v1` nodes, and rerun the wide-orbit goldens for
+  Castor, Alpha Centauri, Nu Scorpii, Tegmine, 16 Cyg, and ordinary controls
 - [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
   CPU, memory, I/O, cache, latency, throughput, and concurrency smoke tests
   against the promoted build under an antiproton-like 6-vCPU/12-GiB envelope;
