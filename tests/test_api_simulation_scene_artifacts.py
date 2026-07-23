@@ -70,3 +70,28 @@ def test_runtime_scene_artifact_carries_build_contract(monkeypatch, tmp_path: Pa
         payload = json.load(handle)
     assert payload["materialization"]["output_mode"] == "runtime-cache"
     assert payload["materialization"]["build_id"] == "candidate-build"
+
+
+def test_simulation_prefers_selected_luminosity_and_preserves_derivation_status() -> None:
+    fields = main._star_simulation_fields(
+        {
+            "star_id": 7,
+            "spectral_type_raw": "G2 V",
+            "spectral_class": "G",
+        },
+        {
+            "teff_k": 5772.0,
+            "radius_rsun": 1.0,
+            "luminosity_lsun": 0.98,
+            "luminosity_lsun_status": "derived",
+            "luminosity_lsun_basis": "stellar_luminosity_stefan_boltzmann",
+        },
+        {},
+    )
+    luminosity = next(
+        field for field in fields["fields"] if field["key"] == "luminosity_lsun"
+    )
+    assert luminosity["value"] == 0.98
+    assert luminosity["status"] == "derived"
+    assert luminosity["basis"] == "arm stellar_luminosity_stefan_boltzmann"
+    assert luminosity.get("generator_version") is None

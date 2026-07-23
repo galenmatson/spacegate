@@ -441,6 +441,21 @@ def _duckdb_has_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
     return row is not None
 
 
+def _duckdb_has_column(
+    con: duckdb.DuckDBPyConnection, table_name: str, column_name: str
+) -> bool:
+    row = con.execute(
+        """
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'main' AND table_name = ? AND column_name = ?
+        LIMIT 1
+        """,
+        [table_name, column_name],
+    ).fetchone()
+    return row is not None
+
+
 def _rows_to_dicts(cursor: duckdb.DuckDBPyConnection) -> List[Dict[str, Any]]:
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
@@ -1068,7 +1083,11 @@ def _star_simulation_fields(
     source_teff = _float_or_none(star.get("teff_k")) or _float_or_none((params or {}).get("teff_k"))
     source_mass = _float_or_none(star.get("mass_msun")) or _float_or_none((params or {}).get("mass_msun"))
     source_radius = _float_or_none(star.get("radius_rsun")) or _float_or_none((params or {}).get("radius_rsun"))
-    source_lum = _float_or_none(star.get("luminosity_lsun"))
+    core_lum = _float_or_none(star.get("luminosity_lsun"))
+    selected_lum = _float_or_none((params or {}).get("luminosity_lsun"))
+    source_lum = core_lum if core_lum is not None else selected_lum
+    selected_lum_status = str((params or {}).get("luminosity_lsun_status") or "selected")
+    selected_lum_basis = str((params or {}).get("luminosity_lsun_basis") or "selected fact")
     log_lum = _float_or_none((params or {}).get("luminosity_log10_lsun"))
     if source_lum is None and log_lum is not None:
         source_lum = math.pow(10.0, log_lum)
@@ -1102,14 +1121,34 @@ def _star_simulation_fields(
             label="Luminosity",
             value=source_lum if source_lum is not None else ((arm_lum_field or {}).get("value") if arm_lum_field else (derived_lum if derived_lum is not None else proxy.get("luminosity_lsun"))),
             unit="Lsun",
-            status="source" if source_lum is not None else ("derived" if arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is not None else "missing"),
+            status=(
+                "source"
+                if core_lum is not None
+                else (
+                    selected_lum_status
+                    if selected_lum is not None
+                    else ("derived" if arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is not None else "missing")
+                )
+            ),
             basis=(
-                "arm source luminosity_log10_lsun"
-                if source_lum is not None
-                else ((arm_lum_field or {}).get("basis") if arm_lum_field else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else (proxy_basis if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy")))
+                "core source luminosity_lsun"
+                if core_lum is not None
+                else (
+                    f"arm {selected_lum_basis}"
+                    if selected_lum is not None
+                    else ((arm_lum_field or {}).get("basis") if arm_lum_field else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else (proxy_basis if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy")))
+                )
             ),
             layer="arm" if source_lum is not None or arm_lum_field is not None or derived_lum is not None else ("arm_candidate" if proxy.get("luminosity_lsun") is not None else "none"),
-            confidence_tier="high" if source_lum is not None else ((arm_lum_field or {}).get("confidence_tier") if arm_lum_field else ("medium" if derived_lum is not None else (proxy_confidence_tier if proxy.get("luminosity_lsun") is not None else "missing"))),
+            confidence_tier=(
+                "high"
+                if core_lum is not None or (selected_lum is not None and selected_lum_status == "source")
+                else (
+                    "medium"
+                    if selected_lum is not None
+                    else ((arm_lum_field or {}).get("confidence_tier") if arm_lum_field else ("medium" if derived_lum is not None else (proxy_confidence_tier if proxy.get("luminosity_lsun") is not None else "missing")))
+                )
+            ),
             replacement_target="source stellar luminosity or source radius+teff with uncertainty",
             generator_version=None if source_lum is not None or arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is None else proxy_version,
             confidence=None if source_lum is not None or arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is None else proxy_confidence,
@@ -2609,6 +2648,8 @@ def _render_scene_contract(
         mass = _float_or_none(facts.get("mass_msun"))
         radius = _float_or_none(facts.get("radius_rsun"))
         luminosity = _float_or_none(facts.get("luminosity_lsun"))
+        luminosity_status = str(facts.get("luminosity_lsun_status") or "selected")
+        luminosity_basis = str(facts.get("luminosity_lsun_basis") or "selected fact")
         seed = _stable_seed(system.get("stable_object_key"), render_key, "hierarchy_star_visual")
         body_class = _stellar_body_class(
             {
@@ -2768,9 +2809,9 @@ def _render_scene_contract(
                     label="Luminosity",
                     value=luminosity if luminosity is not None else derived_luminosity,
                     unit="Lsun",
-                    status="source" if luminosity is not None else "derived",
+                    status=luminosity_status if luminosity is not None else "derived",
                     basis=(
-                        "canonical_hierarchy:quick_fact"
+                        f"canonical_hierarchy:{luminosity_basis}"
                         if luminosity is not None
                         else "stellar_luminosity_from_radius_teff_v1"
                     ),
@@ -4810,20 +4851,66 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         )
         if star_ids and _duckdb_has_table(con, parameter_table):
             placeholders = ",".join(["?"] * len(star_ids))
-            rows = _rows_to_dicts(
-                con.execute(
-                    f"""
-                    SELECT star_id, stable_object_key, parameter_source, teff_k, radius_rsun,
-                           mass_msun, luminosity_log10_lsun, age_gyr, spectral_type_raw,
-                           source_catalog
+            if parameter_table == "e6_selected_stellar_parameters":
+                has_embedded_status = _duckdb_has_column(
+                    con, parameter_table, "luminosity_lsun_status"
+                )
+                has_derivations = _duckdb_has_table(
+                    con, "evidence_fact_selected_fact_derivations"
+                ) and not has_embedded_status
+                derivation_join = (
+                    """
+                    LEFT JOIN evidence_fact_selected_fact_derivations d
+                      ON d.output_selected_fact_id=p.luminosity_lsun_fact_id
+                    """
+                    if has_derivations
+                    else ""
+                )
+                status_sql = (
+                    "CASE WHEN d.derivation_id IS NOT NULL THEN 'derived' "
+                    "WHEN p.luminosity_lsun_fact_id IS NOT NULL THEN 'source' END"
+                    if has_derivations
+                    else (
+                        "p.luminosity_lsun_status"
+                        if has_embedded_status
+                        else "CASE WHEN p.luminosity_lsun_fact_id IS NOT NULL THEN 'selected' END"
+                    )
+                )
+                basis_sql = (
+                    "coalesce(d.algorithm_key,'selected fact')"
+                    if has_derivations
+                    else (
+                        "p.luminosity_lsun_basis"
+                        if has_embedded_status
+                        else "'selected fact'"
+                    )
+                )
+                query = f"""
+                    SELECT p.star_id,p.stable_object_key,p.parameter_source,p.teff_k,p.radius_rsun,
+                           p.mass_msun,p.luminosity_lsun,p.luminosity_log10_lsun,p.age_gyr,
+                           p.spectral_type_raw,NULL::VARCHAR AS source_catalog,
+                           p.luminosity_lsun_fact_id,{status_sql} AS luminosity_lsun_status,
+                           {basis_sql} AS luminosity_lsun_basis
+                    FROM {parameter_table} p
+                    {derivation_join}
+                    WHERE p.star_id IN ({placeholders})
+                    ORDER BY p.parameter_source ASC,p.star_id ASC
+                    LIMIT 80
+                """
+            else:
+                query = f"""
+                    SELECT star_id,stable_object_key,parameter_source,teff_k,radius_rsun,
+                           mass_msun,NULL::DOUBLE AS luminosity_lsun,luminosity_log10_lsun,
+                           age_gyr,spectral_type_raw,source_catalog,
+                           NULL::VARCHAR AS luminosity_lsun_fact_id,
+                           NULL::VARCHAR AS luminosity_lsun_status,
+                           NULL::VARCHAR AS luminosity_lsun_basis
                     FROM {parameter_table}
                     WHERE star_id IN ({placeholders})
-                    ORDER BY parameter_source ASC, star_id ASC
+                    ORDER BY parameter_source ASC,star_id ASC
                     LIMIT 80
-                    """,
-                    star_ids,
-                )
-            )
+                """
+            rows = _rows_to_dicts(con.execute(query, star_ids))
             output["stellar_parameters"] = {"count": len(rows), "items": rows[:30]}
         derived_filters: List[str] = []
         derived_params: List[Any] = []

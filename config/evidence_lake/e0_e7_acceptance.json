@@ -1,8 +1,14 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-22.e0-e7-acceptance.14",
-  "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
-  "shadow_build_id": "e6_95e7af54d69f3d9602d81e5b_shadow",
+  "contract_version": "2026-07-23.e0-e7-acceptance.16",
+  "candidate_build_id": "e7_73349c253a411945c246d459_public",
+  "shadow_build_id": "73349c253a411945c246d459",
+  "artifact_roots": {
+    "bulk": "/mnt/space/spacegate"
+  },
+  "additional_report_roots": [
+    "/data/spacegate/reports/evidence_lake_v2"
+  ],
   "report_checks": [
     {
       "stage": "E0",
@@ -121,6 +127,34 @@
     },
     {
       "stage": "E5",
+      "path": "e5_planet_derivations_2026-07-23.json",
+      "expect": {
+        "status": "pass",
+        "build_id": "1dfc750b79b88018983ded82",
+        "total_derived_facts": 1374,
+        "verification": {
+          "derived_overrides_direct": 0,
+          "derived_without_lineage": 0,
+          "duplicate_object_quantities": 0,
+          "invalid_values": 0,
+          "lineage_without_fact": 0,
+          "unresolved_equilibrium_applicable": 0,
+          "unresolved_insolation_applicable": 0,
+          "unresolved_semimajor_applicable": 0
+        }
+      }
+    },
+    {
+      "stage": "E5",
+      "path": "e5_planet_derivations_reproduction_verification_2026-07-23.json",
+      "expect": {
+        "status": "pass",
+        "left_build_id": "1dfc750b79b88018983ded82",
+        "right_build_id": "1dfc750b79b88018983ded82"
+      }
+    },
+    {
+      "stage": "E5",
       "path": "e5_selected_component_v9_audit.json",
       "expect": {"status": "pass", "build_id": "67fea5f99500b57419ebdeb0"}
     },
@@ -168,6 +202,26 @@
       "stage": "E7",
       "path": "e7_cutover_plan_verification.json",
       "expect": {"status": "pass", "failing_checks": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_local_promotion_preflight_2026-07-23.json",
+      "expect": {
+        "status": "pass",
+        "candidate_build_id": "e7_73349c253a411945c246d459_public",
+        "failing_checks": [],
+        "mutations_performed": false
+      }
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_staging_retention_apply_2026-07-23.json",
+      "expect": {
+        "status": "pass",
+        "action": "applied",
+        "candidate_count": 1,
+        "reclaimable_bytes": 9576148992
+      }
     },
     {
       "stage": "E7",
@@ -323,6 +377,121 @@
       "stage": "E7",
       "path": "e7_clean_clusters_reproduction.json",
       "expect": {"status": "pass", "build_id": "171d3096b5cd7ad5f53a016b", "scratch_removed": true, "differing_files": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_selected_stellar_classifications_v2/compile.json",
+      "expect": {"status": "pass", "build_id": "3f645ac3de3323637ded93d5", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_selected_stellar_classifications_v2/verify.json",
+      "expect": {"status": "pass", "build_id": "3f645ac3de3323637ded93d5", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_selected_stellar_classifications_v2/reproduction.json",
+      "expect": {"status": "pass", "build_id": "3f645ac3de3323637ded93d5", "failing_checks": [], "differing_byte_exact_products": [], "differing_tables": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v6/compile.json",
+      "expect": {"status": "pass", "build_id": "2d084ee3c5939878259793bb", "stability_databases_opened": [], "stability_scientific_values_copied": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v6/verify.json",
+      "expect": {"status": "pass", "build_id": "2d084ee3c5939878259793bb", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_science_v6/reproduction.json",
+      "expect": {"status": "pass", "build_id": "2d084ee3c5939878259793bb", "scratch_removed": true, "failing_checks": [], "differing_byte_exact_products": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v8/compile.json",
+      "expect": {"status": "pass", "build_id": "21971e59527ccf5c729b7cab", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v8/verify.json",
+      "expect": {"status": "pass", "build_id": "21971e59527ccf5c729b7cab", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_core_v8/reproduction.json",
+      "expect": {"status": "pass", "build_id": "21971e59527ccf5c729b7cab", "scratch_removed": true, "differing_files": [], "hierarchy_logical_match": true}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v9/compile.json",
+      "expect": {"status": "pass", "build_id": "45d996e094020fa52d8a3f82", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v9/verify.json",
+      "expect": {"status": "pass", "build_id": "45d996e094020fa52d8a3f82", "failing_checks": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v9/reproduction.json",
+      "expect": {"status": "pass", "build_id": "45d996e094020fa52d8a3f82", "failing_checks": [], "differing_tables": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_arm_v9/classification_ab.json",
+      "expect": {"status": "pass", "build_id": "45d996e094020fa52d8a3f82", "checks.unaccounted_known_to_unknown": 0, "checks.gaia_white_dwarf_known_to_unknown": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v4/compile.json",
+      "expect": {"status": "pass", "build_id": "d43e93eeb9c09c9e7445c9d6", "stability_databases_opened": []}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v4/verify.json",
+      "expect": {"status": "pass", "build_id": "d43e93eeb9c09c9e7445c9d6", "failures": {}}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_disc_v4/reproduce.json",
+      "expect": {"status": "pass", "build_id": "d43e93eeb9c09c9e7445c9d6", "scratch_removed": true, "canonical_parquet_match.bytes": true, "canonical_parquet_match.determinism": true, "canonical_parquet_match.sha256": true}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_runtime_bundle_v4/compile.json",
+      "expect": {"status": "pass", "build_id": "73349c253a411945c246d459", "stability_databases_opened": [], "served_directly": false}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_map_tiles_v4/verification.json",
+      "expect": {"passed": true, "build_id": "e7_73349c253a411945c246d459_public"}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_clean_map_tiles_v4/reproduction_comparison.json",
+      "expect": {"passed": true, "timestamp_fields_ignored": ["index.generated_at", "manifest.generated_at"]}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_scene_v4/cold_report.json",
+      "expect": {"ok": true, "build_id": "e7_73349c253a411945c246d459_public", "requested": 24, "generated": 24, "reused": 0, "failed": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_scene_v4/warm_report.json",
+      "expect": {"ok": true, "build_id": "e7_73349c253a411945c246d459_public", "requested": 24, "generated": 0, "reused": 24, "failed": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_browser_v4/tiled-final-corrected/playwright-report.json",
+      "expect": {"errors": [], "stats.expected": 12, "stats.skipped": 4, "stats.unexpected": 0, "stats.flaky": 0}
+    },
+    {
+      "stage": "E7",
+      "path": "e7_final_scientific_ab_2026-07-23.json",
+      "expect": {"status": "pass", "gates.canonical_inventory_stable": true, "gates.classification_ab_pass": true, "gates.map_pass": true, "gates.api_pass": true, "gates.browser_pass": true, "gates.antiproton_deployed": false}
     }
   ],
   "required_artifacts": [
@@ -342,36 +511,42 @@
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
     "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
     "derived/evidence_lake_v2/selected_facts/33006bde9bedd1fb365238b5/manifest.json",
+    "derived/evidence_lake_v2/selected_planet_derivations/1dfc750b79b88018983ded82/manifest.json",
     "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4/manifest.json",
     "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5/manifest.json",
     "derived/evidence_lake_v2/clean_wise/ec8e218402c3a4a3b55b2811/manifest.json",
     "derived/evidence_lake_v2/clean_extended_objects/c203e4f451890660ec02086a/manifest.json",
-    "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b/manifest.json"
+    "derived/evidence_lake_v2/clean_clusters/171d3096b5cd7ad5f53a016b/manifest.json",
+    {"root": "bulk", "path": "e7-selected-stellar-classifications/3f645ac3de3323637ded93d5/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-science/2d084ee3c5939878259793bb/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-core/21971e59527ccf5c729b7cab/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-arm/45d996e094020fa52d8a3f82/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-disc/d43e93eeb9c09c9e7445c9d6/manifest.json"},
+    {"root": "bulk", "path": "e7-clean-runtime-bundle/73349c253a411945c246d459/manifest.json"},
+    "out/e7_73349c253a411945c246d459_public/core.duckdb",
+    "out/e7_73349c253a411945c246d459_public/arm.duckdb",
+    "out/e7_73349c253a411945c246d459_public/disc.duckdb",
+    "out/e7_73349c253a411945c246d459_public/canonical_hierarchy.duckdb",
+    "out/e7_73349c253a411945c246d459_public/map_tiles/index.json"
   ],
   "open_gates": [
-    {
-      "gate_id": "clean_pinned_input_authoritative_entrypoint",
-      "stage": "E7",
-      "status": "open",
-      "reason": "Clean runtime CORE 92da8d31dc0e7dbd4d4d70a5 now composes clean foundation 9c2d08086275ead386f71bf7, solar-backed clean science 7c27f1595c69278b8d55c9e4, clean clusters 171d3096b5cd7ad5f53a016b, and clean extended objects c203e4f451890660ec02086a into the API-compatible CORE without opening stability databases. Clean WISE ec8e218402c3a4a3b55b2811 and extended identity seed 555fa1890943b97dd0e4ef3d remain separately verified. Serving/search cutover, final ARM/DISC metadata, hierarchy leaves, animation/barycenter surfaces, the HD 97472 identity tail, and rebuilt public products remain open."
-    },
     {
       "gate_id": "shared_selected_fact_consumer_cutover",
       "stage": "E5_E7",
       "status": "open",
-      "reason": "Classification, HZ, planet-category, simulation, API, search, map, tag, and AAA consumers have not all retired independent scientific fallback paths."
+      "reason": "The staged clean CORE/ARM/DISC and public candidate select canonical science only from pinned selected-fact artifacts, but they predate focused planet-derivation shard 1dfc750b79b88018983ded82 and embedded luminosity lineage. Rebuild the downstream chain, then distinguish and account retained DISC/rendering assumptions from prohibited independent scientific winner selection before this gate closes."
     },
     {
       "gate_id": "operator_scientific_ab_acceptance",
       "stage": "E7",
-      "status": "awaiting_operator",
-      "reason": "The consolidated v7 scientific A/B report and the solar-backed v2 addendum are complete but have not yet received explicit operator acceptance. The addendum changes exactly one selected value: the Sun gains the official IAU effective temperature 5772 +/- 0.8 K; all other scientific projections are unchanged, while global-policy-version fact identity causes documented lineage-ID churn."
+      "status": "open",
+      "reason": "Candidate e7_73349c253a411945c246d459_public passed its consolidated scientific A/B, exact map reproduction, API, scene, and browser gates, but the accepted planet-derivation correction requires a refreshed downstream candidate and A/B before operator acceptance."
     },
     {
       "gate_id": "local_atomic_promotion_rollback_repromotion",
       "stage": "E7",
       "status": "blocked",
-      "reason": "Promotion cannot begin before operator acceptance and the clean authoritative entrypoint gate."
+      "reason": "Promotion cannot begin before operator acceptance and the final shared-consumer audit."
     },
     {
       "gate_id": "legacy_retirement",

@@ -7,13 +7,21 @@ No legacy build code or artifact is deleted before the accepted Evidence Lake
 candidate has been promoted locally, exercised through the production service
 topology, rolled back to the stability build, and promoted again.
 
-The current E6 v7 public candidate
-`e6_95e7af54d69f3d9602d81e5b_public` still composes permanent inventory and
-identity from stability build `20260717T0614Z_f452835_side`. Therefore the bootstrap cookers,
-`ingest_core.py`, and `build_arm.py` remain required stability inputs. Calling
-Evidence Lake v2 the only production compilation path before removing that
-dependency would be incorrect. The canonical identity reducer is permanent
-Spacegate work and will be adapted to E2 rather than retired.
+Final clean candidate `e7_73349c253a411945c246d459_public` composes permanent
+identity, selected science, CORE, ARM, DISC, search, map tiles, and simulation
+artifacts without using the stability databases as scientific authority. The
+served pointer still targets stability build `20260717T0614Z_f452835_side`;
+therefore bootstrap cookers, `ingest_core.py`, and `build_arm.py` remain
+rollback dependencies until the local promotion/rollback/re-promotion drill
+passes. The canonical identity reducer remains permanent Spacegate work and is
+not a retirement target.
+
+A post-review audit found three declared but unimplemented planet derivations
+and one API selected-luminosity adapter defect. Focused E5 shard
+`1dfc750b79b88018983ded82` corrects the derivation gap, and clean-science policy
+v7 consumes it. The staged final candidate predates that correction, so a
+storage-reviewed downstream rebuild and refreshed scientific A/B are required
+before operator acceptance.
 
 Machine contracts:
 
@@ -34,13 +42,21 @@ Machine contracts:
 - `scripts/compile_selected_system_placements.py`
 - `scripts/verify_selected_system_placements.py`
 - `scripts/verify_selected_system_placement_reproduction.py`
+- `scripts/preflight_local_promotion.py`
 
-The current completion audit passes all 85 pinned checkpoint checks and reports
-`incomplete`. Its six explicit gates are the clean pinned-input authoritative
-entrypoint, shared selected-fact consumer cutover, operator scientific A/B
-acceptance, local atomic promotion/rollback/re-promotion, legacy retirement,
-and the remaining promotion/rollback timing rows. This is the intended state;
-the report must not translate passing E0-E6 evidence into premature E7 cutover.
+The current completion audit passes all 124 pinned checkpoint checks and
+reports `incomplete`. Its five explicit gates are shared selected-fact consumer
+cutover, operator scientific A/B acceptance, local atomic
+promotion/rollback/re-promotion, legacy retirement, and the remaining
+promotion/rollback timing rows. This is the intended state; the report must not
+translate a passing unpromoted candidate into premature E7 cutover.
+
+The read-only local cutover preflight passes for the staged candidate and
+stability rollback target without changing `served/current`. The promotion
+helper now creates a temporary relative symlink in `served/` and replaces the
+pointer with `os.replace`, making the pointer transition one atomic rename on
+the served filesystem. The actual cutover remains forbidden until the corrected
+downstream candidate passes review.
 
 Permanent identity seed `5c878083872c738415971864` is the one-time bridge from
 the reviewed canonical hierarchy to the clean compiler. It contains only stable
@@ -62,7 +78,7 @@ seeds alone do not close the clean-entrypoint gate.
 
 ## Cutover Sequence
 
-1. **Accept E6 science.** Close all inventory, identity, component-scope,
+1. **Accept E7 science.** Close all inventory, identity, component-scope,
    selected-fact, fallback, HZ, planet, orbit, cluster, variability,
    compact-object, extended-object, API/search/map/simulation, storage, and
    performance deltas through reusable policy and evidence lineage.
@@ -101,7 +117,7 @@ a later explicit operator checkpoint after local cutover is stable.
 
 ## Build-Time Closeout
 
-`docs/E6_BUILD_PERFORMANCE_2026-07-22.md` is the canonical timing report. E7
+`docs/E7_BUILD_PERFORMANCE_2026-07-22.md` is the canonical timing report. E7
 adds promotion, container-restart, production smoke, rollback, and re-promotion
 rows. The report must keep wall/CPU/RSS/I/O/output measurements where the runner
 exposes them and may not hide cold work inside a warm-cache total.

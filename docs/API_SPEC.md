@@ -17,7 +17,7 @@ Note: `/api/v1/auth/*` and `/api/v1/admin/*` are deprecated compatibility routes
 - alias examples now reflect authority/cross-catalog alias ingestion (not AT-HYG-origin placeholders).
 - search/detail field semantics remain backward-compatible for the public UI and admin tooling.
 
-## Evidence Lake v2 Staging Status (2026-07-21)
+## Evidence Lake v2 Staging Status (2026-07-23)
 
 M8.3c-E2's release-scoped identity/scope graph is an internal, unserved compiler
 artifact. It does not change any `/api/v1` or `/api/v2` response, public search
@@ -38,13 +38,21 @@ exact response products, orbit solutions, physical parameter sets, and
 source-scoped center relations are compiler evidence only; it does not change
 the served Sol hierarchy, simulation payload, or public object count.
 
-E7 clean science build `35eb29fa3b2a3ac518f5303a` now provides unserved
+Final reviewed clean science build `2d084ee3c5939878259793bb` provides unserved
 `selected_stellar_parameters`, `selected_stellar_display_classifications`, and
 `selected_planet_parameters` surfaces plus typed domain projections without
 stability values. Public API, simulation, search facets, and slice code must be
 cut over and A/B verified before these internal surfaces change responses. New
 consumer code must use these shared projections instead of selecting or
 inferring the same scientific quantity independently.
+
+The next clean-science contract adds focused E5 planet-derivation shard
+`1dfc750b79b88018983ded82` and embeds stellar-luminosity selection status and
+basis in `selected_stellar_parameters`. API and simulation code may consume
+those fields but must remain compatible with the staged candidate until the
+downstream clean rebuild passes A/B. Runtime Stefan-Boltzmann, Kepler,
+insolation, and equilibrium-temperature fallbacks must not outrank or duplicate
+the shared selected-fact projection.
 
 E7 clean WISE build `ec8e218402c3a4a3b55b2811` is likewise internal and
 unserved. It replaces the seven infrared ARM compatibility projections from

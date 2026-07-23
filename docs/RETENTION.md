@@ -1237,6 +1237,19 @@ input while retiring superseded clean-science/CORE/ARM/public generations and
 manifestless staging trees as whole units. Raw, typed, identity, and unique
 source evidence remain ineligible.
 
+The July 23 shared-consumer audit required one corrected downstream candidate
+before promotion. A fail-closed staging retention dry-run identified only
+stopped manifestless clean-science tree
+`.9549e011d3c567cfd7206ecb.wjwdvhj4`: it was more than 16 hours old, contained
+one unshared DuckDB, had no manifest, symlink, hardlink, or live process, and
+matched candidate-set hash
+`7f55083603b46b23c15b4387ab570ece45a1c87418257bd2550aef3b9717c4ac`.
+The exact apply reclaimed 9,576,148,992 allocated bytes and raised
+`/mnt/space` free space to about 49 GiB. Reports
+`e7_clean_science_staging_retention_{dry_run,apply}_2026-07-23.json` preserve
+the tree identity and action. No manifest-bearing, raw, typed, selected,
+served, rollback, or reviewed candidate artifact was removed.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

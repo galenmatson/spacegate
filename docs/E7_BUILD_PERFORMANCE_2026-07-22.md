@@ -22,6 +22,43 @@ An optimization is acceptable only when the same scientific and reproducibility
 gates pass. Reusing or weakening a stability-database path is not a build-time
 optimization.
 
+## Incremental Planet-Derivation Shard
+
+The completion audit found that E5 policy v17 declared Kepler semimajor-axis,
+inverse-square insolation, and equilibrium-temperature derivations, but the
+monolithic selected-fact compiler implemented only stellar luminosity.
+Rebuilding the approximately 39.1-GB selected-fact DuckDB and its roughly
+71-GB complete artifact family for 1,374 planet facts would repeat the dominant
+25-minute E5 path for a small, independent scientific program.
+
+Focused build `1dfc750b79b88018983ded82` instead pins the exact selected-fact
+and clean-foundation manifests and emits a 1.1-MB DuckDB plus 316 KB of
+canonical Parquet. It derives 461 semimajor axes, 654 insolations, and 259
+equilibrium temperatures. Every applicable target is resolved, direct selected
+facts are never overridden, and every output has input-fact and algorithm
+lineage.
+
+| Phase | Wall s | CPU s | Input blocks |
+|---|---:|---:|---:|
+| Validate pinned inputs | 0.001 | 0.001 | 0 |
+| Kepler semimajor axes | 1.754 | 7.377 | 495,728 |
+| Insolation | 0.852 | 3.323 | 5,848 |
+| Equilibrium temperature | 0.013 | 0.024 | 0 |
+| Applicability and lineage audit | 1.613 | 6.363 | 8,552 |
+| Export and checkpoint | 0.047 | 0.051 | 0 |
+| **Total** | **4.412** | **17.359** | **510,128** |
+
+Peak RSS is 2,480,616 KiB with no swap. A clean second compile reproduces both
+Parquet files byte-for-byte and both DuckDB tables logically; DuckDB page bytes
+remain correctly classified as nondeterministic query serialization. The
+largest cost is scanning the upstream selected-fact database, not calculation.
+
+This is the first accepted domain-sharding optimization. The next clean-science
+compiler overlays the shard only for planet projection and carries selected
+luminosity status/basis into runtime consumers. A downstream CORE/ARM/DISC/
+public rebuild remains necessary before promotion, but the 25-minute monolithic
+E5 compiler no longer sits on that iteration path.
+
 Corrected modular classification build `3f645ac3de3323637ded93d5` provides the
 clearest current I/O profile. It passes independent verification and isolated
 reproduction with 60 new source-native classification evidence rows:

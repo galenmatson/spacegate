@@ -1580,11 +1580,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E5: inventory every current derivation and presentation prior; record
   inputs, algorithm/applicability, uncertainty/confidence, provenance,
   supersession, implementation markers, and materialized-method accounting
+- [x] E5 planet-derivation shard: implement the three policy-declared planet
+  derivations as a pinned independently regenerable artifact; derive 461
+  semimajor axes, 654 insolations, and 259 equilibrium temperatures with zero
+  direct-fact overrides, unresolved applicable targets, or missing lineage;
+  record per-phase timing and exact Parquet/logical DuckDB reproduction
 - [ ] E5: extend lower-authority-winner gates across every selected domain so a
   fallback cannot win despite acceptable higher-authority evidence
 - [ ] E5: make HZ, classifications, planet categories, simulations, search,
   map, API, tags, and future AAA packets consume the shared selected-fact
   projection rather than independent scientific fallback logic
+- [ ] E5/E7 planet-consumer cutover: rebuild clean science, CORE, ARM, DISC,
+  public slice, scenes, and planet-category/HZ consumers with the incremental
+  planet-derivation shard; prove runtime fallback removal and scientific A/B
 - [x] E6 shadow foundation: materialize all accepted E5 projections into
   an immutable unserved CORE/ARM/hierarchy/DISC candidate; preserve exact
   inventory/hierarchy/planet lifecycle, attach fact lineage, pass independent

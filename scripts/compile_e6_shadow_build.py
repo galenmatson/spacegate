@@ -86,6 +86,7 @@ def table_names(con: duckdb.DuckDBPyConnection, alias: str) -> list[str]:
 def manifest_file_entry(manifest: dict[str, Any], filename: str) -> dict[str, Any] | None:
     for container in (
         manifest.get("files"),
+        manifest.get("products"),
         manifest.get("deterministic_files"),
         (manifest.get("report") or {}).get("files"),
     ):

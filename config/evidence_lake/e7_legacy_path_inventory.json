@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_legacy_path_inventory.v1",
-  "inventory_version": "2026-07-22.e7-cutover-plan.5",
-  "candidate_build_id": "e6_95e7af54d69f3d9602d81e5b_public",
+  "inventory_version": "2026-07-23.e7-cutover-plan.6",
+  "candidate_build_id": "e7_73349c253a411945c246d459_public",
   "stability_build_id": "20260717T0614Z_f452835_side",
   "pre_promotion": true,
   "rules": {
@@ -67,8 +67,8 @@
         "scripts/verify_selected_system_placements.py",
         "scripts/verify_selected_system_placement_reproduction.py"
       ],
-      "replacement_status": "Permanent identity and system placement pass clean pinned-input reproduction; remaining CORE, ARM, hierarchy, DISC, and shared-consumer projections keep this legacy path required.",
-      "current_state": "required_stability_input",
+      "replacement_status": "Clean foundation, selected science, CORE, hierarchy, ARM, DISC, runtime bundle, public slice, map, scene, API, and browser products pass pinned-input verification or isolated reproduction without stability science. The legacy path remains only as the retained rollback reproducer until local cutover completes.",
+      "current_state": "verified_stability_reproducer_pending_cutover",
       "target_state": "deprecated_stability_reproducer",
       "action": "Replace bootstrap inventory and scientific-value production with release-scoped identity, selected facts, and E6 projections. Do not retire while E6 still composes from the stability databases.",
       "retirement_gates": [

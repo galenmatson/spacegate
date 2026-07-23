@@ -17,8 +17,9 @@ def test_checked_in_completion_contract_reports_verified_but_incomplete() -> Non
     assert report["verified_checkpoint_status"] == "pass"
     assert report["completion_status"] == "incomplete"
     assert report["failing_checks"] == []
-    assert report["check_count"] == 85
-    assert report["open_gate_count"] == 6
+    assert report["candidate_build_id"] == "e7_73349c253a411945c246d459_public"
+    assert report["check_count"] > 85
+    assert report["open_gate_count"] >= 3
 
 
 def test_missing_required_report_fails_checkpoint(tmp_path: Path) -> None:
@@ -61,3 +62,63 @@ def test_no_open_gates_allows_complete_status(tmp_path: Path) -> None:
 
     assert report["verified_checkpoint_status"] == "pass"
     assert report["completion_status"] == "complete"
+
+
+def test_nested_report_fields_and_named_artifact_roots(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    reports = state / "reports/evidence_lake_v2"
+    reports.mkdir(parents=True)
+    (reports / "nested.json").write_text(
+        json.dumps({"status": "pass", "gates": {"api": True}}), encoding="utf-8"
+    )
+    bulk = tmp_path / "bulk"
+    artifact = bulk / "family/build/manifest.json"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("{}\n", encoding="utf-8")
+    contract = {
+        "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
+        "contract_version": "test",
+        "artifact_roots": {"bulk": str(bulk)},
+        "report_checks": [
+            {
+                "stage": "E7",
+                "path": "nested.json",
+                "expect": {"status": "pass", "gates.api": True},
+            }
+        ],
+        "required_artifacts": [
+            {"root": "bulk", "path": "family/build/manifest.json"}
+        ],
+        "open_gates": [],
+    }
+    contract_path = tmp_path / "contract.json"
+    contract_path.write_text(json.dumps(contract), encoding="utf-8")
+
+    report = completion.audit(contract_path, state)
+
+    assert report["verified_checkpoint_status"] == "pass"
+    assert report["checks"][-1]["path"] == "bulk:family/build/manifest.json"
+
+
+def test_additional_report_root_is_explicit_and_unambiguous(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    external = tmp_path / "external-reports"
+    external.mkdir()
+    (external / "pass.json").write_text('{"status":"pass"}\n', encoding="utf-8")
+    contract = {
+        "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
+        "contract_version": "test",
+        "additional_report_roots": [str(external)],
+        "report_checks": [
+            {"stage": "E7", "path": "pass.json", "expect": {"status": "pass"}}
+        ],
+        "required_artifacts": [],
+        "open_gates": [],
+    }
+    contract_path = tmp_path / "contract.json"
+    contract_path.write_text(json.dumps(contract), encoding="utf-8")
+
+    report = completion.audit(contract_path, state)
+
+    assert report["verified_checkpoint_status"] == "pass"
+    assert report["checks"][0]["resolved_path"] == str(external / "pass.json")

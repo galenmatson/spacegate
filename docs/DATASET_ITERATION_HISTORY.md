@@ -3961,6 +3961,31 @@ Representative commits:
   remains unpromoted pending operator scientific review and the required local
   promotion/rollback/re-promotion drill.
 
+### 154) Declared Planet Derivations Become an Incremental E5 Program
+
+- The final completion audit found a general compiler gap: E5 policy v17
+  declared Kepler semimajor-axis, inverse-square insolation, and equilibrium-
+  temperature derivations, but the monolithic compiler invoked only the
+  Stefan-Boltzmann stellar-luminosity program.
+- Focused artifact `1dfc750b79b88018983ded82` pins selected-fact build
+  `5d9ec188dc2aab4c19439b89` and clean identity foundation
+  `9c2d08086275ead386f71bf7`. It emits 1,374 missing planet facts: 461
+  semimajor axes, 654 insolations, and 259 equilibrium temperatures.
+- Direct selected facts always win. Every output retains input fact IDs,
+  algorithm/version, formula, assumptions, uncertainty method, supersession,
+  and policy lineage. Applicable unresolved targets, duplicate quantities,
+  direct overrides, invalid values, and missing lineage are all zero.
+- The build takes 4.4 seconds at 2.4 GiB peak RSS and reproduces its canonical
+  Parquet byte-for-byte and query tables logically. This domain shard avoids a
+  roughly 25-minute/71-GB monolithic E5 rebuild and establishes the preferred
+  pattern for small independently changing derivation programs.
+- The runtime audit also found that the API queried a nonexistent
+  `source_catalog` column from the selected stellar projection, swallowed the
+  error, and recomputed luminosity. The query now consumes selected
+  `luminosity_lsun`; clean-science v7 carries explicit status/basis so derived
+  facts cannot be mislabeled as source measurements. The staged public
+  candidate is unchanged pending a storage-reviewed downstream rebuild.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

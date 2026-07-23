@@ -1,0 +1,36 @@
+{
+  "schema_version": "spacegate.e5_planet_derivation_policy.v1",
+  "policy_version": "2026-07-23.e5-planet-derivations.1",
+  "compiler_version": "e5_planet_derivation_compiler_v1",
+  "selection_policy": {
+    "path": "config/evidence_lake/e5_selection_policies.json",
+    "policy_version": "2026-07-23.e5-selection.17"
+  },
+  "selected_facts": {
+    "build_id": "5d9ec188dc2aab4c19439b89",
+    "path": "/data/spacegate/state/derived/evidence_lake_v2/selected_facts/5d9ec188dc2aab4c19439b89",
+    "manifest_sha256": "6de5f75bb5f4236dab3bf95c169001c36f5b605834f0973045499d343bef008c",
+    "database": "selected_facts.duckdb",
+    "database_sha256": "c1a3d8e82cf99d418e5e24430ab7878165b30e83640dd9adc0addfc9d72d947c"
+  },
+  "foundation": {
+    "build_id": "9c2d08086275ead386f71bf7",
+    "path": "/mnt/space/spacegate/e7-clean-foundation/9c2d08086275ead386f71bf7",
+    "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0",
+    "database": "clean_core_foundation.duckdb",
+    "database_sha256": "124c4fc949a2a1a8d4bcd908b520a2c0b10fc185611af478b59789734306ada6"
+  },
+  "constants": {
+    "days_per_julian_year": 365.25,
+    "earth_masses_per_solar_mass": 332946.0487,
+    "jupiter_masses_per_solar_mass": 1047.3486,
+    "earth_equilibrium_temperature_k": 278.5,
+    "bond_albedo": 0.0,
+    "heat_redistribution": "uniform_full_redistribution"
+  },
+  "derivation_keys": [
+    "planet_semimajor_axis_kepler",
+    "planet_insolation",
+    "planet_equilibrium_temperature"
+  ]
+}

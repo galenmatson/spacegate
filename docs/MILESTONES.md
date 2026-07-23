@@ -1203,8 +1203,11 @@ accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
 reproduction, public slice, map tiles, bounded simulation/API/search, and
 production-equivalent tile/browser evidence pass. Clean runtime CORE v2 is
 independently verified and reproduced; E7 operator review remains in progress.
-The fail-closed completion audit passes 85 checkpoint checks and reports six
-open E7 gates rather than declaring the compiler cut over.
+The fail-closed completion audit passes 124 checkpoint checks and reports five
+open E7 gates rather than declaring the compiler cut over. The independently
+regenerable E5 planet-derivation shard now closes the declared semimajor-axis,
+insolation, and equilibrium-temperature implementation gap in 4.4 seconds;
+downstream clean runtime artifacts have not yet been rebuilt with it.
 
 Goal:
 

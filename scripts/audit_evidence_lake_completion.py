@@ -28,38 +28,91 @@ def stable_hash(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def nested_value(value: Any, field: str) -> Any:
+    current = value
+    for part in field.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def artifact_path(
+    requirement: Any, *, state_dir: Path, artifact_roots: dict[str, Path]
+) -> tuple[str, Path]:
+    if isinstance(requirement, str):
+        relative = requirement
+        root_name = "state"
+    elif isinstance(requirement, dict):
+        relative = str(requirement.get("path") or "")
+        root_name = str(requirement.get("root") or "state")
+    else:
+        raise ValueError(f"invalid artifact requirement: {requirement!r}")
+    relative_path = Path(relative)
+    if not relative or relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ValueError(f"artifact path must be relative and bounded: {relative!r}")
+    if root_name == "state":
+        root = state_dir
+    else:
+        try:
+            root = artifact_roots[root_name]
+        except KeyError as exc:
+            raise ValueError(f"unknown artifact root: {root_name}") from exc
+    return f"{root_name}:{relative}", root / relative_path
+
+
 def audit(contract_path: Path, state_dir: Path) -> dict[str, Any]:
     contract = load_object(contract_path)
-    reports_dir = state_dir / "reports/evidence_lake_v2"
+    report_roots = [state_dir / "reports/evidence_lake_v2"] + [
+        Path(str(path)).resolve() for path in (contract.get("additional_report_roots") or [])
+    ]
+    artifact_roots = {
+        str(name): Path(str(path)).resolve()
+        for name, path in (contract.get("artifact_roots") or {}).items()
+    }
     checks: list[dict[str, Any]] = []
 
     for requirement in contract.get("report_checks") or []:
         relative = str(requirement.get("path") or "")
-        report_path = reports_dir / relative
+        relative_path = Path(relative)
+        if not relative or relative_path.is_absolute() or ".." in relative_path.parts:
+            raise ValueError(f"report path must be relative and bounded: {relative!r}")
+        present_paths = [root / relative_path for root in report_roots if (root / relative_path).is_file()]
+        report_path = present_paths[0] if len(present_paths) == 1 else report_roots[0] / relative_path
         failures: list[dict[str, Any]] = []
-        if not report_path.is_file():
+        if len(present_paths) > 1:
+            failures.append({
+                "field": "$file",
+                "expected": "present in exactly one registered report root",
+                "actual": [str(path) for path in present_paths],
+            })
+        elif not present_paths:
             failures.append({"field": "$file", "expected": "present", "actual": "missing"})
         else:
             report = load_object(report_path)
             for field, expected in (requirement.get("expect") or {}).items():
-                actual = report.get(field)
+                actual = nested_value(report, field)
                 if actual != expected:
                     failures.append({"field": field, "expected": expected, "actual": actual})
         checks.append({
             "kind": "report",
             "stage": requirement.get("stage"),
             "path": relative,
+            "resolved_path": str(report_path),
             "passed": not failures,
             "failures": failures,
         })
 
-    for relative in contract.get("required_artifacts") or []:
-        artifact_path = state_dir / str(relative)
+    for requirement in contract.get("required_artifacts") or []:
+        label, required_path = artifact_path(
+            requirement, state_dir=state_dir, artifact_roots=artifact_roots
+        )
         checks.append({
             "kind": "artifact",
-            "path": str(relative),
-            "passed": artifact_path.is_file(),
-            "failures": [] if artifact_path.is_file() else [{
+            "path": label,
+            "resolved_path": str(required_path),
+            "passed": required_path.is_file(),
+            "failures": [] if required_path.is_file() else [{
                 "field": "$file", "expected": "present", "actual": "missing"
             }],
         })

@@ -115,7 +115,21 @@ set_current_symlink() {
   local target="$1"
   local rel_target=""
   rel_target="$(relative_path "$SERVED_DIR" "$target")"
-  ln -sfn "$rel_target" "$SERVED_DIR/current"
+  python3 - "$SERVED_DIR/current" "$rel_target" <<'PY'
+import os
+import sys
+
+link_path, relative_target = sys.argv[1:]
+temporary = f"{link_path}.tmp.{os.getpid()}"
+try:
+    os.symlink(relative_target, temporary)
+    os.replace(temporary, link_path)
+finally:
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+PY
 }
 
 run_profile_slo_gate() {

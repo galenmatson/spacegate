@@ -249,6 +249,16 @@ def materialize_selected_parameters(con: duckdb.DuckDBPyConnection) -> int:
                coalesce(c.spectral_type_optical,c.spectral_type_infrared,c.spectral_type_simbad) spectral_type_raw,
                p.teff_k_fact_id,p.mass_msun_fact_id,p.radius_rsun_fact_id,
                p.luminosity_lsun_fact_id,p.luminosity_log10_lsun_fact_id,
+               CASE
+                 WHEN p.luminosity_lsun_fact_id IS NULL THEN NULL
+                 WHEN ld.derivation_id IS NOT NULL THEN 'derived'
+                 ELSE 'source'
+               END luminosity_lsun_status,
+               CASE
+                 WHEN p.luminosity_lsun_fact_id IS NULL THEN NULL
+                 WHEN ld.derivation_id IS NOT NULL THEN ld.algorithm_key
+                 ELSE 'selected fact'
+               END luminosity_lsun_basis,
                a.ra_deg_fact_id,a.dec_deg_fact_id,a.parallax_mas_fact_id,
                c.spectral_type_optical_fact_id,c.spectral_type_infrared_fact_id,
                c.spectral_type_simbad_fact_id
@@ -257,6 +267,8 @@ def materialize_selected_parameters(con: duckdb.DuckDBPyConnection) -> int:
         LEFT JOIN selected_stellar_astrometry a USING(star_id)
         LEFT JOIN selected_stellar_photometry phot USING(star_id)
         LEFT JOIN selected_stellar_classification c USING(star_id)
+        LEFT JOIN evidence_fact_selected_fact_derivations ld
+          ON ld.output_selected_fact_id=p.luminosity_lsun_fact_id
         ORDER BY s.star_id
         """
     )
@@ -467,6 +479,10 @@ def compile_science(
             con.execute(f"ATTACH {sql_literal(row['database_path'])} AS {sql_identifier(alias)} (READ_ONLY)")
         selected = next(row for row in inputs if row["family"] == "selected_facts")
         selected_alias = str(selected["alias"])
+        planet_derivations = next(
+            row for row in inputs if row["family"] == "selected_planet_derivations"
+        )
+        planet_derivation_alias = str(planet_derivations["alias"])
         quantity_contract = timing.run(
             "selected_quantity_contract",
             lambda: e6_helpers.quantity_contract_check(con, policy, selected_alias),
@@ -487,13 +503,27 @@ def compile_science(
                     categorical=categorical, boolean=boolean, selected_alias=selected_alias,
                 ),
             )
+        def materialize_planet_fact_union() -> None:
+            con.execute(
+                f"""
+                ATTACH ':memory:' AS merged_planet;
+                CREATE TABLE merged_planet.selected_facts AS
+                SELECT * FROM {sql_identifier(selected_alias)}.selected_facts
+                WHERE object_type='planet'
+                UNION ALL
+                SELECT * FROM {sql_identifier(planet_derivation_alias)}.selected_facts;
+                CREATE UNIQUE INDEX merged_planet_fact_uq
+                  ON merged_planet.selected_facts(stable_object_key,quantity_key);
+                """
+            )
+        timing.run("materialize_selected_planet_fact_union", materialize_planet_fact_union)
         planet = policy["planet_projection"]
         projection_counts[str(planet["table"])] = timing.run(
             "materialize_selected_planet_parameters",
             lambda: e6_helpers.create_wide_projection(
                 con, output_table=str(planet["table"]), object_type="planet",
                 quantities=list(planet["quantities"]), categorical=categorical,
-                boolean=boolean, selected_alias=selected_alias,
+                boolean=boolean, selected_alias="merged_planet",
             ),
         )
         parameter_count = timing.run("materialize_selected_stellar_parameters", lambda: materialize_selected_parameters(con))

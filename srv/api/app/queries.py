@@ -2432,9 +2432,45 @@ def _enrich_hierarchy_star_nodes(
             con, alias="arm_db", table_name="stellar_parameters"
         )
         if e6_parameter_projection:
+            has_selected_luminosity = _has_attached_column(
+                con,
+                alias="arm_db",
+                table_name="e6_selected_stellar_parameters",
+                column_name="luminosity_lsun",
+            )
+            has_selected_luminosity_fact = _has_attached_column(
+                con,
+                alias="arm_db",
+                table_name="e6_selected_stellar_parameters",
+                column_name="luminosity_lsun_fact_id",
+            )
+            luminosity_sql = "luminosity_lsun" if has_selected_luminosity else "NULL::DOUBLE"
+            luminosity_fact_sql = (
+                "luminosity_lsun_fact_id"
+                if has_selected_luminosity_fact
+                else "NULL::VARCHAR"
+            )
+            has_selected_luminosity_status = _has_attached_column(
+                con,
+                alias="arm_db",
+                table_name="e6_selected_stellar_parameters",
+                column_name="luminosity_lsun_status",
+            )
+            luminosity_status_sql = (
+                "luminosity_lsun_status"
+                if has_selected_luminosity_status
+                else "NULL::VARCHAR"
+            )
+            luminosity_basis_sql = (
+                "luminosity_lsun_basis"
+                if has_selected_luminosity_status
+                else "NULL::VARCHAR"
+            )
             param_rows = con.execute(
                 f"""
-                SELECT star_id,mass_msun,radius_rsun,luminosity_log10_lsun
+                SELECT star_id,mass_msun,radius_rsun,{luminosity_sql},
+                       luminosity_log10_lsun,{luminosity_fact_sql},
+                       {luminosity_status_sql},{luminosity_basis_sql}
                 FROM arm_db.e6_selected_stellar_parameters
                 WHERE star_id IN ({placeholders})
                 """,
@@ -2472,7 +2508,11 @@ def _enrich_hierarchy_star_nodes(
                   star_id,
                   mass_msun,
                   radius_rsun,
-                  luminosity_log10_lsun
+                  NULL::DOUBLE AS luminosity_lsun,
+                  luminosity_log10_lsun,
+                  NULL::VARCHAR AS luminosity_lsun_fact_id,
+                  NULL::VARCHAR AS luminosity_lsun_status,
+                  NULL::VARCHAR AS luminosity_lsun_basis
                 FROM ranked
                 WHERE rn = 1
                 """,
@@ -2480,18 +2520,76 @@ def _enrich_hierarchy_star_nodes(
             ).fetchall()
         else:
             param_rows = []
+        derived_luminosity_facts: dict[str, str] = {}
+        if (
+            e6_parameter_projection
+            and param_rows
+            and _has_table(
+                con,
+                alias="arm_db",
+                table_name="evidence_fact_selected_fact_derivations",
+            )
+        ):
+            luminosity_fact_ids = sorted(
+                {
+                    str(row[5])
+                    for row in param_rows
+                    if len(row) > 5 and row[5] not in (None, "")
+                }
+            )
+            if luminosity_fact_ids:
+                fact_placeholders = ",".join(["?"] * len(luminosity_fact_ids))
+                derived_luminosity_facts = {
+                    str(fact_id): str(algorithm_key)
+                    for fact_id, algorithm_key in con.execute(
+                        f"""
+                        SELECT output_selected_fact_id,algorithm_key
+                        FROM arm_db.evidence_fact_selected_fact_derivations
+                        WHERE output_selected_fact_id IN ({fact_placeholders})
+                        """,
+                        luminosity_fact_ids,
+                    ).fetchall()
+                }
         if param_rows:
             params_by_star_id = {
                 int(star_id): {
                     "mass_msun": float(mass_msun) if mass_msun is not None else None,
                     "radius_rsun": float(radius_rsun) if radius_rsun is not None else None,
+                    "luminosity_lsun": (
+                        float(luminosity_lsun)
+                        if luminosity_lsun is not None
+                        else None
+                    ),
                     "luminosity_log10_lsun": (
                         float(luminosity_log10_lsun)
                         if luminosity_log10_lsun is not None
                         else None
                     ),
+                    "luminosity_lsun_fact_id": luminosity_lsun_fact_id,
+                    "luminosity_lsun_status": (
+                        luminosity_lsun_status
+                        or (
+                            "derived"
+                            if str(luminosity_lsun_fact_id) in derived_luminosity_facts
+                            else ("selected" if luminosity_lsun_fact_id else None)
+                        )
+                    ),
+                    "luminosity_lsun_basis": (
+                        luminosity_lsun_basis
+                        or derived_luminosity_facts.get(str(luminosity_lsun_fact_id))
+                        or ("selected fact" if luminosity_lsun_fact_id else None)
+                    ),
                 }
-                for star_id, mass_msun, radius_rsun, luminosity_log10_lsun in param_rows
+                for (
+                    star_id,
+                    mass_msun,
+                    radius_rsun,
+                    luminosity_lsun,
+                    luminosity_log10_lsun,
+                    luminosity_lsun_fact_id,
+                    luminosity_lsun_status,
+                    luminosity_lsun_basis,
+                ) in param_rows
             }
             for node_key, star_id in core_star_refs:
                 if star_id not in params_by_star_id:
@@ -2669,6 +2767,10 @@ def _enrich_hierarchy_star_nodes(
             "teff_k": facts.get("teff_k"),
             "mass_msun": facts.get("mass_msun"),
             "radius_rsun": facts.get("radius_rsun"),
+            "luminosity_lsun": facts.get("luminosity_lsun"),
+            "luminosity_lsun_fact_id": facts.get("luminosity_lsun_fact_id"),
+            "luminosity_lsun_status": facts.get("luminosity_lsun_status"),
+            "luminosity_lsun_basis": facts.get("luminosity_lsun_basis"),
             "luminosity_log10_lsun": facts.get("luminosity_log10_lsun"),
             "vmag": facts.get("vmag"),
             "dist_ly": facts.get("dist_ly"),

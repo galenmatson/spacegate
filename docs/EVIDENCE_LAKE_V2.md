@@ -2068,6 +2068,22 @@ domain projection copy (13.6), physics pivot (13.3), and variability pivot
 independent verification. Its faster input/product hashing is recorded as a
 cache effect, not an algorithmic speedup.
 
+E5 policy v17 also declared three planet derivations that the monolithic
+compiler had not implemented. Focused shard `1dfc750b79b88018983ded82`
+now derives 461 missing semimajor axes from selected period/host mass, 654
+missing insolations from selected or derived orbit plus selected host
+luminosity, and 259 missing equilibrium temperatures from selected or derived
+insolation. It never overwrites direct evidence, accounts every applicable
+target, records exact input-fact/algorithm/assumption lineage, and reproduces
+its canonical Parquet byte-for-byte.
+
+The shard compiles in 4.4 seconds and peaks at 2.4 GiB instead of rerunning the
+approximately 25-minute, 71-GB selected-fact family. Clean-science policy v7
+overlays it only for the planet projection and carries stellar-luminosity
+selection status/basis into the runtime surface. The currently staged public
+candidate predates that overlay and remains unpromoted; a storage-reviewed
+downstream rebuild and scientific A/B are required.
+
 ## E7 Clean Targeted WISE Evidence
 
 The stability-era targeted WISE collector retained derived CSVs but not the
