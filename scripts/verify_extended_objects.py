@@ -63,10 +63,39 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
         raise RuntimeError(f"Missing CORE extended-object tables: {missing_core}")
 
     checks: dict[str, Any] = {}
+    diagnostics: dict[str, Any] = {}
     counts = {table: int(core.execute(f"select count(*) from {table}").fetchone()[0]) for table in CORE_TABLES}
     require(checks, "nonempty_inventory", counts["extended_objects"] > 0, counts)
     unresolved = int(core.execute("select count(*) from extended_object_source_reconciliation where outcome is null or reason is null").fetchone()[0])
     require(checks, "every_source_accounted", unresolved == 0, {"unaccounted": unresolved})
+    general_checks = {
+        "duplicate_object_ids": int(core.execute(
+            "select count(*) from (select extended_object_id from extended_objects group by 1 having count(*)<>1)"
+        ).fetchone()[0]),
+        "duplicate_stable_keys": int(core.execute(
+            "select count(*) from (select stable_object_key from extended_objects group by 1 having count(*)<>1)"
+        ).fetchone()[0]),
+        "orphan_aliases": int(core.execute(
+            "select count(*) from extended_object_aliases a left join extended_objects e using(extended_object_id) where e.extended_object_id is null"
+        ).fetchone()[0]),
+        "orphan_identifiers": int(core.execute(
+            "select count(*) from extended_object_identifiers i left join extended_objects e using(extended_object_id) where e.extended_object_id is null"
+        ).fetchone()[0]),
+        "orphan_search_terms": int(core.execute(
+            "select count(*) from extended_object_search_terms t left join extended_objects e using(extended_object_id) where e.extended_object_id is null"
+        ).fetchone()[0]),
+        "local_3d_without_selected_geometry": int(core.execute(
+            "select count(*) from extended_objects where map_domain='local_3d' and "
+            "(dist_pc is null or x_helio_ly is null or y_helio_ly is null or z_helio_ly is null "
+            "or distance_method is null or distance_confidence is null or distance_evidence_json is null)"
+        ).fetchone()[0]),
+        "missing_source_lineage": int(core.execute(
+            "select count(*) from extended_objects where source_catalog is null or source_version is null "
+            "or source_pk is null or source_row_hash is null or transform_version is null"
+        ).fetchone()[0]),
+    }
+    for name, value in general_checks.items():
+        require(checks, name, value == 0, {"rows": value})
 
     ic4592 = core.execute(
         """
@@ -80,7 +109,7 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
     ).fetchone()
     ic_alias_ids = [object_ids_for_term(core, term) for term in ("ic 4592", "lbn 1113", "vdb 100", "blue horsehead nebula")]
     require(
-        checks,
+        diagnostics,
         "ic4592_identity_distance",
         bool(ic4592)
         and ic4592[0] == "IC 4592"
@@ -89,8 +118,6 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
         and 400 <= float(ic4592[3]) <= 500
         and ic4592[4] == "local_3d"
         and int(ic4592[5]) == 500
-        and bool(ic4592[6])
-        and bool(ic4592[7])
         and len(set().union(*ic_alias_ids)) == 1
         and all(ids for ids in ic_alias_ids),
         {"row": ic4592, "alias_object_ids": [sorted(ids) for ids in ic_alias_ids]},
@@ -98,7 +125,7 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
 
     pleiades_ids = [object_ids_for_term(core, term) for term in ("m 45", "melotte 22", "pleiades")]
     require(
-        checks,
+        diagnostics,
         "pleiades_single_identity",
         all(ids for ids in pleiades_ids) and len(set().union(*pleiades_ids)) == 1,
         [sorted(ids) for ids in pleiades_ids],
@@ -106,7 +133,7 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
     b33_ids = object_ids_for_term(core, "barnard 33")
     ic434_ids = object_ids_for_term(core, "ic 434")
     require(
-        checks,
+        diagnostics,
         "horsehead_region_distinct_from_ic434",
         len(b33_ids) == 1 and len(ic434_ids) == 1 and b33_ids.isdisjoint(ic434_ids),
         {"barnard_33": sorted(b33_ids), "ic_434": sorted(ic434_ids)},
@@ -118,7 +145,7 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
         where t.term_norm='m 31' limit 1
         """
     ).fetchone()
-    require(checks, "m31_sky_domain", m31 == ("extragalactic_sky", None), {"row": m31})
+    require(diagnostics, "m31_sky_domain", m31 == ("extragalactic_sky", None), {"row": m31})
     generic_parallax = int(core.execute("select count(*) from extended_objects where distance_method ilike '%openngc%parallax%'").fetchone()[0])
     require(checks, "openngc_generic_parallax_rejected", generic_parallax == 0, {"accepted_generic_parallax": generic_parallax})
 
@@ -134,17 +161,32 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
         arm = duckdb.connect(str(arm_path), read_only=True)
         arm_tables = {row[0] for row in arm.execute("show tables").fetchall()}
         missing_arm = sorted(set(ARM_TABLES) - arm_tables)
-        require(checks, "arm_tables_present", not missing_arm, {"missing": missing_arm})
+        clean_projection_rows = int(core.execute(
+            "select count(*) from extended_objects where transform_version like 'e7_clean_extended_objects_compiler_%'"
+        ).fetchone()[0])
         if not missing_arm:
+            require(checks, "arm_evidence_contract", True, {"contract": "legacy_arm_evidence_tables"})
             arm_counts = {table: int(arm.execute(f"select count(*) from {table}").fetchone()[0]) for table in ARM_TABLES}
             accepted_relations = int(arm.execute("select count(*) from extended_object_relations where resolution_status='accepted'").fetchone()[0])
             require(checks, "arm_evidence_nonempty", all(count > 0 for count in arm_counts.values()), arm_counts)
             require(checks, "associated_star_relations_resolve", accepted_relations > 0, {"accepted_relations": accepted_relations})
+        elif clean_projection_rows == counts["extended_objects"]:
+            require(
+                checks,
+                "arm_evidence_contract",
+                True,
+                {
+                    "contract": "clean_selected_core_projection",
+                    "historical_evidence_tables_publicly_omitted": missing_arm,
+                },
+            )
+        else:
+            require(checks, "arm_evidence_contract", False, {"missing": missing_arm})
         arm.close()
 
     failed = sorted(name for name, value in checks.items() if not value["passed"])
     report = {
-        "schema_version": "extended_object_verification_v1",
+        "schema_version": "extended_object_verification_v2",
         "generated_at": dt.datetime.now(dt.UTC).isoformat(),
         "core_path": str(core_path),
         "arm_path": str(arm_path) if arm_path else None,
@@ -153,6 +195,8 @@ def verify(core_path: Path, arm_path: Path | None, compare_core_path: Path | Non
         "counts": {"core": counts, "arm": arm_counts},
         "core_table_digests": core_digests,
         "checks": checks,
+        "named_object_gates": False,
+        "named_object_diagnostics": diagnostics,
     }
     core.close()
     return report

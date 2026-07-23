@@ -2649,6 +2649,14 @@ Pre-promotion planning checkpoint (July 22, 2026):
   integration gates. Its 278.73-second build is dominated by 179.66 seconds of
   ARM rematerialization, establishing public runtime composition as the next
   measured optimization target rather than reducing scientific coverage
+- corrected runtime bundle `2d15d40a91021d6f6e7297be` and unpromoted public
+  candidate `e7_2d15d40a91021d6f6e7297be_public` supersede the earlier
+  checkpoint after modular Gaia DSC selection; the generic public verifier
+  passes without named-system scientific gates
+- final four-radius map generation takes 245.42 seconds and 11.0 GiB peak RSS;
+  exact membership is 10,209/206,913/1,820,142/5,319,825 systems with zero
+  omissions or duplicates. The 1,000-ly pass consumes 69.2% of wall time, so
+  nested-radius query reuse precedes speculative thread tuning
 
 Deliverables:
 

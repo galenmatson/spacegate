@@ -408,6 +408,53 @@ Machine reports and GNU resource logs are retained under
 `e7_clean_science_v5`, `e7_clean_runtime_core_v5`, and
 `e7_clean_runtime_arm_v7`.
 
+### Final Runtime, Public Slice, and Map - 2026-07-23
+
+The corrected classification cascade feeds final clean DISC
+`3b0f7f0eefa8c19a47965a13`, runtime bundle
+`2d15d40a91021d6f6e7297be`, and deployment-shaped public candidate
+`e7_2d15d40a91021d6f6e7297be_public`. None is promoted or served.
+
+| Step | Wall | Peak RSS | Durable output | Result |
+|---|---:|---:|---:|---|
+| Clean DISC compile | 39.74s | 9.6 GiB | 384 MB canonical Parquet plus database | pass |
+| Clean DISC isolated compile | 40.36s | 9.6 GiB | scratch removed | byte-identical Parquet |
+| Runtime bundle composition | 13.92s | 0.1 GiB | bounded immutable links | pass |
+| Deployment-shaped public slice | 4:39.26 | 31.9 GiB | 23 GB allocated | pass |
+| Generic public-build verification | 28.48s | measured separately | reports only | pass |
+| Four-radius map-tile build | 4:05.42 | 11.0 GiB | 413 MiB | pass |
+| Four-radius map verification | 19.59s | 7.9 GiB | reports only | pass |
+
+The public candidate retains 5,869,091 systems, 5,874,636 stars, 6,311 public
+planet rows, 1,026,480 aliases, and 12,768,410 search terms with zero trimming.
+The generic build verifier was updated only for versioned clean contracts: named
+stellar, multiplicity, and extended-object examples are diagnostics, while
+identity, membership, lineage, scope, and accounting invariants remain gates.
+
+The map builder exposes a clear nested-radius cost curve:
+
+| Radius | Systems | Exact tiles | Wall | Share of map wall | Compressed exact bytes |
+|---|---:|---:|---:|---:|---:|
+| 100 ly | 10,209 | 8 | 5.86s | 2.4% | 633,857 |
+| 250 ly | 206,913 | 64 | 11.15s | 4.5% | 11,797,026 |
+| 500 ly | 1,820,142 | 450 | 58.33s | 23.8% | 101,344,209 |
+| 1,000 ly | 5,319,825 | 2,574 | 169.53s | 69.2% | 297,224,451 |
+
+All four exact memberships pass with zero missing, extra, duplicate, public-name,
+representative-class, or leaf-badge mismatches. The first map optimization should
+compile the 1,000-ly selected rows once and partition nested radii from that
+materialization, then measure deterministic parallel tile compression. The
+current implementation repeats the full joined selection query four times.
+Compression work is CPU-parallel enough to consume 812 CPU-seconds in 245 wall
+seconds, so additional concurrency must be benchmarked rather than assumed.
+
+Machine reports and GNU resource logs are retained under
+`/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_disc_v3`,
+`e7_clean_runtime_bundle_v3`, `e7_public_v3`, and
+`e7_clean_map_tiles_v3`. Simulation-scene generation, API/browser checks, local
+promotion, rollback, and re-promotion remain required before this report is
+final.
+
 These experiments must compare logical table signatures, canonical Parquet
 hashes, independent verification, API latency, and rollback behavior. More
 threads are not the default remedy: the selected-fact compiler remains I/O- and

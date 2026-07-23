@@ -2413,6 +2413,29 @@ projections. Iterative attestation caches and immutable domain/table reuse are
 the measured optimization direction, subject to mandatory full verification at
 clean reproduction and promotion.
 
+## E7 Corrected Runtime and Tiled Public Candidate
+
+The final corrected cascade pins clean CORE `9d66ffa81a03a714881be2f3`, ARM
+`c2eda7f868ff8ba2b747d717`, and DISC `3b0f7f0eefa8c19a47965a13` in runtime
+bundle `2d15d40a91021d6f6e7297be`. Deployment-shaped candidate
+`e7_2d15d40a91021d6f6e7297be_public` retains the complete clean inventory and
+passes the generic build verifier without using named-object scientific gates.
+It remains unpromoted pending complete A/B review and operator acceptance.
+
+The candidate's deterministic tiled-map contract covers 100, 250, 500, and
+1,000 ly. Exact leaf tiles contain every eligible system once: 10,209, 206,913,
+1,820,142, and 5,319,825 systems respectively. Verification reports zero
+missing, extra, duplicate, public-name, representative-class, or stellar-badge
+mismatches. Named systems may appear in diagnostics and UX goldens, but map
+acceptance is based on complete projection consistency and membership.
+
+The measured four-radius build takes 245.42 seconds and peaks at 11.0 GiB RSS;
+the 1,000-ly pass consumes 169.53 seconds. Future acceleration must preserve
+content-addressed tile bytes and exact membership. The first candidate is a
+single selected-row materialization reused by nested radii, followed by measured
+deterministic parallel compression. Full timings and artifact paths are recorded
+in `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
+
 ## Hard Gates
 
 ### Solar Standards Checkpoint

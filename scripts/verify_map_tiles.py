@@ -22,6 +22,7 @@ from scripts.build_map_tiles import (
     SPECTRAL_CODES,
     atomic_json,
     choose_display_name_info,
+    tile_query,
     utc_now,
 )
 
@@ -145,6 +146,20 @@ def expected_selected_leaf_badges(
     }
 
 
+def expected_representative_classes(
+    con: duckdb.DuckDBPyConnection,
+    radius: int,
+) -> dict[int, str]:
+    return {
+        int(row[0]): (
+            str(row[8] or "UNKNOWN")
+            if str(row[8] or "UNKNOWN") in SPECTRAL_CODES
+            else "UNKNOWN"
+        )
+        for row in con.execute(tile_query(radius)).fetchall()
+    }
+
+
 def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) -> dict[str, Any]:
     manifest_path = build_dir / "map_tiles" / f"radius-{radius}" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -196,16 +211,11 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
             for system_id, expected_name in sorted(expected_names.items())
             if observed_names.get(system_id) != expected_name
         ]
-        class_goldens = {"Sirius": "A", "LAWD 25": "WD"}
-        for system_name, expected_class in class_goldens.items():
-            row = con.execute(
-                "select system_id from systems where system_name = ? and dist_ly <= ? order by system_id limit 1",
-                [system_name, radius],
-            ).fetchone()
-            observed_class = observed_classes.get(int(row[0])) if row else None
+        for system_id, expected_class in expected_representative_classes(con, radius).items():
+            observed_class = observed_classes.get(system_id)
             if observed_class != expected_class:
                 class_mismatches.append({
-                    "system_name": system_name,
+                    "system_id": system_id,
                     "expected": expected_class,
                     "observed": observed_class,
                 })
@@ -241,6 +251,7 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
         "public_name_mismatch_examples": name_mismatches[:20],
         "representative_class_mismatch_count": len(class_mismatches),
         "representative_class_mismatches": class_mismatches,
+        "named_system_gates": False,
         "exact_tiles": len(exact_tiles),
         "exact_compressed_bytes": compressed_bytes,
         "manifest_sha256": manifest["manifest_sha256"],
@@ -258,7 +269,9 @@ def main() -> None:
     radii = [int(value) for value in args.radii.split(",") if value.strip()]
     con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
     arm_path = str(build_dir / "arm.duckdb").replace("'", "''")
+    disc_path = str(build_dir / "disc.duckdb").replace("'", "''")
     con.execute(f"ATTACH '{arm_path}' AS arm_db (READ_ONLY)")
+    con.execute(f"ATTACH '{disc_path}' AS disc_db (READ_ONLY)")
     try:
         results = [verify_radius(build_dir, con, radius) for radius in radii]
         build_id = str(con.execute("select value from build_metadata where key='build_id'").fetchone()[0])

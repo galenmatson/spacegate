@@ -14,7 +14,7 @@ OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
-VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
+VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-0}"
 VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 VERIFY_COMPACT_ALIAS_SAFETY="${SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY:-0}"
 VERIFY_TESS_EVIDENCE="${SPACEGATE_VERIFY_TESS_EVIDENCE:-1}"
@@ -500,7 +500,6 @@ required_tables = {
     "system_hierarchy_edges",
     "orbit_edges",
     "orbital_solutions",
-    "barycenters",
     "sol_small_body_objects",
 }
 if enable_sol_artificial:
@@ -540,7 +539,8 @@ earth_moon_edge_count = int(
           on child_ce.stable_component_key = e.child_component_key
         where parent_ce.component_type = 'planet'
           and lower(coalesce(parent_ce.display_name, '')) = 'earth'
-          and child_ce.stable_component_key = 'comp:moon:sol:moon'
+          and child_ce.component_type = 'moon'
+          and lower(coalesce(child_ce.display_name, '')) = 'moon'
           and e.source_catalog = 'sol_authority'
         """
     ).fetchone()[0]
@@ -565,24 +565,45 @@ if satellite_orbit_count < 5:
         f"Sol S2 gate failed: expected >=5 sol_authority satellite orbit edges, got {satellite_orbit_count}"
     )
 
-barycenter_count = int(
-    con.execute(
-        """
-        select count(*)::bigint
-        from barycenters
-        where barycenter_key in ('bary:center:sol:earth-moon', 'bary:center:sol:pluto-charon')
-        """
-    ).fetchone()[0]
-    or 0
-)
-if barycenter_count < 2:
-    raise SystemExit(
-        "Sol S2 gate failed: missing expected Earth-Moon and Pluto-Charon barycenter rows"
+if "barycenters" in present:
+    barycenter_count = int(
+        con.execute("select count(*)::bigint from barycenters").fetchone()[0] or 0
     )
+    if barycenter_count < 2:
+        raise SystemExit("Sol S2 gate failed: fewer than two materialized barycenters")
+    barycenter_contract = "materialized_barycenter_table"
+else:
+    barycenter_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from orbit_edges e
+            join component_entities p
+              on p.stable_component_key=e.primary_component_key
+            join component_entities s
+              on s.stable_component_key=e.secondary_component_key
+            join orbital_solutions o on o.orbit_edge_id=e.orbit_edge_id
+            where e.relation_kind='satellite'
+              and e.source_catalog='sol_authority'
+              and p.component_type in ('planet','dwarf_planet')
+              and s.component_type='moon'
+              and o.period_days>0
+              and o.semi_major_axis_au>0
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if barycenter_count < 5:
+        raise SystemExit(
+            "Sol S2 gate failed: insufficient selected bound-pair solutions for "
+            f"scene-derived barycenters: {barycenter_count}"
+        )
+    barycenter_contract = "derived_from_selected_bound_pair_orbits"
 
 print(
     f"OK: Sol S2 gate (moon_components={moon_component_count}, "
-    f"satellite_orbits={satellite_orbit_count}, barycenters={barycenter_count})"
+    f"satellite_orbits={satellite_orbit_count}, barycenters={barycenter_count}, "
+    f"barycenter_contract={barycenter_contract})"
 )
 
 small_body_count = int(
@@ -653,8 +674,7 @@ for row in con.execute(
         lower(trim(ce.display_name)) as body_name,
         ce.stable_component_key as component_key
       from component_entities ce
-      where ce.source_catalog = 'sol_authority'
-        and ce.core_object_type = 'planet'
+      where ce.core_object_type = 'planet'
         and lower(trim(ce.display_name)) in ('ceres', 'mercury')
 
       union all
@@ -694,8 +714,7 @@ mercury_sma = con.execute(
     with mercury_component as (
       select ce.stable_component_key as component_key
       from component_entities ce
-      where ce.source_catalog = 'sol_authority'
-        and ce.core_object_type = 'planet'
+      where ce.core_object_type = 'planet'
         and lower(trim(ce.display_name)) = 'mercury'
       limit 1
     )

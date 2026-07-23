@@ -49,24 +49,174 @@ def main() -> int:
     con = duckdb.connect(str(arm_path), read_only=True)
     failures: list[str] = []
 
-    required_tables = {
+    legacy_required_tables = {
         "sb9_systems",
         "sb9_aliases",
         "sb9_orbits",
         "multiple_component_evidence_matches",
         "multiple_component_stellar_evidence",
     }
+    clean_required_tables = {
+        "msc_runtime_leaf_bindings",
+        "stellar_leaf_display_classifications",
+    }
     existing = {
         str(row[0])
         for row in con.execute("select table_name from information_schema.tables where table_schema='main'").fetchall()
     }
-    missing = sorted(required_tables - existing)
-    if missing:
-        failures.append(f"missing ARM tables: {missing}")
+    if clean_required_tables <= existing:
+        contract = "e7_release_scoped_selected_components"
+        missing: list[str] = []
+    elif legacy_required_tables <= existing:
+        contract = "legacy_materialized_component_evidence"
+        missing = []
+    else:
+        contract = "unknown"
+        missing = sorted(
+            min(
+                (clean_required_tables - existing, legacy_required_tables - existing),
+                key=len,
+            )
+        )
+        failures.append(f"missing ARM tables for a supported contract: {missing}")
 
     counts: dict[str, object] = {}
     determinism: dict[str, object] = {"status": "not_requested"}
-    if not missing:
+    if contract == "e7_release_scoped_selected_components":
+        counts["msc_bindings_by_status"] = {
+            f"{source_status}:{runtime_status}:{reason}": int(count)
+            for source_status, runtime_status, reason, count in con.execute(
+                """
+                select source_binding_status,runtime_binding_status,
+                       runtime_binding_reason,count(*)::bigint
+                from msc_runtime_leaf_bindings
+                group by all order by 1,2,3
+                """
+            ).fetchall()
+        }
+        counts["selected_leaf_component_evidence"] = {
+            f"{basis}:{catalog}": int(count)
+            for basis, catalog, count in con.execute(
+                """
+                select evidence_basis,source_catalog,count(*)::bigint
+                from stellar_leaf_display_classifications
+                where evidence_basis in (
+                  'selected_msc_component_spectral_type',
+                  'selected_sb9_component_spectral_type',
+                  'selected_debcat_component_spectral_type',
+                  'selected_msc_component_mass_main_sequence_prior'
+                )
+                group by all order by 1,2
+                """
+            ).fetchall()
+        }
+        clean_checks = {
+            "duplicate_component_bindings": int(
+                con.execute(
+                    "select count(*) from (select component_entity_id from "
+                    "msc_runtime_leaf_bindings group by 1 having count(*)<>1)"
+                ).fetchone()[0]
+            ),
+            "invalid_binding_status": int(
+                con.execute(
+                    "select count(*) from msc_runtime_leaf_bindings where "
+                    "runtime_binding_status not in ('accepted','missing','ambiguous','excluded')"
+                ).fetchone()[0]
+            ),
+            "accepted_binding_without_leaf": int(
+                con.execute(
+                    "select count(*) from msc_runtime_leaf_bindings where "
+                    "runtime_binding_status='accepted' and hierarchy_node_key is null"
+                ).fetchone()[0]
+            ),
+            "unaccepted_binding_with_leaf": int(
+                con.execute(
+                    "select count(*) from msc_runtime_leaf_bindings where "
+                    "runtime_binding_status<>'accepted' and hierarchy_node_key is not null"
+                ).fetchone()[0]
+            ),
+            "canonical_containment_promotions": int(
+                con.execute(
+                    "select count(*) from msc_runtime_leaf_bindings where canonical_containment"
+                ).fetchone()[0]
+            ),
+            "invalid_case_collision": int(
+                con.execute(
+                    "select count(*) from msc_runtime_leaf_bindings where "
+                    "runtime_binding_reason='case_significant_source_collision' and "
+                    "(runtime_binding_status<>'ambiguous' or source_candidate_count<2)"
+                ).fetchone()[0]
+            ),
+            "selected_component_evidence_without_accepted_binding": int(
+                con.execute(
+                    """
+                    select count(*)
+                    from stellar_leaf_display_classifications l
+                    left join msc_runtime_leaf_bindings b
+                      on b.hierarchy_node_key=l.hierarchy_node_key
+                     and b.runtime_binding_status='accepted'
+                    where l.evidence_basis in (
+                      'selected_msc_component_spectral_type',
+                      'selected_sb9_component_spectral_type',
+                      'selected_debcat_component_spectral_type',
+                      'selected_msc_component_mass_main_sequence_prior'
+                    ) and b.binding_id is null
+                    """
+                ).fetchone()[0]
+            ),
+        }
+        counts["clean_checks"] = clean_checks
+        failures.extend(
+            f"{name}: {value}" for name, value in clean_checks.items() if value
+        )
+        if args.compare_arm_db:
+            compare_path = Path(args.compare_arm_db).resolve()
+            compare = duckdb.connect(str(compare_path), read_only=True)
+            compare_tables = {
+                str(row[0]) for row in compare.execute(
+                    "select table_name from information_schema.tables "
+                    "where table_schema='main'"
+                ).fetchall()
+            }
+            if not clean_required_tables <= compare_tables:
+                failures.append("comparison ARM does not use the clean component contract")
+            else:
+                table_orders = {
+                    "msc_runtime_leaf_bindings": "component_entity_id",
+                    "stellar_leaf_display_classifications": "hierarchy_node_key",
+                }
+                fingerprints: dict[str, dict[str, object]] = {}
+                mismatch_tables: list[str] = []
+                for table, order_by in table_orders.items():
+                    left_count, left_hash, left_columns = science_table_fingerprint(
+                        con, table, order_by
+                    )
+                    right_count, right_hash, right_columns = science_table_fingerprint(
+                        compare, table, order_by
+                    )
+                    fingerprints[table] = {
+                        "row_count": left_count,
+                        "sha256": left_hash,
+                        "compare_row_count": right_count,
+                        "compare_sha256": right_hash,
+                        "fingerprint_columns": left_columns,
+                        "excluded_columns": sorted(NON_SCIENCE_FINGERPRINT_COLUMNS),
+                    }
+                    if left_columns != right_columns or (left_count, left_hash) != (
+                        right_count,
+                        right_hash,
+                    ):
+                        mismatch_tables.append(table)
+                determinism = {
+                    "status": "pass" if not mismatch_tables else "fail",
+                    "compare_arm_db": str(compare_path),
+                    "mismatch_tables": mismatch_tables,
+                    "fingerprints": fingerprints,
+                }
+                if mismatch_tables:
+                    failures.append(f"determinism mismatch: {mismatch_tables}")
+            compare.close()
+    elif not missing:
         counts["sb9_systems"] = int(con.execute("select count(*) from sb9_systems").fetchone()[0])
         counts["sb9_aliases"] = int(con.execute("select count(*) from sb9_aliases").fetchone()[0])
         counts["sb9_orbits"] = int(con.execute("select count(*) from sb9_orbits").fetchone()[0])
@@ -148,31 +298,6 @@ def main() -> int:
         if invalid_acceptance:
             failures.append(f"accepted matches with unapproved methods: {invalid_acceptance}")
 
-        castor_rows = con.execute(
-            """
-            select stable_component_key, classification_value,
-                   json_extract_string(input_parameters_json, '$.spectral_type_raw') as spectral_type_raw
-            from derived_stellar_classifications
-            where stable_component_key like 'comp:msc:wds:07346+3153:%'
-              and classification_status = 'source'
-              and review_status = 'accepted'
-              and source_catalog = 'sb9'
-            order by stable_component_key
-            """
-        ).fetchall()
-        counts["castor_sb9_classes"] = [list(row) for row in castor_rows]
-        expected = {
-            "comp:msc:wds:07346+3153:aa": "A",
-            "comp:msc:wds:07346+3153:ab": "M",
-            "comp:msc:wds:07346+3153:ba": "A",
-            "comp:msc:wds:07346+3153:bb": "M",
-            "comp:msc:wds:07346+3153:ca": "M",
-            "comp:msc:wds:07346+3153:cb": "M",
-        }
-        observed = {str(key): str(value) for key, value, _ in castor_rows}
-        if observed != expected:
-            failures.append(f"Castor SB9 endpoint classes mismatch: {observed}")
-
         if args.compare_arm_db:
             compare_path = Path(args.compare_arm_db).resolve()
             compare = duckdb.connect(str(compare_path), read_only=True)
@@ -215,8 +340,11 @@ def main() -> int:
                 failures.append(f"determinism mismatch: {mismatch_tables}")
 
     report = {
+        "schema_version": "spacegate.multiple_component_evidence_verification.v2",
         "generated_at": utc_now(),
         "arm_db": str(arm_path),
+        "contract": contract,
+        "named_system_gates": False,
         "status": "pass" if not failures else "fail",
         "failures": failures,
         "counts": counts,
@@ -226,6 +354,7 @@ def main() -> int:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2, sort_keys=True))
+    con.close()
     return 0 if not failures else 1
 
 

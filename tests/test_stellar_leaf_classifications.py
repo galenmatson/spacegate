@@ -3,13 +3,68 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import duckdb
 
 from scripts.materialize_stellar_leaf_classifications import materialize
+from scripts import verify_stellar_leaf_classifications as verifier
 
 
 class StellarLeafClassificationTests(unittest.TestCase):
+    def test_verifier_accepts_clean_projection_without_named_system_gates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            core = duckdb.connect(str(build / "core.duckdb"))
+            core.execute(
+                """
+                create table systems(system_id bigint,star_count bigint);
+                insert into systems values (1,1);
+                create table stars(stable_object_key varchar);
+                insert into stars values ('canon:star:test');
+                """
+            )
+            core.close()
+            hierarchy = duckdb.connect(str(build / "canonical_hierarchy.duckdb"))
+            hierarchy.execute(
+                """
+                create table hierarchy_nodes(
+                  hierarchy_node_key varchar,canonical_key varchar,node_kind varchar,
+                  component_family varchar
+                );
+                insert into hierarchy_nodes values
+                  ('canon:leaf:test','canon:star:test','star','star');
+                create table hierarchy_edges(
+                  parent_node_key varchar,child_node_key varchar
+                );
+                """
+            )
+            hierarchy.close()
+            arm = duckdb.connect(str(build / "arm.duckdb"))
+            arm.execute(
+                """
+                create table stellar_leaf_display_classifications(
+                  hierarchy_node_key varchar,system_id bigint,
+                  classification_value varchar,classification_status varchar,
+                  evidence_basis varchar,source_catalog varchar,source_pk varchar,
+                  projection_version varchar
+                );
+                insert into stellar_leaf_display_classifications values
+                  ('canon:leaf:test',1,'WD','source_model','gaia_dsc_probability',
+                   'gaia_dr3','fact-1','e7_clean_runtime_leaf_classification_v1');
+                """
+            )
+            arm.close()
+            report = build / "report.json"
+            with patch(
+                "sys.argv",
+                ["verify", "--build-dir", str(build), "--report", str(report)],
+            ):
+                self.assertEqual(verifier.main(), 0)
+            result = __import__("json").loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(result["status"], "pass")
+            self.assertFalse(result["named_system_gates"])
+
     def test_materialization_uses_exact_leaves_and_evidence_precedence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

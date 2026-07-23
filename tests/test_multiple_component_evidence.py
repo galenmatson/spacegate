@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -87,3 +89,48 @@ def test_science_fingerprint_excludes_build_metadata_but_not_evidence() -> None:
     assert science_table_fingerprint(first, "evidence", "id") != science_table_fingerprint(
         second, "evidence", "id"
     )
+
+
+def test_clean_component_contract_uses_general_scope_gates(tmp_path: Path) -> None:
+    arm_path = tmp_path / "arm.duckdb"
+    report_path = tmp_path / "report.json"
+    con = duckdb.connect(str(arm_path))
+    con.execute(
+        """
+        create table msc_runtime_leaf_bindings(
+          binding_id bigint,component_entity_id varchar,source_binding_status varchar,
+          runtime_binding_status varchar,runtime_binding_reason varchar,
+          source_candidate_count bigint,hierarchy_node_key varchar,
+          canonical_containment boolean
+        );
+        insert into msc_runtime_leaf_bindings values
+          (1,'component-1','accepted','accepted','exact_msc_hierarchy_leaf_key',
+           1,'leaf-1',false);
+        create table stellar_leaf_display_classifications(
+          hierarchy_node_key varchar,evidence_basis varchar,source_catalog varchar
+        );
+        insert into stellar_leaf_display_classifications values
+          ('leaf-1','selected_msc_component_spectral_type','multiplicity.msc');
+        """
+    )
+    con.close()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/verify_multiple_component_evidence.py"),
+            "--arm-db",
+            str(arm_path),
+            "--report",
+            str(report_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["status"] == "pass"
+    assert report["contract"] == "e7_release_scoped_selected_components"
+    assert report["named_system_gates"] is False

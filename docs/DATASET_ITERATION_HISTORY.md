@@ -3868,6 +3868,28 @@ Representative commits:
   measured remedy is content-addressed attestation and immutable table reuse,
   never weaker promotion integrity.
 
+### 149) Verification Gates Must Enforce Contracts, Not Named Outcomes
+
+- The clean public candidate exposed historical verifier assumptions for named
+  stellar systems, a named multiple, and four named extended objects. Those
+  examples remain useful diagnostics and review targets, but they cannot define
+  production acceptance or force scientific inventory.
+- Stellar-leaf verification now gates exact clean hierarchy membership,
+  classification status, evidence lineage, and one selected result per physical
+  leaf. Multiple-component verification gates release-scoped binding outcomes,
+  case-significant ambiguity, containment prohibition, and selected-evidence
+  lineage. Extended-object verification gates permanent identity uniqueness,
+  source accounting, selected local geometry, search ownership, and orphans.
+- Map verification replaces the Sirius/LAWD representative-class assertions with
+  a general comparison of every encoded nearby representative class and leaf
+  badge against the versioned tile-selection projection. Named-system gates are
+  explicitly reported as false.
+- Final unpromoted public candidate `e7_2d15d40a91021d6f6e7297be_public`
+  passes the generic public-build chain. Its 100/250/500/1,000-ly tiles account
+  10,209, 206,913, 1,820,142, and 5,319,825 systems exactly once with no missing
+  or extra membership. This change removes one-off gates; it does not relax
+  identity, provenance, scope, determinism, or scientific accounting.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

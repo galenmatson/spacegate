@@ -1,17 +1,17 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_disc_policy.v1",
-  "policy_version": "2026-07-22.e7-clean-runtime-disc.1",
+  "policy_version": "2026-07-23.e7-clean-runtime-disc.3",
   "compiler_version": "e7_clean_runtime_disc_compiler_v1",
   "inputs": {
     "clean_runtime_core": {
-      "build_id": "92da8d31dc0e7dbd4d4d70a5",
-      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224",
-      "relative_path": "../e7-clean-runtime-core/92da8d31dc0e7dbd4d4d70a5"
+      "build_id": "9d66ffa81a03a714881be2f3",
+      "manifest_sha256": "5810e9d23e52c87758aec6dec9602173a412b7b11aa2fc18a4f76989d04e3920",
+      "relative_path": "../e7-clean-runtime-core/9d66ffa81a03a714881be2f3"
     },
     "clean_runtime_arm": {
-      "build_id": "e3e82312eaa3cab931e9e756",
-      "manifest_sha256": "709fd898814635d2c177dff078d4def431b352704e90fefd58026d0f5d799267",
-      "relative_path": "../e7-clean-runtime-arm/e3e82312eaa3cab931e9e756"
+      "build_id": "c2eda7f868ff8ba2b747d717",
+      "manifest_sha256": "24b4798bd3cfce7a606b3f090e68e1df155fd3549cf4a0012a91614b06c9a48a",
+      "relative_path": "../e7-clean-runtime-arm/c2eda7f868ff8ba2b747d717"
     }
   },
   "coolness_profile": {

@@ -9,7 +9,7 @@ from typing import Any
 import duckdb
 
 
-ARM_TABLES = [
+REQUIRED_ARM_TABLES = [
     "wise_sources",
     "catwise_sources",
     "allwise_sources",
@@ -17,11 +17,20 @@ ARM_TABLES = [
     "infrared_photometry",
     "infrared_motion_evidence",
     "infrared_candidate_queue",
-    "infrared_image_products",
 ]
+OPTIONAL_ARM_TABLES = ["infrared_image_products"]
 VALID_CATALOGS = {"catwise", "allwise"}
 VALID_CONFIDENCE = {"high", "medium", "low", "candidate", ""}
-VALID_CONFLICT = {"accepted_match", "candidate", "conflict", "quarantined", ""}
+VALID_CONFLICT = {
+    "accepted_match",
+    "ambiguous_candidate",
+    "duplicate_source_collision",
+    "excluded_outside_acceptance",
+    "candidate",
+    "conflict",
+    "quarantined",
+    "",
+}
 
 
 def has_table(con: duckdb.DuckDBPyConnection, table: str) -> bool:
@@ -71,15 +80,22 @@ def main() -> int:
     arm = duckdb.connect(str(arm_db), read_only=True)
     try:
         arm.execute(f"attach {sql_literal(str(core_db.resolve()))} as verify_core (read_only)")
-        missing_tables = [table for table in ARM_TABLES if not has_table(arm, table)]
+        missing_tables = [
+            table for table in REQUIRED_ARM_TABLES if not has_table(arm, table)
+        ]
         if missing_tables:
             failures.append(f"missing ARM WISE tables: {', '.join(missing_tables)}")
         counts = {
             table: count_rows(arm, table)
-            for table in ARM_TABLES
+            for table in [*REQUIRED_ARM_TABLES, *OPTIONAL_ARM_TABLES]
             if table not in missing_tables
+            and has_table(arm, table)
         }
         report["arm_counts"] = counts
+        report["optional_tables"] = {
+            table: "present" if has_table(arm, table) else "not_materialized"
+            for table in OPTIONAL_ARM_TABLES
+        }
         if counts.get("infrared_source_matches", 0) < int(args.expect_matches_min):
             failures.append(
                 "infrared_source_matches below expectation: "
@@ -112,7 +128,10 @@ def main() -> int:
                 from infrared_source_matches
                 where lower(coalesce(source_catalog, '')) not in ('catwise', 'allwise')
                    or lower(coalesce(confidence_tier, '')) not in ('high', 'medium', 'low', 'candidate', '')
-                   or lower(coalesce(conflict_status, '')) not in ('accepted_match', 'candidate', 'conflict', 'quarantined', '')
+                   or lower(coalesce(conflict_status, '')) not in (
+                     'accepted_match','ambiguous_candidate','duplicate_source_collision',
+                     'excluded_outside_acceptance','candidate','conflict','quarantined',''
+                   )
                    or target_type is null
                    or target_id is null
                    or system_id is null

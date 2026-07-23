@@ -22,7 +22,11 @@ from scripts.build_map_tiles import (
     tile_query,
     tile_id,
 )
-from scripts.verify_map_tiles import expected_selected_leaf_badges, read_tile
+from scripts.verify_map_tiles import (
+    expected_representative_classes,
+    expected_selected_leaf_badges,
+    read_tile,
+)
 
 
 class MapTileContractTests(unittest.TestCase):
@@ -206,6 +210,12 @@ class MapTileContractTests(unittest.TestCase):
             self.assertEqual(expected_selected_leaf_badges(con, 100), {1: ["A", "M"]})
         finally:
             con.close()
+
+    def test_representative_class_verification_uses_general_tile_contract(self) -> None:
+        query = tile_query(100)
+        self.assertNotIn("Sirius", query)
+        self.assertNotIn("LAWD 25", query)
+        self.assertTrue(callable(expected_representative_classes))
 
 
 if __name__ == "__main__":

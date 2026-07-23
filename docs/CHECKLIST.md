@@ -1807,7 +1807,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   retain 824 confirmed/known clean planet links, and prove candidates/negative
   evidence neither link nor mutate canonical planet inventory; pass independent
   audit and isolated logical reproduction with no differing tables
-- [x] E7 clean runtime DISC checkpoint: build `62c9d909371eef4dfd8b63c9`
+- [x] E7 clean runtime DISC checkpoint: build `3b0f7f0eefa8c19a47965a13`
   from the checksum-pinned clean CORE and ARM plus the active immutable
   coolness profile; require selected stellar classification/parameter surfaces,
   prohibit the legacy CORE classification fallback, score all 5,869,091
@@ -1816,12 +1816,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   scratch
 - [x] E7 clean runtime bundle checkpoint: compose manifest-pinned CORE,
   hierarchy, ARM, and DISC products as immutable verified links in build
-  `fcd4eed36b84cf7a0cba67f3`; retain full source-product checksums while
+  `2d15d40a91021d6f6e7297be`; retain full source-product checksums while
   eliminating the duplicate post-link hash pass (24.61s to 12.35s)
 - [x] E7 clean public-slice checkpoint: materialize unpromoted build
-  `e7_fcd4eed36b84cf7a0cba67f3_public`, retain the complete clean inventory and
+  `e7_2d15d40a91021d6f6e7297be_public`, retain the complete clean inventory and
   search vocabulary, pass derived/TESS projection verification, and pass the
   isolated API integration gate through clean WISE and selected leaf contracts
+- [x] E7 clean map-tile checkpoint: build and verify exact 100/250/500/1,000-ly
+  artifacts for the final public candidate; account 10,209, 206,913, 1,820,142,
+  and 5,319,825 systems once with zero missing/extra membership, and replace
+  named representative-class gates with complete projection consistency
 - [ ] E7 public-runtime materialization optimization: evaluate manifest-addressed
   or block-reusing assembly against the measured 278.73-second, 23.62-GB copy
   without weakening self-contained deployment, checksums, atomic promotion,
