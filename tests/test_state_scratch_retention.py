@@ -14,6 +14,7 @@ def run_retention(
     state: Path,
     report: Path,
     *extra: str,
+    scratch_scope: str = "state",
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -21,6 +22,8 @@ def run_retention(
             str(SCRIPT),
             "--state-dir",
             str(state),
+            "--scratch-scope",
+            scratch_scope,
             "--candidate",
             "old-diagnostic",
             "--minimum-age-minutes",
@@ -73,3 +76,29 @@ def test_state_scratch_retention_requires_exact_candidate_hash(tmp_path: Path) -
     assert applied.returncode == 0, applied.stderr
     assert not candidate.exists()
     assert protected.read_bytes() == b"must remain"
+
+
+def test_state_scratch_retention_supports_bounded_host_scratch(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    (state / "tmp").mkdir(parents=True)
+    candidate = tmp_path / "tmp/old-diagnostic"
+    candidate.mkdir(parents=True)
+    (candidate / "scratch.bin").write_bytes(b"disposable host scratch")
+    report = state / "reports/evidence_lake_v2/host-scratch-retention.json"
+
+    dry_run = run_retention(state, report, scratch_scope="host")
+    assert dry_run.returncode == 0, dry_run.stderr
+    dry_report = json.loads(report.read_text(encoding="utf-8"))
+    assert dry_report["scratch_scope"] == "host"
+    assert dry_report["scratch_root"] == str(tmp_path / "tmp")
+
+    applied = run_retention(
+        state,
+        report,
+        "--apply",
+        "--expected-candidate-set-sha256",
+        dry_report["candidate_set_sha256"],
+        scratch_scope="host",
+    )
+    assert applied.returncode == 0, applied.stderr
+    assert not candidate.exists()

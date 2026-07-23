@@ -1269,6 +1269,45 @@ reproduction before the operator decision. The next cleanup must be a reviewed
 family-aware dry-run after promotion/rollback, never an ad hoc deletion of the
 earlier candidate or its lineage.
 
+### July 23 host scratch and cache cleanup
+
+The emergency capacity review preserved the served build, corrected candidate,
+rollback lineage, raw and typed evidence, immutable compiler generations,
+published downloads, and every report-referenced reproduction tree.
+
+`scripts/prune_state_scratch.py` contract v2 adds a bounded `host` scope. The
+existing `state` scope resolves only to `STATE/tmp`; `host` resolves only to the
+sibling `tmp` directory (normally `/data/spacegate/tmp`). Both scopes retain the
+same direct-child naming, minimum-age, live-process, hardlink, tree-identity,
+dry-run hash, and exact-hash apply gates.
+
+The reviewed host-scratch dry-run selected exactly four unreferenced artifacts:
+
+- the July 9 `v1054` deployment compression file, its alternate compression
+  file, and its chunk directory;
+- the July 11 WISE v1 smoke database directory.
+
+Candidate-set hash
+`fe182ffb0af9ddd6e53d35ca5fae3cbfef750f97520a6e19517edb774a158e1d`
+was applied without widening the set and reclaimed 10,402,242,560 allocated
+bytes. Reports
+`host_scratch_retention_{dry_run,applied}_2026-07-23.json` preserve the
+inspection and action. `/data` usable free space rose from about 23 GiB to
+32 GiB.
+
+An all-unused Docker BuildKit cache prune separately reclaimed 119.2 GB. On
+this host that capacity was returned to `/`, not `/data`; no running container
+or active image was removed. The split between Docker's configured
+`/data/docker` data root and the root-filesystem BuildKit content store should
+be reconciled during later host maintenance, but it does not alter scientific
+artifact retention.
+
+The capacity review found about 76.79 GiB of ext4 reserved blocks on `/data` and
+9.55 GiB on `/mnt/space`. Reducing the reserved percentage is a reasonable
+operator action for these non-root data filesystems and increases
+user-available capacity without deleting data. Retain some reserve on `/data`;
+do not reduce the root filesystem's reserve as part of this procedure.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

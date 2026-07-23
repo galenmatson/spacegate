@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed retention for explicitly named Spacegate state/tmp diagnostics."""
+"""Fail-closed retention for explicitly named Spacegate scratch diagnostics."""
 
 from __future__ import annotations
 
@@ -20,7 +20,16 @@ from prune_evidence_lake_artifacts import (
 
 
 DEFAULT_STATE = Path("/data/spacegate/state")
-CONTRACT = "spacegate.state_scratch_retention.v1"
+CONTRACT = "spacegate.state_scratch_retention.v2"
+
+
+def scratch_root_for_scope(state_dir: Path, scope: str) -> Path:
+    state = state_dir.resolve(strict=True)
+    if scope == "state":
+        return state / "tmp"
+    if scope == "host":
+        return state.parent / "tmp"
+    raise ValueError(f"unsupported scratch scope: {scope}")
 
 
 def inspect_candidate(
@@ -69,6 +78,7 @@ def retention_report(
     state_dir: Path,
     candidates: list[str],
     *,
+    scratch_scope: str,
     reason: str,
     minimum_age_minutes: float,
 ) -> dict[str, Any]:
@@ -76,7 +86,7 @@ def retention_report(
         raise ValueError("provide one or more unique explicit scratch candidates")
     if not reason.strip():
         raise ValueError("an explicit retention reason is required")
-    scratch_root = state_dir.resolve(strict=True) / "tmp"
+    scratch_root = scratch_root_for_scope(state_dir, scratch_scope).resolve(strict=True)
     rows = [
         inspect_candidate(
             scratch_root,
@@ -100,6 +110,7 @@ def retention_report(
         "schema_version": CONTRACT,
         "status": "pass",
         "action": "dry_run",
+        "scratch_scope": scratch_scope,
         "scratch_root": str(scratch_root),
         "reason": reason.strip(),
         "minimum_age_minutes": minimum_age_minutes,
@@ -114,6 +125,12 @@ def retention_report(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE)
+    parser.add_argument(
+        "--scratch-scope",
+        choices=("state", "host"),
+        default="state",
+        help="state selects STATE/tmp; host selects the sibling tmp directory",
+    )
     parser.add_argument("--candidate", action="append", default=[])
     parser.add_argument("--minimum-age-minutes", type=float, default=60.0)
     parser.add_argument("--reason", required=True)
@@ -126,6 +143,7 @@ def main() -> int:
     report = retention_report(
         args.state_dir,
         args.candidate,
+        scratch_scope=args.scratch_scope,
         reason=args.reason,
         minimum_age_minutes=args.minimum_age_minutes,
     )
