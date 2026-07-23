@@ -2590,6 +2590,12 @@ Pre-promotion planning checkpoint (July 22, 2026):
   pointers. Angular semimajor axes are converted to AU with the selected system
   distance and explicit derivation lineage; source-native angular values and
   ambiguous epoch units remain preserved rather than guessed
+- clean TESS runtime `ab880f46a111428e8021e47e` rejects legacy numeric IDs and
+  rebinds selected stable keys against clean CORE. All 9,886 accepted TIC hosts
+  and all 824 confirmed/known planet links survive exactly. The artifact
+  accounts 27,930 targeted TICs, 18,044 non-accepted audit rows, 8,064 TOIs,
+  5,383 candidates, 1,346 negative rows, and 8,064 history events with zero
+  canonical inventory mutations; independent audit and byte reproduction pass
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

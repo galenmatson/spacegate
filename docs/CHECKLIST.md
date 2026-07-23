@@ -1790,6 +1790,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   the 3,238 exactly bound relations and their 6,518 coherent solutions, set 808
   physically valid preferred visual solutions, derive AU scale from selected
   system distance with lineage, and create no component or containment
+- [x] E7 clean TESS runtime projection: build `ab880f46a111428e8021e47e`
+  from clean CORE, selected planet evidence, exact E4 source evidence, and the
+  checksum-pinned disposition-history seed; rebind all accepted stable keys to
+  clean numeric IDs, account 27,930 TIC targets and 8,064 TOIs, preserve 824
+  confirmed/known planet links, and prove candidates/negative evidence cannot
+  mutate or link into canonical planet inventory
 - [ ] E7 clean runtime ARM completion: add TESS candidate compatibility without
   relation-to-containment promotion or independent scientific fallback logic
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric

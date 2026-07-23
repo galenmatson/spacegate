@@ -2235,6 +2235,17 @@ times the selected system distance with explicit lineage, retains the angular
 source value, and normalizes only epoch units with declared JD, MJD, or Julian
 year semantics. Ambiguous source-native epoch flags remain raw evidence.
 
+Clean TESS runtime artifact `ab880f46a111428e8021e47e` closes the identity
+boundary before ARM compatibility projection. It consumes selected E5
+disposition/link decisions but never trusts their stability-era numeric IDs;
+accepted star, system, and planet stable keys are rebound against clean CORE.
+All 9,886 accepted TIC hosts and 824 confirmed/known planet links resolve.
+Candidate and negative dispositions retain measurements and lineage but are
+structurally prohibited from receiving `planet_id`. All 27,930 target outcomes,
+18,044 non-accepted audits, 8,064 current TOIs, and 8,064 checksum-pinned history
+events are accounted with zero canonical inventory mutation. Compile,
+independent audit, and byte-exact reproduction complete in under two seconds.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

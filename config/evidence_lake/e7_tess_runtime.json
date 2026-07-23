@@ -1,0 +1,53 @@
+{
+  "schema_version": "spacegate.e7_tess_runtime_policy.v1",
+  "policy_version": "2026-07-23.e7-tess-runtime.1",
+  "compiler_version": "e7_tess_runtime_compiler_v1",
+  "inputs": {
+    "clean_runtime_core": {
+      "build_id": "92da8d31dc0e7dbd4d4d70a5",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/92da8d31dc0e7dbd4d4d70a5",
+      "manifest_sha256": "14820a77f97410bb7ed3ba2dd8f35673c5f11fa7e347d47b13b8b8fa1de50224"
+    },
+    "clean_science": {
+      "build_id": "7c27f1595c69278b8d55c9e4",
+      "relative_path": "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4",
+      "manifest_sha256": "9741a4480ac9b474742644e58d66e93a2ed2476880411cbc0ee68e7da706e79b"
+    },
+    "tess_scientific_evidence": {
+      "build_id": "03acb9eb0fb2cbc0f8203dd8",
+      "relative_path": "derived/evidence_lake_v2/scientific_evidence/03acb9eb0fb2cbc0f8203dd8",
+      "manifest_sha256": "166fdd65de944b3a42d609bf81acd05d5c6902c62f13de76e7ddfe78f052ac86",
+      "database_sha256": "d6ec3234659d1168be652fbc577c41432e881912073facc2b54d6a1f352d103f"
+    },
+    "toi_history_seed": {
+      "relative_path": "cooked/tess_evidence/toi_disposition_history.csv",
+      "sha256": "548932ad99d79360c981165056dbac7b343150080cf88eb1ac476193d891c940"
+    }
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "rebind_stable_keys_against_clean_core": true,
+    "trust_legacy_numeric_ids": false,
+    "candidate_or_negative_rows_link_canonical_planets": false,
+    "mutate_canonical_planet_inventory": false,
+    "preserve_unresolved_targets": true,
+    "preserve_disposition_history": true
+  },
+  "acceptance": {
+    "targeted_tics": 27930,
+    "targets_accepted": 9886,
+    "targets_ambiguous": 1284,
+    "targets_excluded": 16632,
+    "targets_missing": 128,
+    "targets_source_missing": 0,
+    "missing_object_audit": 18044,
+    "tois": 8064,
+    "toi_confirmed_known": 1332,
+    "toi_candidates": 5383,
+    "toi_negative": 1346,
+    "toi_unclassified": 3,
+    "toi_confirmed_known_planet_links": 824,
+    "toi_history_events": 8064,
+    "canonical_inventory_mutations": 0
+  }
+}

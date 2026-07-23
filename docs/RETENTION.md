@@ -1183,6 +1183,13 @@ the current clean ARM is incorporated into a reviewed local promotion and a
 dry-run accounts for their reports and state links. Do not delete them
 manually. Reproduction scratch was removed automatically.
 
+Clean TESS runtime artifact `ab880f46a111428e8021e47e`, its four Parquet
+products, reports, clean CORE/science/E4 inputs, and checksum-pinned
+`cooked/tess_evidence/toi_disposition_history.csv` migration seed are protected
+unserved candidate inputs. The history seed must not be edited or removed until
+an immutable successor history release preserves every event and cutover plus
+rollback are verified. Reproduction scratch was removed automatically.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

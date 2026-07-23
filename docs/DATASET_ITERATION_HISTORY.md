@@ -3751,6 +3751,22 @@ Representative commits:
   takes less than one second. Bulk copies of unchanged selected-science tables
   remain the dominant ARM cost and are tracked in the build performance report.
 
+### 143) TESS Compatibility Must Rebind Identity, Not Copy IDs
+
+- The E5 selected TESS evidence was produced against the stability CORE. Clean
+  runtime artifact `ab880f46a111428e8021e47e` therefore treats its stable keys
+  as reviewed identity evidence but rejects every inherited numeric ID.
+- Exact rebinding against clean CORE preserves all 9,886 accepted TIC hosts and
+  all 824 confirmed/known planet links. The clean canonical planet count remains
+  unchanged; 5,383 candidates, 1,346 false-positive/false-alarm rows, and three
+  unclassified rows cannot receive a canonical planet ID.
+- The artifact accounts all 27,930 targeted TICs, including 18,044 explicit
+  missing/excluded/ambiguous audits, and all 8,064 current TOIs plus their 8,064
+  disposition-history events. Source-native measurements and exact E4 source
+  record/checksum lineage remain attached.
+- Compile takes 1.45 seconds; independent audit takes 0.29 seconds and isolated
+  byte-exact reproduction takes 1.68 seconds total.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

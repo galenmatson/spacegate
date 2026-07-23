@@ -704,6 +704,12 @@ No optimization is implemented at this checkpoint. The report establishes the
 baseline and prevents speed work from weakening provenance, isolation, or
 logical reproduction gates.
 
+Clean TESS runtime build `ab880f46a111428e8021e47e` is not a critical-path
+target: compile takes 1.45 seconds at 1.63 GiB peak RSS, independent audit 0.29
+seconds, and isolated byte-exact reproduction 1.68 seconds total. Its four
+Parquet products should remain independently reusable rather than being folded
+back into a monolithic selection pass.
+
 The first fail-closed run exposed 5,092 reused source edge IDs containing 6,936
 collision rows. The full relationship tuples were all unique. The accepted seed
 therefore assigns deterministic sequential edge IDs from the complete ordered

@@ -801,6 +801,14 @@ retains all selected and deferred evidence tables while projecting 3,238 bound
 relations and 6,518 coherent solutions into compatibility orbit tables. It
 creates no stellar identities or containment from catalog relation claims.
 
+Clean TESS runtime artifact `ab880f46a111428e8021e47e` combines the selected
+TESS projection with exact E4 source-native measurements and provenance, then
+rebinds all stable keys against clean CORE. The existing append-only TOI history
+CSV is a checksum-pinned migration seed only; it supplies first/last-observed
+timestamps and is not identity or disposition authority. The artifact preserves
+all current candidates and negative controls while permitting canonical planet
+IDs only on the 824 confirmed/known exact clean-key links.
+
 ## 2c) Sol artificial overlay (`sol_artificial`)
 
 Classification: `auxiliary` (`arm` supplemental science overlay)
