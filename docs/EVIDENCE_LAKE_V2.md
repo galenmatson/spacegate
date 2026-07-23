@@ -2382,6 +2382,37 @@ children and resolved targets must be immediate children of either the state
 artifact root or an operator-supplied bulk root; arbitrary symlink targets
 remain rejected.
 
+## E7 Release-Scoped Stellar Model Classification
+
+Selected stellar-classification artifact `8cd8c0805875c87fb4afeb4e` reads the
+pinned Gaia DR3 AP release and the permanent clean foundation without opening a
+stability database. It preserves 28,851,666 DSC probability bundles, identifies
+101,737 white-dwarf candidates at the versioned 0.5 probability threshold, and
+binds 70,028 of them through exact Gaia DR3 identity; 31,709 remain explicitly
+missing. The output is source-model evidence, not a direct measurement, and
+creates no identity or containment.
+
+Clean science `ba4ac952ef7fc86f1d3150d2` selects 4,054 of those model
+classifications after direct spectral evidence and the dedicated white-dwarf
+catalog have precedence. Its independent audit and isolated canonical-Parquet
+reproduction pass. Runtime CORE `9d66ffa81a03a714881be2f3` and runtime ARM
+`c2eda7f868ff8ba2b747d717` also pass independent and isolated reproduction.
+
+The machine-readable runtime classification A/B accounts all 147 clean-only
+hierarchy leaves as MSC inferred leaves and finds no reference-only leaf. All
+240 known-to-UNKNOWN transitions are explicit deferrals: 192 have independently
+recorded case-significant component-scope collisions, and 48 are an unmigrated
+UltracoolSheet classification tail. No Gaia white-dwarf classification regresses
+to UNKNOWN and no transition is unaccounted. This is an adjudication ledger, not
+permission to copy the old values or guess between `AB` and `Ab` scopes.
+
+The modular artifact also exposes build architecture debt. Its scientific query
+takes about ten seconds while byte-verifying the 179.4-GB Gaia input takes about
+157 seconds; downstream assemblers then recopy unchanged multi-million-row
+projections. Iterative attestation caches and immutable domain/table reuse are
+the measured optimization direction, subject to mandatory full verification at
+clean reproduction and promotion.
+
 ## Hard Gates
 
 ### Solar Standards Checkpoint

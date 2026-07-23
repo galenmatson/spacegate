@@ -171,6 +171,20 @@ def validate_policy(policy: dict[str, Any]) -> None:
     }
     if wd != expected_wd:
         raise ValueError("invalid white-dwarf classification evidence contract")
+    gaia_dsc = (policy.get("classification_evidence_sources") or {}).get(
+        "gaia_dsc_white_dwarf_model"
+    )
+    expected_gaia_dsc = {
+        "source_table": "evidence_stellar_model_selected_stellar_model_classifications",
+        "classification_value": "WD",
+        "classification_status": "source_model",
+        "evidence_basis": "selected_gaia_dsc_white_dwarf_probability",
+        "evidence_rank": 25,
+        "candidate_count": 70028,
+        "selected_without_higher_evidence": 4054,
+    }
+    if gaia_dsc != expected_gaia_dsc:
+        raise ValueError("invalid Gaia DSC white-dwarf classification contract")
 
 
 def table_names(con: duckdb.DuckDBPyConnection, alias: str) -> list[str]:
@@ -249,6 +263,8 @@ def materialize_display_classes(
     simbad = spectral_class_sql("c.spectral_type_simbad", "NULL", "'star'")
     selected_table = f"{sql_identifier(selected_alias)}.selected_facts"
     wd = classification_sources["white_dwarf_catalog_applicability"]
+    gaia_dsc = classification_sources["gaia_dsc_white_dwarf_model"]
+    gaia_dsc_table = sql_identifier(str(gaia_dsc["source_table"]))
     con.execute(
         f"""
         CREATE TABLE selected_stellar_display_classifications AS
@@ -286,6 +302,15 @@ def materialize_display_classes(
            AND f.source_id={sql_literal(wd['source_id'])}
            AND f.quantity_key={sql_literal(wd['quantity_key'])}
            AND f.fact_status={sql_literal(wd['fact_status'])}
+          UNION ALL
+          SELECT s.star_id,s.system_id,s.stable_object_key,
+                 {int(gaia_dsc['evidence_rank'])},
+                 {sql_literal(gaia_dsc['classification_value'])},
+                 {sql_literal(gaia_dsc['classification_status'])},
+                 {sql_literal(gaia_dsc['evidence_basis'])},m.selected_fact_id,
+                 m.source_value,m.confidence_score
+          FROM core.stars s
+          JOIN {gaia_dsc_table} m USING(star_id)
           UNION ALL
           SELECT s.star_id,s.system_id,s.stable_object_key,30,
                  CASE WHEN p.teff_k>=30000 THEN 'O' WHEN p.teff_k>=10000 THEN 'B'
@@ -511,6 +536,17 @@ def compile_science(
                     [policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["evidence_basis"]],
                 ).fetchone()[0]
             ) - int(policy["classification_evidence_sources"]["white_dwarf_catalog_applicability"]["selected_without_higher_direct_classification"]),
+            "gaia_dsc_white_dwarf_candidate_delta": int(
+                con.execute(
+                    "SELECT count(*) FROM evidence_stellar_model_selected_stellar_model_classifications"
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]["candidate_count"]),
+            "gaia_dsc_white_dwarf_selected_delta": int(
+                con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications WHERE evidence_basis=?",
+                    [policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]["evidence_basis"]],
+                ).fetchone()[0]
+            ) - int(policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]["selected_without_higher_evidence"]),
         }
         if any(checks.values()):
             raise ValueError(f"clean science verification failed: {checks}")

@@ -114,6 +114,25 @@ def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
                     ],
                 ).fetchone()[0]),
             })
+            gaia_dsc = policy["classification_evidence_sources"]["gaia_dsc_white_dwarf_model"]
+            gaia_dsc_selected = int(con.execute(
+                "SELECT count(*) FROM selected_stellar_display_classifications WHERE evidence_basis=?",
+                [gaia_dsc["evidence_basis"]],
+            ).fetchone()[0])
+            checks.update({
+                "gaia_dsc_candidate_count_delta": int(con.execute(
+                    "SELECT count(*) FROM evidence_stellar_model_selected_stellar_model_classifications"
+                ).fetchone()[0]) - int(gaia_dsc["candidate_count"]),
+                "gaia_dsc_selected_count_delta": gaia_dsc_selected
+                - int(gaia_dsc["selected_without_higher_evidence"]),
+                "gaia_dsc_selected_contract_mismatch": int(con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications "
+                    "WHERE evidence_basis=? AND (classification_value<>? OR classification_status<>? "
+                    "OR selected_fact_id IS NULL OR confidence_score<0.5)",
+                    [gaia_dsc["evidence_basis"], gaia_dsc["classification_value"],
+                     gaia_dsc["classification_status"]],
+                ).fetchone()[0]),
+            })
             summaries = {
                 "display_classification_status": {
                     str(row[0]): int(row[1]) for row in con.execute(

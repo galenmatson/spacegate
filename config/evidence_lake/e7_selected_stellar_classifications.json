@@ -1,0 +1,45 @@
+{
+  "schema_version": "spacegate.e7_selected_stellar_classifications_policy.v1",
+  "policy_version": "2026-07-23.e7-selected-stellar-classifications.1",
+  "compiler_version": "e7_selected_stellar_classifications_compiler_v1",
+  "inputs": {
+    "clean_foundation": {
+      "build_id": "9c2d08086275ead386f71bf7",
+      "relative_path": "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7",
+      "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0",
+      "database": "clean_core_foundation.duckdb"
+    },
+    "gaia_ap_evidence": {
+      "build_id": "393b08fa1268bbd42bb40225",
+      "relative_path": "derived/evidence_lake_v2/scientific_evidence/393b08fa1268bbd42bb40225",
+      "manifest_sha256": "e0fd8a377f7caef83464a431cf869a94556931a1550a762943166bdf6ed6b828",
+      "database": "scientific_evidence.duckdb",
+      "source_id": "gaia.dr3.astrophysical_parameters",
+      "release_id": "gaia_dr3_1250ly_parameter_sets_v2"
+    }
+  },
+  "gaia_dsc_white_dwarf": {
+    "classification_scheme": "gaia_dr3_source_classifier_probability_vectors",
+    "identifier_namespace": "gaia_dr3_source_id",
+    "canonical_namespace": "gaia_dr3",
+    "models": ["DSC_combmod", "DSC_specmod"],
+    "probability_threshold": 0.5,
+    "classification_value": "WD",
+    "classification_status": "source_model",
+    "evidence_basis": "selected_gaia_dsc_white_dwarf_probability",
+    "expected_source_records": 28851666,
+    "expected_threshold_candidates": 101737,
+    "expected_binding_outcomes": {
+      "accepted": 70028,
+      "ambiguous": 0,
+      "missing": 31709
+    }
+  },
+  "rules": {
+    "open_stability_databases": false,
+    "create_canonical_identity": false,
+    "create_canonical_containment": false,
+    "require_exact_release_identifier": true,
+    "preserve_source_model_semantics": true
+  }
+}

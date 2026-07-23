@@ -55,6 +55,10 @@ def test_white_dwarf_catalog_classification_precedes_visual_proxies() -> None:
           selected_fact_id VARCHAR,object_type VARCHAR,stable_object_key VARCHAR,
           source_id VARCHAR,quantity_key VARCHAR,fact_status VARCHAR
         );
+        CREATE TABLE evidence_stellar_model_selected_stellar_model_classifications(
+          star_id HUGEINT,selected_fact_id VARCHAR,source_value VARCHAR,
+          confidence_score DOUBLE
+        );
         INSERT INTO core.stars VALUES
           (1,10,'canon:star:wd'),(2,10,'canon:star:direct');
         INSERT INTO selected_stellar_classification VALUES
@@ -85,6 +89,61 @@ def test_white_dwarf_catalog_classification_precedes_visual_proxies() -> None:
     assert rows == [
         (1, "WD", "selected_white_dwarf_catalog_applicability", False),
         (2, "G", "selected_spectral_type_optical", True),
+    ]
+
+
+def test_gaia_dsc_model_precedes_visual_proxy_but_not_direct_spectrum() -> None:
+    policy = compiler.load_object(compiler.DEFAULT_POLICY)
+    con = __import__("duckdb").connect(":memory:")
+    con.execute("ATTACH ':memory:' AS core; ATTACH ':memory:' AS selected")
+    con.execute(
+        """
+        CREATE TABLE core.stars(star_id HUGEINT,system_id HUGEINT,stable_object_key VARCHAR);
+        CREATE TABLE selected_stellar_classification(
+          star_id HUGEINT,spectral_type_optical VARCHAR,spectral_type_optical_fact_id VARCHAR,
+          spectral_type_infrared VARCHAR,spectral_type_infrared_fact_id VARCHAR,
+          spectral_type_simbad VARCHAR,spectral_type_simbad_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_physics(
+          star_id HUGEINT,teff_k DOUBLE,teff_k_fact_id VARCHAR,
+          mass_msun DOUBLE,mass_msun_fact_id VARCHAR
+        );
+        CREATE TABLE selected_stellar_photometry(
+          star_id HUGEINT,gaia_bp_rp_mag DOUBLE,gaia_bp_rp_mag_fact_id VARCHAR
+        );
+        CREATE TABLE selected.selected_facts(
+          selected_fact_id VARCHAR,object_type VARCHAR,stable_object_key VARCHAR,
+          source_id VARCHAR,quantity_key VARCHAR,fact_status VARCHAR
+        );
+        CREATE TABLE evidence_stellar_model_selected_stellar_model_classifications(
+          star_id HUGEINT,selected_fact_id VARCHAR,source_value VARCHAR,
+          confidence_score DOUBLE
+        );
+        INSERT INTO core.stars VALUES
+          (1,10,'canon:star:model'),(2,20,'canon:star:direct');
+        INSERT INTO selected_stellar_classification VALUES
+          (1,NULL,NULL,NULL,NULL,NULL,NULL),
+          (2,'G2V','direct-g',NULL,NULL,NULL,NULL);
+        INSERT INTO selected_stellar_physics VALUES
+          (1,11000,'teff-1',NULL,NULL),(2,11000,'teff-2',NULL,NULL);
+        INSERT INTO selected_stellar_photometry VALUES
+          (1,0.0,'color-1'),(2,0.0,'color-2');
+        INSERT INTO evidence_stellar_model_selected_stellar_model_classifications VALUES
+          (1,'dsc-1','{"selected_probability":0.91}',0.91),
+          (2,'dsc-2','{"selected_probability":0.89}',0.89);
+        """
+    )
+
+    compiler.materialize_display_classes(
+        con, "test-build", "selected", policy["classification_evidence_sources"]
+    )
+
+    assert con.execute(
+        "SELECT star_id,classification_value,classification_status,evidence_basis "
+        "FROM selected_stellar_display_classifications ORDER BY star_id"
+    ).fetchall() == [
+        (1, "WD", "source_model", "selected_gaia_dsc_white_dwarf_probability"),
+        (2, "G", "source", "selected_spectral_type_optical"),
     ]
 
 

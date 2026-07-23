@@ -365,6 +365,49 @@ The next optimization work is ordered by measured return:
    Clean reproduction and promotion must continue to byte-hash all pinned inputs
    and products.
 
+### Modular Gaia Classification Correction - 2026-07-23
+
+The Gaia DSC white-dwarf correction is the first classification source compiled
+as an independently regenerable selected-science product. It demonstrates the
+intended domain-shard architecture, but the current clean science, CORE, and ARM
+assemblers still recopy all broad projections after the small shard changes.
+
+| Step | Build | Wall | Peak RSS | Result |
+|---|---|---:|---:|---|
+| Gaia DSC selected classification compile | `8cd8c0805875c87fb4afeb4e` | 2:49.32 | 20.9 GiB | pass |
+| Gaia DSC isolated reproduction | same | 2:50.19 | 20.9 GiB | byte/logical match |
+| Clean science compile | `ba4ac952ef7fc86f1d3150d2` | 3:22.98 | 37.1 GiB | pass |
+| Clean science independent audit | same | 10.23s | not separately sampled | pass |
+| Clean science isolated reproduction | same | 3:24.63 | 36.8 GiB | canonical Parquet match |
+| Runtime CORE compile | `9d66ffa81a03a714881be2f3` | 1:43.03 | 27.0 GiB | pass |
+| Runtime CORE independent audit | same | 7.52s | not separately sampled | pass |
+| Runtime CORE isolated reproduction | same | 1:31.98 | 27.1 GiB | no differing files |
+| Runtime ARM compile | `c2eda7f868ff8ba2b747d717` | 2:33.01 | 46.2 GiB | pass |
+| Runtime ARM independent audit | same | 8.08s | not separately sampled | pass |
+| Runtime ARM isolated reproduction | same | 3:07.57 | 45.9 GiB | no differing logical tables |
+| Runtime classification A/B | same | 1.64s | 2.4 GiB | pass |
+
+The modular classifier spends 157.23 of 169.13 internal seconds hashing the
+179.4-GB pinned Gaia AP database; selection itself takes 10.06 seconds. This is
+the clearest case for a local content-addressed input-attestation cache during
+iteration. Full input hashing remains mandatory for clean reproduction,
+promotion, and periodic integrity scrubs.
+
+Clean science v5 spends 56.98 seconds verifying inputs, 38.30 exporting
+canonical Parquet, and 13.27 hashing products. The four broad selected-star
+projections consume another 55.89 seconds even though their content is unchanged
+by the classifier shard. CORE then spends 34.38 seconds rebuilding indexes,
+19.18 verifying science, and 10.28 re-exporting Parquet. ARM recopies unchanged
+selected-science tables for 94.96 seconds; its actual component graph and leaf
+classification work takes only 15.96 seconds. These measurements make immutable
+table reuse and manifest assembly higher-value than optimizing classification
+SQL.
+
+Machine reports and GNU resource logs are retained under
+`/data/spacegate/reports/evidence_lake_v2/e7_selected_stellar_classifications`,
+`e7_clean_science_v5`, `e7_clean_runtime_core_v5`, and
+`e7_clean_runtime_arm_v7`.
+
 These experiments must compare logical table signatures, canonical Parquet
 hashes, independent verification, API latency, and rollback behavior. More
 threads are not the default remedy: the selected-fact compiler remains I/O- and

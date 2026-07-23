@@ -2629,6 +2629,15 @@ Pre-promotion planning checkpoint (July 22, 2026):
   time, peak RSS, durable bytes, cache state, critical-path ranking, and
   before/after evidence for every attempted optimization; promotion, rollback,
   and re-promotion timings are part of the same report
+- modular Gaia DSC selection `8cd8c0805875c87fb4afeb4e` proves release-scoped
+  classification can be rebuilt independently, while the measured corrected
+  science/CORE/ARM cascade demonstrates that immutable table reuse and cached
+  iterative input attestation are the next performance work; full hashing
+  remains mandatory for reproduction and promotion
+- runtime ARM `c2eda7f868ff8ba2b747d717` passes a general classification A/B:
+  147 clean MSC inferred leaves are accounted, all 240 known-to-UNKNOWN changes
+  are explicit component-scope or UltracoolSheet deferrals, and Gaia
+  white-dwarf and unaccounted regressions are zero
 - local promotion, rollback timing, authoritative entrypoint replacement, and
   actual legacy retirement remain open; this checkpoint authorizes no cleanup
 - clean runtime bundle `fcd4eed36b84cf7a0cba67f3` now pins the accepted CORE,

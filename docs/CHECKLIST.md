@@ -1866,6 +1866,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   out untimed overhead rather than allowing work to disappear between timers;
   maintain the provisional measurements and optimization register in
   `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`
+- [x] E7 modular Gaia DSC classification checkpoint: compile and independently
+  reproduce `8cd8c0805875c87fb4afeb4e`, preserve source-model semantics and
+  exact Gaia DR3 binding, and consume it through clean science
+  `ba4ac952ef7fc86f1d3150d2`, CORE `9d66ffa81a03a714881be2f3`, and ARM
+  `c2eda7f868ff8ba2b747d717`
+- [x] E7 runtime classification A/B accounting: retain a machine-readable ledger
+  for all clean-only leaves and known-to-UNKNOWN transitions, require independent
+  case-collision evidence for component deferrals, report the UltracoolSheet
+  migration tail, and fail on any unaccounted or Gaia-white-dwarf regression
 - [x] E7 build-time instrumentation checkpoint: add a fail-closed pinned stage
   graph and runner with per-stage GNU-time logs, atomic machine reports,
   concurrent-run exclusion, explicit warm/cold artifact state, and deployment

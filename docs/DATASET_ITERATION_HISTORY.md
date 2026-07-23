@@ -3843,6 +3843,31 @@ Representative commits:
   do not remove the spill-heavy I/O path; optimization must preserve identical
   scientific row accounting and hashes.
 
+### 148) Source-Model Classification Must Be Modular and Scope-Safe
+
+- Gaia DSC white-dwarf probabilities are source-model evidence, not direct
+  spectral measurements and not canonical identity. Modular selector
+  `8cd8c0805875c87fb4afeb4e` binds 70,028 threshold-qualified rows through exact
+  Gaia DR3 identifiers and leaves 31,709 missing; no DR2/DR3 equivalence or
+  containment is inferred.
+- Clean science `ba4ac952ef7fc86f1d3150d2` applies quantity-specific precedence:
+  direct spectral classifications and the dedicated white-dwarf catalog win
+  before Gaia DSC, and only 4,054 DSC candidates become selected display facts.
+  CORE `9d66ffa81a03a714881be2f3` and ARM `c2eda7f868ff8ba2b747d717`
+  consume that shared projection and reproduce independently.
+- A general A/B audit replaces raw zero-delta gating with fail-closed accounting.
+  The clean hierarchy adds 147 MSC inferred leaves and removes none. Of 240 old
+  known-to-UNKNOWN transitions, 192 are corroborated `AB`/`Ab` component-scope
+  collisions and 48 are an explicit UltracoolSheet migration tail. Zero Gaia
+  white dwarfs regress to UNKNOWN and zero changes are unaccounted. No named
+  system or identifier appears in a production transform.
+- The modular compile shows that scientific selection costs 10.06 seconds while
+  full Gaia input hashing costs 157.23 seconds. The complete corrected cascade
+  still costs 2:49 classifier + 3:23 science + 1:43 CORE + 2:33 ARM before
+  isolated reproductions because assemblers recopy unchanged tables. The
+  measured remedy is content-addressed attestation and immutable table reuse,
+  never weaker promotion integrity.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
