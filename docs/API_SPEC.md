@@ -351,6 +351,12 @@ an artifact lacks required current diagnostics, such as
 `render_scene.diagnostics.membership_reconciliation`, or lacks the current
 name-style metadata on `system`, the API may skip it and serve a dynamic
 `miss` response until artifacts are regenerated.
+Compatibility is also build-exact: both the payload's top-level `build_id` and
+`materialization.build_id` must equal the build ID read from the active CORE
+database. A served-build artifact must never satisfy a shadow/candidate request,
+even when its renderer version and system ID match. Runtime-cache artifacts
+carry the same materialization version, build identity, and output-mode contract
+as immutable build artifacts.
 
 Query params:
 - `name_style` (optional, default `public_full`): presentation-only display

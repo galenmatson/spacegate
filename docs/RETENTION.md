@@ -1219,6 +1219,24 @@ science but predates the exact selected-surface inventory and bounded-path
 policy gates. It is an unserved exact future retention candidate, not a manual
 deletion target.
 
+The July 23 source-native classification correction produced protected clean
+science `2d084ee3c5939878259793bb`, CORE `21971e59527ccf5c729b7cab`, ARM
+`45d996e094020fa52d8a3f82`, DISC `d43e93eeb9c09c9e7445c9d6`, bundle
+`73349c253a411945c246d459`, and internal-volume public candidate
+`e7_73349c253a411945c246d459_public`. Their compile, audit, A/B, reproduction,
+API, scene, map, and browser reports are protected through operator review,
+local promotion, rollback, and re-promotion. The exact map reproduction tree
+`/mnt/space/spacegate/e7-map-reproduction-73349c25-20260723` occupies about
+413 MiB and is a future exact retention candidate, not a manual deletion target.
+
+At this checkpoint `/data` has about 58 GiB free and `/mnt/space` about 40 GiB
+free. Do not run another full duplicate cascade before the promotion decision.
+After the rollback drill, add a family-aware exact-candidate dry-run that keeps
+the accepted chain, immediate rollback chain, reports, and every transitive
+input while retiring superseded clean-science/CORE/ARM/public generations and
+manifestless staging trees as whole units. Raw, typed, identity, and unique
+source evidence remain ineligible.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

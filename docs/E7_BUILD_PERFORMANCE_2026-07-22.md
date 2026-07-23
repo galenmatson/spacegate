@@ -405,8 +405,11 @@ assemblers still recopy all broad projections after the small shard changes.
 | Runtime ARM isolated reproduction | same | 3:07.57 | 45.9 GiB | no differing logical tables |
 | Runtime classification A/B | same | 1.64s | 2.4 GiB | pass |
 
-The modular classifier spends 157.23 of 169.13 internal seconds hashing the
-179.4-GB pinned Gaia AP database; selection itself takes 10.06 seconds. This is
+The first Gaia-only modular classifier spent 157.23 of 169.13 internal seconds
+hashing the 179.4-GB pinned Gaia AP database; selection itself took 10.06
+seconds. The final source-native compile below shows the same architecture:
+157.76 of 169.20 seconds goes to immutable-input hashing while the Gaia and
+UltracoolSheet scientific passes take 9.56 and 0.05 seconds. This is
 the clearest case for a local content-addressed input-attestation cache during
 iteration. Full input hashing remains mandatory for clean reproduction,
 promotion, and periodic integrity scrubs.
@@ -426,29 +429,39 @@ Machine reports and GNU resource logs are retained under
 `e7_clean_science_v5`, `e7_clean_runtime_core_v5`, and
 `e7_clean_runtime_arm_v7`.
 
-### Final Runtime, Public Slice, and Map - 2026-07-23
+### Final Source-Native Correction, Runtime, Public Slice, and Map - 2026-07-23
 
-The corrected classification cascade feeds final clean DISC
-`3b0f7f0eefa8c19a47965a13`, runtime bundle
-`2d15d40a91021d6f6e7297be`, and deployment-shaped public candidate
-`e7_2d15d40a91021d6f6e7297be_public`. None is promoted or served.
+The source-native UltracoolSheet correction feeds clean science
+`2d084ee3c5939878259793bb`, CORE `21971e59527ccf5c729b7cab`, ARM
+`45d996e094020fa52d8a3f82`, DISC `d43e93eeb9c09c9e7445c9d6`, runtime bundle
+`73349c253a411945c246d459`, and deployment-shaped public candidate
+`e7_73349c253a411945c246d459_public`. The public candidate is stored on the
+internal `/data` volume in its intended production topology. It is not promoted
+or served.
 
 | Step | Wall | Peak RSS | Durable output | Result |
 |---|---:|---:|---:|---|
-| Clean DISC compile | 39.74s | 9.6 GiB | 384 MB canonical Parquet plus database | pass |
-| Clean DISC isolated compile | 40.36s | 9.6 GiB | scratch removed | byte-identical Parquet |
-| Runtime bundle composition | 13.92s | 0.1 GiB | bounded immutable links | pass |
-| Deployment-shaped public slice | 4:39.26 | 31.9 GiB | 23 GB allocated | pass |
-| Generic public-build verification | 28.48s | measured separately | reports only | pass |
-| Four-radius map-tile build | 4:05.42 | 11.0 GiB | 413 MiB | pass |
-| Four-radius map verification | 19.59s | 7.9 GiB | reports only | pass |
-| Four-radius isolated map reproduction | 4:05.10 | 11.3 GiB | 413 MiB scratch | exact match |
-| Deterministic map comparison | 0.67s | 0.04 GiB | report only | pass |
-| Bounded 24-scene cold generation | 21.09s | 2.4 GiB | 282,266 bytes | pass |
-| Bounded 24-scene warm reuse | 1.18s | 2.4 GiB | no new scenes | pass |
-| API integration contract | 13.41s | client 36 MiB | reports only | pass |
-| Strict search/detail/scene API benchmark | 18.45s | client 35 MiB | reports only | pass |
-| Tiled-map desktop/mobile Playwright | 1:30.20 | runner 274 MiB | 7.2 MiB reports | 12 pass, 4 intended skips |
+| Modular classification compile | 2:49.20 | 20.9 GiB | 4 Parquet plus database | pass |
+| Clean science compile | 3:53.27 | 37.0 GiB | 18 GiB allocated | pass |
+| Clean science independent audit / reproduction | 10.18s / 3:33.02 | 37.0 GiB repro | scratch removed | pass / exact Parquet |
+| Runtime CORE compile | 1:37.01 | 26.9 GiB | 12 GiB allocated | pass |
+| Runtime CORE independent audit / reproduction | 7.8s / 1:36.37 | 27.3 GiB repro | scratch removed | pass / exact logical output |
+| Runtime ARM compile | 2:37.10 | 45.8 GiB | 13 GiB allocated | pass |
+| Runtime ARM independent audit / reproduction | 8.15s / 2:50.48 | 46.4 GiB repro | scratch removed | pass / exact logical output |
+| Runtime classification A/B | 1.68s | 2.4 GiB | report only | 192 scoped deferrals, zero unaccounted |
+| Clean DISC compile / isolated compile | 47.68s / 39.59s | 9.6 GiB | 384 MB database plus Parquet | byte-identical Parquet |
+| Runtime bundle composition | 13.79s | 0.04 GiB | bounded immutable links | pass |
+| Deployment-shaped public slice | 4:15.98 | 31.0 GiB | 23 GiB allocated | pass |
+| Generic public-build verification | 28.68s | 4.2 GiB | reports only | pass |
+| Four-radius map-tile build | 4:05.21 | 11.1 GiB | 413 MiB | pass |
+| Four-radius map verification | 19.62s | 7.8 GiB | reports only | pass |
+| Four-radius isolated map reproduction | 4:05.05 | 11.0 GiB | 413 MiB retained candidate | exact match |
+| Deterministic map comparison | 0.68s | 0.04 GiB | report only | pass |
+| Bounded 24-scene cold generation | 20.77s | 2.4 GiB | 282,262 bytes | pass |
+| Bounded 24-scene warm reuse | 1.17s | 2.4 GiB | no new scenes | pass |
+| API integration contract | 13.09s | client 37 MiB | reports only | pass |
+| Strict search/detail/scene API benchmark | 20.82s | client 35 MiB | reports only | pass |
+| Tiled-map desktop/mobile Playwright | 1:29.78 | runner 274 MiB | reports/screenshots | 12 pass, 4 intended skips |
 
 The public candidate retains 5,869,091 systems, 5,874,636 stars, 6,311 public
 planet rows, 1,026,480 aliases, and 12,768,410 search terms with zero trimming.
@@ -460,10 +473,10 @@ The map builder exposes a clear nested-radius cost curve:
 
 | Radius | Systems | Exact tiles | Wall | Share of map wall | Compressed exact bytes |
 |---|---:|---:|---:|---:|---:|
-| 100 ly | 10,209 | 8 | 5.86s | 2.4% | 633,857 |
-| 250 ly | 206,913 | 64 | 11.15s | 4.5% | 11,797,026 |
-| 500 ly | 1,820,142 | 450 | 58.33s | 23.8% | 101,344,209 |
-| 1,000 ly | 5,319,825 | 2,574 | 169.53s | 69.2% | 297,224,451 |
+| 100 ly | 10,209 | 8 | 5.57s | 2.3% | 633,894 |
+| 250 ly | 206,913 | 64 | 11.15s | 4.6% | 11,797,103 |
+| 500 ly | 1,820,142 | 450 | 58.38s | 23.9% | 101,344,253 |
+| 1,000 ly | 5,319,825 | 2,574 | 169.52s | 69.3% | 297,224,289 |
 
 All four exact memberships pass with zero missing, extra, duplicate, public-name,
 representative-class, or leaf-badge mismatches. The first map optimization should
@@ -473,10 +486,20 @@ current implementation repeats the full joined selection query four times.
 Compression work is CPU-parallel enough to consume 812 CPU-seconds in 245 wall
 seconds, so additional concurrency must be benchmarked rather than assumed.
 
+The first isolated API run found a build-identity cache violation: a candidate
+could read the served build's precomputed scene because compatibility checked
+the scene contract version but not the embedded build identity. The corrected
+cache requires both top-level and materialization build IDs to match, writes the
+same contract into runtime-cache artifacts, and then passes strict preview with
+seven Castor hierarchy leaves and seven render bodies. This is a correctness and
+cache-isolation fix, not a named-system exception.
+
 Machine reports and GNU resource logs are retained under
-`/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_disc_v3`,
-`e7_clean_runtime_bundle_v3`, `e7_public_v3`, and
-`e7_clean_map_tiles_v3`, `e7_scene_v3`, `e7_api_v3`, and `e7_browser_v3`.
+`/data/spacegate/reports/evidence_lake_v2/e7_selected_stellar_classifications_v2`,
+`e7_clean_science_v6`, `e7_clean_runtime_core_v8`,
+`e7_clean_runtime_arm_v9`, `e7_clean_runtime_disc_v4`,
+`e7_clean_runtime_bundle_v4`, `e7_public_v4`, `e7_clean_map_tiles_v4`,
+`e7_scene_v4`, `e7_api_v4`, and `e7_browser_v4`.
 The isolated map tree is retained as an exact 413-MiB retention candidate until
 the cleanup ledger authorizes removal. The browser run checks nonblank canvas
 pixels at every radius on desktop and mobile, 4K Bright rendering, exact-density

@@ -1,24 +1,24 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_bundle_policy.v1",
-  "policy_version": "2026-07-23.e7-clean-runtime-bundle.3",
+  "policy_version": "2026-07-23.e7-clean-runtime-bundle.4",
   "compiler_version": "e7_clean_runtime_bundle_compiler_v1",
   "inputs": {
     "core": {
-      "build_id": "9d66ffa81a03a714881be2f3",
-      "manifest_sha256": "5810e9d23e52c87758aec6dec9602173a412b7b11aa2fc18a4f76989d04e3920",
-      "relative_path": "../e7-clean-runtime-core/9d66ffa81a03a714881be2f3",
+      "build_id": "21971e59527ccf5c729b7cab",
+      "manifest_sha256": "88fcca49ec0d930069b08ac629a753caffe05698a988161da2cdb786ef1a5507",
+      "relative_path": "../e7-clean-runtime-core/21971e59527ccf5c729b7cab",
       "products": ["core.duckdb", "canonical_hierarchy.duckdb"]
     },
     "arm": {
-      "build_id": "c2eda7f868ff8ba2b747d717",
-      "manifest_sha256": "24b4798bd3cfce7a606b3f090e68e1df155fd3549cf4a0012a91614b06c9a48a",
-      "relative_path": "../e7-clean-runtime-arm/c2eda7f868ff8ba2b747d717",
+      "build_id": "45d996e094020fa52d8a3f82",
+      "manifest_sha256": "0536ec7dce47ab0f1396bf89c18c61ac282d2cab492afb2b731ebda95ff23ca6",
+      "relative_path": "../e7-clean-runtime-arm/45d996e094020fa52d8a3f82",
       "products": ["arm.duckdb"]
     },
     "disc": {
-      "build_id": "3b0f7f0eefa8c19a47965a13",
-      "manifest_sha256": "6a37f902a852f3cd6521dd755c1bfb7af54268267a98d8045c42cff4b9801458",
-      "relative_path": "../e7-clean-runtime-disc/3b0f7f0eefa8c19a47965a13",
+      "build_id": "d43e93eeb9c09c9e7445c9d6",
+      "manifest_sha256": "65a56e5afb139902941d9a95ac0fbb7f0211290235b229306b6d03fb32422aea",
+      "relative_path": "../e7-clean-runtime-disc/d43e93eeb9c09c9e7445c9d6",
       "products": ["disc.duckdb"]
     }
   },

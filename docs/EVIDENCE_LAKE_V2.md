@@ -2397,11 +2397,12 @@ and 25 missing-current-release, then projects 10 optical and 50 infrared direct
 classifications for 51 stars. It does not use generic names, fuzzy matching, or
 source row position.
 
-Clean science `ba4ac952ef7fc86f1d3150d2` selects 4,054 of those model
+Clean science `2d084ee3c5939878259793bb` selects 4,054 of those model
 classifications after direct spectral evidence and the dedicated white-dwarf
-catalog have precedence. Its independent audit and isolated canonical-Parquet
-reproduction pass. Runtime CORE `9d66ffa81a03a714881be2f3` and runtime ARM
-`c2eda7f868ff8ba2b747d717` also pass independent and isolated reproduction.
+catalog have precedence. It also selects 49 source-native UltracoolSheet facts:
+41 infrared and 8 optical. Its independent audit and isolated canonical-Parquet
+reproduction pass. Runtime CORE `21971e59527ccf5c729b7cab` and runtime ARM
+`45d996e094020fa52d8a3f82` also pass independent and isolated reproduction.
 
 The first machine-readable runtime classification A/B accounted all 147
 clean-only hierarchy leaves as MSC inferred leaves and found no reference-only
@@ -2409,8 +2410,10 @@ leaf. It split 240 known-to-UNKNOWN transitions into 192 independently recorded
 case-significant component-scope collisions and a 48-object UltracoolSheet
 migration tail. The general source-native contract closes the latter; the
 remaining scope collisions stay explicit adjudication deferrals rather than
-permission to copy old values or guess between `AB` and `Ab` scopes. A corrected
-runtime A/B remains required before promotion.
+permission to copy old values or guess between `AB` and `Ab` scopes. The
+corrected runtime A/B reports exactly those 192 deferrals, zero remaining
+UltracoolSheet tail, zero reference-only leaves, and zero unaccounted or Gaia
+white-dwarf regressions.
 
 The modular artifact also exposes build architecture debt. Its scientific query
 takes about ten seconds while byte-verifying the 179.4-GB Gaia input takes about
@@ -2421,10 +2424,10 @@ clean reproduction and promotion.
 
 ## E7 Corrected Runtime and Tiled Public Candidate
 
-The final corrected cascade pins clean CORE `9d66ffa81a03a714881be2f3`, ARM
-`c2eda7f868ff8ba2b747d717`, and DISC `3b0f7f0eefa8c19a47965a13` in runtime
-bundle `2d15d40a91021d6f6e7297be`. Deployment-shaped candidate
-`e7_2d15d40a91021d6f6e7297be_public` retains the complete clean inventory and
+The final corrected cascade pins clean CORE `21971e59527ccf5c729b7cab`, ARM
+`45d996e094020fa52d8a3f82`, and DISC `d43e93eeb9c09c9e7445c9d6` in runtime
+bundle `73349c253a411945c246d459`. Deployment-shaped candidate
+`e7_73349c253a411945c246d459_public` retains the complete clean inventory and
 passes the generic build verifier without using named-object scientific gates.
 It remains unpromoted pending complete A/B review and operator acceptance.
 
@@ -2435,17 +2438,17 @@ missing, extra, duplicate, public-name, representative-class, or stellar-badge
 mismatches. Named systems may appear in diagnostics and UX goldens, but map
 acceptance is based on complete projection consistency and membership.
 
-The measured four-radius build takes 245.42 seconds and peaks at 11.0 GiB RSS;
-the 1,000-ly pass consumes 169.53 seconds. Future acceleration must preserve
+The measured four-radius build takes 245.21 seconds and peaks at 11.1 GiB RSS;
+the 1,000-ly pass consumes 169.52 seconds. Future acceleration must preserve
 content-addressed tile bytes and exact membership. The first candidate is a
 single selected-row materialization reused by nested radii, followed by measured
 deterministic parallel compression. Full timings and artifact paths are recorded
 in `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
 
-An isolated four-radius rebuild takes 245.10 seconds. Timestamp-free manifest
+An isolated four-radius rebuild takes 245.05 seconds. Timestamp-free manifest
 hashes and all 3,686 content-addressed tile payloads match the candidate exactly.
-The bounded simulation gate generates 24 priority scenes cold in 21.09 seconds
-with zero failures and reuses all 24 in 1.18 seconds; broad scene prewarming is
+The bounded simulation gate generates 24 priority scenes cold in 20.77 seconds
+with zero failures and reuses all 24 in 1.17 seconds; broad scene prewarming is
 therefore a regenerable admin/runtime-cache operation, not a scientific build
 gate. Final-candidate API integration, strict search/detail/scene checks, and 12
 applicable desktop/mobile tiled-map Playwright cases pass. Four mobile-only skips

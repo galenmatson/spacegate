@@ -3927,6 +3927,40 @@ Representative commits:
   and the source-native pass 0.05 seconds, while full immutable-input hashing
   takes 157.76 seconds.
 
+### 152) Simulation Scene Caches Must Be Build-Exact
+
+- The first isolated final-candidate API run exposed a served-scene leak: scene
+  lookup considered renderer version and system ID but did not require the
+  artifact's build identity to match the candidate CORE build. This made a
+  seven-leaf candidate hierarchy appear with a six-body scene from the served
+  stability build.
+- The API now requires both top-level `build_id` and
+  `materialization.build_id` to equal the active CORE build. Runtime scene files
+  carry the same versioned materialization contract, and lookup skips stale
+  served artifacts before considering candidate build or runtime-cache paths.
+- Focused tests cover exact compatibility, stale-served/candidate lookup, and
+  runtime artifact metadata. The corrected isolated strict API benchmark passes
+  with scene and hierarchy membership aligned. This is a build-isolation rule;
+  no named system participates in production selection.
+
+### 153) Source-Native Corrected Public Candidate
+
+- Clean science `2d084ee3c5939878259793bb`, CORE
+  `21971e59527ccf5c729b7cab`, ARM `45d996e094020fa52d8a3f82`, DISC
+  `d43e93eeb9c09c9e7445c9d6`, and bundle `73349c253a411945c246d459`
+  independently verify and reproduce. Runtime A/B leaves only 192 explicitly
+  evidenced case-significant component-scope deferrals; the 48-object
+  UltracoolSheet tail, Gaia-white-dwarf regressions, and unaccounted transitions
+  are zero.
+- Internal-volume public candidate `e7_73349c253a411945c246d459_public` preserves
+  5,869,091 systems, 5,874,636 stars, 6,311 planet rows, 1,026,480 aliases,
+  12,768,410 search terms, and all selected evidence surfaces with zero slice
+  trimming.
+- Generic build, exact four-radius map, isolated tile reproduction, bounded
+  cold/warm scene, API, and desktop/mobile Playwright gates pass. The candidate
+  remains unpromoted pending operator scientific review and the required local
+  promotion/rollback/re-promotion drill.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

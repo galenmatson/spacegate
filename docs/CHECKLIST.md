@@ -1807,7 +1807,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   retain 824 confirmed/known clean planet links, and prove candidates/negative
   evidence neither link nor mutate canonical planet inventory; pass independent
   audit and isolated logical reproduction with no differing tables
-- [x] E7 clean runtime DISC checkpoint: build `3b0f7f0eefa8c19a47965a13`
+- [x] E7 clean runtime DISC checkpoint: build `d43e93eeb9c09c9e7445c9d6`
   from the checksum-pinned clean CORE and ARM plus the active immutable
   coolness profile; require selected stellar classification/parameter surfaces,
   prohibit the legacy CORE classification fallback, score all 5,869,091
@@ -1816,10 +1816,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   scratch
 - [x] E7 clean runtime bundle checkpoint: compose manifest-pinned CORE,
   hierarchy, ARM, and DISC products as immutable verified links in build
-  `2d15d40a91021d6f6e7297be`; retain full source-product checksums while
+  `73349c253a411945c246d459`; retain full source-product checksums while
   eliminating the duplicate post-link hash pass (24.61s to 12.35s)
 - [x] E7 clean public-slice checkpoint: materialize unpromoted build
-  `e7_2d15d40a91021d6f6e7297be_public`, retain the complete clean inventory and
+  `e7_73349c253a411945c246d459_public`, retain the complete clean inventory and
   search vocabulary, pass derived/TESS projection verification, and pass the
   isolated API integration gate through clean WISE and selected leaf contracts
 - [x] E7 clean map-tile checkpoint: build and verify exact 100/250/500/1,000-ly
@@ -1831,10 +1831,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   desktop/mobile Playwright cases with nonblank canvas pixels, exact/progressive
   loading, search handoff, flight refinement, density stress, and 4K Bright
 - [x] E7 bounded simulation/API checkpoint: generate 24 priority scenes cold in
-  21.09s with zero failures, reuse all in 1.18s, and pass final-candidate API
+  20.77s with zero failures, reuse all in 1.17s, and pass final-candidate API
   integration plus strict search/detail/hierarchy/simulation verification
+- [x] E7 simulation-scene build isolation: require top-level and materialization
+  build IDs to match active CORE, add the same build/version contract to runtime
+  cache files, reject stale served artifacts during candidate tests, and cover
+  compatibility, lookup ordering, and runtime writes with focused tests
 - [ ] E7 public-runtime materialization optimization: evaluate manifest-addressed
-  or block-reusing assembly against the measured 278.73-second, 23.62-GB copy
+  or block-reusing assembly against the measured 255.98-second, 23-GB copy
   without weakening self-contained deployment, checksums, atomic promotion,
   rollback, visible failure, or exact scientific row accounting
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
@@ -1878,14 +1882,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   maintain the provisional measurements and optimization register in
   `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`
 - [x] E7 modular Gaia DSC classification checkpoint: compile and independently
-  reproduce `8cd8c0805875c87fb4afeb4e`, preserve source-model semantics and
+  reproduce `3f645ac3de3323637ded93d5`, preserve source-model semantics and
   exact Gaia DR3 binding, and consume it through clean science
-  `ba4ac952ef7fc86f1d3150d2`, CORE `9d66ffa81a03a714881be2f3`, and ARM
-  `c2eda7f868ff8ba2b747d717`
+  `2d084ee3c5939878259793bb`, CORE `21971e59527ccf5c729b7cab`, and ARM
+  `45d996e094020fa52d8a3f82`
 - [x] E7 runtime classification A/B accounting: retain a machine-readable ledger
   for all clean-only leaves and known-to-UNKNOWN transitions, require independent
-  case-collision evidence for component deferrals, report the UltracoolSheet
-  migration tail, and fail on any unaccounted or Gaia-white-dwarf regression
+  case-collision evidence for component deferrals, close the UltracoolSheet
+  migration tail through the source-native contract, and fail on any
+  unaccounted or Gaia-white-dwarf regression
 - [x] E7 source-native UltracoolSheet classification bridge: compile,
   independently verify, and reproduce `3f645ac3de3323637ded93d5`; partition all
   76 permanent source identifiers as 51 accepted and 25 missing, project 60

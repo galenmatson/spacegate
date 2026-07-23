@@ -2629,15 +2629,17 @@ Pre-promotion planning checkpoint (July 22, 2026):
   time, peak RSS, durable bytes, cache state, critical-path ranking, and
   before/after evidence for every attempted optimization; promotion, rollback,
   and re-promotion timings are part of the same report
-- modular Gaia DSC selection `8cd8c0805875c87fb4afeb4e` proves release-scoped
+- modular Gaia DSC and source-native UltracoolSheet selection
+  `3f645ac3de3323637ded93d5` proves release-scoped
   classification can be rebuilt independently, while the measured corrected
   science/CORE/ARM cascade demonstrates that immutable table reuse and cached
   iterative input attestation are the next performance work; full hashing
   remains mandatory for reproduction and promotion
-- runtime ARM `c2eda7f868ff8ba2b747d717` passes a general classification A/B:
-  147 clean MSC inferred leaves are accounted, all 240 known-to-UNKNOWN changes
-  are explicit component-scope or UltracoolSheet deferrals, and Gaia
-  white-dwarf and unaccounted regressions are zero
+- runtime ARM `45d996e094020fa52d8a3f82` passes a general classification A/B:
+  147 clean MSC inferred leaves are accounted, all 192 remaining
+  known-to-UNKNOWN changes are independently evidenced case-significant
+  component-scope deferrals, and UltracoolSheet-tail, Gaia-white-dwarf, and
+  unaccounted regressions are zero
 - source-native classifier `3f645ac3de3323637ded93d5` closes the general
   UltracoolSheet migration gap through the exact release-scoped catalog
   identifier namespace: 76 targets partition into 51 accepted and 25 missing,
@@ -2655,17 +2657,21 @@ Pre-promotion planning checkpoint (July 22, 2026):
   integration gates. Its 278.73-second build is dominated by 179.66 seconds of
   ARM rematerialization, establishing public runtime composition as the next
   measured optimization target rather than reducing scientific coverage
-- corrected runtime bundle `2d15d40a91021d6f6e7297be` and unpromoted public
-  candidate `e7_2d15d40a91021d6f6e7297be_public` supersede the earlier
-  checkpoint after modular Gaia DSC selection; the generic public verifier
+- corrected runtime bundle `73349c253a411945c246d459` and unpromoted public
+  candidate `e7_73349c253a411945c246d459_public` supersede the earlier
+  checkpoint after source-native UltracoolSheet selection; the generic public verifier
   passes without named-system scientific gates
-- final four-radius map generation takes 245.42 seconds and 11.0 GiB peak RSS;
+- final four-radius map generation takes 245.21 seconds and 11.1 GiB peak RSS;
   exact membership is 10,209/206,913/1,820,142/5,319,825 systems with zero
   omissions or duplicates. The 1,000-ly pass consumes 69.2% of wall time, so
   nested-radius query reuse precedes speculative thread tuning
-- isolated map reproduction completes in 245.10 seconds and matches every
+- isolated map reproduction completes in 245.05 seconds and matches every
   timestamp-free manifest hash plus all 3,686 tile payloads; final-candidate
   API, bounded scene, and desktop/mobile tiled-map browser gates also pass
+- simulation-scene lookup now requires exact active-build identity in both the
+  payload and materialization envelope, preventing a served-build scene from
+  leaking into shadow/candidate API verification; runtime-cache artifacts carry
+  the same contract and the corrected strict preview gate passes
 
 Deliverables:
 

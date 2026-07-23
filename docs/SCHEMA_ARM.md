@@ -455,6 +455,14 @@ and projection version. It may use only selected direct evidence or a labeled
 versioned derivation from selected temperature, color, or mass. Stability CORE
 spectral values are prohibited. Missing evidence remains `UNKNOWN`.
 
+Current clean science `2d084ee3c5939878259793bb` also imports the modular
+source-native classification projection. That projection binds exact
+release-scoped `ultracoolsheet_name` claims to permanent aliases of the same
+source and kind, and exposes optical and infrared evidence separately. It
+cannot create identity or containment. Direct source-native facts enter the
+shared display surface only when the corresponding selected optical or infrared
+field is absent, and they precede temperature, color, and mass priors.
+
 The canonical Parquet products are byte-deterministic. The 10.6-GB DuckDB file
 is a regenerable query projection verified by table counts and invariants; its
 internal page layout is not scientific identity. The 30 replaced legacy ARM

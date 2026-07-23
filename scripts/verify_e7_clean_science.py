@@ -133,6 +133,33 @@ def verify(build_dir: Path, policy_path: Path = DEFAULT_POLICY) -> dict[str, Any
                      gaia_dsc["classification_status"]],
                 ).fetchone()[0]),
             })
+            ultracool = policy["classification_evidence_sources"]["ultracoolsheet_source_native"]
+            ultracool_bases = (
+                "selected_ultracoolsheet_optical_spectral_type",
+                "selected_ultracoolsheet_infrared_spectral_type",
+            )
+            checks.update({
+                "ultracoolsheet_candidate_count_delta": int(con.execute(
+                    "SELECT count(*) FROM "
+                    "evidence_stellar_model_source_classification_evidence_projection"
+                ).fetchone()[0]) - int(ultracool["candidate_count"]),
+                "ultracoolsheet_star_count_delta": int(con.execute(
+                    "SELECT count(DISTINCT star_id) FROM "
+                    "evidence_stellar_model_source_classification_evidence_projection"
+                ).fetchone()[0]) - int(ultracool["classified_star_count"]),
+                "ultracoolsheet_selected_count_delta": int(con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications "
+                    "WHERE evidence_basis IN (?,?)", list(ultracool_bases)
+                ).fetchone()[0]) - int(ultracool["selected_without_higher_direct_classification"]),
+                "ultracoolsheet_selected_contract_mismatch": int(con.execute(
+                    "SELECT count(*) FROM selected_stellar_display_classifications "
+                    "WHERE evidence_basis IN (?,?) AND "
+                    "(classification_status<>'source' OR classification_value NOT IN "
+                    "('O','B','A','F','G','K','M','L','T','Y','WR','WD','NS','PULSAR','MAGNETAR','BLACK HOLE') "
+                    "OR selected_fact_id IS NULL OR source_value IS NULL)",
+                    list(ultracool_bases),
+                ).fetchone()[0]),
+            })
             summaries = {
                 "display_classification_status": {
                     str(row[0]): int(row[1]) for row in con.execute(

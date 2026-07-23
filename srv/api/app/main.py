@@ -5094,7 +5094,21 @@ def _simulation_scene_runtime_artifact_path(build_id: str, system_id: int) -> Pa
 def _write_simulation_scene_runtime_artifact(build_id: str, system_id: int, payload: Dict[str, Any]) -> None:
     target = _simulation_scene_runtime_artifact_path(build_id, system_id)
     target.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    artifact_payload = copy.deepcopy(payload)
+    artifact_payload["materialization"] = {
+        "artifact_path": str(target.relative_to(_state_dir())),
+        "build_id": str(build_id),
+        "materialized": True,
+        "materialized_at_utc": (
+            datetime.datetime.now(datetime.timezone.utc)
+            .replace(microsecond=0)
+            .isoformat()
+            .replace("+00:00", "Z")
+        ),
+        "materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+        "output_mode": "runtime-cache",
+    }
+    encoded = json.dumps(artifact_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
     try:
         temporary.write_bytes(gzip.compress(encoded, compresslevel=6, mtime=0))
@@ -5176,12 +5190,16 @@ def _simulation_scene_artifact_path(build_id: str, system_id: int) -> Optional[P
             resolved = candidate.resolve(strict=True)
         except FileNotFoundError:
             continue
-        if resolved.is_file():
+        if resolved.is_file() and _simulation_scene_artifact_compatible(
+            resolved, expected_build_id=build_id
+        ):
             return resolved
     return None
 
 
-def _simulation_scene_artifact_compatible(path: Path) -> bool:
+def _simulation_scene_artifact_compatible(
+    path: Path, *, expected_build_id: str
+) -> bool:
     try:
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             payload = json.load(handle)
@@ -5199,6 +5217,8 @@ def _simulation_scene_artifact_compatible(path: Path) -> bool:
         and system.get("requested_name_style") == "public_full"
         and isinstance(materialization, dict)
         and materialization.get("materializer_version") == SIMULATION_SCENE_ARTIFACT_VERSION
+        and str(payload.get("build_id") or "") == str(expected_build_id)
+        and str(materialization.get("build_id") or "") == str(expected_build_id)
     )
 
 
@@ -6386,7 +6406,6 @@ def system_simulation_scene(
         if (
             normalized_name_style == "public_full"
             and artifact_path is not None
-            and _simulation_scene_artifact_compatible(artifact_path)
         ):
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "prebuilt"
             response.headers["Content-Encoding"] = "gzip"
