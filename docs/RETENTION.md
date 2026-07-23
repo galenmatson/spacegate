@@ -1308,6 +1308,20 @@ operator action for these non-root data filesystems and increases
 user-available capacity without deleting data. Retain some reserve on `/data`;
 do not reduce the root filesystem's reserve as part of this procedure.
 
+The operator subsequently reduced `/mnt/space` reserved blocks to effectively
+zero, increasing reported user-available space from about 19 GiB to 29 GiB
+without deleting artifacts. `/data` still reported about 76.79 GiB reserved at
+the verification checkpoint. This is allocation headroom, not a reduction in
+physical occupancy, so the pre-promotion prohibition on another retained full
+build remains.
+
+Track reconciliation of Docker's configured `/data/docker` data root with the
+root-filesystem BuildKit content store as post-promotion Photon host
+maintenance. Before changing either daemon path, inventory Docker and
+containerd roots, active image/layer ownership, mount configuration, rollback,
+and the effect on rebuild performance. Do not move a live content store or
+conflate regenerable build cache with Spacegate scientific artifacts.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

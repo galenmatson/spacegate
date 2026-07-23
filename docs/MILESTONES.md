@@ -2721,7 +2721,85 @@ Success criteria:
 - no deployment to antiproton occurs until E0-E6 pass and the user accepts the
   scientific A/B checkpoint
 
-### M8.3d. Public Evidence Inspector (Later)
+### M8.3d. Post-Promotion Runtime Capacity and Deployment Gate
+
+Goal:
+
+- measure what the locally promoted Evidence Lake v2 public build actually
+  costs under antiproton-like constraints before spending transfer time or
+  weakening the scientific dataset to fit the current VPS.
+
+Dependencies:
+
+- accepted M8.3c local promotion, rollback, and re-promotion
+- immutable candidate and rollback artifacts retained
+
+Deliverables:
+
+- reproducible cold-cache, warm-cache, idle, burst, and sustained smoke/load
+  profiles under a 6-vCPU/12-GiB antiproton envelope plus unconstrained Photon
+  controls
+- endpoint coverage for search, system detail, bounded evidence summaries, map
+  manifests/tiles, cold and cached simulation scenes, concurrent selections,
+  health checks, and representative public navigation
+- wall/CPU time, peak and steady RSS, DuckDB/page-cache behavior, temporary
+  allocation, disk I/O, latency percentiles, throughput, queueing, errors, and
+  recovery after pressure
+- a concurrency/capacity estimate and operational budget for the existing VPS
+- measured comparison of deployment options before changing science:
+  public projections, immutable static artifacts, precomputed scene tiers,
+  bounded caches, worker/process separation, request coalescing, asynchronous
+  generation, edge/CDN delivery, and a larger public host
+- explicit go/no-go recommendation before transferring the new build to
+  antiproton, including expected transfer size/time and rollback capacity
+
+Success criteria:
+
+- the deployment decision is based on measured behavior of the promoted build
+- scientific evidence is not discarded merely to fit an unmeasured server
+- unsafe memory, CPU, I/O, or concurrency limits have a concrete architectural,
+  configuration, or hosting response before public cutover
+
+### M8.3e. Map and Search Consumer Architecture Review
+
+Goal:
+
+- decide whether Map and Search should adapt to Evidence Lake v2 through stable
+  projections or receive a deeper rewrite, based on measured coupling rather
+  than assuming either answer.
+
+Dependencies:
+
+- M8.3c locally promoted runtime contracts
+- M8.3d capacity measurements for the actual public projections
+
+Deliverables:
+
+- inventory of legacy assumptions in Map, Star Search, System Page, Peek,
+  Explorer, tile payloads, simulation scenes, and their API clients
+- trace each displayed scientific value and identity from selected-fact/runtime
+  projections, identifying duplicated fallback, classification, naming,
+  hierarchy, planet, and orbit logic in consumers
+- contract and performance gap analysis for richer values, evidence summaries,
+  component focus, pagination, null/limit semantics, and future object detail
+- written adapt-versus-rewrite decision with migration boundaries, compatibility
+  window, verification plan, and retirement criteria for deprecated consumer
+  paths
+- prefer adaptation when a bounded versioned projection cleanly isolates the
+  UI; choose a rewrite where legacy data-shape coupling would preserve
+  scientific inconsistency, duplicate selection logic, or prevent required
+  scale and provenance
+
+Success criteria:
+
+- Map and Search consume one documented scientific projection instead of
+  reconstructing facts independently
+- any rewrite is justified by specific coupling and acceptance tests, not by
+  the existence of a richer backend alone
+- the selected path preserves current public workflows while creating an
+  orderly retirement path for deprecated dataset assumptions
+
+### M8.3f. Public Evidence Inspector (Later)
 
 Goal:
 
@@ -2753,7 +2831,7 @@ Success criteria:
 - evidence display never implies that a selected model estimate is a direct
   measurement or that a conflict has disappeared
 
-### M8.3e. Interactive Observation Labs (Later)
+### M8.3g. Interactive Observation Labs (Later)
 
 Goal:
 
@@ -2764,7 +2842,7 @@ Goal:
 Dependencies:
 
 - M8.3c observation-product indexes, calibration metadata, and lineage
-- M8.3d public provenance patterns
+- M8.3f public provenance patterns
 - Concept Tag and explanatory presentation foundations
 
 Deliverables:

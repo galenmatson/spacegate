@@ -1149,6 +1149,20 @@ Selection should prefer coherent parameter sets and must not create a
 field-by-field composite that hides incompatible assumptions or references.
 Alternatives and conflicts remain queryable.
 
+This does not prohibit an explicitly derived composite when no coherent source
+set is simulation-complete. Such a product is a new Spacegate derivation, not a
+published source solution; the selected-source rule
+`fieldwise_cross_source_composites=false` remains unchanged. The derivation may
+combine fields only after exact physical
+endpoint identity, orbit kind (relative, photocentric, barycentric,
+spectroscopic, or eclipsing), reference frame, epoch and angle conventions,
+units, and applicability are proven compatible. It must preserve per-field
+input lineage, algorithm/policy version, uncertainty propagation, covariance
+limitations, consistency checks, confidence, and supersession. A direct
+coherent solution remains preferable. Missing compatibility metadata, disputed
+endpoints, material source conflict, or an unresolvable node/periastron
+convention keeps the evidence separate and the derived set deferred.
+
 The general precedence is:
 
 1. accepted direct or dynamical measurement appropriate to the quantity

@@ -1931,6 +1931,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
+- [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
+  CPU, memory, I/O, cache, latency, throughput, and concurrency smoke tests
+  against the promoted build under an antiproton-like 6-vCPU/12-GiB envelope;
+  compare projection/cache/static/worker/hosting options and issue a go/no-go
+  recommendation before transferring the new data
+- [ ] Photon host maintenance after the promotion gate: reconcile Docker's
+  configured `/data/docker` root with the root-filesystem BuildKit content
+  store; inventory Docker/containerd layer ownership and mounts, preserve
+  rollback, and keep regenerable build cache separate from scientific artifacts
+- [ ] M8.3e Map/Search consumer architecture review: inventory deprecated-data
+  assumptions and duplicated scientific selection/fallback logic across Map,
+  Search, System Page, Peek, Explorer, tiles, scenes, and APIs; produce a
+  measured adapt-versus-rewrite decision, versioned target contract, migration
+  tests, compatibility window, and retirement plan
 - [ ] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 
