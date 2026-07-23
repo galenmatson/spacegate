@@ -2657,6 +2657,9 @@ Pre-promotion planning checkpoint (July 22, 2026):
   exact membership is 10,209/206,913/1,820,142/5,319,825 systems with zero
   omissions or duplicates. The 1,000-ly pass consumes 69.2% of wall time, so
   nested-radius query reuse precedes speculative thread tuning
+- isolated map reproduction completes in 245.10 seconds and matches every
+  timestamp-free manifest hash plus all 3,686 tile payloads; final-candidate
+  API, bounded scene, and desktop/mobile tiled-map browser gates also pass
 
 Deliverables:
 

@@ -1826,6 +1826,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   artifacts for the final public candidate; account 10,209, 206,913, 1,820,142,
   and 5,319,825 systems once with zero missing/extra membership, and replace
   named representative-class gates with complete projection consistency
+- [x] E7 clean map reproduction/browser checkpoint: reproduce all four manifest
+  hashes and 3,686 content-addressed tile payloads exactly; pass 12 applicable
+  desktop/mobile Playwright cases with nonblank canvas pixels, exact/progressive
+  loading, search handoff, flight refinement, density stress, and 4K Bright
+- [x] E7 bounded simulation/API checkpoint: generate 24 priority scenes cold in
+  21.09s with zero failures, reuse all in 1.18s, and pass final-candidate API
+  integration plus strict search/detail/hierarchy/simulation verification
 - [ ] E7 public-runtime materialization optimization: evaluate manifest-addressed
   or block-reusing assembly against the measured 278.73-second, 23.62-GB copy
   without weakening self-contained deployment, checksums, atomic promotion,

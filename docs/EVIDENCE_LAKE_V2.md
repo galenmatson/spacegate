@@ -2436,6 +2436,15 @@ single selected-row materialization reused by nested radii, followed by measured
 deterministic parallel compression. Full timings and artifact paths are recorded
 in `docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
 
+An isolated four-radius rebuild takes 245.10 seconds. Timestamp-free manifest
+hashes and all 3,686 content-addressed tile payloads match the candidate exactly.
+The bounded simulation gate generates 24 priority scenes cold in 21.09 seconds
+with zero failures and reuses all 24 in 1.18 seconds; broad scene prewarming is
+therefore a regenerable admin/runtime-cache operation, not a scientific build
+gate. Final-candidate API integration, strict search/detail/scene checks, and 12
+applicable desktop/mobile tiled-map Playwright cases pass. Four mobile-only skips
+cover desktop keyboard, exact-density, and 4K contracts by design.
+
 ## Hard Gates
 
 ### Solar Standards Checkpoint

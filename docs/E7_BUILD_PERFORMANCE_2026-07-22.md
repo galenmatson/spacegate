@@ -424,6 +424,13 @@ The corrected classification cascade feeds final clean DISC
 | Generic public-build verification | 28.48s | measured separately | reports only | pass |
 | Four-radius map-tile build | 4:05.42 | 11.0 GiB | 413 MiB | pass |
 | Four-radius map verification | 19.59s | 7.9 GiB | reports only | pass |
+| Four-radius isolated map reproduction | 4:05.10 | 11.3 GiB | 413 MiB scratch | exact match |
+| Deterministic map comparison | 0.67s | 0.04 GiB | report only | pass |
+| Bounded 24-scene cold generation | 21.09s | 2.4 GiB | 282,266 bytes | pass |
+| Bounded 24-scene warm reuse | 1.18s | 2.4 GiB | no new scenes | pass |
+| API integration contract | 13.41s | client 36 MiB | reports only | pass |
+| Strict search/detail/scene API benchmark | 18.45s | client 35 MiB | reports only | pass |
+| Tiled-map desktop/mobile Playwright | 1:30.20 | runner 274 MiB | 7.2 MiB reports | 12 pass, 4 intended skips |
 
 The public candidate retains 5,869,091 systems, 5,874,636 stars, 6,311 public
 planet rows, 1,026,480 aliases, and 12,768,410 search terms with zero trimming.
@@ -451,9 +458,12 @@ seconds, so additional concurrency must be benchmarked rather than assumed.
 Machine reports and GNU resource logs are retained under
 `/data/spacegate/reports/evidence_lake_v2/e7_clean_runtime_disc_v3`,
 `e7_clean_runtime_bundle_v3`, `e7_public_v3`, and
-`e7_clean_map_tiles_v3`. Simulation-scene generation, API/browser checks, local
-promotion, rollback, and re-promotion remain required before this report is
-final.
+`e7_clean_map_tiles_v3`, `e7_scene_v3`, `e7_api_v3`, and `e7_browser_v3`.
+The isolated map tree is retained as an exact 413-MiB retention candidate until
+the cleanup ledger authorizes removal. The browser run checks nonblank canvas
+pixels at every radius on desktop and mobile, 4K Bright rendering, exact-density
+stress, flight refinement, and search handoff. Local promotion, rollback, and
+re-promotion remain required before this report is final.
 
 These experiments must compare logical table signatures, canonical Parquet
 hashes, independent verification, API latency, and rollback behavior. More

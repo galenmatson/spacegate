@@ -3890,6 +3890,21 @@ Representative commits:
   or extra membership. This change removes one-off gates; it does not relax
   identity, provenance, scope, determinism, or scientific accounting.
 
+### 150) Map Determinism Excludes Timestamps, Not Content
+
+- The previous reproduction checker compared raw `index.json` and manifest
+  bytes, so expected `generated_at` differences produced a false failure even
+  when all declared deterministic manifest hashes matched.
+- `scripts/verify_map_tile_reproduction.py` now removes only the index timestamp,
+  compares each radius's timestamp-free declared manifest hash, hashes every
+  content-addressed tile payload independently, and fails on missing, extra, or
+  differing tiles. It does not ignore coordinate, membership, sampling, label,
+  interest, or binary changes.
+- Final candidate reproduction takes 4:05.10. All four manifest hashes and all
+  3,686 tile payloads match exactly; the original accepted build report is
+  restored after the isolated run. The separate reproduction tree is an exact
+  retention candidate, not an untracked served artifact.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
