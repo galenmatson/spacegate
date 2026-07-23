@@ -1802,6 +1802,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   retain 824 confirmed/known clean planet links, and prove candidates/negative
   evidence neither link nor mutate canonical planet inventory; pass independent
   audit and isolated logical reproduction with no differing tables
+- [x] E7 clean runtime DISC checkpoint: build `62c9d909371eef4dfd8b63c9`
+  from the checksum-pinned clean CORE and ARM plus the active immutable
+  coolness profile; require selected stellar classification/parameter surfaces,
+  prohibit the legacy CORE classification fallback, score all 5,869,091
+  canonical systems exactly once, independently audit the query and Parquet
+  products, and reproduce the canonical Parquet byte-for-byte in isolated
+  scratch
 - [x] E7 permanent extended-object identity seed: preserve all 18,277 numeric
   object identities, 71,855 aliases, 16,726 identifiers, 21,339 reconciliation
   outcomes, and 404 quarantine decisions without copying geometry, position, or

@@ -3781,6 +3781,22 @@ Representative commits:
   TESS verification and table-copy phases total 0.31 seconds. Isolated compile,
   logical comparison, and audit take 178.83 seconds with no differing tables.
 
+### 145) Clean DISC Must Fail Closed Without Selected Science
+
+- Clean DISC build `62c9d909371eef4dfd8b63c9` consumes only pinned clean CORE,
+  clean ARM, and immutable coolness-profile inputs. It opens no stability
+  database and ranks all 5,869,091 canonical systems exactly once.
+- The generic scorer retains compatibility behavior for legacy commands, but
+  the E7 compiler requires the selected display-classification and stellar-
+  parameter surfaces and explicitly disables CORE classification fallback.
+  Missing selected surfaces are a build failure rather than permission to
+  reintroduce an independent scientific selector.
+- Stellar-class luminosity proxies remain labeled DISC presentation
+  assumptions. They may affect prioritization but never become CORE/ARM facts.
+- Production and isolated compiles take 39.91 and 40.08 seconds. Independent
+  verification passes, the 382,894,682-byte canonical Parquet matches exactly,
+  and reproduction scratch is removed.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

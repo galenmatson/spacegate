@@ -1196,6 +1196,19 @@ candidate. ARM v3 `34069ba67abe3b4331c26adc` remains its immediate rollback
 and scientific A/B reference until local promotion, rollback, and re-promotion
 are proven. Neither is a manual cleanup target.
 
+Clean DISC `62c9d909371eef4dfd8b63c9`, its DuckDB and canonical Parquet,
+manifest, compile/audit/reproduction reports, pinned clean CORE/ARM inputs, and
+immutable coolness-profile lineage are protected unserved candidate artifacts.
+Its isolated reproduction scratch was removed after byte-exact comparison.
+Earlier stability/shadow DISC files remain A/B and rollback inputs until public
+slice verification and the local promotion/rollback/re-promotion drill pass;
+none is a manual cleanup target.
+
+Provisional predecessor `04962848f58540b448eb6558` has identical scoring
+science but predates the exact selected-surface inventory and bounded-path
+policy gates. It is an unserved exact future retention candidate, not a manual
+deletion target.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

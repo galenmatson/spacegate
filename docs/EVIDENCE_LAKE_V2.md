@@ -2256,6 +2256,29 @@ verification pass, and TESS table verification/copying adds 0.31 seconds.
 Isolated logical reproduction takes 178.83 seconds and reports no differing
 tables.
 
+## E7 Clean Runtime DISC
+
+Content-addressed DISC build `62c9d909371eef4dfd8b63c9` is compiled directly
+from checksum-pinned clean CORE `92da8d31dc0e7dbd4d4d70a5`, clean ARM
+`e3e82312eaa3cab931e9e756`, and immutable coolness profile
+`tuned@20260711T232800Z_198cc957`. It opens no stability database and emits one
+ranked row for every one of the 5,869,091 canonical systems.
+
+The E7 compiler invokes the shared scorer in a strict selected-surface mode.
+Both selected stellar display classification and selected stellar parameter
+projections are mandatory, and the legacy fallback to CORE spectral class is
+disabled. Source-backed luminosity is preferred; the existing stellar-class
+luminosity proxy remains an explicitly labeled DISC presentation assumption
+used only for prioritization. No DISC value can mutate CORE or ARM.
+
+Internal and independent verification report zero missing, duplicate, orphaned,
+identity-mismatched, invalid-profile, invalid-score, or rank-continuity rows.
+The 382,894,682-byte ordered Parquet is the canonical serialization. An isolated
+rebuild has the same build identity, verification result, byte size, and SHA-256
+and removes scratch afterward. The production compile takes 39.91 seconds and
+peaks at 10,088,360 KiB RSS; detailed phase timings are in
+`docs/E7_BUILD_PERFORMANCE_2026-07-22.md`.
+
 ## E7 Permanent Extended-Object Identity
 
 Extended objects require the same separation between permanent identity and

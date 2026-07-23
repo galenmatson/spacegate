@@ -2602,6 +2602,17 @@ Pre-promotion planning checkpoint (July 22, 2026):
   independent verification pass; the four-table copy costs 0.31 seconds within
   a 151.73-second ARM compile. Isolated compile/logical comparison/audit takes
   178.83 seconds with no differing tables
+- clean DISC `62c9d909371eef4dfd8b63c9` scores all 5,869,091 clean canonical
+  systems from pinned clean CORE/ARM inputs and coolness profile
+  `tuned@20260711T232800Z_198cc957`. Strict mode requires the shared selected
+  stellar classification and parameter projections and disables the legacy
+  CORE classification fallback; labeled luminosity proxies remain DISC-only
+  presentation assumptions. Internal and independent audits pass, and an
+  isolated rebuild reproduces the 382,894,682-byte canonical Parquet exactly
+- the measured DISC compile takes 39.91 seconds at 9.62 GiB peak RSS: upstream
+  database checksum verification takes 11.14 seconds, scoring 26.74 seconds,
+  and canonical export 1.00 second. This is material but remains well below the
+  151.73-second ARM assembly and roughly 25-minute selected-fact compiler
 - exact-candidate retention hash
   `d057da2886af4fbf19aee615d4600328b74793bac22eec2edd0263c2f5f9edf6`
   retired only the superseded unserved v5 shadow and reclaimed 18,582,962,176

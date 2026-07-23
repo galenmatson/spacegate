@@ -95,3 +95,28 @@ def test_coolness_prefers_selected_classification_and_luminosity(tmp_path: Path)
     ).fetchone()
     con.close()
     assert legacy_row == ("M", 0, 0.0)
+
+
+def test_strict_coolness_requires_selected_surfaces(tmp_path: Path) -> None:
+    core_path = tmp_path / "core.duckdb"
+    arm_path = tmp_path / "arm.duckdb"
+    disc_path = tmp_path / "disc.duckdb"
+    duckdb.connect(str(core_path)).close()
+    duckdb.connect(str(arm_path)).close()
+
+    try:
+        scorer.build_scores(
+            core_db_path=core_path,
+            disc_db_path=disc_path,
+            arm_db_path=arm_path,
+            weights=scorer.DEFAULT_WEIGHTS,
+            build_id="strict-build",
+            profile_id="default",
+            profile_version="1",
+            require_selected_surfaces=True,
+            allow_core_classification_fallback=False,
+        )
+    except ValueError as exc:
+        assert "required selected coolness surfaces are missing" in str(exc)
+    else:
+        raise AssertionError("strict scoring accepted an ARM without selected surfaces")

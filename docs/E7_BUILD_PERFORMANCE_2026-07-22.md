@@ -145,6 +145,37 @@ take 2:52.34 internally and 2:52.54 under GNU `time -v`, peaking at 46,971,956
 KiB RSS. Every schema, row count, verification section, and logical hash matches;
 there are no differing tables.
 
+## Clean DISC Phase Report
+
+Clean DISC build `62c9d909371eef4dfd8b63c9` completes in 39.91 internal wall
+seconds and 40.09 seconds under GNU `time -v`. It uses 125.29 CPU-seconds,
+peaks at 10,088,360 KiB RSS without swap, and writes a 383,528,960-byte DuckDB
+plus a 382,894,682-byte canonical Parquet. Independent verification takes 1.74
+internal wall seconds and 1.86 seconds externally.
+
+| Phase | Wall s | Compile share |
+|---|---:|---:|
+| Shared coolness scoring | 26.74 | 67.0% |
+| Verify 7.72-GB CORE checksum | 3.96 | 10.0% |
+| Verify 13.76-GB ARM checksum | 7.17 | 18.0% |
+| Canonical Parquet export | 1.00 | 2.5% |
+| Internal verification | 0.56 | 1.4% |
+| Metadata and product hashing | 0.47 | 1.2% |
+
+The named phase total is 39.91 seconds after rounding, so no meaningful work is
+hidden outside the timers. An isolated rebuild takes 40.08 seconds, matches the
+build identity, policy/input/profile lineage, verification results, canonical
+Parquet size, and SHA-256 exactly, then removes scratch.
+
+The 11.14 seconds spent rehashing immutable upstream databases is 27.9% of this
+compiler but should not be removed from clean or promotion runs. A future local
+attestation cache may reduce iterative developer builds only if it remains
+content-addressed, periodically rehashes, and cannot satisfy reproduction or
+promotion gates. Scoring remains the larger DISC-local target; optimize it only
+behind identical ordered-Parquet and ranking checks. DISC is not the overall
+critical path: ARM takes 151.73 seconds, clean selected science 190.81 seconds,
+and selected facts approximately 25 minutes.
+
 ## Current Optimization Candidates
 
 1. Preserve the type-partitioned component graph and compare its exact logical

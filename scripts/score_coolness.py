@@ -583,6 +583,8 @@ def build_scores(
     build_id: str,
     profile_id: str,
     profile_version: str,
+    require_selected_surfaces: bool = False,
+    allow_core_classification_fallback: bool = True,
 ) -> None:
     try:
         import duckdb
@@ -610,8 +612,23 @@ def build_scores(
                     """
                 ).fetchall()
             }
+            required_selected_tables = {
+                "e6_selected_stellar_display_classifications",
+                "e6_selected_stellar_parameters",
+            }
+            if require_selected_surfaces:
+                missing = sorted(required_selected_tables - arm_tables)
+                if missing:
+                    raise ValueError(
+                        "required selected coolness surfaces are missing: "
+                        + ", ".join(missing)
+                    )
             if "e6_selected_stellar_display_classifications" in arm_tables:
-                class_expression = "coalesce(display.classification_value,s.spectral_class)"
+                class_expression = (
+                    "coalesce(display.classification_value,s.spectral_class)"
+                    if allow_core_classification_fallback
+                    else "display.classification_value"
+                )
                 selected_joins += (
                     " LEFT JOIN arm_db.e6_selected_stellar_display_classifications display "
                     "USING (star_id)"
@@ -621,6 +638,8 @@ def build_scores(
                 selected_joins += (
                     " LEFT JOIN arm_db.e6_selected_stellar_parameters selected USING (star_id)"
                 )
+        elif require_selected_surfaces:
+            raise ValueError("strict coolness scoring requires an ARM database")
         con.execute(
             f"""
 CREATE OR REPLACE TABLE coolness_scores AS
