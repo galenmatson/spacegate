@@ -1322,6 +1322,61 @@ containerd roots, active image/layer ownership, mount configuration, rollback,
 and the effect on rebuild performance. Do not move a live content store or
 conflate regenerable build cache with Spacegate scientific artifacts.
 
+### July 24 family-aware post-cutover cleanup
+
+The post-cutover cleanup preserved the served E7 build, immediate stability
+rollback, every retained public bundle chain, published and report-referenced
+artifacts, raw/typed evidence, permanent identity products, and unique source
+inputs. Docker and BuildKit were deliberately not touched.
+
+The existing E6 fail-closed cleanup retired superseded shadow
+`e6_cfcdf2d9add2cd7e2b96af68_shadow` and reclaimed 18,578,767,872 allocated
+bytes on `/data`. Reports
+`e6_shadow_v6_post_e7_retention_{dry_run,apply}_2026-07-24.json` preserve the
+review and action.
+
+`scripts/prune_e7_compiler_artifacts.py` adds a family-aware exact-hash
+retention contract for clean foundation, science, CORE, ARM, and DISC compiler
+generations. Candidate hash
+`13256b79a950a8dfd0e7df0c8a85bc1ef66b9d82fcc6671d07a96ac548575bf1`
+retired 19 whole superseded generations and reclaimed 234,886,672,384 allocated
+bytes from `/mnt/space`. It refuses served, rollback, published, linked,
+referenced, open, shared, or identity-mismatched trees.
+
+`scripts/prune_unserved_e7_public_generation.py` provides the corresponding
+single-generation contract for a fully built but never served E7 public
+candidate. During the orbit repair it retained verification reports while
+retiring only explicitly named superseded or scientifically out-of-scope
+candidates. Interrupted `out/*.tmp` materialization was removed through the
+existing state-retention dry-run after the compiler process exited.
+
+After cleanup and before the final replacement public materialization,
+`/data` had about 50 GiB available and `/mnt/space` about 196 GiB available.
+The final public build again consumes roughly 23 GiB on `/data`; do not start
+another retained full public generation without a reviewed retirement or
+alternate scratch/output plan.
+
+After the repaired public generation was promoted, a second family-aware
+dry-run recomputed the dependency closure across every retained public build.
+Exact candidate set
+`95afb60a13840968dd345f2ea77491e6badc8a7d5507451f179777a29753ec7c`
+retired four superseded, never-served ARM compiler iterations and reclaimed
+55,130,914,816 allocated bytes from `/mnt/space`. Reports
+`e7_compiler_retention_post_orbit_repair_{dry_run,apply}_2026-07-24.json`
+retain exact manifests, tree identities, and report references.
+
+That audit found and fixed a fail-closed parser gap: retained public build names
+may carry a bounded profile segment, for example
+`e7_<bundle>_full_public`, as well as the standard
+`e7_<bundle>_public` form. Both now contribute their transitive compiler inputs
+to the protected closure. No deletion occurred while the profiled served build
+was unrecognized.
+
+At the final checkpoint `/data` has about 27 GiB available and `/mnt/space`
+about 234 GiB available. `/data` remains too close to capacity for another
+retained full public generation. Docker/BuildKit storage remains explicitly
+deferred to the recorded Photon host-maintenance milestone.
+
 ### July 23 Evidence Lake local cutover
 
 Operator acceptance, atomic promotion, production-topology verification,
