@@ -1,0 +1,135 @@
+{
+  "schema_version": "spacegate.storage_retention_roots.v1",
+  "policy_version": "2026-07-24.evidence-preserving-reset.1",
+  "served_build": "e7_24cb15211f430a37f199f462_full_public",
+  "deployed_public_build": "20260717T0614Z_f452835_side",
+  "immediate_rollback_build": "e7_39b7386d4524ce5b1ff2729f_public",
+  "protected_evidence_release_sets": [
+    "5a1ccc6c67d9a27d4aeddc08",
+    "6c19de054e9b807674c37d3c"
+  ],
+  "families": [
+    {
+      "name": "state_output_generations",
+      "root": "$STATE_DIR/out",
+      "protected_names": [
+        "20260717T0614Z_f452835_side",
+        "e7_24cb15211f430a37f199f462_full_public",
+        "e7_39b7386d4524ce5b1ff2729f_public"
+      ]
+    },
+    {
+      "name": "bulk_unserved_public_generations",
+      "root": "$BULK_DIR/e7-public-state/out",
+      "protected_names": []
+    },
+    {
+      "name": "local_selected_fact_generations",
+      "root": "$STATE_DIR/derived/evidence_lake_v2/selected_facts",
+      "protected_names": [
+        "0a57f778ce13de1c2c800103"
+      ]
+    },
+    {
+      "name": "e5_selected_facts_legacy_family",
+      "root": "$BULK_DIR/e5-selected-facts",
+      "protected_names": []
+    },
+    {
+      "name": "e5_selection_v13",
+      "root": "$BULK_DIR/e5-selection-v13",
+      "protected_names": []
+    },
+    {
+      "name": "e5_selection_v14",
+      "root": "$BULK_DIR/e5-selection-v14",
+      "protected_names": []
+    },
+    {
+      "name": "e5_selection_v15",
+      "root": "$BULK_DIR/e5-selection-v15",
+      "protected_names": []
+    },
+    {
+      "name": "e5_selection_v17",
+      "root": "$BULK_DIR/e5-selection-v17",
+      "protected_names": [
+        "5d9ec188dc2aab4c19439b89"
+      ]
+    },
+    {
+      "name": "scientific_evidence_generations",
+      "root": "$STATE_DIR/derived/evidence_lake_v2/scientific_evidence",
+      "protected_names_from_evidence_release_sets": true
+    },
+    {
+      "name": "clean_science_generations",
+      "root": "$BULK_DIR/e7-clean-science",
+      "protected_names": [
+        "3b459ede84873e3adfeeec43"
+      ]
+    },
+    {
+      "name": "bulk_runtime_core_generations",
+      "root": "$BULK_DIR/e7-clean-runtime-core",
+      "protected_names": []
+    },
+    {
+      "name": "bulk_runtime_arm_generations",
+      "root": "$BULK_DIR/e7-clean-runtime-arm",
+      "protected_names": [
+        "abf25120b71bc71689790959",
+        "c110d06d4187601459fac184"
+      ]
+    },
+    {
+      "name": "bulk_runtime_disc_generations",
+      "root": "$BULK_DIR/e7-clean-runtime-disc",
+      "protected_names": []
+    },
+    {
+      "name": "runtime_bundle_manifests",
+      "root": "$BULK_DIR/e7-clean-runtime-bundle",
+      "protected_names": [
+        "24cb15211f430a37f199f462",
+        "39b7386d4524ce5b1ff2729f"
+      ]
+    }
+  ],
+  "standalone_candidates": [
+    {
+      "name": "gaia_binding_cache",
+      "path": "$BULK_DIR/e5-gaia-binding-cache-artifacts",
+      "reconstruct_from": "accepted identity graph plus typed Gaia releases"
+    },
+    {
+      "name": "e6_consumer_development_copy",
+      "path": "$BULK_DIR/e6-consumer-dev",
+      "reconstruct_from": "accepted E7 runtime/public products"
+    },
+    {
+      "name": "map_reproduction_v2",
+      "path": "$BULK_DIR/e7-map-repro-v2",
+      "reconstruct_from": "served build and retained map reproduction report"
+    },
+    {
+      "name": "map_reproduction_2d15",
+      "path": "$BULK_DIR/e7-map-reproduction-2d15d40a-20260723",
+      "reconstruct_from": "retained candidate manifest and map reproduction report"
+    },
+    {
+      "name": "map_reproduction_73349",
+      "path": "$BULK_DIR/e7-map-reproduction-73349c25-20260723",
+      "reconstruct_from": "retained candidate manifest and map reproduction report"
+    }
+  ],
+  "excluded_roots": [
+    "$STATE_DIR/raw",
+    "$STATE_DIR/typed",
+    "$STATE_DIR/derived/evidence_lake_v2/identity",
+    "$STATE_DIR/derived/evidence_lake_v2/permanent_identity_seed",
+    "$STATE_DIR/derived/evidence_lake_v2/permanent_identity_vocabulary",
+    "$STATE_DIR/derived/evidence_lake_v2/scientific_evidence_sets",
+    "$STATE_DIR/reports"
+  ]
+}

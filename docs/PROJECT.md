@@ -31,6 +31,12 @@ authority. The retained stability build remains the rollback artifact; legacy
 collectors and cookers are compatibility/reproduction paths, not authoritative
 refresh entrypoints.
 
+Photon retains active compiler and served generations on fast local storage.
+Verified superseded immutable generations may move to the dedicated Proton cold
+tier only through manifest-first copy, independent destination hashing, atomic
+archive publication, and a separately reviewed local retirement. The cold tier
+is not compiler scratch or a transparent runtime dependency.
+
 The immediate gate before any antiproton transfer is measured CPU, memory, I/O,
 cache, and concurrency testing under its 6-vCPU/12-GiB envelope. A separate
 Map/Search consumer review will then decide adaptation versus deeper rewrite

@@ -4133,6 +4133,43 @@ Representative commits:
   public names such as `_full_public`, preventing an accepted profiled build
   from being omitted from the protected closure.
 
+### 161) Verified Proton Cold Archive and Build Capacity Contract
+
+- Photon and Proton now have a dedicated 2.5-GbE direct link. Proton exports
+  `/data/spacegate-cold` only to Photon's direct-link address through NFSv4/TCP
+  with `root_squash`; Photon mounts it at `/mnt/proton`. The export listener is
+  bound to the direct-link address rather than Proton's general LAN interface.
+- Measured sequential archive traffic reaches about 215 MiB/s for synchronous
+  durable writes and 280 MiB/s for reads. `/mnt/space` remains materially
+  faster for local bulk work and metadata-heavy compiler scratch. Proton is
+  therefore a failure-contained cold tier, not a DuckDB or tile-build work
+  filesystem.
+- Archive policy
+  `2026-07-24.evidence-preserving-reset.1` explicitly protects the current
+  served build, deployed antiproton build, immediate Photon rollback, current
+  selected-fact build, accepted evidence release sets, raw/typed evidence,
+  identity roots, and reports. The archive tool additionally refuses symlinks,
+  hard-linked/shared files, live-open trees, source changes, mount mismatch,
+  insufficient destination reserve, and an unreviewed candidate-set hash.
+- Exact set
+  `7f6b9de00ace2926409d5cf52758966b897f8d67deff7ad911b3e7265aa699a0`
+  copied and independently verified five superseded output generations and
+  three superseded selected-fact generations: 287,209,566,053 logical bytes.
+  A separate retirement pass re-hashed all archived content, revalidated source
+  identities and protection state, journaled all eight transitions, and
+  reclaimed 287,245,701,120 allocated bytes from Photon.
+- `/data` moved from 88% used with about 177 GB available to 70% used with about
+  445 GB available. Proton's archive filesystem ended at 37% used with about
+  506 GB available. The active build, both rollback/deployment roots, current
+  selected facts, containers, health endpoint, search, and the repaired
+  hierarchical Castor simulation scene remained healthy.
+- `docs/BUILD_STORAGE_REQUIREMENTS.md` replaces the obsolete 100-GB guidance.
+  The retained accepted chain alone is about 653 GB; accepted E5 reproduction
+  adds a measured 160,832,151,552-byte spill peak before rollback, atomic
+  replacement, intermediate compiler products, reports, and reserve. A nominal
+  1-TB device is not a supported full builder; 1.25 TB usable is a constrained
+  lower bound and 2 TB usable fast local storage is the practical minimum.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

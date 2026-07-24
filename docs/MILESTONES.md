@@ -2768,7 +2768,11 @@ Success criteria:
   scientific A/B checkpoint
 
 Status: complete locally on Photon. M8.3d is the required capacity/deployment
-gate before transferring this build to antiproton.
+gate before transferring this build to antiproton. The July 24 post-promotion
+storage checkpoint also established the dedicated Proton cold tier and
+retired 287,245,701,120 allocated bytes from Photon only after two independent
+content-manifest passes. The active served, deployed, rollback, selected-fact,
+evidence, identity, raw, typed, and report chains remain on Photon.
 
 ### M8.3d. Post-Promotion Runtime Capacity and Deployment Gate
 

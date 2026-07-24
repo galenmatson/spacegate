@@ -62,10 +62,14 @@
   - export SPACEGATE_STATE_DIR=./data
   - export SPACEGATE_CACHE_DIR=./data/cache
   - export SPACEGATE_LOG_DIR=./data/logs
-These directories are ignored by git and may be safely deleted.
-Depending on which catalogs you download the data directory can be quite large, over 100 GB.
-If you intend to download all of the raw astronomical data, consider locating 
-  SPACEGATE_STATE_DIR on a separate volume from the root.
+These directories are ignored by git, but scientific state should only be
+removed through the retention process. A prebuilt public runtime is much
+smaller than a full source build. The July 2026 Evidence Lake requires more
+than 1 TB of working capacity; use at least 2 TB of usable fast local storage
+for a practical full E0-E7 build. See
+[`docs/BUILD_STORAGE_REQUIREMENTS.md`](docs/BUILD_STORAGE_REQUIREMENTS.md) for
+measured artifacts, peak scratch, and capacity tiers. Place
+`SPACEGATE_STATE_DIR` on a separate volume from the root for source builds.
   
 ### For production deployments, standard Linux locations are recommended:
   - /srv/spacegate            # web and api servers

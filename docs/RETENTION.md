@@ -1396,6 +1396,68 @@ manual deletion. That dry-run must preserve the accepted chain, immediate
 rollback chain, and all transitive inputs, and must enumerate whole immutable
 families rather than individual DuckDB or Parquet files.
 
+## Full-Build Capacity Planning
+
+`docs/BUILD_STORAGE_REQUIREMENTS.md` records the measured July 2026 Evidence
+Lake capacity envelope. The retained accepted raw, typed, E4, E5, and public
+chain is about 653 GB before identity products, intermediate compiler
+generations, reports, rollback, atomic replacement overlap, or reserve. The
+largest accepted E5 reproduction used another 160,832,151,552 bytes of
+temporary spill.
+
+A nominal 1 TB device is therefore not a supported full-build target. Treat
+1.25 TB usable as a constrained lower bound and 2 TB usable fast local storage
+as the recommended builder capacity. Historical generations and observation
+caches belong on a separately accounted cold tier when possible. Capacity
+figures are release-scoped measurements, not permanent maxima; refresh the
+storage audit and per-phase build report before every major rebuild.
+
+## Proton Cold Archive
+
+The dedicated archive root is `/mnt/proton/spacegate-archive/v1`, served from
+Proton over the direct `192.168.252.0/30` Photon-Proton link. It is cold
+immutable storage, not DuckDB working space, compiler spill, a container data
+root, or a transparent replacement for active Photon paths.
+
+`scripts/archive_storage_generations.py` and
+`config/evidence_lake/storage_retention_roots.json` implement the archive
+contract:
+
+1. Build a family-scoped dry-run and review its exact candidate-set hash.
+2. Refuse served, deployed, rollback, current selected-fact, evidence-release,
+   identity, raw, typed, report, linked, open, shared-file, or path-escaping
+   candidates.
+3. Hash every source file, copy to a hidden partial directory, recheck source
+   tree identity, independently hash the destination, and atomically publish
+   only an exact content match.
+4. Write per-generation and candidate-set manifests under
+   `spacegate-archive/v1/manifests/<candidate_set_sha256>/`.
+5. Run retirement separately from the passing copy report. Re-hash every
+   archive, revalidate the protection policy and local source identity, journal
+   every transition, and only then remove the exact local source set.
+
+Do not leave compatibility symlinks from active compiler namespaces into this
+cold tier. Historical reports retain their original source paths and are
+resolved through the archive manifest after retirement. This prevents an old
+compiler input from silently becoming an NFS-backed production dependency.
+
+On July 24, 2026, exact candidate set
+`7f6b9de00ace2926409d5cf52758966b897f8d67deff7ad911b3e7265aa699a0`
+archived five superseded public/shadow output generations and three superseded
+selected-fact generations. Copy verification covered 287,209,566,053 logical
+bytes. The retirement pass independently re-hashed all eight archives and
+reclaimed 287,245,701,120 allocated bytes from Photon. Reports are:
+
+- `storage_archive_dry_run_20260724.json`
+- `storage_archive_copy_20260724.json`
+- `storage_archive_retirement_20260724.json`
+
+All reports live under
+`/data/spacegate/state/reports/evidence_lake_v2/`; the passing copy and
+retirement reports are also preserved with the archive manifests. After
+retirement `/data` was 70% used with about 445 GB available, while the Proton
+archive filesystem was 37% used with about 506 GB available.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

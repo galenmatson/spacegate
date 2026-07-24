@@ -1944,6 +1944,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   recursive `simulation_tree_v1` nodes, rerun the wide-orbit goldens, build
   exact 100/250/500/1,000-ly tiles, and pass local
   promotion/rollback/re-promotion with the prior E7 build retained
+- [x] Publish operator-facing full-build storage requirements from measured
+  Evidence Lake artifacts and peak spill; distinguish prebuilt runtime,
+  constrained source build, recommended builder, and cold-history capacity
+- [x] Establish the dedicated Proton cold archive contract; copy, hash,
+  atomically publish, independently re-verify, and retire the exact first
+  eight-generation/287,245,701,120-byte Photon candidate set while preserving
+  served, deployed, rollback, selected-fact, evidence, identity, raw, typed,
+  and report roots
 - [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
   CPU, memory, I/O, cache, latency, throughput, and concurrency smoke tests
   against the promoted build under an antiproton-like 6-vCPU/12-GiB envelope;
