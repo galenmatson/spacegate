@@ -101,6 +101,56 @@ Eccentricity defines how drastically an orbit deviates from a perfect, circular 
 INCLINATION
 Inclination measures the steep "tilt" of a body's orbit relative to the system's foundational reference plane. In most calm, mature solar systems, planets orbit relatively flat along the same equatorial disk where they originally formed from a protoplanetary cloud. However, extreme inclinations reveal a turbulent history, indicating an object was either captured from deep space or violently knocked off its original axis by a catastrophic collision. High-inclination orbits carry worlds high above and far below the system's main orbital plane, subjecting them to complex, undulating gravitational forces. Identifying these tilted rogues is crucial for building accurate, fully realized 3D maps of a stellar neighborhood.
 
+
+## Galactic Reference Frame
+
+COREWARD
+Looking coreward means turning your gaze toward the ancient, densely packed heart of the Milky Way. This direction points toward the constellation Sagittarius and the supermassive black hole that anchors our galaxy. Stars tagged here lie deeper in the galactic gravity well than our own Sun, surrounded by thick interstellar dust lanes and glowing nebulae. Famous sights in this direction include the Lagoon Nebula and the rich star clouds of the galactic bulge.
+
+RIMWARD
+A rimward tag indicates a system located further out toward the lonely, thinning edges of the Milky Way. Looking this way means facing away from the galactic center, gazing past the Perseus spiral arm and toward the deep intergalactic void. The star fields here are less crowded, making it easier to spot distant galaxies through the clearing dust. If you look toward the constellation Auriga or Orion's sword, you are gazing out into the rimward frontier.
+
+SPINWARD
+Spinward systems lie "ahead" of us in the grand rotation of the Milky Way's disk. As our solar system hurtles around the galactic core at over 500,000 miles per hour, we are flying directly toward these stars. This direction points roughly toward the constellation Cygnus, leading the charge of our local Orion spiral arm through the interstellar medium. You can think of these stars as the vehicles immediately ahead of us in galactic traffic.
+
+TRAILING
+Trailing stars are antispinward, located "behind" us in our orbit around the Milky Way. We are essentially leaving these systems in our cosmic dust as the Sun speeds along its 225-million-year journey around the galaxy. Looking trailing means gazing back along the Orion spiral arm toward constellations like Vela and Puppis. These are the systems we have already passed or are currently outpacing in the great galactic carousel.
+
+GALACTIC ZENITH
+A system at the galactic zenith sits "straight up" above the flat, dusty disk of the Milky Way. Because our galaxy is incredibly thin compared to its width, looking this way quickly pierces through the local star fields into the deep intergalactic void. This view points toward the constellation Coma Berenices. With very little galactic dust to block the light, this direction offers astronomers a crystal-clear window to observe thousands of distant galaxies.
+
+GALACTIC NADIR
+The galactic nadir points "straight down" through the floor of the Milky Way's disk. Like the zenith, this direction looks away from the dense spiral arms and out into the vast, empty halo of the galaxy. Gazing toward the constellation Sculptor will point you toward the nadir. Systems tagged here are excellent vantage points for observing deep space without the interference of our galaxy's native gas and dust.
+
+## Equatorial & Observational Tags
+
+CELESTIAL NORTH
+Systems tagged Celestial North lie near the northern pivot point of Earth's axis of rotation. If you stand outside in the northern hemisphere and watch the sky over several hours, these stars appear to remain nearly stationary while the rest of the cosmos wheels around them. This direction points directly toward Polaris, the famous North Star, which serves as the cosmic anchor for this region. Observers looking this way are essentially peering "up" from the very top of our spinning planet. Because of their unique position, these systems never set for most northern observers, offering a permanent, year-round window into this stellar neighborhood.
+
+CELESTIAL SOUTH
+A Celestial South tag indicates a system located near the southern pivot point of Earth's rotational axis. Just as the northern sky rotates around Polaris, the southern sky wheels endlessly around this fixed celestial pole, which is anchored by the faint star Sigma Octantis. Backyard observers typically find this region by following the long axis of the famous Southern Cross constellation. These systems lie "down" relative to Earth's tilt, making them permanently hidden from mid-northern latitudes but beautifully ever-present for observers in the southern hemisphere. Gazing this way lets you look out into the void from the very bottom of our spinning terrestrial ship.
+
+CIRCUMPOLAR
+A circumpolar tag is the ultimate "Backyard Bonus" for amateur astronomers. Because of these stars' high latitude relative to Earth's tilt, they never actually set below the horizon for observers at mid-latitudes. You can walk outside on any clear night of the year and find these systems waiting for you in the sky. Iconic examples include the stars of the Big Dipper in the northern hemisphere and the Southern Cross in the south.
+
+ZODIACAL
+Zodiacal stars lie perfectly along the Ecliptic, the invisible highway that our Sun, Moon, and planets travel across Earth's sky. When you look at these systems, you are looking flat across the exact plane of our own solar system. Because they share this cosmic road, these stars are frequently occulted, or temporarily hidden, by the Moon and passing planets. You will find all of these stars within the familiar constellations of the Zodiac, like Taurus, Leo, or Scorpius.
+
+## Kinematic (Motion) Tags
+
+HIGH PROPER MOTION
+Stars with this tag are racing across our line of sight at incredible speeds. The universe is not static, and these systems move so fast that their positions among the background stars noticeably change over a single human lifetime. Barnard's Star is a famous example, sprinting across the constellation Ophiuchus year after year. This motion usually indicates that the star is both moving exceptionally fast and is located very close to our solar system.
+
+APPROACHING
+Approaching systems have a high negative radial velocity, meaning they are actively speeding toward our solar system. Astronomers know this because the light from these stars is "blueshifted," compressed into shorter, bluer wavelengths by their forward momentum. Over the next few million years, these stars will become significantly brighter and closer neighbors in our night sky. It is a stark reminder that the stellar neighborhood is a dynamic, shifting crowd.
+
+RECEDING
+Receding stars are speeding rapidly away from the Sun and out of our local stellar neighborhood. Their light arrives "redshifted," stretched out into longer wavelengths as they fly away from us. These could be stars that formed in different galactic regions just passing through, or systems born alongside the Sun that are now drifting apart. Over astronomical timescales, these stars will slowly fade from Earth's night sky entirely.
+
+CO-MOVING
+Co-moving stars are drifting through the galaxy in the exact same direction and at roughly the same speed as our own Sun. You can think of them as our long-term travel companions on the 225-million-year orbit around the Milky Way. Many of these stars may have been born in the exact same stellar nursery as the Sun billions of years ago. The stars of the Ursa Major Moving Group (which make up most of the Big Dipper) are famous co-moving companions.
+
+
 ## Star types
 
 O (O-Type Star)
