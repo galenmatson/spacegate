@@ -104,7 +104,7 @@ class Timings:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v5":
+    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v6":
         raise ValueError("unsupported clean runtime ARM policy")
     required_rules = {
         "open_stability_databases": False,
@@ -731,9 +731,39 @@ def create_solar_runtime_projections(
 def extend_stellar_runtime_orbits(
     con: duckdb.DuckDBPyConnection, build_id: str
 ) -> None:
-    """Append only exactly bound stellar relations to the runtime orbit graph."""
+    """Append exact leaf/group stellar relations to the ARM presentation graph."""
     con.execute(
         f"""
+        INSERT INTO component_entities
+        SELECT base.max_id + row_number() OVER (
+            ORDER BY endpoint.runtime_component_key
+          )::BIGINT AS component_entity_id,
+          endpoint.runtime_component_key::VARCHAR AS stable_component_key,
+          'subsystem'::VARCHAR AS component_type,
+          NULL::VARCHAR AS core_object_type,NULL::HUGEINT AS core_object_id,
+          (sys.system_name || ' ' || upper(endpoint.component_label_raw))::VARCHAR
+            AS display_name,
+          endpoint.component_label_raw::VARCHAR AS catalog_component_label,
+          sys.ra_deg::DOUBLE AS ra_deg,sys.dec_deg::DOUBLE AS dec_deg,
+          (sys.dist_ly/{PARSECS_TO_LIGHT_YEARS})::DOUBLE AS dist_pc,
+          endpoint.source_id::VARCHAR AS source_catalog,
+          endpoint.release_id::VARCHAR AS source_version,
+          endpoint.source_component_key::VARCHAR AS source_pk,
+          sha256(concat_ws('|',endpoint.source_component_key,
+            endpoint.runtime_component_key,endpoint.descendant_leaf_keys_json))::VARCHAR
+            AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_source_subsystem_presentation_endpoint_v1'::VARCHAR AS transform_version
+        FROM stellar_orbit_endpoint_bindings endpoint
+        JOIN core.systems sys
+          ON sys.stable_object_key=endpoint.canonical_system_stable_object_key
+        CROSS JOIN (SELECT coalesce(max(component_entity_id),0)::BIGINT max_id
+                    FROM component_entities) base
+        WHERE endpoint.endpoint_kind='group'
+          AND endpoint.binding_status='accepted'
+        ORDER BY endpoint.runtime_component_key;
+
         CREATE TEMP TABLE stellar_runtime_relations AS
         SELECT row_number() OVER (ORDER BY b.relation_id)::BIGINT
               + (SELECT coalesce(max(orbit_edge_id),0) FROM orbit_edges) AS orbit_edge_id,
@@ -741,7 +771,7 @@ def extend_stellar_runtime_orbits(
           r.quality_json,r.source_kinds_json
         FROM stellar_orbit_relation_bindings b
         JOIN selected_stellar_orbit_relations r USING(relation_id)
-        WHERE b.runtime_eligible
+        WHERE b.simulation_eligible
           AND b.binding_status='accepted'
           AND NOT b.canonical_containment
         ORDER BY b.relation_id;
@@ -822,17 +852,79 @@ def extend_stellar_runtime_orbits(
         FROM stellar_runtime_solutions
         ORDER BY orbital_solution_id;
 
+        CREATE TEMP TABLE stellar_relation_period_solutions AS
+        SELECT row_number() OVER (ORDER BY rr.orbit_edge_id)::BIGINT
+              + (SELECT coalesce(max(orbital_solution_id),0) FROM orbital_solutions)
+            AS orbital_solution_id,
+          rr.*
+        FROM stellar_runtime_relations rr
+        WHERE rr.preferred_simulation_solution_id IS NULL
+          AND rr.source_period_days>0
+        ORDER BY rr.orbit_edge_id;
+
+        INSERT INTO orbital_solutions
+        SELECT orbital_solution_id,orbit_edge_id,source_id::VARCHAR,
+          1::INTEGER AS solution_rank,
+          NULL::DOUBLE AS reference_epoch_jyear,NULL::DOUBLE AS reference_epoch_mjd,
+          source_period_days::DOUBLE AS period_days,
+          NULL::DOUBLE AS semi_major_axis_au,NULL::DOUBLE AS semi_major_axis_arcsec,
+          NULL::DOUBLE AS eccentricity,NULL::DOUBLE AS inclination_deg,
+          NULL::DOUBLE AS longitude_ascending_node_deg,
+          NULL::DOUBLE AS argument_periastron_deg,
+          NULL::DOUBLE AS time_periastron_jd,NULL::DOUBLE AS mean_anomaly_deg,
+          NULL::DOUBLE AS mass_ratio_q,NULL::DOUBLE AS primary_mass_msun,
+          NULL::DOUBLE AS secondary_mass_msun,
+          NULL::DOUBLE AS rv_semiamplitude_primary_kms,
+          NULL::DOUBLE AS rv_semiamplitude_secondary_kms,
+          0.82::DOUBLE AS confidence_score,
+          to_json(struct_pack(
+            selection_role := 'source_relation_period_only',
+            source_period_value_raw := source_period_value_raw,
+            source_period_value := source_period_value,
+            source_period_unit_raw := source_period_unit_raw,
+            source_orbit_evidence_id := source_orbit_evidence_id,
+            missing_orientation_policy := 'disc_presentation_assumptions_only'
+          ))::JSON AS fit_quality_json,
+          'msc_source_relation_period_unit_normalization_v1'::VARCHAR
+            AS normalization_method,
+          'medium'::VARCHAR AS confidence_tier,
+          source_id::VARCHAR AS source_catalog,release_id::VARCHAR AS source_version,
+          coalesce(source_orbit_evidence_id,relation_evidence_id)::VARCHAR AS source_pk,
+          sha256(concat_ws('|',relation_id,source_period_value,
+            source_period_unit_raw,source_orbit_evidence_id))::VARCHAR AS source_row_hash,
+          NULL::VARCHAR AS retrieval_checksum,NULL::VARCHAR AS retrieved_at,
+          NULL::VARCHAR AS ingested_at,
+          'e7_source_relation_period_projection_v1'::VARCHAR AS transform_version
+        FROM stellar_relation_period_solutions
+        ORDER BY orbital_solution_id;
+
+        CREATE TEMP TABLE stellar_preferred_runtime_solutions AS
+        SELECT rr.relation_id,rr.orbit_edge_id,
+          coalesce(selected.orbital_solution_id,period_only.orbital_solution_id)
+            AS orbital_solution_id
+        FROM stellar_runtime_relations rr
+        LEFT JOIN stellar_runtime_solutions selected
+          ON selected.selected_orbit_solution_id=rr.preferred_simulation_solution_id
+        LEFT JOIN stellar_relation_period_solutions period_only
+          ON period_only.relation_id=rr.relation_id;
+
         INSERT INTO orbit_edges
         SELECT rr.orbit_edge_id,
           ('comp:system:' || rr.canonical_system_stable_object_key)::VARCHAR
             AS host_component_key,
           rr.primary_runtime_component_key::VARCHAR AS primary_component_key,
           rr.secondary_runtime_component_key::VARCHAR AS secondary_component_key,
-          rr.relation_kind::VARCHAR,NULL::VARCHAR AS barycenter_key,
+          CASE WHEN rr.primary_endpoint_kind='group'
+                 OR rr.secondary_endpoint_kind='group'
+            THEN 'hierarchical_pair'
+            ELSE rr.relation_kind END::VARCHAR AS relation_kind,
+          NULL::VARCHAR AS barycenter_key,
           preferred.orbital_solution_id::BIGINT AS preferred_solution_id,
-          CASE WHEN preferred.orbital_solution_id IS NOT NULL THEN 0.95
+          CASE WHEN rr.preferred_simulation_solution_id IS NOT NULL THEN 0.95
+               WHEN preferred.orbital_solution_id IS NOT NULL THEN 0.82
                ELSE 0.80 END::DOUBLE AS confidence_score,
-          CASE WHEN preferred.orbital_solution_id IS NOT NULL THEN 'high'
+          CASE WHEN rr.preferred_simulation_solution_id IS NOT NULL THEN 'high'
+               WHEN preferred.orbital_solution_id IS NOT NULL THEN 'medium'
                ELSE 'context' END::VARCHAR AS confidence_tier,
           rr.source_kinds_json::VARCHAR AS evidence_catalogs_json,
           to_json([rr.relation_evidence_id])::JSON AS evidence_ids_json,
@@ -844,9 +936,8 @@ def extend_stellar_runtime_orbits(
           NULL::VARCHAR AS ingested_at,
           'e7_selected_stellar_orbit_projection_v1'::VARCHAR AS transform_version
         FROM stellar_runtime_relations rr
-        LEFT JOIN stellar_runtime_solutions preferred
-          ON preferred.selected_orbit_solution_id=
-            rr.preferred_simulation_solution_id
+        LEFT JOIN stellar_preferred_runtime_solutions preferred
+          ON preferred.relation_id=rr.relation_id
         ORDER BY rr.orbit_edge_id;
         """
     )
@@ -1108,7 +1199,8 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "orbital_solutions", "sol_small_body_objects", "sol_artificial_objects",
             "solar_component_identities", "selected_solar_orbital_solutions",
             "selected_stellar_orbit_relations", "selected_stellar_orbit_solutions",
-            "stellar_orbit_endpoint_bindings", "stellar_orbit_relation_bindings",
+            "stellar_orbit_endpoint_bindings", "stellar_orbit_group_memberships",
+            "stellar_orbit_relation_bindings",
             "tess_target_identity", "tess_missing_object_audit",
             "toi_current_evidence", "toi_disposition_history",
         )
@@ -1121,6 +1213,8 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             counts["component_entities"] - (
                 scalar("SELECT count(*) FROM hierarchy.hierarchy_nodes")
                 + scalar("SELECT count(*) FROM solar_component_identities WHERE core_object_id IS NULL")
+                + scalar("SELECT count(*) FROM stellar_orbit_endpoint_bindings "
+                         "WHERE endpoint_kind='group' AND binding_status='accepted'")
             )
         ),
         "hierarchy_edge_inventory_delta": abs(
@@ -1209,11 +1303,17 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         ),
         "stellar_runtime_orbit_delta": abs(
             scalar("SELECT count(*) FROM orbit_edges WHERE transform_version='e7_selected_stellar_orbit_projection_v1'")
-            - scalar("SELECT count(*) FROM stellar_orbit_relation_bindings WHERE runtime_eligible")
+            - scalar("SELECT count(*) FROM stellar_orbit_relation_bindings WHERE simulation_eligible")
         ),
         "stellar_runtime_solution_delta": abs(
             scalar("SELECT count(*) FROM orbital_solutions WHERE transform_version='e7_selected_stellar_orbit_projection_v1'")
-            - scalar("SELECT count(*) FROM selected_stellar_orbit_solutions s JOIN stellar_orbit_relation_bindings b USING(relation_id) WHERE b.runtime_eligible")
+            - scalar("SELECT count(*) FROM selected_stellar_orbit_solutions s JOIN stellar_orbit_relation_bindings b USING(relation_id) WHERE b.simulation_eligible")
+        ),
+        "stellar_relation_period_solution_delta": abs(
+            scalar("SELECT count(*) FROM orbital_solutions WHERE transform_version='e7_source_relation_period_projection_v1'")
+            - scalar("SELECT count(*) FROM stellar_orbit_relation_bindings "
+                     "WHERE simulation_eligible AND preferred_simulation_solution_id IS NULL "
+                     "AND source_period_days>0")
         ),
         "stellar_preferred_solution_delta": abs(
             scalar("SELECT count(*) FROM orbit_edges WHERE transform_version='e7_selected_stellar_orbit_projection_v1' AND preferred_solution_id IS NOT NULL")
@@ -1221,7 +1321,10 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         ),
         "unresolved_stellar_runtime_edges": scalar(
             "SELECT count(*) FROM orbit_edges e JOIN stellar_orbit_relation_bindings b "
-            "ON b.relation_evidence_id=e.source_pk WHERE NOT b.runtime_eligible"
+            "ON b.relation_evidence_id=e.source_pk WHERE NOT b.simulation_eligible"
+        ),
+        "source_group_canonical_containment_promotions": scalar(
+            "SELECT count(*) FROM stellar_orbit_group_memberships WHERE canonical_containment"
         ),
         "nonphysical_stellar_preferences": scalar(
             "SELECT count(*) FROM orbit_edges e JOIN orbital_solutions s "
@@ -1425,7 +1528,7 @@ def compile_runtime_arm(
             "determinism": "logical_tables",
         }
         manifest = {
-            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v5",
+            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v6",
             "build_id": build_id,
             "status": "pass",
             "generated_at": utc_now(),

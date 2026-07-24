@@ -590,6 +590,15 @@ Notes:
   leaf sets when `system_hierarchy_edges` makes the descendant set
   deterministic. This reconciliation is a render/API bridge over ARM
   hierarchy evidence, not a source-object merge or a suffix-only inference.
+- E7 also preserves `stellar_orbit_group_memberships` for source-scoped
+  presentation endpoints that must not enter canonical containment. An exact
+  source parent relation is authoritative for membership. If no such relation
+  defines an endpoint, two or more exact, case-sensitive numeric descendants
+  from the same source, release, and WDS system may define it, for example
+  `Cb1` and `Cb2` under source endpoint `Cb`. Case folding, coordinate matching,
+  cross-release mixing, descendant overlap, and single-child groups fail
+  closed. Every membership carries its source keys, descendant leaf set,
+  binding reason, and `canonical_containment=false`.
 - MSC `sys.tsv` and `orb.tsv` rows may both create deterministic `binary` or
   `hierarchical_pair` edges when the host and both endpoint component keys
   resolve. Every `orb.tsv` row is accounted for in
@@ -608,6 +617,13 @@ Notes:
 ## `orbital_solutions`
 
 Catalog-normalized orbital element records.
+
+An MSC relation with an accepted exact endpoint pair and a positive
+source-native period may receive a coherent period-only solution when no
+selected full solution exists. Such a row preserves the source period and unit
+normalization together, leaves orientation and size fields null, and is never a
+field-wise composite orbit. DISC/render-scene assumptions may make the orbit
+legible, but those assumptions do not become ARM source values.
 
 Columns:
 - `orbital_solution_id BIGINT`

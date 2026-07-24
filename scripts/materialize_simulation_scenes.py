@@ -14,7 +14,7 @@ from typing import Any, Sequence
 
 import duckdb
 
-MATERIALIZER_VERSION = "simulation_scene_artifact_v4"
+MATERIALIZER_VERSION = "simulation_scene_artifact_v5"
 
 
 def _performance_token() -> tuple[float, float, resource.struct_rusage]:

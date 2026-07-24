@@ -235,6 +235,19 @@ Already in place:
 - source hierarchy descendants are preferred when resolving source group
   endpoints to rendered leaves. Label-based bridges are secondary and are used
   only when they resolve inside the accepted system without ambiguity.
+- `arm.stellar_orbit_group_memberships` is the primary bridge for source-scoped
+  subsystem endpoints that are not canonical hierarchy nodes. Exact source
+  parent relations are preferred. A same-source, same-release, same-system,
+  case-sensitive numeric designation family may close an otherwise missing
+  endpoint, such as `Cb1`/`Cb2` under `Cb`; this creates a presentation
+  barycenter, never canonical containment. Cycles, overlaps, collisions, and
+  unresolved descendants remain diagnostic-only.
+- simulation-scene artifact v5 orders coherent candidate relations from the
+  smallest descendant set outward, using evidence quality to choose among
+  equal-scope alternatives. Exact source-group membership may supply a
+  non-orbital structural child node when a subgroup has no independent orbit;
+  it does not invent motion. This lets later outer relations attach to already
+  assembled inner barycenters.
 - orbit rows may include a DERIVED `projected_separation_au` field computed
   from source angular separation and system distance. The simulator can use it
   for broad visual scale and rough Kepler presentation periods, but it is not

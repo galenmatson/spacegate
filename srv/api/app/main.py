@@ -224,7 +224,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v4"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v5"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -2204,6 +2204,23 @@ def _render_scene_contract(
         if system_wds_id and label and stable_key:
             render_key_by_wds_label.setdefault((system_wds_id, label), f"comp:star:{stable_key}")
     hierarchy_leaf_component_keys_by_key: Dict[str, List[str]] = {}
+    orbit_group_leaf_component_keys_by_key: Dict[str, List[str]] = {}
+    for membership in ((arm.get("stellar_orbit_group_memberships") or {}).get("items") or []):
+        group_key = str(membership.get("group_runtime_component_key") or "").strip()
+        if not group_key:
+            continue
+        raw_leaf_keys = membership.get("child_descendant_leaf_keys_json")
+        if isinstance(raw_leaf_keys, str):
+            try:
+                raw_leaf_keys = json.loads(raw_leaf_keys)
+            except (TypeError, ValueError):
+                raw_leaf_keys = []
+        leaf_keys = [str(key) for key in (raw_leaf_keys or []) if key]
+        orbit_group_leaf_component_keys_by_key.setdefault(group_key, []).extend(leaf_keys)
+    orbit_group_leaf_component_keys_by_key = {
+        key: sorted(set(values))
+        for key, values in orbit_group_leaf_component_keys_by_key.items()
+    }
 
     def collect_hierarchy_leaf_component_keys(node: Optional[Dict[str, Any]]) -> List[str]:
         if not isinstance(node, dict):
@@ -2991,6 +3008,17 @@ def _render_scene_contract(
             })
             if resolved_from_hierarchy:
                 return resolved_from_hierarchy
+        orbit_group_leaf_keys = orbit_group_leaf_component_keys_by_key.get(
+            str(component_key or "").strip()
+        ) or []
+        if orbit_group_leaf_keys:
+            resolved_from_orbit_group = sorted({
+                equivalent_render_component_key(leaf_key)
+                for leaf_key in orbit_group_leaf_keys
+                if equivalent_render_component_key(leaf_key) in render_stars
+            })
+            if resolved_from_orbit_group:
+                return resolved_from_orbit_group
         prefix = "comp:msc_group:wds:"
         if not component_key.startswith(prefix):
             return []
@@ -3859,31 +3887,82 @@ def _render_scene_contract(
             return sorted(
                 orbits,
                 key=lambda orbit: (
+                    orbit_specificity(orbit),
                     -orbit_source_score(orbit),
-                    -orbit_specificity(orbit),
                     str(orbit.get("display_name") or orbit.get("orbit_key") or ""),
                 ),
             )
 
+        source_group_keys_by_leaf_set: Dict[frozenset[str], List[str]] = {}
+        for group_key, leaf_keys in orbit_group_leaf_component_keys_by_key.items():
+            leaf_set = frozenset(
+                equivalent_render_component_key(key)
+                for key in leaf_keys
+                if equivalent_render_component_key(key) in render_stars
+            )
+            if len(leaf_set) >= 2:
+                source_group_keys_by_leaf_set.setdefault(leaf_set, []).append(group_key)
+        source_group_key_by_leaf_set = {
+            leaf_set: keys[0]
+            for leaf_set, keys in source_group_keys_by_leaf_set.items()
+            if len(keys) == 1
+        }
+        structural_nodes: Dict[str, Dict[str, Any]] = {}
+
+        def endpoint_owner_sets(leaf_set: frozenset[str]) -> Optional[List[frozenset[str]]]:
+            owners = {current_leaf_owner.get(leaf_key) for leaf_key in leaf_set}
+            if None in owners:
+                return None
+            owner_sets = sorted(
+                (owner for owner in owners if owner is not None),
+                key=lambda owner:(len(owner),sorted(owner)),
+            )
+            if (
+                any(not owner or not owner <= leaf_set for owner in owner_sets)
+                or set().union(*owner_sets) != set(leaf_set)
+            ):
+                return None
+            return owner_sets
+
         def endpoint_node_key(leaf_set: frozenset[str]) -> Optional[str]:
             node_key = node_by_leaf_set.get(leaf_set)
-            if not node_key:
+            owners = endpoint_owner_sets(leaf_set)
+            if owners == [leaf_set] and node_key:
+                return node_key
+            group_key = source_group_key_by_leaf_set.get(leaf_set)
+            if not group_key or not owners:
                 return None
-            for leaf_key in leaf_set:
-                owner = current_leaf_owner.get(leaf_key)
-                if owner != leaf_set:
-                    return None
-            return node_key
+            child_node_keys = [node_by_leaf_set.get(owner) for owner in owners]
+            if any(not child_node_key for child_node_key in child_node_keys):
+                return None
+            structural_key = f"subsystem:{group_key}"
+            structural_nodes[structural_key] = {
+                "node_key": structural_key,
+                "node_type": "subsystem",
+                "source_group_component_key": group_key,
+                "display_name": group_key.rsplit(":", 1)[-1],
+                "children": child_node_keys,
+                "leaf_body_keys": sorted(leaf_set),
+                "mass_msun": sum(
+                    mass
+                    for mass in (render_body_mass_msun(key) for key in leaf_set)
+                    if mass is not None
+                ) or None,
+            }
+            node_by_leaf_set[leaf_set] = structural_key
+            return structural_key
 
         def endpoint_conflict_reason(leaf_set: frozenset[str]) -> Optional[str]:
             if not leaf_set:
                 return "missing endpoint leaves"
             if leaf_set not in node_by_leaf_set:
                 return None
-            owners = {current_leaf_owner.get(leaf_key) for leaf_key in leaf_set}
-            if any(owner is None for owner in owners):
+            owners = endpoint_owner_sets(leaf_set)
+            if owners is None:
                 return "endpoint contains unrendered leaves"
-            if len(owners) == 1 and next(iter(owners)) == leaf_set:
+            if owners == [leaf_set]:
+                return None
+            if leaf_set in source_group_key_by_leaf_set:
                 return None
             return "endpoint partially overlaps an already selected orbit group"
 
@@ -3983,7 +4062,7 @@ def _render_scene_contract(
             warnings.append(f"{orbit.get('orbit_key') or 'orbit'} could not be attached to simulation tree")
             record_skipped_orbit(orbit, "could not be attached to simulation tree")
 
-        all_nodes = {**body_nodes, **orbit_nodes}
+        all_nodes = {**body_nodes, **structural_nodes, **orbit_nodes}
         child_node_keys = {
             str(child_key)
             for node in all_nodes.values()
@@ -4604,6 +4683,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "hierarchy_edges": {"count": 0, "items": []},
         "orbit_edges": {"count": 0, "items": []},
         "orbital_solutions": {"count": 0, "items": []},
+        "stellar_orbit_group_memberships": {"count": 0, "items": []},
         "msc_system_details": {"count": 0, "items": []},
         "stellar_parameters": {"count": 0, "items": []},
         "derived_physical_parameters": {"count": 0, "items": []},
@@ -4647,6 +4727,8 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
             component_params.append(f"comp:msc_system:wds:{wds_id}")
             component_filters.append("stable_component_key LIKE ?")
             component_params.append(f"comp:msc:wds:{wds_id}:%")
+            component_filters.append("stable_component_key LIKE ?")
+            component_params.append(f"comp:msc_group:wds:{wds_id}:%")
             component_filters.append("stable_component_key LIKE ?")
             component_params.append(f"comp:star:star:wds:{wds_id}:%")
         component_keys: List[str] = []
@@ -4822,6 +4904,26 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 row["host_display_name"] = edge.get("host_display_name")
                 row["relation_kind"] = edge.get("relation_kind")
             output["orbital_solutions"] = {"count": len(rows), "items": rows[:80]}
+        if _duckdb_has_table(con, "stellar_orbit_group_memberships"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    """
+                    SELECT group_runtime_component_key,child_runtime_component_key,
+                           group_component_label,child_component_label,
+                           child_endpoint_kind,child_descendant_leaf_keys_json,
+                           binding_status,binding_reason,source_id,release_id
+                    FROM stellar_orbit_group_memberships
+                    WHERE canonical_system_stable_object_key = ?
+                    ORDER BY group_runtime_component_key,child_runtime_component_key
+                    LIMIT 240
+                    """,
+                    [str(system.get("stable_object_key") or "")],
+                )
+            )
+            output["stellar_orbit_group_memberships"] = {
+                "count": len(rows),
+                "items": rows,
+            }
         if wds_id and _duckdb_has_table(con, "msc_system_details"):
             rows = _rows_to_dicts(
                 con.execute(
@@ -5346,6 +5448,7 @@ def _system_simulation_scene_payload(
         "hierarchy_edges": arm.get("hierarchy_edges") or {"count": 0, "items": []},
         "orbit_edges": arm.get("orbit_edges") or {"count": 0, "items": []},
         "orbital_solutions": arm.get("orbital_solutions") or {"count": 0, "items": []},
+        "stellar_orbit_group_memberships": arm.get("stellar_orbit_group_memberships") or {"count": 0, "items": []},
         "msc_system_details": arm.get("msc_system_details") or {"count": 0, "items": []},
         "stellar_parameters": arm.get("stellar_parameters") or {"count": 0, "items": []},
         "derived_physical_parameters": arm.get("derived_physical_parameters") or {"count": 0, "items": []},

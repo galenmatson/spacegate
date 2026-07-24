@@ -752,6 +752,49 @@ These are inputs to M8.3e consumer review. No named-object transform was added.
 Machine timings and checks are in
 `e7_cutover_drill_2026-07-23/cutover_report.json`.
 
+## Post-Cutover Hierarchical-Orbit Repair - 2026-07-24
+
+The repair deliberately rebuilds only the endpoint bridge, ARM, runtime bundle,
+public slice, map artifacts, and selected scenes. CORE, canonical hierarchy,
+selected science, DISC scoring, and source acquisition remain unchanged.
+
+| Step | Wall | Peak RSS | Durable result |
+|---|---:|---:|---|
+| Initial v4 bridge diagnostic | 82.22s | not externally sampled | correct but rejected O(n²) implementation |
+| Indexed v4 bridge compile | 31.34s | 0.87 GiB | 3 Parquet products, 6.2 MiB |
+| Indexed bridge reproduction and audit | 33.56s | 0.86 GiB | byte-exact, scratch removed |
+| Final ARM compile | 164.29s | 46.4 GiB | 13.78-GB DuckDB |
+| Final ARM independent audit | 8.24s | bounded verifier | all graph/scope checks pass |
+| Final runtime bundle | 12.21s | 37 MiB | verified links, no product copy |
+| Full 1,000-ly public materialization | 270.20s | 31.2 GiB | 23-GB exact-inventory public build |
+| Four-radius map materialization | 256.44s | 11.0 GiB | 3,686 exact/sample tile artifacts |
+| Nine repaired scene artifacts | 9.58s | 1.67 GiB | scene artifact contract v5 |
+| Repaired candidate strict verification | about 33s | verifier-bounded | pass |
+| Candidate service image rebuild/recreation | about 2s | warm BuildKit cache | pass |
+| Prior-E7 rollback service recreation | 6.9s | bounded | health and API pass |
+| Repaired-candidate re-promotion recreation | 6.9s | bounded | health, API, and wide-system pass |
+
+Replacing the global source-label scan with a release/system-local index cuts
+the new bridge by about 62%. The remaining increase over the old leaf-only
+bridge pays for recursive group resolution, 10,146 membership rows, and 9,775
+simulation-ready relation decisions. Profile the recursive hierarchy query and
+Parquet export separately before further optimization; do not weaken exact
+scope, collision, overlap, or deterministic-hash gates.
+
+One public build was interrupted after the compiler-time issue was found and
+its manifestless `.tmp` tree was retired through the standard state-retention
+dry-run. A later complete candidate was rejected because the CLI default
+applied the optional 500-ly distant-single trim. It was never served and was
+retired by exact candidate hash before rebuilding with the full 1,000-ly
+inventory. These costs are retained as failed/rejected iteration evidence.
+
+The accepted runtime bundle is `24cb15211f430a37f199f462`; the locally served
+public projection is `e7_24cb15211f430a37f199f462_full_public`. Its map phase
+accounts exactly 10,209, 206,913, 1,820,142, and 5,319,825 systems at
+100/250/500/1,000 ly. Local promotion, rollback to the preceding E7 public
+build, and re-promotion all pass. No public-network transfer or antiproton
+deployment is included in these timings.
+
 ## Required Final Sections
 
 - complete step inventory and timing table;

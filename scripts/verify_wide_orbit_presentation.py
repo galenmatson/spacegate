@@ -43,7 +43,12 @@ CASES = [
         require_nested_orbit=True,
     ),
     WideOrbitCase("Nu Sco", min_stars=7, require_source_group_orbit=True, require_nested_orbit=True, allow_unattached_source_orbits=True),
-    WideOrbitCase("16 Cyg", min_stars=3, require_skipped_overlap=True, require_active_orbit_label="16 Cyg B A - 16 Cyg B B"),
+    WideOrbitCase(
+        "16 Cyg",
+        min_stars=3,
+        require_source_group_orbit=True,
+        require_nested_orbit=True,
+    ),
 ]
 
 

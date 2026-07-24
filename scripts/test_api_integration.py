@@ -165,7 +165,13 @@ def main():
             )
     require_keys(
         scene_json["arm"],
-        ["components", "hierarchy_edges", "orbit_edges", "orbital_solutions"],
+        [
+            "components",
+            "hierarchy_edges",
+            "orbit_edges",
+            "orbital_solutions",
+            "stellar_orbit_group_memberships",
+        ],
         "simulation scene.arm",
     )
     require_keys(

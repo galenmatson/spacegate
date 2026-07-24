@@ -387,8 +387,28 @@ def build_sliced_arm(
             where secondary_component_key is not null
             """
         )
-        con.execute(
+        group_component_union = (
             """
+              union
+              select membership.group_runtime_component_key
+              from src.stellar_orbit_group_memberships membership
+              join core.systems sys
+                on sys.stable_object_key=membership.canonical_system_stable_object_key
+              where membership.binding_status='accepted'
+                and membership.group_runtime_component_key is not null
+              union
+              select membership.child_runtime_component_key
+              from src.stellar_orbit_group_memberships membership
+              join core.systems sys
+                on sys.stable_object_key=membership.canonical_system_stable_object_key
+              where membership.binding_status='accepted'
+                and membership.child_runtime_component_key is not null
+            """
+            if table_exists(con, "src", "stellar_orbit_group_memberships")
+            else ""
+        )
+        con.execute(
+            f"""
             create temp table retained_component_keys as
             select stable_component_key
             from (
@@ -415,6 +435,7 @@ def build_sliced_arm(
                 on split_part(split_part(ce.stable_component_key, 'wds:', 2), ':', 1) = w.wds_id
               where ce.stable_component_key is not null
                 and ce.source_catalog = 'msc'
+              {group_component_union}
             )
             """
         )
@@ -484,6 +505,10 @@ def build_sliced_arm(
             ),
             "orbit_edges": "orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids)",
             "orbital_solutions": "orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids)",
+            "stellar_orbit_group_memberships": (
+                "canonical_system_stable_object_key in "
+                "(select stable_object_key from core.systems)"
+            ),
             "barycenters": "true",
             "animation_readiness": (
                 "(component_key is not null and component_key in (select stable_component_key from retained_component_keys)) "

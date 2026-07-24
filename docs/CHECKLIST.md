@@ -1937,12 +1937,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   missing identifier such as TIC 150320610 must return an explicit no-exact-
   match/deferred result rather than unrelated fuzzy fallback systems; add API
   and browser regression coverage
-- [ ] Restore generic nested stellar-orbit projection after the Evidence Lake
+- [x] Restore generic nested stellar-orbit projection after the Evidence Lake
   cutover: preserve source-native subsystem/parent endpoints, bind each group
   to its deterministic accepted descendant-leaf set without promoting source
   relations into canonical containment, emit `group_pair` scene orbits and
-  recursive `simulation_tree_v1` nodes, and rerun the wide-orbit goldens for
-  Castor, Alpha Centauri, Nu Scorpii, Tegmine, 16 Cyg, and ordinary controls
+  recursive `simulation_tree_v1` nodes, rerun the wide-orbit goldens, build
+  exact 100/250/500/1,000-ly tiles, and pass local
+  promotion/rollback/re-promotion with the prior E7 build retained
 - [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
   CPU, memory, I/O, cache, latency, throughput, and concurrency smoke tests
   against the promoted build under an antiproton-like 6-vCPU/12-GiB envelope;

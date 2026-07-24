@@ -17,6 +17,7 @@ def test_checked_in_bridge_policy_fails_closed()->None:
     COMPILER.validate_policy(policy)
     assert policy["rules"]["name_or_coordinate_endpoint_matching"] is False
     assert policy["rules"]["casefold_matching_requires_unique_source_and_runtime_leaf"] is True
+    assert policy["rules"]["source_numeric_component_designations_define_groups"] is True
     assert policy["rules"]["unresolved_endpoints_create_runtime_components"] is False
     assert policy["rules"]["unresolved_relations_create_runtime_edges"] is False
 

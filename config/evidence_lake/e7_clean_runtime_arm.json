@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v5",
-  "policy_version": "2026-07-23.e7-clean-runtime-arm.10",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v6",
+  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v6",
+  "policy_version": "2026-07-24.e7-clean-runtime-arm.11",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v7",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,
@@ -42,9 +42,9 @@
       "manifest_sha256": "5f4095e195b070eb0f2b95b2a8db7a08a40e41395f61ece531f794cbceb09eb0"
     },
     "stellar_orbit_bridge": {
-      "build_id": "f57b4dfc9f554072bc41fe5d",
-      "relative_path": "derived/evidence_lake_v2/stellar_orbit_endpoint_bridge/f57b4dfc9f554072bc41fe5d",
-      "manifest_sha256": "ebca4af47542e3ea773a0bab95b668f9eac65e9a69529807de30d8a3737a38f9"
+      "build_id": "3a8f93d85840f2b26ee31c41",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_endpoint_bridge/3a8f93d85840f2b26ee31c41",
+      "manifest_sha256": "a7a9912a85b62b00d1fa8584a387e5c341a959debda77b97dfc6dba971783491"
     },
     "tess_runtime": {
       "build_id": "ab880f46a111428e8021e47e",
@@ -90,6 +90,7 @@
   ],
   "stellar_orbit_bridge_tables": [
     "stellar_orbit_endpoint_bindings",
+    "stellar_orbit_group_memberships",
     "stellar_orbit_relation_bindings"
   ],
   "tess_runtime_tables": [
@@ -101,7 +102,7 @@
   "runtime_graph_status": {
     "component_containment": "implemented_from_canonical_hierarchy",
     "stellar_leaf_classification": "implemented_from_selected_science_and_release_scoped_component_evidence",
-    "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_and_exact_endpoint_bridge",
+    "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_or_source_relation periods_and_exact_leaf_or_group_endpoint_bridge",
     "solar_minor_body_projection": "implemented_from_permanent_solar_identity_and_selected_runtime_evidence",
     "tess_candidate_compatibility": "implemented_from_clean_key_rebound_selected_tess_evidence"
   }

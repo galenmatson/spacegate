@@ -2714,6 +2714,38 @@ Pre-promotion planning checkpoint (July 22, 2026):
 - acceptance contract v19 passes 161 pinned checks with zero open gates.
   Legacy paths are formally deprecated or retained for stability reproduction;
   no artifact deletion or antiproton deployment occurs
+- the July 24 post-cutover orbit repair replaces the leaf-only MSC endpoint
+  bridge with release-scoped leaf and subsystem endpoints. Exact source parent
+  relations define groups first; exact case-sensitive numeric source
+  descendants such as `Cb1` and `Cb2` may define a presentation-only `Cb`
+  endpoint when no parent relation does. Every group records its exact
+  descendant leaves and source/release/system scope
+- bridge build `3a8f93d85840f2b26ee31c41` accounts all 22,396 attempted
+  endpoints and 11,250 relations: 20,749 endpoints resolve, 5,073 are groups,
+  10,146 group memberships are preserved, 9,817 relations have disjoint exact
+  runtime endpoints, and 9,775 have a coherent selected solution or a
+  source-native relation period. Independent verification and byte-exact
+  isolated reproduction pass with zero containment promotions, overlaps,
+  collisions, or invented unresolved edges
+- clean ARM `c110d06d4187601459fac184` materializes 9,845 stellar/Solar/planet
+  orbit edges and 23,116 solutions. Source-relation period-only solutions keep
+  orientation null and leave any visual orientation to labeled DISC
+  assumptions; subsystem components and memberships remain an ARM presentation
+  graph and do not change canonical hierarchy or object inventory
+- the repair remains generic: no compiler or API transform branches on Castor,
+  Alpha Centauri, Nu Scorpii, Tegmine, or another benchmark identifier. Named
+  systems remain verification cases for the reusable endpoint, overlap, and
+  recursive-barycenter policies
+- runtime bundle `24cb15211f430a37f199f462` and exact 1,000-ly public build
+  `e7_24cb15211f430a37f199f462_full_public` pass strict build, API integration,
+  exact map membership, and wide-system scene verification. The four map
+  radii contain 10,209/206,913/1,820,142/5,319,825 exact systems with zero
+  missing or duplicate membership
+- the repaired candidate was promoted locally, rolled back to
+  `e7_39b7386d4524ce5b1ff2729f_public`, and re-promoted. Both directions passed
+  service health and API integration; the repaired build is served on Photon
+  and the prior E7 build remains the immediate rollback. No antiproton
+  deployment occurred
 
 Deliverables:
 

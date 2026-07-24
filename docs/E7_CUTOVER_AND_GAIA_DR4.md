@@ -278,6 +278,21 @@ temperature, and inspectable IAU fact lineage rather than legacy authority.
 
 ## Gaia DR4 Adapter
 
+### Post-cutover repaired Photon generation
+
+The July 24 generic hierarchical-orbit repair is locally served as
+`e7_24cb15211f430a37f199f462_full_public`. It retains the same permanent
+identity and selected-science foundation while adding source-scoped subsystem
+membership and nested simulation-tree projection. Strict build verification,
+API integration, exact 100/250/500/1,000-ly map membership, and wide-system
+scene checks pass.
+
+Photon promotion, rollback to `e7_39b7386d4524ce5b1ff2729f_public`, and
+re-promotion pass with service recreation and API checks in both directions.
+The repaired generation is current; the preceding E7 public generation is the
+immediate rollback. This local drill does not authorize or perform an
+antiproton deployment.
+
 ESA currently schedules Gaia DR4 for December 2, 2026. The date and evolving
 content remain external release metadata, not assumptions embedded in code:
 <https://www.cosmos.esa.int/web/gaia/release>.

@@ -4092,6 +4092,47 @@ Representative commits:
   service recreation takes 6.83/6.76 seconds; the first cold image rebuild after
   BuildKit cleanup takes 2:42.34.
 
+### 160) Nested Stellar Orbits Restored Without Named-System Transforms
+
+- The promoted E7 ARM preserved selected MSC relation evidence but its endpoint
+  bridge projected only exact leaves. Source subsystem endpoints therefore
+  disappeared from the runtime graph even though their relations and component
+  scope remained in the Evidence Lake. Complex systems retained inner binaries
+  but lost outer orbits of subsystems.
+- Policy v4 constructs a source-scoped subsystem DAG from exact MSC parent
+  relations and resolves every group recursively to disjoint accepted canonical
+  descendant leaves. It also handles the bounded catalog case where a source
+  endpoint such as `Cb` has exact case-sensitive `Cb1` and `Cb2` component
+  records but no separate parent row. This numeric designation rule stays
+  within one source, release, and WDS system and cannot create canonical
+  containment.
+- Bridge `3a8f93d85840f2b26ee31c41` accepts 20,749 of 22,396 endpoints,
+  including 5,073 groups and 10,146 membership rows. It makes 9,817 of 11,250
+  relations runtime-resolvable and 9,775 simulation-ready through a selected
+  coherent solution or source relation period. All unresolved endpoints remain
+  explicitly accounted and no endpoint overlap or containment promotion passes.
+- ARM `c110d06d4187601459fac184` adds source group components only to the ARM
+  presentation registry, emits `hierarchical_pair` edges for group endpoints,
+  and preserves period-only source solutions without inventing orientation.
+  The API consumes membership rows before label heuristics and recursively
+  assembles `simulation_tree_v1`.
+- Castor, Alpha Centauri, Nu Scorpii, Tegmine, 16 Cygni, and ordinary systems
+  remain goldens only. No production compiler or API branch names one of them.
+  Tegmine usefully exposed the reusable numeric-descendant contract; it did not
+  receive a one-off database row or transform.
+- Runtime bundle `24cb15211f430a37f199f462` was projected into full public
+  build `e7_24cb15211f430a37f199f462_full_public`. Strict build verification,
+  API integration, all four exact map radii, and nine wide-system scene checks
+  pass. The public build was promoted, rolled back to the previous E7 public
+  generation, and re-promoted on Photon; both pointer directions and service
+  recreations passed. No antiproton state changed.
+- Four superseded, never-served ARM iterations were retired only after the
+  current and rollback public dependency closures were recomputed. Exact-hash
+  retention reclaimed 55,130,914,816 allocated bytes while retaining their
+  machine reports. The retention parser now recognizes bounded profiled E7
+  public names such as `_full_public`, preventing an accepted profiled build
+  from being omitted from the protected closure.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
