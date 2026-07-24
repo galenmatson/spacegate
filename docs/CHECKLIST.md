@@ -1932,7 +1932,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] E7: locally promote the accepted Evidence Lake v2 build atomically with a
   tested rollback, then retire or formally deprecate duplicate legacy
   collectors, cookers, schemas, and selection/fallback paths
-- [ ] Correct exact-like TIC/TOI miss behavior before public cutover: an
+- [x] Correct exact-like TIC/TOI miss behavior before public cutover: an
   accepted identifier must resolve to its bound system, while a deferred or
   missing identifier such as TIC 150320610 must return an explicit no-exact-
   match/deferred result rather than unrelated fuzzy fallback systems; add API
@@ -1952,11 +1952,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   eight-generation/287,245,701,120-byte Photon candidate set while preserving
   served, deployed, rollback, selected-fact, evidence, identity, raw, typed,
   and report roots
-- [ ] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
+- [x] M8.3d post-promotion capacity gate: run reproducible cold/warm/idle/burst
   CPU, memory, I/O, cache, latency, throughput, and concurrency smoke tests
   against the promoted build under an antiproton-like 6-vCPU/12-GiB envelope;
   compare projection/cache/static/worker/hosting options and issue a go/no-go
-  recommendation before transferring the new data
+  recommendation before transferring the new data. The result is no-go for the
+  complete current search/detail architecture: static map/scene-cache paths
+  pass, but mixed p95 fails at c1 and throughput saturates near 3 rps at c6.
+  Require the M8.3e indexed search/detail projection and a repeated gate before
+  transfer
 - [ ] Photon host maintenance after the promotion gate: reconcile Docker's
   configured `/data/docker` root with the root-filesystem BuildKit content
   store; inventory Docker/containerd layer ownership and mounts, preserve

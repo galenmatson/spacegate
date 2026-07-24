@@ -2820,6 +2820,20 @@ Success criteria:
   containment, branch on named systems, or restore the deprecated database as
   production authority
 
+Status: complete with a no-go decision for the complete runtime on the current
+antiproton architecture. The pinned 6-vCPU/12-GiB campaign includes
+unconstrained controls, target-bounded cold cache, warm, idle, burst, sustained,
+recovery, c1-c12 saturation, scene miss/coalescing/hit, static, and
+desktop/mobile 1,000-ly browser profiles. The pool6/threads1 configuration
+improves mixed throughput 19.5%, reduces p95 28.6%, and reduces peak memory
+46.8%, but the mixed path still fails the 3,000-ms p95 gate at c1 and saturates
+near 3 rps at c6. Static tiles and prebuilt/cached scenes pass strongly. The
+exact 17,052,804,724-byte archive is locally verified but not transferred.
+Antiproton has staging room only after separately reviewed retirement, and no
+retirement occurred. M8.3e must produce an immutable indexed search projection
+and bounded detail summaries, then rerun this gate without weakening science.
+See `docs/RUNTIME_CAPACITY_GATE.md`.
+
 ### M8.3e. Map and Search Consumer Architecture Review
 
 Goal:

@@ -1398,9 +1398,27 @@ Response 200:
 {
   "status": "ok",
   "build_id": "2026-02-04T202142Z_73ea6e7",
+  "database_runtime": {
+    "enabled": true,
+    "size": 6,
+    "open_connections": 6,
+    "active_connections": 0,
+    "idle_connections": 6,
+    "waiters": 0,
+    "checkout_timeouts": 0
+  },
   "time_utc": "2026-02-05T00:00:00Z"
 }
 ```
+
+`database_runtime` is an operational summary, not scientific data. When the
+optional build-aware read-only pool is disabled, `enabled=false` and
+`max_concurrent_connections` reports the configured semaphore limit, if any.
+When enabled, the response includes current and peak pool occupancy, waiters,
+checkouts, reuse, timeouts, accumulated wait time, and immutable-build
+invalidations. Health caches the verified build id by the database file
+fingerprint, so liveness checks do not consume a request-pool connection under
+load. A served-pointer or database-file change invalidates that cache.
 
 ### GET /systems/search
 Search and browse systems with filters and cursor pagination.

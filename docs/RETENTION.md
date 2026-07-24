@@ -1458,6 +1458,31 @@ retirement reports are also preserved with the archive manifests. After
 retirement `/data` was 70% used with about 445 GB available, while the Proton
 archive filesystem was 37% used with about 506 GB available.
 
+## Runtime Capacity Gate Reports
+
+M8.3d capacity evidence lives under:
+
+```text
+$SPACEGATE_STATE_DIR/reports/runtime_capacity_gate/<build_id>/
+```
+
+Preserve the pinned workload snapshot, per-request JSONL/CSV, resource samples,
+aggregate summaries, SLO reports, staircase/recovery report, browser reports
+and screenshots, correctness reports, and
+`runtime_capacity_gate_summary.json` through the associated deployment
+decision and one superseding capacity campaign. Raw request/resource streams
+may be compacted only after their aggregate hashes and the replacement report
+are independently verified. Never keep the aggregate while discarding the only
+evidence needed to reproduce or audit it.
+
+The locally verified candidate archive
+`/data/spacegate/dl/db/e7_24cb15211f430a37f199f462_full_public.7z`
+is protected by the M8.3d decision until it is either transferred and verified,
+or a superseding build/archive is accepted and the exact hash is reviewed for
+retirement. It is not the `dl/current` target. Capacity reports and candidate
+archives are not compiler scratch and must not be copied to the Proton cold
+tier merely to make local benchmarks fit.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

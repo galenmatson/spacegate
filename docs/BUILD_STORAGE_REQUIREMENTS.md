@@ -58,6 +58,22 @@ A nominal 1 TB drive is not sufficient for a full current Evidence Lake build.
 The compiler must fail preflight rather than depend on optimistic cleanup while
 a build is running.
 
+## Public Runtime Reference
+
+The M8.3d public candidate
+`e7_24cb15211f430a37f199f462_full_public` contains 3,712 files,
+24,197,303,766 logical bytes, and 24,205,422,592 allocated bytes. The exact
+publication settings produce a verified 17,052,804,724-byte archive with
+SHA-256
+`c2954d6a1b641347968f56cb0753ea1d2ef7b4625d6f830fb78cede4462642e9`.
+
+A constrained edge host must have room simultaneously for the incoming archive,
+the extracted candidate, the current extracted rollback, live caches, container
+images, logs, and the operational free-space floor. The archive is not the
+runtime working set, and deleting the rollback to make extraction fit is not an
+acceptable capacity plan. See `docs/RUNTIME_CAPACITY_GATE.md` for the measured
+antiproton inventory and staging calculation.
+
 ## Growth Preflight
 
 Before a full build:

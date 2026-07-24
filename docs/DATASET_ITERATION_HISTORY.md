@@ -4170,6 +4170,44 @@ Representative commits:
   1-TB device is not a supported full builder; 1.25 TB usable is a constrained
   lower bound and 2 TB usable fast local storage is the practical minimum.
 
+### 162) Runtime Capacity Gate Blocks the Current Search Projection
+
+- M8.3d pins build `e7_24cb15211f430a37f199f462_full_public`, workload
+  `e7_24cb15211f430a37_runtime_v1`, stable query/system/tile inputs, and random
+  seed 831337. Its isolated stack models six aggregate CPU cores and 9 GiB of
+  container memory, retaining a 3-GiB host reserve. Photon quotas model
+  resource quantity, not exact OVH core performance.
+- Unconstrained and constrained target-bounded cold, warm, idle, burst,
+  sustained, recovery, c1-c12 saturation, static, dynamic/prebuilt/coalesced
+  scene, and desktop/mobile 1,000-ly browser profiles emit per-request and
+  cgroup/host machine reports. Cold measurement evicts only pinned artifact
+  pages with `POSIX_FADV_DONTNEED`; no global cache drop occurred.
+- A build-aware exclusive read-only DuckDB pool at six connections/one thread
+  each improves constrained c12 mixed throughput from 2.70 to 3.23 rps, lowers
+  p95 from 11.474 to 8.198 seconds, and lowers peak service memory from 5.81 GB
+  to 3.10 GB. Five-minute sustained and idle observations have no OOM, memory
+  pressure, timeout, or idle growth. Fingerprint-cached immutable build identity
+  lowers saturated health p95 from 3,705.8 to 3.4 ms.
+- The gate remains no-go. Mixed p95 is 3.561 seconds at c1; throughput plateaus
+  near 3.06 rps at c6 and latency rises thereafter. Static artifacts reach
+  533.3 rps at p95 111 ms, prebuilt scenes reach 224.5 rps at p95 72 ms, and
+  cache-hit scenes reach p95 122 ms. The bottleneck is the unindexed
+  5.87-million-system search/detail projection, not map transport or memory.
+- Exact TIC/TOI semantics, API integration, four desktop/mobile identifier
+  browser tests, two map browser tests, and the nine-system nested-orbit runtime
+  suite pass. No named-system production transform, deprecated database
+  authority, or scientific-content reduction was introduced.
+- The candidate is 24,197,303,766 logical bytes. Its verified
+  17,052,804,724-byte archive hashes to
+  `c2954d6a1b641347968f56cb0753ea1d2ef7b4625d6f830fb78cede4462642e9`
+  and remains local without changing `dl/current`. Read-only antiproton
+  inventory finds 32,639,197,184 bytes free; staging requires separately
+  reviewed retirement of an old standby and archives while retaining the
+  current extracted build as rollback. No remote cleanup, transfer, deployment,
+  or load test occurred.
+- `docs/RUNTIME_CAPACITY_GATE.md` makes M8.3e's immutable indexed search
+  projection and bounded detail summaries the next deployment prerequisite.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
