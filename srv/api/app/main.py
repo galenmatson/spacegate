@@ -6010,11 +6010,10 @@ def auth_me(request: Request):
 
 @app.get("/api/v1/health")
 def health():
-    with db.connection_scope() as con:
-        build_id = fetch_build_id(con)
     return {
         "status": "ok",
-        "build_id": build_id,
+        "build_id": db.build_id(),
+        "database_runtime": db.runtime_stats(),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
 

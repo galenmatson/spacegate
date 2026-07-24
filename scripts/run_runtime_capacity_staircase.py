@@ -80,6 +80,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--timeout-seconds", type=float, default=45.0)
     parser.add_argument("--recovery-seconds", type=float, default=20.0)
+    parser.add_argument(
+        "--continue-through-slo-fail",
+        action="store_true",
+        help="Continue measuring higher steps until a harness safety gate fails.",
+    )
+    parser.add_argument("--insecure-tls", action="store_true")
     return parser.parse_args()
 
 
@@ -120,6 +126,7 @@ def main() -> int:
     slo = ROOT / "scripts/check_profile_slo.py"
     steps: list[dict[str, Any]] = []
     stop_reason = "steps_exhausted"
+    first_slo_failure: int | None = None
     started_at = utc_now()
 
     for concurrency in args.steps:
@@ -152,6 +159,8 @@ def main() -> int:
             "--timeout-seconds",
             str(args.timeout_seconds),
         ]
+        if args.insecure_tls:
+            harness_command.append("--insecure-tls")
         harness_returncode = run_command(harness_command)
         summary_path = step_dir / "summary.json"
         if not summary_path.is_file():
@@ -206,8 +215,11 @@ def main() -> int:
             stop_reason = "harness_safety_gate"
             break
         if slo_returncode != 0:
-            stop_reason = "profile_slo_saturation"
-            break
+            if first_slo_failure is None:
+                first_slo_failure = concurrency
+            if not args.continue_through_slo_fail:
+                stop_reason = "profile_slo_saturation"
+                break
 
     sustainable = [
         int(step["concurrency"])
@@ -215,8 +227,7 @@ def main() -> int:
         if step.get("status") == "pass"
     ]
     recovery_dir = output_dir / "recovery"
-    recovery_returncode = run_command(
-        [
+    recovery_command = [
             str(python),
             str(harness),
             "--manifest",
@@ -244,13 +255,20 @@ def main() -> int:
             "--timeout-seconds",
             str(args.timeout_seconds),
         ]
-    )
+    if args.insecure_tls:
+        recovery_command.append("--insecure-tls")
+    recovery_returncode = run_command(recovery_command)
     recovery_summary = recovery_dir / "summary.json"
+    harness_failure = any(
+        int(step.get("harness_returncode") or 0) != 0
+        or step.get("status") == "missing_report"
+        for step in steps
+    )
     report = {
         "schema_version": "spacegate.runtime_capacity_staircase.v1",
         "status": (
             "pass"
-            if sustainable and recovery_returncode == 0
+            if steps and not harness_failure and recovery_returncode == 0
             else "fail"
         ),
         "started_at_utc": started_at,
@@ -264,7 +282,12 @@ def main() -> int:
         "duration_seconds_per_step": args.duration_seconds,
         "steps": steps,
         "stop_reason": stop_reason,
+        "first_slo_failure_concurrency": first_slo_failure,
         "highest_slo_concurrency": max(sustainable, default=None),
+        "highest_completed_concurrency": max(
+            (int(step["concurrency"]) for step in steps),
+            default=None,
+        ),
         "recovery": {
             "returncode": recovery_returncode,
             "summary_path": (
@@ -282,6 +305,12 @@ def main() -> int:
                 "status": report["status"],
                 "highest_slo_concurrency": report[
                     "highest_slo_concurrency"
+                ],
+                "highest_completed_concurrency": report[
+                    "highest_completed_concurrency"
+                ],
+                "first_slo_failure_concurrency": report[
+                    "first_slo_failure_concurrency"
                 ],
                 "stop_reason": stop_reason,
                 "output_dir": str(output_dir),

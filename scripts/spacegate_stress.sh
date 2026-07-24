@@ -28,6 +28,7 @@ CAPACITY_REQUEST_LIMIT=""
 CAPACITY_CONTAINERS="spacegate-capacity-api-1,spacegate-capacity-web-1"
 CAPACITY_ENVIRONMENT_PROFILE="antiproton_like"
 CAPACITY_EVICT_FILE_CACHE=0
+CAPACITY_INSECURE_TLS=0
 ERROR_THRESHOLD_PCT=""
 P95_THRESHOLD_MS=""
 NO_COLOR=0
@@ -62,6 +63,7 @@ Options:
   --containers NAMES        Comma-separated containers to monitor.
   --environment-profile P  antiproton_like or unconstrained_photon.
   --evict-file-cache        Apply target-bounded POSIX_FADV_DONTNEED.
+  --insecure-tls            Disable TLS verification for a local capacity target.
   --error-threshold PCT     Fail if error rate exceeds this percent.
   --p95-threshold-ms MS     Fail if p95 latency exceeds this many ms.
   --no-color                Disable ANSI color output.
@@ -137,6 +139,10 @@ while [[ $# -gt 0 ]]; do
       CAPACITY_EVICT_FILE_CACHE=1
       shift 1
       ;;
+    --insecure-tls)
+      CAPACITY_INSECURE_TLS=1
+      shift 1
+      ;;
     --error-threshold)
       ERROR_THRESHOLD_PCT="${2:-}"
       shift 2
@@ -185,6 +191,7 @@ if [[ "$PROFILE" == "capacity" ]]; then
   [[ -n "$CAPACITY_REQUEST_LIMIT" ]] && capacity_args+=(--request-limit "$CAPACITY_REQUEST_LIMIT")
   [[ -n "$CAPACITY_OUTPUT_DIR" ]] && capacity_args+=(--output-dir "$CAPACITY_OUTPUT_DIR")
   [[ "$CAPACITY_EVICT_FILE_CACHE" -eq 1 ]] && capacity_args+=(--evict-file-cache)
+  [[ "$CAPACITY_INSECURE_TLS" -eq 1 ]] && capacity_args+=(--insecure-tls)
   exec "$CAPACITY_PYTHON" "${capacity_args[@]}"
 fi
 

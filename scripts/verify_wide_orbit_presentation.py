@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import gzip
 import json
 import sys
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -118,7 +120,9 @@ def assert_no_partial_active_barycenter_overlap(query: str, simulation_tree: dic
             )
 
 
-def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
+def verify_case(
+    base_url: str, case: WideOrbitCase
+) -> tuple[dict[str, Any], list[str]]:
     item = search_system(base_url, case.query)
     system_id = item.get("system_id")
     if not system_id:
@@ -204,30 +208,77 @@ def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
             f"{case.query}: source orbit endpoint(s) remain diagnostic-only: {sorted(unmatched_endpoint_keys)}"
         )
 
-    summary = (
-        f"{case.query}: system_id={system_id}, display={item.get('display_name')}, "
-        f"stars={len(stars)}, orbits={len(orbits)}, "
-        f"source_group={len(source_group_orbits)}, derived_projection={len(derived_projection_orbits)}, "
-        f"assumed={len(assumed_orbits)}, nested={tree_diagnostics.get('nested_orbit_count') or 0}"
-    )
+    summary = {
+        "query": case.query,
+        "system_id": system_id,
+        "display_name": item.get("display_name"),
+        "star_count": len(stars),
+        "orbit_count": len(orbits),
+        "source_group_orbit_count": len(source_group_orbits),
+        "derived_projection_orbit_count": len(derived_projection_orbits),
+        "assumed_orbit_count": len(assumed_orbits),
+        "nested_orbit_count": int(
+            tree_diagnostics.get("nested_orbit_count") or 0
+        ),
+        "simulation_tree_schema": simulation_tree.get("schema_version"),
+        "unmatched_orbit_endpoint_keys": sorted(unmatched_endpoint_keys),
+    }
     return summary, warnings
+
+
+def format_summary(summary: dict[str, Any]) -> str:
+    return (
+        f"{summary['query']}: system_id={summary['system_id']}, "
+        f"display={summary['display_name']}, stars={summary['star_count']}, "
+        f"orbits={summary['orbit_count']}, "
+        f"source_group={summary['source_group_orbit_count']}, "
+        f"derived_projection={summary['derived_projection_orbit_count']}, "
+        f"assumed={summary['assumed_orbit_count']}, "
+        f"nested={summary['nested_orbit_count']}"
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("base_url", nargs="?", default=DEFAULT_BASE_URL)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Write a machine-readable verification report.",
+    )
     args = parser.parse_args()
 
-    summaries: list[str] = []
+    summaries: list[dict[str, Any]] = []
     warnings: list[str] = []
     for case in CASES:
         summary, case_warnings = verify_case(args.base_url, case)
         summaries.append(summary)
         warnings.extend(case_warnings)
 
+    health = fetch_json(api_url(args.base_url, "health"))
+    report = {
+        "schema_version": "spacegate.wide_orbit_presentation.v1",
+        "status": "pass",
+        "generated_at_utc": (
+            dt.datetime.now(dt.UTC)
+            .isoformat(timespec="seconds")
+            .replace("+00:00", "Z")
+        ),
+        "base_url": args.base_url,
+        "build_id": health.get("build_id"),
+        "case_count": len(summaries),
+        "cases": summaries,
+        "warnings": warnings,
+    }
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(report, indent=2) + "\n", encoding="utf-8"
+        )
+
     print("Wide-orbit presentation benchmark passed:")
     for summary in summaries:
-        print(f"- {summary}")
+        print(f"- {format_summary(summary)}")
     if warnings:
         print("Warnings:")
         for warning in warnings:

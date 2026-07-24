@@ -285,6 +285,7 @@ class ContainerProbe:
     cgroup_path: Path
     cpu_quota: str | None
     memory_limit: int | None
+    runtime_configuration: dict[str, str]
 
     @classmethod
     def create(cls, name: str) -> "ContainerProbe | None":
@@ -297,6 +298,21 @@ class ContainerProbe:
         cgroup_line = Path(f"/proc/{pid}/cgroup").read_text(encoding="utf-8").strip()
         relative = cgroup_line.split("::", 1)[-1].lstrip("/")
         cgroup_path = Path("/sys/fs/cgroup") / relative
+        environment = {
+            key: value
+            for raw in ((info.get("Config") or {}).get("Env") or [])
+            if "=" in raw
+            for key, value in [raw.split("=", 1)]
+            if key
+            in {
+                "SPACEGATE_API_DUCKDB_MEMORY_LIMIT",
+                "SPACEGATE_API_DUCKDB_THREADS",
+                "SPACEGATE_API_DB_MAX_CONCURRENT_CONNECTIONS",
+                "SPACEGATE_API_DB_POOL_SIZE",
+                "SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS",
+                "SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES",
+            }
+        }
         return cls(
             name=name,
             container_id=str(info.get("Id") or ""),
@@ -304,6 +320,7 @@ class ContainerProbe:
             cgroup_path=cgroup_path,
             cpu_quota=read_text(cgroup_path / "cpu.max"),
             memory_limit=read_int(cgroup_path / "memory.max"),
+            runtime_configuration=environment,
         )
 
     def sample(self) -> dict[str, Any]:
@@ -651,6 +668,23 @@ def nested_delta(
     return lookup(last) - lookup(first)
 
 
+def numeric_mapping_delta(
+    first: dict[str, Any], last: dict[str, Any]
+) -> dict[str, int | float]:
+    result: dict[str, int | float] = {}
+    for key in sorted(set(first) | set(last)):
+        before = first.get(key)
+        after = last.get(key)
+        if (
+            isinstance(before, (int, float))
+            and not isinstance(before, bool)
+            and isinstance(after, (int, float))
+            and not isinstance(after, bool)
+        ):
+            result[key] = after - before
+    return result
+
+
 def summarize_resources(samples: list[dict[str, Any]]) -> dict[str, Any]:
     if not samples:
         return {"sample_count": 0}
@@ -888,6 +922,11 @@ def parse_args() -> argparse.Namespace:
         default="warm",
     )
     parser.add_argument("--evict-file-cache", action="store_true")
+    parser.add_argument(
+        "--insecure-tls",
+        action="store_true",
+        help="Disable TLS verification for an explicitly local benchmark endpoint.",
+    )
     parser.add_argument("--label", default="")
     parser.add_argument(
         "--environment-profile",
@@ -899,6 +938,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.insecure_tls:
+        requests.packages.urllib3.disable_warnings(  # type: ignore[attr-defined]
+            category=requests.packages.urllib3.exceptions.InsecureRequestWarning  # type: ignore[attr-defined]
+        )
     manifest_path = Path(args.manifest).resolve(strict=True)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     profile = validate_manifest(manifest, args.profile)
@@ -943,9 +986,6 @@ def main() -> int:
         / str(manifest["build_id"])
         / f"{run_id}_{args.profile}"
     )
-    output_dir.mkdir(parents=True, exist_ok=False)
-    atomic_write_json(output_dir / "workload_manifest.snapshot.json", manifest)
-
     probes = [
         probe
         for name in (value.strip() for value in args.containers.split(","))
@@ -955,7 +995,9 @@ def main() -> int:
         raise SystemExit("No benchmark containers are running")
 
     health = requests.get(
-        f"{args.base_url.rstrip('/')}/api/v1/health", timeout=args.timeout_seconds
+        f"{args.base_url.rstrip('/')}/api/v1/health",
+        timeout=args.timeout_seconds,
+        verify=not args.insecure_tls,
     )
     health.raise_for_status()
     health_payload = health.json()
@@ -964,6 +1006,9 @@ def main() -> int:
         raise SystemExit(
             f"Build mismatch: workload={manifest['build_id']} active={active_build_id}"
         )
+
+    output_dir.mkdir(parents=True, exist_ok=False)
+    atomic_write_json(output_dir / "workload_manifest.snapshot.json", manifest)
 
     artifact_before = inventory_artifacts(artifacts)
     eviction = None
@@ -1028,6 +1073,7 @@ def main() -> int:
             session.headers["User-Agent"] = (
                 f"SpacegateRuntimeCapacity/{manifest['workload_id']}"
             )
+            session.verify = not args.insecure_tls
             thread_local.session = session
         return session
 
@@ -1130,6 +1176,18 @@ def main() -> int:
         stop_event.set()
         monitor.stop()
     completed_at_utc = utc_now()
+    final_health_payload: dict[str, Any] = {}
+    final_health_error = None
+    try:
+        final_health = requests.get(
+            f"{args.base_url.rstrip('/')}/api/v1/health",
+            timeout=args.timeout_seconds,
+            verify=not args.insecure_tls,
+        )
+        final_health.raise_for_status()
+        final_health_payload = final_health.json()
+    except (requests.RequestException, ValueError) as exc:
+        final_health_error = str(exc)
 
     rows.sort(key=lambda row: int(row["sequence"]))
     request_summary = summarize_rows(rows)
@@ -1162,6 +1220,11 @@ def main() -> int:
             ).values()
         ),
         "no_safety_stop": not stop_reason,
+        "final_health_ok": (
+            final_health_error is None
+            and str(final_health_payload.get("build_id") or "")
+            == active_build_id
+        ),
     }
     cpu_limits = [
         value
@@ -1173,6 +1236,14 @@ def main() -> int:
         for probe in probes
         if probe.memory_limit is not None
     ]
+    api_configuration = next(
+        (
+            probe.runtime_configuration
+            for probe in probes
+            if "api" in probe.name
+        ),
+        {},
+    )
     resource_model = {
         "profile": args.environment_profile,
         "aggregate_cpu_quota_cores": (
@@ -1187,11 +1258,20 @@ def main() -> int:
         "host_reserve_bytes": (
             3 * 1024**3 if args.environment_profile == "antiproton_like" else None
         ),
-        "api_duckdb_memory_limit": (
-            "5GB" if args.environment_profile == "antiproton_like" else "8GB"
+        "api_duckdb_memory_limit": api_configuration.get(
+            "SPACEGATE_API_DUCKDB_MEMORY_LIMIT"
         ),
-        "api_duckdb_threads": (
-            4 if args.environment_profile == "antiproton_like" else 8
+        "api_duckdb_threads": api_configuration.get(
+            "SPACEGATE_API_DUCKDB_THREADS"
+        ),
+        "api_db_max_concurrent_connections": api_configuration.get(
+            "SPACEGATE_API_DB_MAX_CONCURRENT_CONNECTIONS"
+        ),
+        "api_db_pool_size": api_configuration.get(
+            "SPACEGATE_API_DB_POOL_SIZE"
+        ),
+        "api_db_acquire_timeout_seconds": api_configuration.get(
+            "SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS"
         ),
         "api_worker_count": 1,
     }
@@ -1223,6 +1303,7 @@ def main() -> int:
             ),
             "synchronized_start": synchronized_start,
             "timeout_seconds": args.timeout_seconds,
+            "tls_verification": not args.insecure_tls,
             "acceptance": profile.get("acceptance") or {},
         },
         "environment": {
@@ -1243,6 +1324,7 @@ def main() -> int:
                     "cpu_max": probe.cpu_quota,
                     "memory_limit_bytes": probe.memory_limit,
                     "cgroup_path": str(probe.cgroup_path),
+                    "runtime_configuration": probe.runtime_configuration,
                 }
                 for probe in probes
             ],
@@ -1255,6 +1337,15 @@ def main() -> int:
         "by_category": by_category,
         "by_endpoint": by_endpoint,
         "resources": resources,
+        "database_runtime": {
+            "before": health_payload.get("database_runtime") or {},
+            "after": final_health_payload.get("database_runtime") or {},
+            "numeric_delta": numeric_mapping_delta(
+                health_payload.get("database_runtime") or {},
+                final_health_payload.get("database_runtime") or {},
+            ),
+            "final_health_error": final_health_error,
+        },
         "stop": {
             "triggered": bool(stop_reason),
             "reasons": list(dict.fromkeys(stop_reason)),
