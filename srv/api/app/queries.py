@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
 
-from .utils import row_to_dict
+from .utils import parse_tess_identifier_query, row_to_dict
 from .planet_categories import (
     planet_category_bit_sql,
     planet_category_eligibility_sql,
@@ -384,6 +384,119 @@ def _strict_exact_search_query(value: Any) -> bool:
     if re.match(r"^[a-z]{1,4}\s+\d{1,6}[a-z]?$", norm):
         return True
     return False
+
+
+def fetch_tess_identifier_resolution(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    identifier_query: Dict[str, Any],
+    arm_db_path: Optional[str],
+) -> Dict[str, Any]:
+    namespace = str(identifier_query.get("namespace") or "")
+    identifier = str(identifier_query.get("identifier") or "")
+    result: Dict[str, Any] = {
+        "schema_version": "spacegate.search_query_resolution.v1",
+        "mode": "exact_identifier",
+        "namespace": namespace,
+        "identifier": identifier,
+        "match_status": "exact_no_match",
+        "resolution_status": "not_found",
+        "deferred": False,
+        "reason": "identifier_not_in_targeted_tess_evidence",
+        "evidence_record_count": 0,
+        "bound_system_ids": [],
+    }
+    if not arm_db_path or not _attach_side_db(con, arm_db_path, alias="arm_db"):
+        result.update(
+            {
+                "resolution_status": "unavailable",
+                "deferred": True,
+                "reason": "tess_resolution_evidence_unavailable",
+            }
+        )
+        return result
+
+    if namespace == "tic":
+        if not _has_table(con, alias="arm_db", table_name="tess_target_identity"):
+            return result
+        rows = con.execute(
+            """
+            SELECT resolution_status,resolution_reason,system_id
+            FROM arm_db.tess_target_identity
+            WHERE tic_id=?
+            ORDER BY tess_identity_id
+            """,
+            [int(identifier_query["value"])],
+        ).fetchall()
+    elif namespace == "toi":
+        if not _has_table(con, alias="arm_db", table_name="toi_current_evidence"):
+            return result
+        component = identifier_query.get("component")
+        if component is None:
+            rows = con.execute(
+                """
+                SELECT host_resolution_status,host_resolution_reason,system_id
+                FROM arm_db.toi_current_evidence
+                WHERE toi_prefix=?
+                ORDER BY toi_evidence_id
+                """,
+                [str(identifier_query["host_number"])],
+            ).fetchall()
+        else:
+            rows = con.execute(
+                """
+                SELECT host_resolution_status,host_resolution_reason,system_id
+                FROM arm_db.toi_current_evidence
+                WHERE toi=?
+                ORDER BY toi_evidence_id
+                """,
+                [str(identifier_query["value"])],
+            ).fetchall()
+    else:
+        return result
+
+    if not rows:
+        return result
+
+    statuses = [str(row[0] or "missing") for row in rows]
+    reasons = [str(row[1] or "") for row in rows if row[1]]
+    system_ids = sorted({int(row[2]) for row in rows if row[2] is not None})
+    result["evidence_record_count"] = len(rows)
+    result["bound_system_ids"] = system_ids
+
+    accepted_count = sum(status == "accepted" for status in statuses)
+    if accepted_count and len(system_ids) == 1:
+        result.update(
+            {
+                "match_status": "exact_match",
+                "resolution_status": "accepted",
+                "reason": "accepted_tess_identity_binding",
+            }
+        )
+        return result
+    if accepted_count or len(system_ids) > 1:
+        result.update(
+            {
+                "resolution_status": "ambiguous",
+                "deferred": True,
+                "reason": "multiple_accepted_system_bindings",
+            }
+        )
+        return result
+
+    status_order = ("ambiguous", "missing", "source_missing", "excluded")
+    resolution_status = next(
+        (status for status in status_order if status in statuses),
+        statuses[0],
+    )
+    result.update(
+        {
+            "resolution_status": resolution_status,
+            "deferred": resolution_status in {"ambiguous", "missing", "source_missing"},
+            "reason": reasons[0] if reasons else f"tess_identity_{resolution_status}",
+        }
+    )
+    return result
 
 
 def _is_full_expanded_bayer_alias(row: Dict[str, Any], candidate: str) -> bool:
@@ -3513,6 +3626,10 @@ def search_systems(
     )
 
     if q_norm:
+        tess_identifier_query = parse_tess_identifier_query(q_raw or q_norm)
+        tess_exact_mode = bool(
+            tess_identifier_query and tess_identifier_query.get("valid")
+        )
         short_query_mode = len(q_norm) < 2
         id_clause = None
         if id_query:
@@ -3576,6 +3693,7 @@ def search_systems(
         )
         enable_fuzzy_match = (
             len(q_norm) >= 4
+            and not tess_exact_mode
             and not _strict_exact_search_query(q_norm)
             and not has_fast_search_hit
         )
@@ -3636,7 +3754,7 @@ def search_systems(
         prefix_parts: List[str] = []
         prefix_pattern = f"{q_norm}%"
         prefix_params: List[Any] = []
-        if enable_search_terms and not short_query_mode:
+        if enable_search_terms and not short_query_mode and not tess_exact_mode:
             alias_cte_parts.append(
                 """
                 search_term_match_prefix AS (
@@ -3648,7 +3766,7 @@ def search_systems(
             )
             alias_cte_params.append(prefix_pattern)
             prefix_parts.append("s.system_id IN (SELECT system_id FROM search_term_match_prefix)")
-        else:
+        elif not tess_exact_mode:
             prefix_parts.append("s.system_name_norm LIKE ?")
             prefix_params.append(prefix_pattern)
             prefix_parts.append(
@@ -3659,7 +3777,7 @@ def search_systems(
                 + " LIKE ?)"
             )
             prefix_params.append(prefix_pattern)
-        if enable_alias_match:
+        if enable_alias_match and not tess_exact_mode:
             alias_cte_parts.append(
                 """
                 alias_match_prefix AS (
@@ -3672,7 +3790,7 @@ def search_systems(
             )
             alias_cte_params.append(prefix_pattern)
             prefix_parts.append("s.system_id IN (SELECT system_id FROM alias_match_prefix)")
-        prefix_clause = "(" + " OR ".join(prefix_parts) + ")"
+        prefix_clause = "(" + " OR ".join(prefix_parts) + ")" if prefix_parts else None
 
         tokens = [token for token in q_norm.split(" ") if token]
         token_clauses: List[str] = []
@@ -3681,7 +3799,7 @@ def search_systems(
         for token in tokens:
             # Identifier-mode queries (HIP/HD/Gaia numeric) don't include token_AND rank clauses.
             # Skip token params here to keep SQL placeholders aligned with bound params.
-            if identifier_mode or short_query_mode or len(token) < 2:
+            if identifier_mode or tess_exact_mode or short_query_mode or len(token) < 2:
                 continue
             token_pattern = f"%{token}%"
             token_parts: List[str] = []
@@ -3765,10 +3883,11 @@ def search_systems(
             match_clauses.append(exact_clause)
             match_params.extend(exact_params)
             next_rank += 1
-            match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
-            match_clauses.append(prefix_clause)
-            match_params.extend(prefix_params)
-            next_rank += 1
+            if prefix_clause:
+                match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
+                match_clauses.append(prefix_clause)
+                match_params.extend(prefix_params)
+                next_rank += 1
             if token_and_clause:
                 match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
                 match_clauses.append(f"({token_and_clause})")

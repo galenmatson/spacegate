@@ -67,6 +67,7 @@ from .queries import (
     fetch_stars_for_system,
     fetch_system_by_id,
     fetch_system_by_key,
+    fetch_tess_identifier_resolution,
     normalize_name_style,
     search_systems,
     search_extended_objects,
@@ -81,6 +82,7 @@ from .utils import (
     parse_bool,
     parse_identifier_query,
     parse_spectral_classes,
+    parse_tess_identifier_query,
 )
 
 
@@ -6217,7 +6219,24 @@ def systems_search(
             },
         )
 
-    q_norm = normalize_query_text(q or "")
+    tess_identifier_query = parse_tess_identifier_query(q or "")
+    if tess_identifier_query and not tess_identifier_query.get("valid"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "invalid_identifier",
+                "message": f"Malformed {str(tess_identifier_query.get('namespace') or '').upper()} identifier",
+                "details": {
+                    "namespace": tess_identifier_query.get("namespace"),
+                    "reason": tess_identifier_query.get("reason"),
+                },
+            },
+        )
+    q_norm = (
+        str(tess_identifier_query["term_norm"])
+        if tess_identifier_query
+        else normalize_query_text(q or "")
+    )
     id_query = parse_identifier_query(q_norm)
     normalized_name_style = normalize_name_style(name_style)
     system_id_exact: Optional[int] = None
@@ -6371,6 +6390,15 @@ def systems_search(
                 name_style=normalized_name_style,
             )
             build_id = fetch_build_id(con)
+            query_resolution = (
+                fetch_tess_identifier_resolution(
+                    con,
+                    identifier_query=tess_identifier_query,
+                    arm_db_path=arm_db_path,
+                )
+                if tess_identifier_query
+                else None
+            )
     except ValueError as exc:
         _audit_systems_search(
             request,
@@ -6411,6 +6439,25 @@ def systems_search(
 
     has_more = len(rows) > limit
     items = rows[:limit]
+    if query_resolution is not None:
+        bound_system_ids = {
+            int(value) for value in query_resolution.get("bound_system_ids") or []
+        }
+        items = [
+            item
+            for item in items
+            if int(item.get("system_id")) in bound_system_ids
+        ]
+        if (
+            query_resolution.get("match_status") == "exact_match"
+            and not items
+        ):
+            query_resolution = {
+                **query_resolution,
+                "match_status": "exact_no_match",
+                "reason": "accepted_identifier_excluded_by_search_filters",
+            }
+        has_more = False
     for item in items:
         _attach_snapshot_url(item)
         system_id = item.get("system_id")
@@ -6550,6 +6597,7 @@ def systems_search(
             "label": origin_label,
         } if has_origin else None,
         "name_style": normalized_name_style,
+        "query_resolution": query_resolution,
     }
 
 

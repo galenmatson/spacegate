@@ -556,6 +556,54 @@ def main():
                 f"absent catalog identifier search {query!r} should not return fuzzy substitutes: {payload.get('items')!r}"
             )
 
+    tess_cases = [
+        ("TIC 307210830", "exact_match", "accepted", False, True),
+        ("TOI-700", "exact_match", "accepted", False, True),
+        ("TOI-700.01", "exact_match", "accepted", False, True),
+        ("TIC 150320610", "exact_no_match", "missing", True, False),
+        ("TOI-6725.01", "exact_no_match", "missing", True, False),
+        ("TIC 101462", "exact_no_match", "ambiguous", True, False),
+        ("TIC 999999999999", "exact_no_match", "not_found", False, False),
+    ]
+    for query, match_status, resolution_status, deferred, expect_items in tess_cases:
+        _, payload = get_json(
+            base_url,
+            "/systems/search",
+            params={"q": query, "sort": "match", "limit": 5},
+            label=f"search TESS identifier {query}",
+        )
+        resolution = payload.get("query_resolution") or {}
+        if resolution.get("match_status") != match_status:
+            raise AssertionError(
+                f"TESS search {query!r} expected {match_status}, got {resolution!r}"
+            )
+        if resolution.get("resolution_status") != resolution_status:
+            raise AssertionError(
+                f"TESS search {query!r} expected status {resolution_status}, got {resolution!r}"
+            )
+        if bool(resolution.get("deferred")) is not deferred:
+            raise AssertionError(
+                f"TESS search {query!r} expected deferred={deferred}, got {resolution!r}"
+            )
+        if bool(payload.get("items")) is not expect_items:
+            raise AssertionError(
+                f"TESS search {query!r} expected items={expect_items}, got {payload.get('items')!r}"
+            )
+
+    for query in ("TIC abc", "TOI-nope", "TOI-700.000"):
+        response = requests.get(
+            f"{base_url}/systems/search",
+            params={"q": query, "sort": "match", "limit": 5},
+            timeout=10,
+        )
+        assert_status(response, 400, f"malformed TESS identifier {query}")
+        payload = response.json()
+        error = payload.get("error") or payload.get("detail") or {}
+        if error.get("code") != "invalid_identifier":
+            raise AssertionError(
+                f"malformed TESS identifier {query!r} returned unexpected error: {payload!r}"
+            )
+
     _, planets_true = get_json(
         base_url,
         "/systems/search",

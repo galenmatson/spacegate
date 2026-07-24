@@ -1489,14 +1489,23 @@ Implementation notes:
 - name-style policy is separate from alias matching: for example `q=eps ind`
   may return `matched_alias: "Eps Ind"` while `display_name` remains
   `Epsilon Indi` under `public_full`.
-- Exact `TIC <id>` terms resolve the containing system with star focus. Exact
-  TOI terms use planet focus only when a confirmed/known TOI is uniquely linked
-  to a canonical planet; candidate TOIs focus the resolved host star and do not
-  create planet rows.
-- Clean ARM `e3e82312eaa3cab931e9e756` is the compatibility authority for this
-  behavior: its 27,930 TIC outcomes and 8,064 TOIs were rebound to clean CORE.
-  Only 824 confirmed/known TOIs carry `planet_id`; candidate and negative rows
-  are required to keep it null.
+- Exact `TIC <id>`, `TOI-<host>`, and `TOI-<host>.<candidate>` terms never use
+  prefix, token, or fuzzy substitution. Accepted TIC terms resolve the
+  containing system with star focus. Exact TOI terms use planet focus only when
+  a confirmed/known TOI is uniquely linked to a canonical planet; candidate
+  TOIs focus the resolved host star and do not create planet rows.
+- TESS-like search responses include additive `query_resolution` metadata with
+  `mode=exact_identifier`, normalized namespace/identifier,
+  `match_status=exact_match|exact_no_match`, evidence `resolution_status`,
+  `deferred`, reason, evidence-record count, and bound system IDs. Missing,
+  source-missing, or ambiguous evidence returns `exact_no_match` with
+  `deferred=true`; excluded and unknown IDs also return no systems but remain
+  distinguishable. Malformed TIC/TOI syntax returns
+  `400 invalid_identifier`.
+- The active Evidence Lake ARM is the compatibility authority for this
+  behavior: its targeted TIC outcomes and TOI evidence are rebound to the
+  current clean CORE. Confirmed/known TOIs alone may carry `planet_id`;
+  candidate and negative rows are required to keep it null.
 - search result items include `display_name`, `display_name_style`,
   `display_name_source`, `display_aliases`, and `requested_name_style`.
   `display_name_style` is derived display/search metadata, not source identity.

@@ -52,6 +52,81 @@ def parse_identifier_query(text: str) -> Optional[Dict[str, Any]]:
     return {"kind": kind, "value": value}
 
 
+def parse_tess_identifier_query(text: str) -> Optional[Dict[str, Any]]:
+    """Parse exact-like TIC/TOI input without turning malformed IDs into names."""
+    raw = str(text or "").strip()
+    prefix = re.match(r"^(tic|toi)(?=$|[\s._-]|\d)", raw, flags=re.IGNORECASE)
+    if not prefix:
+        return None
+
+    namespace = prefix.group(1).lower()
+    if namespace == "tic":
+        match = re.fullmatch(r"tic[\s._-]*(\d+)", raw, flags=re.IGNORECASE)
+        if not match or len(match.group(1)) > 19:
+            return {
+                "namespace": namespace,
+                "valid": False,
+                "raw": raw,
+                "reason": "malformed_identifier",
+            }
+        value = int(match.group(1))
+        if value <= 0 or value > 9_223_372_036_854_775_807:
+            return {
+                "namespace": namespace,
+                "valid": False,
+                "raw": raw,
+                "reason": "identifier_out_of_range",
+            }
+        return {
+            "namespace": namespace,
+            "valid": True,
+            "raw": raw,
+            "value": value,
+            "identifier": f"TIC {value}",
+            "term_norm": f"tic {value}",
+        }
+
+    match = re.fullmatch(
+        r"toi[\s_-]*(\d{1,9})(?:[.\s_-]+(\d{1,2}))?",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return {
+            "namespace": namespace,
+            "valid": False,
+            "raw": raw,
+            "reason": "malformed_identifier",
+        }
+    host_number = int(match.group(1))
+    component_text = match.group(2)
+    if host_number <= 0 or (component_text is not None and int(component_text) <= 0):
+        return {
+            "namespace": namespace,
+            "valid": False,
+            "raw": raw,
+            "reason": "identifier_out_of_range",
+        }
+    component = int(component_text) if component_text is not None else None
+    identifier = f"TOI-{host_number}"
+    term_norm = f"toi {host_number}"
+    toi_value = str(host_number)
+    if component is not None:
+        identifier = f"{identifier}.{component:02d}"
+        term_norm = f"{term_norm} {component:02d}"
+        toi_value = f"{host_number}.{component:02d}"
+    return {
+        "namespace": namespace,
+        "valid": True,
+        "raw": raw,
+        "host_number": host_number,
+        "component": component,
+        "value": toi_value,
+        "identifier": identifier,
+        "term_norm": term_norm,
+    }
+
+
 def parse_bool(value: Optional[str]) -> Optional[bool]:
     if value is None:
         return None
