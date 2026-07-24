@@ -124,10 +124,10 @@ The galactic nadir points "straight down" through the floor of the Milky Way's d
 
 ## Equatorial & Observational Tags
 
-CELESTIAL NORTH
+NORTH
 Systems tagged Celestial North lie near the northern pivot point of Earth's axis of rotation. If you stand outside in the northern hemisphere and watch the sky over several hours, these stars appear to remain nearly stationary while the rest of the cosmos wheels around them. This direction points directly toward Polaris, the famous North Star, which serves as the cosmic anchor for this region. Observers looking this way are essentially peering "up" from the very top of our spinning planet. Because of their unique position, these systems never set for most northern observers, offering a permanent, year-round window into this stellar neighborhood.
 
-CELESTIAL SOUTH
+SOUTH
 A Celestial South tag indicates a system located near the southern pivot point of Earth's rotational axis. Just as the northern sky rotates around Polaris, the southern sky wheels endlessly around this fixed celestial pole, which is anchored by the faint star Sigma Octantis. Backyard observers typically find this region by following the long axis of the famous Southern Cross constellation. These systems lie "down" relative to Earth's tilt, making them permanently hidden from mid-northern latitudes but beautifully ever-present for observers in the southern hemisphere. Gazing this way lets you look out into the void from the very bottom of our spinning terrestrial ship.
 
 CIRCUMPOLAR
