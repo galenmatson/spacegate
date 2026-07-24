@@ -87,6 +87,14 @@ def parse_args() -> argparse.Namespace:
         help="Output report path. Defaults to reports/<build_id>/slo_profile_report.json.",
     )
     p.add_argument(
+        "--capacity-report",
+        default="",
+        help=(
+            "Evaluate a runtime-capacity summary instead of issuing profile API "
+            "requests. Uses the pinned acceptance contract embedded in the report."
+        ),
+    )
+    p.add_argument(
         "--require-profile",
         action="store_true",
         help="Fail if no profile id can be resolved.",
@@ -439,8 +447,119 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
     }
 
 
+def evaluate_capacity_report(report_path: Path) -> Dict[str, Any]:
+    source = json.loads(report_path.read_text(encoding="utf-8"))
+    if source.get("schema_version") != "spacegate.runtime_capacity_report.v1":
+        raise SystemExit(f"unsupported runtime-capacity report: {report_path}")
+
+    workload = source.get("workload") or {}
+    acceptance = workload.get("acceptance") or {}
+    requests = source.get("requests") or {}
+    resources = source.get("resources") or {}
+    source_gates = source.get("gates") or {}
+    request_count = int(requests.get("request_count") or 0)
+    error_rate = float(requests.get("error_rate_pct") or 0.0)
+    p95_ms = float((requests.get("latency_ms") or {}).get("p95") or 0.0)
+    timeout_count = int(requests.get("timeout_count") or 0)
+    aggregate_memory = int(
+        resources.get("aggregate_cgroup_memory_peak_bytes") or 0
+    )
+    oom_kills = sum(
+        int(row.get("oom_kill_delta") or 0)
+        for row in (resources.get("containers") or {}).values()
+    )
+
+    gates: Dict[str, bool] = {
+        "source_report_passed": source.get("status") == "pass",
+        "build_identity_match": bool(source_gates.get("build_identity_match")),
+        "no_safety_stop": bool(source_gates.get("no_safety_stop")),
+    }
+    if "max_error_rate_pct" in acceptance:
+        gates["error_rate_ok"] = error_rate <= float(
+            acceptance["max_error_rate_pct"]
+        )
+    if "max_p95_latency_ms" in acceptance:
+        gates["p95_latency_ok"] = (
+            request_count > 0
+            and p95_ms <= float(acceptance["max_p95_latency_ms"])
+        )
+    if "max_aggregate_memory_bytes" in acceptance:
+        gates["aggregate_memory_ok"] = aggregate_memory <= int(
+            acceptance["max_aggregate_memory_bytes"]
+        )
+    if acceptance.get("require_no_timeouts"):
+        gates["no_timeouts"] = timeout_count == 0
+    if acceptance.get("require_no_oom"):
+        gates["no_oom"] = oom_kills == 0
+    gates["passed"] = all(gates.values())
+
+    return {
+        "schema_version": "spacegate.runtime_capacity_slo.v1",
+        "generated_at": dt.datetime.now(dt.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "source_report": str(report_path),
+        "source_report_sha256": hashlib_sha256(report_path),
+        "build_id": workload.get("build_id"),
+        "profile": source.get("profile"),
+        "environment_profile": (
+            (source.get("environment") or {}).get("resource_model") or {}
+        ).get("profile"),
+        "acceptance": acceptance,
+        "measurements": {
+            "request_count": request_count,
+            "error_rate_pct": error_rate,
+            "p95_latency_ms": p95_ms,
+            "timeout_count": timeout_count,
+            "aggregate_cgroup_memory_peak_bytes": aggregate_memory,
+            "oom_kill_count": oom_kills,
+        },
+        "gates": gates,
+        "status": "pass" if gates["passed"] else "fail",
+    }
+
+
+def hashlib_sha256(path: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def main() -> int:
     args = parse_args()
+    if args.capacity_report:
+        capacity_path = Path(args.capacity_report).resolve(strict=True)
+        report = evaluate_capacity_report(capacity_path)
+        report_path = (
+            Path(args.report_path).resolve()
+            if args.report_path
+            else capacity_path.parent / "capacity_slo_report.json"
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        measurements = report["measurements"]
+        print(f"Capacity SLO report: {report_path}")
+        print(
+            "profile={} p95={:.1f}ms error_rate={:.3f}% peak_memory={:.1f}MiB "
+            "pass={}".format(
+                report.get("profile"),
+                float(measurements["p95_latency_ms"]),
+                float(measurements["error_rate_pct"]),
+                float(measurements["aggregate_cgroup_memory_peak_bytes"])
+                / (1024.0 * 1024.0),
+                "yes" if report["gates"]["passed"] else "no",
+            )
+        )
+        return 0 if report["gates"]["passed"] else 2
+
     report = evaluate(args)
 
     build_id = str(report.get("build_id") or args.build_id or "unknown")

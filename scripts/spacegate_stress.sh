@@ -19,6 +19,15 @@ DURATION_SEC=""
 CONCURRENCY=""
 PEAK_CONCURRENCY=""
 TIMEOUT_SEC="${SPACEGATE_STRESS_TIMEOUT_SEC:-4}"
+CAPACITY_WORKLOAD_PROFILE="mixed"
+CAPACITY_MANIFEST="$ROOT_DIR/config/runtime_capacity/workload_e7_24cb15211f430a37.json"
+CAPACITY_OUTPUT_DIR=""
+CAPACITY_CACHE_STATE="warm"
+CAPACITY_TARGET_RPS="0"
+CAPACITY_REQUEST_LIMIT=""
+CAPACITY_CONTAINERS="spacegate-capacity-api-1,spacegate-capacity-web-1"
+CAPACITY_ENVIRONMENT_PROFILE="antiproton_like"
+CAPACITY_EVICT_FILE_CACHE=0
 ERROR_THRESHOLD_PCT=""
 P95_THRESHOLD_MS=""
 NO_COLOR=0
@@ -35,6 +44,7 @@ Profiles:
   search-heavy  mostly /api/v1/systems/search
   sustain       longer stable-load run
   spike         burst traffic with peak concurrency
+  capacity      manifest-driven runtime-capacity measurement
 
 Options:
   --profile NAME            Profile to run.
@@ -43,6 +53,15 @@ Options:
   --concurrency N           Override worker count.
   --peak-concurrency N      Spike peak worker count.
   --timeout SEC             Per-request timeout (default: 4).
+  --workload-profile NAME   Capacity workload profile (default: mixed).
+  --workload-manifest PATH  Pinned capacity workload manifest.
+  --output-dir PATH         Capacity report output directory.
+  --cache-state STATE       warm, application_cold, targeted_eviction, or idle.
+  --target-rps RPS          Open-loop request rate for capacity mode.
+  --request-limit N         Maximum requests for capacity mode.
+  --containers NAMES        Comma-separated containers to monitor.
+  --environment-profile P  antiproton_like or unconstrained_photon.
+  --evict-file-cache        Apply target-bounded POSIX_FADV_DONTNEED.
   --error-threshold PCT     Fail if error rate exceeds this percent.
   --p95-threshold-ms MS     Fail if p95 latency exceeds this many ms.
   --no-color                Disable ANSI color output.
@@ -82,6 +101,42 @@ while [[ $# -gt 0 ]]; do
       TIMEOUT_SEC="${2:-}"
       shift 2
       ;;
+    --workload-profile)
+      CAPACITY_WORKLOAD_PROFILE="${2:-}"
+      shift 2
+      ;;
+    --workload-manifest)
+      CAPACITY_MANIFEST="${2:-}"
+      shift 2
+      ;;
+    --output-dir)
+      CAPACITY_OUTPUT_DIR="${2:-}"
+      shift 2
+      ;;
+    --cache-state)
+      CAPACITY_CACHE_STATE="${2:-}"
+      shift 2
+      ;;
+    --target-rps)
+      CAPACITY_TARGET_RPS="${2:-}"
+      shift 2
+      ;;
+    --request-limit)
+      CAPACITY_REQUEST_LIMIT="${2:-}"
+      shift 2
+      ;;
+    --containers)
+      CAPACITY_CONTAINERS="${2:-}"
+      shift 2
+      ;;
+    --environment-profile)
+      CAPACITY_ENVIRONMENT_PROFILE="${2:-}"
+      shift 2
+      ;;
+    --evict-file-cache)
+      CAPACITY_EVICT_FILE_CACHE=1
+      shift 1
+      ;;
     --error-threshold)
       ERROR_THRESHOLD_PCT="${2:-}"
       shift 2
@@ -105,6 +160,33 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$PROFILE" == "capacity" ]]; then
+  if [[ -z "${SPACEGATE_STRESS_URL:-}" && "$BASE_URL" == "http://127.0.0.1" ]]; then
+    BASE_URL="http://127.0.0.1:18081"
+  fi
+  CAPACITY_PYTHON="$ROOT_DIR/.venv/bin/python"
+  if [[ ! -x "$CAPACITY_PYTHON" ]]; then
+    CAPACITY_PYTHON="$(command -v python3)"
+  fi
+  capacity_args=(
+    "$ROOT_DIR/scripts/runtime_capacity_harness.py"
+    --manifest "$CAPACITY_MANIFEST"
+    --profile "$CAPACITY_WORKLOAD_PROFILE"
+    --base-url "$BASE_URL"
+    --state-dir "$STATE_DIR"
+    --cache-state "$CAPACITY_CACHE_STATE"
+    --target-rps "$CAPACITY_TARGET_RPS"
+    --containers "$CAPACITY_CONTAINERS"
+    --environment-profile "$CAPACITY_ENVIRONMENT_PROFILE"
+  )
+  [[ -n "$DURATION_SEC" ]] && capacity_args+=(--duration-seconds "$DURATION_SEC")
+  [[ -n "$CONCURRENCY" ]] && capacity_args+=(--concurrency "$CONCURRENCY")
+  [[ -n "$CAPACITY_REQUEST_LIMIT" ]] && capacity_args+=(--request-limit "$CAPACITY_REQUEST_LIMIT")
+  [[ -n "$CAPACITY_OUTPUT_DIR" ]] && capacity_args+=(--output-dir "$CAPACITY_OUTPUT_DIR")
+  [[ "$CAPACITY_EVICT_FILE_CACHE" -eq 1 ]] && capacity_args+=(--evict-file-cache)
+  exec "$CAPACITY_PYTHON" "${capacity_args[@]}"
+fi
 
 if [[ "$NO_COLOR" -eq 1 || ! -t 1 ]]; then
   C_RESET=""

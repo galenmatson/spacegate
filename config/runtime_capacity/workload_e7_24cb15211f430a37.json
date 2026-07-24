@@ -1,0 +1,309 @@
+{
+  "schema_version": "spacegate.runtime_capacity_workload.v1",
+  "workload_id": "e7_24cb15211f430a37_runtime_v1",
+  "build_id": "e7_24cb15211f430a37f199f462_full_public",
+  "random_seed": 831337,
+  "notes": [
+    "System IDs and tile hashes are pinned to the accepted July 24 Evidence Lake public generation.",
+    "source_technical scene requests bypass public_full prebuilt artifacts and isolate dynamic assembly behavior.",
+    "Photon CPU quotas model resource quantity, not OVH core speed."
+  ],
+  "artifacts": [
+    "served/current/core.duckdb",
+    "served/current/arm.duckdb",
+    "served/current/disc.duckdb",
+    "served/current/canonical_hierarchy.duckdb",
+    "served/current/map_tiles/index.json",
+    "served/current/map_tiles/radius-100/manifest.json",
+    "served/current/map_tiles/radius-250/manifest.json",
+    "served/current/map_tiles/radius-500/manifest.json",
+    "served/current/map_tiles/radius-1000/manifest.json",
+    "served/current/map_tiles/radius-100/tiles/cbefa9b433427521bcf98ec3242b7e137e576e9b428ddd19e3ecd72b6b2730f1.sgtile.gz",
+    "served/current/map_tiles/radius-250/tiles/b3a459506b0a00d62357d769a6171df4a7a96dff48dc03e8195c56a6f7f2816d.sgtile.gz",
+    "served/current/map_tiles/radius-500/tiles/052e19f849e5066b72929424880169068a30e1cecbb2b1e31a3b0dad6a38668f.sgtile.gz",
+    "served/current/map_tiles/radius-1000/tiles/7ba5628a64856e316228503f4735cb4f81ef62c15f8f9ce0acef88cb7c49e4ea.sgtile.gz"
+  ],
+  "endpoints": {
+    "health": {
+      "category": "health",
+      "path": "/api/v1/health",
+      "expected_status": [200]
+    },
+    "static_ui": {
+      "category": "static",
+      "path": "/",
+      "expected_status": [200]
+    },
+    "tic_exact": {
+      "category": "search_exact",
+      "path": "/api/v1/systems/search?q=TIC%20307210830&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "toi_exact": {
+      "category": "search_exact",
+      "path": "/api/v1/systems/search?q=TOI-700.01&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "tic_deferred": {
+      "category": "search_exact_no_match",
+      "path": "/api/v1/systems/search?q=TIC%20150320610&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "name_exact": {
+      "category": "search_name",
+      "path": "/api/v1/systems/search?q=Castor&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "name_fuzzy": {
+      "category": "search_fuzzy",
+      "path": "/api/v1/systems/search?q=Castro&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "search_broad": {
+      "category": "search_broad",
+      "path": "/api/v1/systems/search?q=a&sort=match&limit=50",
+      "expected_status": [200]
+    },
+    "search_filtered": {
+      "category": "search_filtered",
+      "path": "/api/v1/systems/search?spectral_class=M&min_planet_count=1&sort=coolness&limit=50",
+      "expected_status": [200]
+    },
+    "detail_simple": {
+      "category": "detail",
+      "path": "/api/v1/systems/11267287",
+      "expected_status": [200]
+    },
+    "detail_complex": {
+      "category": "detail_hierarchy_evidence",
+      "path": "/api/v1/systems/17784468",
+      "expected_status": [200]
+    },
+    "detail_planets": {
+      "category": "detail_hierarchy_evidence",
+      "path": "/api/v1/systems/17785517",
+      "expected_status": [200]
+    },
+    "scene_prebuilt": {
+      "category": "scene_prebuilt",
+      "path": "/api/v1/systems/17784468/simulation-scene",
+      "expected_status": [200],
+      "expected_cache": ["prebuilt"]
+    },
+    "scene_dynamic_complex_a": {
+      "category": "scene_dynamic",
+      "path": "/api/v1/systems/17784459/simulation-scene?name_style=source_technical",
+      "expected_status": [200],
+      "expected_cache": ["miss", "hit", "coalesced"]
+    },
+    "scene_dynamic_complex_b": {
+      "category": "scene_dynamic",
+      "path": "/api/v1/systems/17782844/simulation-scene?name_style=source_technical",
+      "expected_status": [200],
+      "expected_cache": ["miss", "hit", "coalesced"]
+    },
+    "scene_dynamic_complex_c": {
+      "category": "scene_dynamic",
+      "path": "/api/v1/systems/17787905/simulation-scene?name_style=source_technical",
+      "expected_status": [200],
+      "expected_cache": ["miss", "hit", "coalesced"]
+    },
+    "scene_dynamic_planets_a": {
+      "category": "scene_dynamic",
+      "path": "/api/v1/systems/1703025/simulation-scene?name_style=source_technical",
+      "expected_status": [200],
+      "expected_cache": ["miss", "hit", "coalesced"]
+    },
+    "scene_dynamic_planets_b": {
+      "category": "scene_dynamic",
+      "path": "/api/v1/systems/17785517/simulation-scene?name_style=source_technical",
+      "expected_status": [200],
+      "expected_cache": ["miss", "hit", "coalesced"]
+    },
+    "map_index": {
+      "category": "map_manifest",
+      "path": "/map-tiles/index.json",
+      "expected_status": [200]
+    },
+    "map_manifest_100": {
+      "category": "map_manifest",
+      "path": "/map-tiles/radius-100/manifest.json",
+      "expected_status": [200]
+    },
+    "map_manifest_250": {
+      "category": "map_manifest",
+      "path": "/map-tiles/radius-250/manifest.json",
+      "expected_status": [200]
+    },
+    "map_manifest_500": {
+      "category": "map_manifest",
+      "path": "/map-tiles/radius-500/manifest.json",
+      "expected_status": [200]
+    },
+    "map_manifest_1000": {
+      "category": "map_manifest",
+      "path": "/map-tiles/radius-1000/manifest.json",
+      "expected_status": [200]
+    },
+    "map_tile_100": {
+      "category": "map_tile",
+      "path": "/map-tiles/radius-100/tiles/cbefa9b433427521bcf98ec3242b7e137e576e9b428ddd19e3ecd72b6b2730f1.sgtile.gz",
+      "expected_status": [200]
+    },
+    "map_tile_250": {
+      "category": "map_tile",
+      "path": "/map-tiles/radius-250/tiles/b3a459506b0a00d62357d769a6171df4a7a96dff48dc03e8195c56a6f7f2816d.sgtile.gz",
+      "expected_status": [200]
+    },
+    "map_tile_500": {
+      "category": "map_tile",
+      "path": "/map-tiles/radius-500/tiles/052e19f849e5066b72929424880169068a30e1cecbb2b1e31a3b0dad6a38668f.sgtile.gz",
+      "expected_status": [200]
+    },
+    "map_tile_1000": {
+      "category": "map_tile",
+      "path": "/map-tiles/radius-1000/tiles/7ba5628a64856e316228503f4735cb4f81ef62c15f8f9ce0acef88cb7c49e4ea.sgtile.gz",
+      "expected_status": [200]
+    }
+  },
+  "profiles": {
+    "idle": {
+      "duration_seconds": 300,
+      "concurrency": 0,
+      "acceptance": {
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_oom": true
+      },
+      "entries": []
+    },
+    "mixed": {
+      "duration_seconds": 120,
+      "concurrency": 12,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 3000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["health", 3],
+        ["static_ui", 2],
+        ["tic_exact", 4],
+        ["toi_exact", 3],
+        ["name_exact", 4],
+        ["name_fuzzy", 3],
+        ["search_broad", 4],
+        ["search_filtered", 3],
+        ["detail_simple", 3],
+        ["detail_complex", 2],
+        ["detail_planets", 2],
+        ["scene_prebuilt", 3],
+        ["map_index", 1],
+        ["map_manifest_1000", 1],
+        ["map_tile_100", 2],
+        ["map_tile_250", 2],
+        ["map_tile_500", 2],
+        ["map_tile_1000", 2]
+      ]
+    },
+    "search": {
+      "duration_seconds": 120,
+      "concurrency": 12,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 2500,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tic_exact", 4],
+        ["toi_exact", 4],
+        ["tic_deferred", 2],
+        ["name_exact", 4],
+        ["name_fuzzy", 4],
+        ["search_broad", 5],
+        ["search_filtered", 3]
+      ]
+    },
+    "static": {
+      "duration_seconds": 60,
+      "concurrency": 24,
+      "acceptance": {
+        "max_error_rate_pct": 0.5,
+        "max_p95_latency_ms": 1000,
+        "max_aggregate_memory_bytes": 1073741824,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["static_ui", 2],
+        ["map_index", 1],
+        ["map_manifest_100", 1],
+        ["map_manifest_250", 1],
+        ["map_manifest_500", 1],
+        ["map_manifest_1000", 1],
+        ["map_tile_100", 3],
+        ["map_tile_250", 3],
+        ["map_tile_500", 3],
+        ["map_tile_1000", 3]
+      ]
+    },
+    "scene_prebuilt": {
+      "duration_seconds": 60,
+      "concurrency": 12,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 2000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [["scene_prebuilt", 1]]
+    },
+    "scene_dynamic_diverse": {
+      "duration_seconds": 60,
+      "concurrency": 5,
+      "request_limit": 5,
+      "synchronized_start": true,
+      "acceptance": {
+        "max_error_rate_pct": 0.0,
+        "max_p95_latency_ms": 20000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["scene_dynamic_complex_a", 1],
+        ["scene_dynamic_complex_b", 1],
+        ["scene_dynamic_complex_c", 1],
+        ["scene_dynamic_planets_a", 1],
+        ["scene_dynamic_planets_b", 1]
+      ]
+    },
+    "scene_coalesced": {
+      "duration_seconds": 60,
+      "concurrency": 12,
+      "request_limit": 12,
+      "synchronized_start": true,
+      "acceptance": {
+        "max_error_rate_pct": 0.0,
+        "max_p95_latency_ms": 20000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [["scene_dynamic_complex_a", 1]]
+    }
+  },
+  "stop_conditions": {
+    "error_rate_pct": 5.0,
+    "rolling_window_requests": 40,
+    "rolling_error_rate_pct": 20.0,
+    "rolling_p95_latency_ms": 20000,
+    "client_queue_depth_per_worker": 4,
+    "aggregate_cgroup_memory_bytes": 9663676416,
+    "minimum_host_available_bytes": 4294967296
+  }
+}

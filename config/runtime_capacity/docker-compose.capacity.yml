@@ -1,0 +1,26 @@
+services:
+  api:
+    cpus: "5.5"
+    mem_limit: 8704m
+    mem_reservation: 7168m
+    pids_limit: 768
+    environment:
+      SPACEGATE_API_DUCKDB_MEMORY_LIMIT: 5GB
+      SPACEGATE_API_DUCKDB_THREADS: "4"
+      SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES: "536870912"
+      SPACEGATE_AUTH_ENABLE: "0"
+      SPACEGATE_OIDC_CLIENT_ID: ""
+      SPACEGATE_OIDC_CLIENT_SECRET: ""
+      SPACEGATE_SESSION_SECRET: ""
+      SPACEGATE_OPENAI_API_KEY: ""
+      SPACEGATE_GOOGLE_API_KEY: ""
+      SPACEGATE_LLM_BASE_URL: ""
+      SPACEGATE_LLM_FALLBACK_BASE_URL: ""
+
+  web:
+    cpus: "0.5"
+    mem_limit: 512m
+    mem_reservation: 256m
+    pids_limit: 128
+    volumes:
+      - ./config/runtime_capacity/nginx.conf:/etc/nginx/nginx.conf:ro
