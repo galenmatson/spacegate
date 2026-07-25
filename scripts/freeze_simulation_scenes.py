@@ -15,7 +15,7 @@ from typing import Any
 
 
 FREEZER_VERSION = "simulation_scene_freezer_v1"
-SCENE_MATERIALIZER_VERSION = "simulation_scene_artifact_v6"
+SCENE_MATERIALIZER_VERSION = "simulation_scene_artifact_v7"
 
 
 def canonical_json(value: Any) -> bytes:
