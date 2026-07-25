@@ -131,6 +131,13 @@ build and schema identity. Missing artifacts may use an instrumented compatibili
 path during the migration window. Corrupt, mismatched, sample, or incompatible
 artifacts fail visibly.
 
+`scripts/profile_public_read_plans.py` records the SQLite query plan for exact
+terms and identifiers, summary/object reads, hierarchy bundles, singleton seeds,
+trigram candidates, filtered search, and unfiltered coolness ordering. M8.3e
+specifically indexes the null-safe coolness sort expression; the former
+`(coolness_rank, system_id)` index did not match the public ordering and caused a
+5.87-million-row scan and temporary sort.
+
 ## Search v2 Semantics
 
 Search uses the following bounded order:

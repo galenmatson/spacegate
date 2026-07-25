@@ -116,6 +116,17 @@ def compact_singleton_seed_storage(
           AND s.scene_representation IN ('singleton_seed', 'compact_seed')
         """
     )
+    con.execute("DROP INDEX IF EXISTS systems_coolness_idx")
+    con.execute(
+        """
+        CREATE INDEX IF NOT EXISTS systems_coolness_sort_idx
+        ON systems(
+          coalesce(coolness_rank,9223372036854775807),
+          system_name_norm,
+          system_id
+        )
+        """
+    )
     after = int(con.execute("SELECT COUNT(*) FROM singleton_scene_seeds").fetchone()[0])
     if before is not None and before != after:
         raise RuntimeError(
@@ -125,6 +136,7 @@ def compact_singleton_seed_storage(
         "converted_from_table": converted,
         "rows": after,
         "storage": "indexed_system_star_view",
+        "coolness_sort_index": "systems_coolness_sort_idx",
     }
 
 

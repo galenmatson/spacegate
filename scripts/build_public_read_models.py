@@ -1013,7 +1013,12 @@ def create_indexes(target: sqlite3.Connection) -> None:
         """
         CREATE INDEX systems_name_idx ON systems(system_name_norm, system_id);
         CREATE INDEX systems_distance_idx ON systems(dist_ly, system_id);
-        CREATE INDEX systems_coolness_idx ON systems(coolness_rank, system_id);
+        CREATE INDEX systems_coolness_sort_idx
+          ON systems(
+            coalesce(coolness_rank,9223372036854775807),
+            system_name_norm,
+            system_id
+          );
         CREATE INDEX systems_star_count_idx ON systems(star_count DESC, system_name_norm, system_id);
         CREATE INDEX systems_planet_count_idx ON systems(planet_count DESC, system_name_norm, system_id);
         CREATE INDEX systems_hottest_idx ON systems(max_star_teff_k DESC, system_name_norm, system_id);

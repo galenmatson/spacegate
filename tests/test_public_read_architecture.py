@@ -278,6 +278,7 @@ def test_singleton_seed_view_is_coverage_preserving_and_indexed(tmp_path: Path) 
         },
     )
     assert storage == {
+        "coolness_sort_index": "systems_coolness_sort_idx",
         "converted_from_table": False,
         "rows": 1,
         "storage": "indexed_system_star_view",

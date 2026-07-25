@@ -4248,6 +4248,12 @@ Representative commits:
   warmed `public_full` artifact. Runtime artifacts are now style-keyed beneath
   the build cache and pruned recursively, preserving the public scene while
   retaining bounded diagnostic caching.
+- Machine query-plan verification also found that the inherited coolness index
+  did not match the public null-safe ordering. An unfiltered coolness result
+  read and temporarily sorted all 5.87 million systems in about 2.3 seconds.
+  Public Read v2 now carries an expression index matching the exact stable sort,
+  and the plan report gates it alongside identity, summary, hierarchy, seed,
+  facet, and trigram indexes.
 
 ## Recurrent Defect Classes and Mitigations
 
