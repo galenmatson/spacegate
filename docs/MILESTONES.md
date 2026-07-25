@@ -2883,8 +2883,9 @@ Success criteria:
 - the repeated 6-vCPU/12-GiB gate passes accepted latency, queue, memory,
   recovery, and error budgets without deleting science
 
-Status: in progress on `feature/public-read-architecture-v2`. The bounded
-adaptation decision and parity-complete projection are implemented and pushed.
+Status: complete and locally accepted on
+`feature/public-read-architecture-v2`. The bounded adaptation decision and
+parity-complete projection are implemented and pushed.
 The 16,455,413,760-byte candidate deterministically projects 5,869,091 systems,
 6,669,279 accepted identifiers, 12,768,410 terms, 54,237 explicit TIC/TOI
 outcomes, 81,043 quarantine records, 5,861,345 singleton seeds, and a compact
@@ -2893,9 +2894,24 @@ c1 control improves from 559.9-ms p95/2.34 requests per second on the Evidence
 Lake legacy consumer to 15.6-ms p95/131.19 requests per second on Public Read
 v2. All 14,145 hierarchy bundles are materialized. Strict, process-isolated
 warming generated all 7,724 policy-selected full scenes without failure in
-2,812.94 seconds using 12 workers. The 80,736,527 scene bytes freeze into an
-81,069,057-byte archive whose SHA-256 reproduced exactly on the second pass.
-Local promotion, Docker/browser parity, and constrained acceptance remain.
+2,812.852 seconds using 12 workers. The 80,415,323 scene bytes freeze into an
+80,752,521-byte artifact-v7 archive whose SHA-256
+`519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`
+reproduced exactly on the second pass. The promoted Public Read SQLite artifact
+is 16,455,413,760 bytes with SHA-256
+`0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`;
+metadata-only refresh is physically idempotent.
+Local promotion, rollback, Docker/API verification, and the
+`public-read-v2-full-v7-20260725` browser gate pass. The accepted
+`final_20260725_v5` constrained campaign passes all 17 profiles and the full
+c1-c12 staircase with zero errors. Exact search is 8.5-ms p95, fuzzy/filtered
+search 73.3 ms, summary/hierarchy 6.4 ms, prebuilt scenes 127.4 ms, sustained
+c12 mixed traffic 522.6 ms/73.2 rps, and c12 staircase traffic
+1.893 s/66.4 rps. The machine gate issues a conditional go for the existing
+VPS: runtime passes, but deployment must use reviewed remote cleanup and
+streamed extraction to preserve a 15-GiB reserve. No deployment occurred.
+See `docs/PUBLIC_READ_ARCHITECTURE.md` and
+`docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

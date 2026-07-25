@@ -91,6 +91,12 @@ The Playwright map suite imports
   simulator canvas, stable selection and object focus, usable results scrolling,
   and no incoherent overlap after the projection migration.
 
+The accepted M8.3e local parity run
+`public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing
+tests, 48 intentional environment skips, and no unexpected failures or flaky
+retries. The skips cover tests whose checked-in contracts intentionally exclude
+the current local environment; they are not hidden failures.
+
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend
 label patch.

@@ -688,14 +688,18 @@ Success criteria:
   timestamps are removed, gzip `mtime` is zero, and the materializer contract
   is embedded. `scripts/freeze_simulation_scenes.py` verifies exact policy
   coverage and packages the warmed set as a deterministic normalized tar/gzip
-  artifact with a manifest. Artifact v6 also preserves selected hierarchy-leaf
-  component labels across the full-scene path. Freezing does not mutate CORE,
-  ARM, or DISC.
-- The accepted M8.3e run generated 7,724/7,724 artifact-v6 scenes with zero
-  failures in 2,812.94 seconds using 12 workers. The scenes occupy 80,736,527
-  compressed bytes. Frozen-set verification inspected all payloads in 3.83
+  artifact with a manifest. Artifact v7 preserves selected hierarchy-leaf
+  component labels and applies the same selected leaf class to renderer body
+  type when no higher-authority direct compact-object type conflicts. It also
+  emits source-scoped subsystem handles over exact accepted descendant-leaf
+  sets for presentation and orbit endpoints without promoting those source
+  groups into CORE containment. Freezing does not mutate CORE, ARM, or DISC.
+- The accepted M8.3e run generated 7,724/7,724 artifact-v7 scenes with zero
+  failures in 2,812.852 seconds using 12 workers. The scenes occupy 80,415,323
+  compressed bytes. Frozen-set verification inspected all payloads in 3.831
   seconds, and two normalized archive passes reproduced the same
-  81,069,057-byte SHA-256 artifact.
+  80,752,521-byte artifact with SHA-256
+  `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to

@@ -1,8 +1,7 @@
 # Public Read Architecture v2
 
-Status: projection and scene-artifact parity complete; local promotion, browser
-parity, and the final constrained capacity campaign remain in progress on
-`feature/public-read-architecture-v2`
+Status: complete and locally accepted on
+`feature/public-read-architecture-v2`; public deployment was not performed
 
 This document defines the public consumer boundary introduced after the Evidence
 Lake v2 promotion. It does not change scientific authority. CORE, ARM, DISC, and
@@ -159,15 +158,18 @@ The database contains separate tables for:
 - `hierarchy_bundles`: 14,145 compressed, versioned nontrivial
   hierarchy/detail payloads.
 
-The parity-complete candidate is 16,455,413,760 bytes and accounts for 5,869,091
+The parity-complete candidate is 16,455,413,760 bytes with SHA-256
+`0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`
+and accounts for 5,869,091
 systems, 5,874,636 stars, 2,826 planets, 1,026,480 aliases, 12,768,410 search
 terms, 6,669,279 accepted identifiers, 54,237 explicit identifier outcomes, and
 81,043 quarantine rows. Its versioned full-scene policy selects 7,724 systems.
-All selected scenes materialized without failure in 2,812.94 seconds using 12
-isolated workers. Their 80,736,527 compressed bytes freeze into one
-81,069,057-byte deterministic archive; a second freeze reproduced SHA-256
-`f12e5ea9af7bf1baffaa0f08c25ebaa313ad5340ea3bb3fd1de0d97471501922`.
-Full validation of the warmed payloads took 3.83 seconds.
+All selected artifact-v7 scenes materialized without failure in 2,812.852
+seconds using 12 isolated workers. Their 80,415,323 compressed bytes freeze
+into one 80,752,521-byte deterministic archive; a second freeze reproduced
+SHA-256
+`519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`.
+Full validation of the warmed payloads took 3.831 seconds.
 
 The artifact is opened read-only and immutable. Runtime validation requires exact
 build, projection, search, and stellar-badge-overlay schema identity. Missing
@@ -261,6 +263,11 @@ legacy path can be removed entirely when:
 6. constrained cold/warm/burst/sustained/recovery capacity gates pass;
 7. rollback to the prior immutable build is tested.
 
+All seven criteria pass locally for the accepted M8.3e artifact and its retained
+rollback. The diagnostic switch remains explicitly bounded through the first
+public deployment and rollback verification; it is disabled in normal
+configuration and recorded whenever used. It is not an artifact-loss fallback.
+
 Deprecated databases remain retained evidence/build artifacts during the
 compatibility window. They are never reopened as scientific authority.
 
@@ -281,6 +288,54 @@ and workload manifests, writes one immutable report directory, applies the
 pinned SLO checker to every profile, and runs the configured concurrency
 staircase. The runner expects the normal Photon and isolated constrained stacks
 to be healthy; it does not change host quotas, deploy, or contact another host.
+
+## Accepted Capacity Gate
+
+The accepted run is `final_20260725_v5`. It ran from 22:16:27 to 22:45:30 UTC
+under campaign SHA-256
+`d6a1e87a4ee3e38ed8212c7ee75c6e0234e69e7de67ef28ab2114103a67f7ce8`
+and workload SHA-256
+`6165862d5672ba47e3b5f00b80800bb24399fd179839dad0db5d0ef83b1eff57`.
+All 17 profiles and every c1/c2/c4/c6/c8/c12 staircase step passed with zero
+errors, timeouts, OOM events, queue-delay failures, or scientific fallbacks.
+
+| Accepted constrained profile | p95 | Throughput | Peak application memory |
+| --- | ---: | ---: | ---: |
+| Exact identifier/name, c1 | 8.5 ms | 190.1 rps | 1.50 GiB |
+| Fuzzy/filtered search, c1 | 73.3 ms | 28.7 rps | 1.50 GiB |
+| Summary/hierarchy, c1 | 6.4 ms | 226.7 rps | 1.50 GiB |
+| Singleton/prebuilt fast scenes, c1 | 7.1 ms | 205.0 rps | 1.50 GiB |
+| Mixed public workload, c12 | 1.647 s | 72.4 rps | 1.55 GiB |
+| Public-read endpoints, c12 | 1.990 s | 53.6 rps | 1.56 GiB |
+| Prebuilt scenes, c12 | 127.4 ms | 122.5 rps | 1.52 GiB |
+| Sustained mixed, c12, 300 s | 522.6 ms | 73.2 rps | 1.54 GiB |
+| Static UI/manifests/tiles, c24 | 111.5 ms | 531.6 rps | 1.56 GiB |
+
+Target-bounded file-page eviction provides the cold artifact result. Application
+cold scene runs restart only the isolated capacity API container and record that
+method. Five different cold complex scenes produced five misses at 8.315 s p95
+and 4.33 GiB peak. Twelve same-key cold requests produced exactly one miss and
+eleven coalesced responses at 5.037 s p95; the warm repeat produced twelve hits
+at 132.7 ms. No global host cache drop occurred.
+
+The staircase passed through c12 at 1.893 s p95 and 66.4 rps, then recovered at
+c1 to 36.3 ms and 126.9 rps. The five-minute idle trace remained near 1.5 GiB
+with no pressure or growth.
+
+The runtime decision is **conditional go** for the modeled 6-vCPU/12-GiB host.
+The exact transfer payload is 33,588,971,005 bytes. After the separately
+reviewed remote cleanup from M8.3d, streamed extraction retains
+19,480,916,087 bytes of reserve; staging both archive and extracted artifacts
+would retain only 2,428,111,363 bytes and is prohibited. At 85% payload
+efficiency the transfer is approximately 8 h 47 m at 10 Mbps, 4 h 23 m at
+20 Mbps, 1 h 45 m at 50 Mbps, 53 m at 100 Mbps, or 21 m at 250 Mbps.
+
+The machine decision is:
+
+`$SPACEGATE_STATE_DIR/reports/runtime_capacity_gate/public_read_v2/final_20260725_v5/public_read_capacity_gate.json`
+
+Build timings and derived-artifact optimization priorities are in
+`docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`.
 
 The July 25 dependency audit leaves no high-severity npm advisory after the
 PostCSS lockfile update. The remaining audit entries are moderate React Router

@@ -73,6 +73,21 @@ The legacy consumer is not an artifact-loss fallback in normal operation.
 `SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK` is a temporary diagnostic switch
 and must remain unset in production.
 
+Projection metadata refresh must be physically idempotent. When the registered
+metadata values already match, the refresh command updates manifest accounting
+without running `ANALYZE` or `VACUUM INTO`; repeated refreshes must retain the
+same SQLite SHA-256. The accepted M8.3e projection is 16,455,413,760 bytes with
+SHA-256
+`0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`.
+The fail-closed idempotence investigation retained
+`public_read.rollback.pre-idempotent-refresh-20260725.sqlite` as a diagnostic
+rollback. It is not a different scientific authority and becomes a reviewed
+whole-file retention candidate only after the final capacity/deployment
+decision; never remove the accepted pre-Public-Read rollback in the same action.
+The accepted M8.3e capacity decision is now recorded. The diagnostic variant may
+be proposed in a future retention dry-run after branch reconciliation and
+rollback re-verification; it was not removed during M8.3e.
+
 Frozen simulation-scene sets live under
 `$SPACEGATE_STATE_DIR/derived/simulation_scenes/<build_id>/`. Keep every frozen
 set referenced by a current or rollback deployment manifest. The runtime cache
@@ -80,6 +95,10 @@ under `cache/simulation_scenes/` remains regenerable and may be evicted by its
 bounded cache policy; the frozen archive is an immutable deployment artifact
 and follows projection retention. Warming is an independently resumable admin
 job and is not part of the scientific compiler critical path.
+The accepted M8.3e v7 set contains 7,724 scenes in an 80,752,521-byte archive
+with SHA-256
+`519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`;
+the second freeze reproduced that hash exactly.
 
 E7 timed-pipeline logs live under
 `/mnt/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries

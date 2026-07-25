@@ -1988,14 +1988,26 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   nested group-pair orbit inputs
 - [x] Complete strict process-isolated warming and verification for all 7,724
   policy-selected full scenes; freeze scenes into one deterministic deployment
-  archive. The zero-failure 12-worker run took 2,812.94 seconds and the second
-  freeze reproduced the 81,069,057-byte archive hash exactly
-- [ ] Rebuild Photon Docker services and pass API, search, hierarchy,
+  archive. The zero-failure artifact-v7 12-worker run took 2,812.852 seconds;
+  the second freeze reproduced the 80,752,521-byte archive and SHA-256
+  `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`
+  exactly
+- [x] Rebuild Photon Docker services and pass API, search, hierarchy,
   nested-orbit, simulation, map, desktop/mobile Playwright, visual, canvas, and
-  compatibility-fallback retirement gates
-- [ ] Repeat the full M8.3d cold/warm/idle/burst/sustained/recovery/coalescing
+  compatibility-fallback retirement gates. The final browser gate passed 62
+  tests with 48 intentional environment skips and no failures; independent
+  artifact and live-API verification report zero compatibility fallbacks,
+  missing projections, or schema mismatches
+- [x] Repeat the full M8.3d cold/warm/idle/burst/sustained/recovery/coalescing
   and constrained concurrency campaign against Public Read v2; document final
-  antiproton capacity recommendation without deploying
+  antiproton capacity recommendation without deploying. Accepted run
+  `final_20260725_v5` passes 17/17 profiles and c1-c12 plus recovery with zero
+  errors. The decision is conditional go: runtime passes, while remote staging
+  requires reviewed cleanup and streamed extraction to retain
+  19,480,916,087 bytes of reserve
+- [x] Record Public Read v2 compiler, hierarchy, scene-warming, archive,
+  Playwright, and capacity timings plus optimization priorities in
+  `docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`
 - [ ] Before the next public deployment, migrate React Router v6 to the patched
   v7 line and rerun route, query-string, object-focus, map handoff, and
   desktop/mobile browser parity. The current Vite client does not use SSR and

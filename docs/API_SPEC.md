@@ -96,6 +96,12 @@ to stable system/object focus; missing, excluded, ambiguous, deferred, and
 quarantined identifiers return explicit exact-no-match metadata and never fall
 through to unrelated fuzzy names.
 
+The accepted M8.3e local gate observed zero projection misses, incompatible
+artifacts, or compatibility fallbacks across API, browser, and the complete
+17-profile constrained campaign. The compatibility switch remains disabled by
+default and is bounded to explicit diagnostics and first-deployment rollback
+verification.
+
 ## Common Types
 
 ### Provenance
@@ -778,11 +784,15 @@ or render leaf as `stellar_leaf_classification`. `system.stellar_class_badges`
 is the same ordered leaf sequence. Clients must use this projection for public
 class badges instead of independently combining CORE stars, MSC aggregate
 components, renderer priors, or display names.
-Simulation-scene artifact v4 resolves projection rows through canonical,
+Simulation-scene artifact v7 resolves projection rows through canonical,
 leaf-component, and evidence-component keys. When the projection is present,
 unprojected ARM endpoints are not renderer members; this prevents a source
 detail endpoint or visual prior from creating a star that canonical hierarchy
-did not accept.
+did not accept. The shared selected leaf class also controls compact renderer
+body type when direct compact evidence does not conflict. Source-native orbit
+groups may become presentation-only subsystem handles over their exact accepted
+descendant leaves; those handles preserve lineage and do not create canonical
+containment.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

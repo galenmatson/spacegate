@@ -4271,6 +4271,48 @@ Representative commits:
   payloads, while immutable DISC table-existence checks are cached by file
   fingerprint so an absent table is not rediscovered for every system.
 
+### 164) Public Read v2 Closes the Runtime Capacity Gate
+
+- The final M8.3e projection is a 16,455,413,760-byte immutable SQLite artifact
+  with SHA-256
+  `0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`.
+  Metadata refresh is physically idempotent. Independent verification accounts
+  every source system, projected system/star/planet, alias, accepted identifier,
+  search term, explicit identifier outcome, quarantine record, singleton seed,
+  hierarchy bundle, and full-scene target without reopening deprecated
+  databases as authority.
+- Artifact-v7 scene warming generated 7,724/7,724 policy-selected scenes with
+  zero failures in 2,812.852 seconds. The deterministic 80,752,521-byte archive
+  reproduced SHA-256
+  `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`.
+  Shared selected classifications now drive renderer body type when no direct
+  compact evidence conflicts, and source-scoped subsystem handles preserve
+  general orbit lineage without creating CORE containment or named-system
+  transforms.
+- API and browser parity passed 62 tests with 48 intentional environment skips
+  and no failures. Independent artifact and live-API checks report zero
+  compatibility fallbacks, missing projections, schema mismatches, coverage
+  failures, or scientific-field removals.
+- Benchmark diagnostics were rejected when their contracts were wrong. The c12
+  public-endpoint profile no longer inherits a c1 latency budget; aggregate
+  memory gates now measure both constrained containers; and application-cold
+  scene runs restart only the isolated capacity API container. The accepted
+  cold coalescing trace proves one builder miss plus eleven coalesced requests,
+  followed by twelve warm hits. No global cache drop occurred.
+- Accepted campaign `final_20260725_v5` ran all 17 profiles and the
+  c1/c2/c4/c6/c8/c12 staircase with zero errors, timeouts, OOM events, or queue
+  failures. Exact search is 8.5-ms p95, fuzzy/filtered search 73.3 ms,
+  summary/hierarchy 6.4 ms, sustained c12 mixed traffic 522.6 ms at 73.2 rps,
+  and staircase c12 1.893 s at 66.4 rps. Recovery returned to 36.3 ms and
+  126.9 rps.
+- The deployment decision changes from M8.3d no-go to conditional go. Runtime
+  passes on the modeled 6-vCPU/12-GiB envelope without weakening science. The
+  exact transfer payload is 33,588,971,005 bytes; after the previously reviewed
+  remote cleanup, streamed extraction leaves 19,480,916,087 bytes while staging
+  both archive and extracted artifacts leaves only 2,428,111,363 bytes and is
+  prohibited. Antiproton was not contacted or deployed, and Proton was not
+  mutated.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

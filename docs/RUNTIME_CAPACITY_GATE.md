@@ -4,6 +4,13 @@ This document records M8.3d for promoted Evidence Lake public build
 `e7_24cb15211f430a37f199f462_full_public`. It is a deployment decision, not a
 reason to remove scientific content.
 
+> **Superseded runtime decision:** M8.3e Public Read v2 replaces the scan-heavy
+> paths measured below. Its accepted July 25 campaign passes all runtime SLOs
+> and changes the decision to **conditional go**, subject to reviewed remote
+> cleanup and streamed extraction. See
+> `docs/PUBLIC_READ_ARCHITECTURE.md`. The M8.3d measurements remain here as the
+> reproducible pre-change baseline.
+
 ## Decision
 
 **No-go for deploying the complete Evidence Lake runtime to the existing
