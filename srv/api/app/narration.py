@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -11,6 +12,34 @@ import duckdb
 
 NARRATION_GENERATOR_VERSION = "system_narration_deterministic_v1"
 NARRATION_SCHEMA_VERSION = "system_narrative_blocks_v1"
+
+
+@lru_cache(maxsize=16)
+def _disc_has_narrative_table(
+    path_text: str,
+    size_bytes: int,
+    mtime_ns: int,
+) -> bool:
+    del size_bytes, mtime_ns
+    try:
+        con = duckdb.connect(path_text, read_only=True)
+    except Exception:
+        return False
+    try:
+        return bool(
+            con.execute(
+                """
+                SELECT count(*)
+                FROM information_schema.tables
+                WHERE table_schema = 'main'
+                  AND table_name = 'system_narrative_blocks'
+                """
+            ).fetchone()[0]
+        )
+    except Exception:
+        return False
+    finally:
+        con.close()
 
 
 def _text(value: Any, fallback: str = "Unknown") -> str:
@@ -251,20 +280,20 @@ def fetch_disc_system_narrative_blocks(
     if not path.exists():
         return []
     try:
+        stat = path.stat()
+    except OSError:
+        return []
+    if not _disc_has_narrative_table(
+        str(path.resolve()),
+        int(stat.st_size),
+        int(stat.st_mtime_ns),
+    ):
+        return []
+    try:
         con = duckdb.connect(str(path), read_only=True)
     except Exception:
         return []
     try:
-        exists = con.execute(
-            """
-            SELECT count(*)
-            FROM information_schema.tables
-            WHERE table_schema = 'main'
-              AND table_name = 'system_narrative_blocks'
-            """
-        ).fetchone()[0]
-        if not exists:
-            return []
         rows = con.execute(
             """
             SELECT

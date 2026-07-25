@@ -4266,6 +4266,10 @@ Representative commits:
   retain their embedded narrative payload; future reviewed singleton
   narratives must be explicitly projected rather than restoring a per-request
   scientific-database probe.
+- Full simulation and admin diagnostic assembly no longer build narrative
+  blocks that those contracts discard. Bundle work still preserves narrative
+  payloads, while immutable DISC table-existence checks are cached by file
+  fingerprint so an absent table is not rediscovered for every system.
 
 ## Recurrent Defect Classes and Mitigations
 

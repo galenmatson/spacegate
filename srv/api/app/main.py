@@ -468,7 +468,12 @@ def _rows_to_dicts(cursor: duckdb.DuckDBPyConnection) -> List[Dict[str, Any]]:
     return [dict(zip(columns, row)) for row in rows]
 
 
-def _object_public_system_payload(system_id: int, *, name_style: str = "public_full") -> Dict[str, Any]:
+def _object_public_system_payload(
+    system_id: int,
+    *,
+    name_style: str = "public_full",
+    include_narrative: bool = True,
+) -> Dict[str, Any]:
     disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
@@ -561,13 +566,17 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
         star["arm_evidence"] = star_arm_evidence
         star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
-    narrative_blocks = system_narrative_blocks(
-        disc_db_path=disc_db_path,
-        system=system,
-        stars=stars,
-        planets=planets,
-        hierarchy=hierarchy,
-        infrared_evidence=infrared_evidence,
+    narrative_blocks = (
+        system_narrative_blocks(
+            disc_db_path=disc_db_path,
+            system=system,
+            stars=stars,
+            planets=planets,
+            hierarchy=hierarchy,
+            infrared_evidence=infrared_evidence,
+        )
+        if include_narrative
+        else []
     )
     return {
         "system": system,
@@ -5089,7 +5098,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
 
 
 def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
-    public = _object_public_system_payload(system_id)
+    public = _object_public_system_payload(system_id, include_narrative=False)
     system = public["system"]
     stars = public["stars"]
     planets = public["planets"]
@@ -5483,7 +5492,11 @@ def _system_simulation_scene_payload(
     if build_id is None:
         with db.connection_scope() as con:
             build_id = fetch_build_id(con)
-    public = _object_public_system_payload(system_id, name_style=name_style)
+    public = _object_public_system_payload(
+        system_id,
+        name_style=name_style,
+        include_narrative=False,
+    )
     system = public["system"]
     stars = public["stars"]
     planets = public["planets"]

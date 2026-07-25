@@ -102,6 +102,7 @@ or silently substitute presentation priors.
 | Stellar class text parsing in badge components | Presentation normalization and compatibility only; projected object badges and selected leaf classifications win |
 | System/public naming preference | Shared display-name policy consumes projected alias kind, priority, scope, and style; it does not create identity |
 | DISC narrative lookup | Full bundles carry existing narrative payloads; projected singletons generate deterministic blocks from projected inputs without probing DuckDB |
+| Simulation/admin payload narration | Renderer and diagnostics builders explicitly skip unused narrative assembly; immutable DISC table-existence probes are fingerprint-cached for bundle work |
 | Map representative class and label priority | Remain immutable tile presentation fields compiled from the same selected classifications and DISC policy |
 | Planet category filtering and badges | Consume compiled category flags/classes; browser code only decodes flags and renders icons |
 | HZ and condensation-line geometry | Intentionally client-side from selected luminosity/temperature plus pinned model versions; no evidence selection occurs |
