@@ -758,6 +758,7 @@ def _candidate_terms(
             JOIN search_terms st ON st.search_term_id=f.rowid
             WHERE search_terms_fts MATCH ?
               AND abs(length(st.term_norm) - length(?)) <= ?
+            ORDER BY st.search_term_id
             LIMIT ?
             """,
             [fts_query, q_norm, maximum, max_terms],
