@@ -116,3 +116,25 @@ def test_refresh_existing_finalizes_schema_and_hash(
         == "spacegate.stellar_badge_overlay.v1"
     )
     assert (report_dir / "search_parity_refresh.json").is_file()
+
+
+def test_canonicalization_normalizes_sqlite_change_counters(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.sqlite"
+    con = sqlite3.connect(first)
+    con.execute("CREATE TABLE values_table(id INTEGER PRIMARY KEY,value TEXT)")
+    con.execute("INSERT INTO values_table VALUES (1,'same')")
+    con.commit()
+    con.close()
+    second = tmp_path / "second.sqlite"
+    second.write_bytes(first.read_bytes())
+    con = sqlite3.connect(second)
+    con.execute("UPDATE values_table SET value='changed' WHERE id=1")
+    con.execute("UPDATE values_table SET value='same' WHERE id=1")
+    con.commit()
+    con.close()
+    assert stage.builder.sha256_file(first) != stage.builder.sha256_file(second)
+    stage.canonicalize_database(first)
+    stage.canonicalize_database(second)
+    assert stage.builder.sha256_file(first) == stage.builder.sha256_file(second)

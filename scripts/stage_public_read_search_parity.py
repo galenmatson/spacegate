@@ -92,6 +92,25 @@ def refresh_modified_logical_hashes(
     return logical_hashes
 
 
+def canonicalize_database(database: Path) -> None:
+    canonical = database.with_name(
+        f".{database.name}.canonical.tmp.{os.getpid()}"
+    )
+    canonical.unlink(missing_ok=True)
+    target = sqlite3.connect(str(database), timeout=60)
+    try:
+        target.execute("PRAGMA journal_mode=DELETE")
+        target.execute("PRAGMA synchronous=FULL")
+        target.execute("ANALYZE")
+        target.commit()
+        target.execute("VACUUM INTO ?", (str(canonical),))
+    finally:
+        target.close()
+    if not canonical.is_file():
+        raise RuntimeError("SQLite canonicalization produced no artifact")
+    os.replace(canonical, database)
+
+
 def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
     staging_dir = Path(args.staging_dir).resolve(strict=True)
     database = staging_dir / "public_read.sqlite"
@@ -125,7 +144,10 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         ),
     )
     target.commit()
-    target.execute("VACUUM")
+    target.close()
+    canonicalize_database(database)
+    target = sqlite3.connect(str(database), timeout=60)
+    target.row_factory = sqlite3.Row
     logical_hashes = refresh_modified_logical_hashes(target, manifest)
     integrity = str(target.execute("PRAGMA integrity_check").fetchone()[0])
     target.close()
@@ -148,6 +170,7 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         "artifact": manifest["artifact"],
         "logical_hashes": logical_hashes,
         "sqlite_integrity": integrity,
+        "canonicalization": "analyze_vacuum_into_v1",
         "generated_at_utc": utc_now(),
     }
     if args.report_dir:
