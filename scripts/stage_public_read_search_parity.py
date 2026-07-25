@@ -111,6 +111,22 @@ def canonicalize_database(database: Path) -> None:
     os.replace(canonical, database)
 
 
+def upsert_metadata(
+    target: sqlite3.Connection,
+    rows: list[tuple[str, str]],
+) -> bool:
+    before = target.total_changes
+    target.executemany(
+        """
+        INSERT INTO metadata(key,value) VALUES (?,?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value
+        WHERE metadata.value IS NOT excluded.value
+        """,
+        rows,
+    )
+    return target.total_changes > before
+
+
 def refresh_manifest_accounting(
     manifest: dict[str, Any],
     *,
@@ -161,12 +177,14 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
     ):
         target.close()
         raise SystemExit("Staged artifact lacks stellar_badge_overlays")
-    target.execute(
-        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
-        (
-            "stellar_badge_overlay_schema_version",
-            policy["stellar_badge_overlay_schema_version"],
-        ),
+    metadata_changed = upsert_metadata(
+        target,
+        [
+            (
+                "stellar_badge_overlay_schema_version",
+                policy["stellar_badge_overlay_schema_version"],
+            )
+        ],
     )
     target.commit()
     singleton_seed_count = int(
@@ -176,7 +194,8 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         target.execute("SELECT COUNT(*) FROM stellar_badge_overlays").fetchone()[0]
     )
     target.close()
-    canonicalize_database(database)
+    if metadata_changed:
+        canonicalize_database(database)
     target = sqlite3.connect(str(database), timeout=60)
     target.row_factory = sqlite3.Row
     logical_hashes = refresh_modified_logical_hashes(target, manifest)
@@ -206,7 +225,11 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         "artifact": manifest["artifact"],
         "logical_hashes": logical_hashes,
         "sqlite_integrity": integrity,
-        "canonicalization": "analyze_vacuum_into_v1",
+        "canonicalization": (
+            "analyze_vacuum_into_v1"
+            if metadata_changed
+            else "skipped_metadata_current"
+        ),
         "generated_at_utc": utc_now(),
     }
     if args.report_dir:
@@ -264,12 +287,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     target.row_factory = sqlite3.Row
     target.execute("PRAGMA journal_mode=DELETE")
     target.execute("PRAGMA synchronous=FULL")
-    target.execute(
-        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
-        (
-            "stellar_badge_overlay_schema_version",
-            policy["stellar_badge_overlay_schema_version"],
-        ),
+    upsert_metadata(
+        target,
+        [
+            (
+                "stellar_badge_overlay_schema_version",
+                policy["stellar_badge_overlay_schema_version"],
+            )
+        ],
     )
     target.commit()
     (
@@ -313,8 +338,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "UPDATE systems SET hierarchy_representation='bundle_required' WHERE system_id=?",
         [(value,) for value in sorted(remaining_bundle_ids)],
     )
-    target.executemany(
-        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
+    upsert_metadata(
+        target,
         [
             ("search_parity_upgrader_version", UPGRADER_VERSION),
             ("stellar_badge_overlay_policy", "selected_leaf_difference_v1"),

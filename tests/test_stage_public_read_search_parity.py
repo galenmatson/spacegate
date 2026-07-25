@@ -12,6 +12,25 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import stage_public_read_search_parity as stage  # noqa: E402
 
 
+def test_metadata_upsert_preserves_existing_rowid() -> None:
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT)")
+    con.execute("INSERT INTO metadata VALUES ('policy','v1')")
+    before = con.execute(
+        "SELECT rowid FROM metadata WHERE key='policy'"
+    ).fetchone()[0]
+    assert stage.upsert_metadata(con, [("policy", "v2")])
+    after = con.execute(
+        "SELECT rowid,value FROM metadata WHERE key='policy'"
+    ).fetchone()
+    assert after == (before, "v2")
+    assert not stage.upsert_metadata(con, [("policy", "v2")])
+    assert con.execute(
+        "SELECT rowid,value FROM metadata WHERE key='policy'"
+    ).fetchone() == (before, "v2")
+    con.close()
+
+
 def test_refresh_manifest_accounting_replaces_intermediate_counts() -> None:
     manifest = {
         "counts": {
