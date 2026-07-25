@@ -111,6 +111,31 @@ def canonicalize_database(database: Path) -> None:
     os.replace(canonical, database)
 
 
+def refresh_manifest_accounting(
+    manifest: dict[str, Any],
+    *,
+    singleton_seed_count: int,
+    overlay_rows: int,
+) -> None:
+    manifest["counts"]["stellar_badge_overlays"] = overlay_rows
+    manifest["counts"]["singleton_scene_seeds"] = singleton_seed_count
+    verification = dict(manifest.get("verification") or {})
+    verification_counts = dict(verification.get("counts") or {})
+    verification_counts["singleton_scene_seeds"] = singleton_seed_count
+    verification_counts["stellar_badge_overlays"] = overlay_rows
+    verification["counts"] = verification_counts
+    expected_counts = dict(verification.get("expected_counts") or {})
+    expected_counts["singleton_scene_seeds"] = singleton_seed_count
+    expected_counts["stellar_badge_overlays"] = overlay_rows
+    verification["expected_counts"] = expected_counts
+    verification["count_mismatches"] = {
+        key: value
+        for key, value in (verification.get("count_mismatches") or {}).items()
+        if key not in {"singleton_scene_seeds", "stellar_badge_overlays"}
+    }
+    manifest["verification"] = verification
+
+
 def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
     staging_dir = Path(args.staging_dir).resolve(strict=True)
     database = staging_dir / "public_read.sqlite"
@@ -316,8 +341,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     manifest["artifact"]["bytes"] = database.stat().st_size
     manifest["artifact"]["sha256"] = None
     manifest["artifact"]["hash_status"] = "pending_finalization"
-    manifest["counts"]["stellar_badge_overlays"] = overlay_rows
-    manifest["counts"]["singleton_scene_seeds"] = singleton_seed_count
+    refresh_manifest_accounting(
+        manifest,
+        singleton_seed_count=singleton_seed_count,
+        overlay_rows=overlay_rows,
+    )
     manifest["representation_counts"] = representation_counts
     manifest["stellar_badge_overlay_system_count"] = overlay_systems
     manifest["stellar_badge_overlay_schema_version"] = policy[

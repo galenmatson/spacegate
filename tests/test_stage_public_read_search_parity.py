@@ -12,6 +12,40 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import stage_public_read_search_parity as stage  # noqa: E402
 
 
+def test_refresh_manifest_accounting_replaces_intermediate_counts() -> None:
+    manifest = {
+        "counts": {
+            "singleton_scene_seeds": 12,
+        },
+        "verification": {
+            "counts": {
+                "singleton_scene_seeds": 12,
+            },
+            "expected_counts": {
+                "singleton_scene_seeds": 12,
+            },
+            "count_mismatches": {
+                "singleton_scene_seeds": {"expected": 12, "observed": 10},
+                "systems": {"expected": 3, "observed": 2},
+            },
+        },
+    }
+    stage.refresh_manifest_accounting(
+        manifest,
+        singleton_seed_count=10,
+        overlay_rows=7,
+    )
+    assert manifest["counts"]["singleton_scene_seeds"] == 10
+    assert manifest["counts"]["stellar_badge_overlays"] == 7
+    assert manifest["verification"]["counts"]["singleton_scene_seeds"] == 10
+    assert manifest["verification"]["counts"]["stellar_badge_overlays"] == 7
+    assert manifest["verification"]["expected_counts"]["singleton_scene_seeds"] == 10
+    assert manifest["verification"]["expected_counts"]["stellar_badge_overlays"] == 7
+    assert manifest["verification"]["count_mismatches"] == {
+        "systems": {"expected": 3, "observed": 2}
+    }
+
+
 def test_refreshes_every_logical_hash_modified_by_parity_upgrade() -> None:
     con = sqlite3.connect(":memory:")
     con.executescript(
