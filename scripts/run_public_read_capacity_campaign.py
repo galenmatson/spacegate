@@ -73,6 +73,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--unconstrained-url", default="http://127.0.0.1")
+    parser.add_argument(
+        "--unconstrained-insecure-tls",
+        action="store_true",
+        help="disable TLS verification only for the unconstrained control endpoint",
+    )
     parser.add_argument("--constrained-url", default="http://127.0.0.1:18081")
     parser.add_argument("--timeout-seconds", type=float, default=45.0)
     parser.add_argument("--start-at-label", default="")
@@ -160,6 +165,8 @@ def main() -> int:
             command.extend(["--target-rps", str(run["target_rps"])])
         if run.get("request_limit") is not None:
             command.extend(["--request-limit", str(run["request_limit"])])
+        if unconstrained and args.unconstrained_insecure_tls:
+            command.append("--insecure-tls")
         if run.get("evict_file_cache"):
             command.append("--evict-file-cache")
         harness_code = run_command(command, dry_run=args.dry_run)
