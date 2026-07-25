@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from . import db
-from .queries import choose_display_name_info
+from .queries import choose_display_name_info, is_strict_exact_search_query
 
 
 EXPECTED_PROJECTION_SCHEMA = "spacegate.public_read.v2"
@@ -190,8 +190,16 @@ def _system_payload(row: sqlite3.Row) -> dict[str, Any]:
         str(token) for token in _json_list(item.pop("spectral_classes_json", "[]"))
     ]
     item["gaia_id"] = item.get("gaia_id_text")
-    item["hip_id"] = item.get("hip_id_text")
-    item["hd_id"] = item.get("hd_id_text")
+    item["hip_id"] = (
+        int(item["hip_id_text"])
+        if str(item.get("hip_id_text") or "").isdigit()
+        else item.get("hip_id_text")
+    )
+    item["hd_id"] = (
+        int(item["hd_id_text"])
+        if str(item.get("hd_id_text") or "").isdigit()
+        else item.get("hd_id_text")
+    )
     item["snapshot"] = None
     item["provenance"] = {
         "source_catalog": item.pop("source_catalog", None),
@@ -209,8 +217,16 @@ def _star_payload(row: sqlite3.Row) -> dict[str, Any]:
     item["system_id"] = int(item["system_id"])
     item["spatial_index"] = item["star_id"]
     item["gaia_id"] = item.get("gaia_id_text")
-    item["hip_id"] = item.get("hip_id_text")
-    item["hd_id"] = item.get("hd_id_text")
+    item["hip_id"] = (
+        int(item["hip_id_text"])
+        if str(item.get("hip_id_text") or "").isdigit()
+        else item.get("hip_id_text")
+    )
+    item["hd_id"] = (
+        int(item["hd_id_text"])
+        if str(item.get("hd_id_text") or "").isdigit()
+        else item.get("hd_id_text")
+    )
     item["spectral_class"] = item.get("selected_classification") or "UNKNOWN"
     item["classification_evidence_json"] = json.dumps(
         {
@@ -298,6 +314,45 @@ def aliases_for_systems(
     return result
 
 
+def system_naming_aliases(
+    con: sqlite3.Connection, system_ids: Sequence[int]
+) -> dict[int, list[dict[str, Any]]]:
+    """Match the legacy root-name policy without letting one member name become the system."""
+    all_aliases = aliases_for_systems(con, system_ids)
+    result = {
+        system_id: [
+            row
+            for row in rows
+            if str(row.get("target_type") or "") == "system"
+        ]
+        for system_id, rows in all_aliases.items()
+    }
+    if not system_ids:
+        return result
+    placeholders = ",".join("?" for _ in system_ids)
+    for row in con.execute(
+        f"""
+        SELECT system_id,star_name
+        FROM stars
+        WHERE system_id IN ({placeholders})
+          AND nullif(star_name,'') IS NOT NULL
+        ORDER BY system_id,star_name,star_id
+        """,
+        [int(value) for value in system_ids],
+    ):
+        result.setdefault(int(row["system_id"]), []).append(
+            {
+                "alias_raw": row["star_name"],
+                "alias_kind": "member_star_name",
+                "alias_priority": 500,
+                "target_type": "system",
+                "star_id": None,
+                "is_primary": False,
+            }
+        )
+    return result
+
+
 def stellar_badges_for_systems(
     con: sqlite3.Connection, system_ids: Sequence[int]
 ) -> dict[int, list[dict[str, Any]]]:
@@ -305,6 +360,48 @@ def stellar_badges_for_systems(
         return {}
     placeholders = ",".join("?" for _ in system_ids)
     result: dict[int, list[dict[str, Any]]] = {}
+    overlay_system_ids: set[int] = set()
+    try:
+        for row in con.execute(
+            f"""
+            SELECT system_id,hierarchy_node_key,leaf_component_key,
+                   evidence_component_key,star_id_text,stable_object_key,
+                   display_name,catalog_component_label,classification_value,
+                   classification_status,evidence_basis,selected_fact_id,
+                   source_catalog,source_version
+            FROM stellar_badge_overlays
+            WHERE system_id IN ({placeholders})
+            ORDER BY system_id,badge_order
+            """,
+            [int(value) for value in system_ids],
+        ):
+            system_id = int(row["system_id"])
+            overlay_system_ids.add(system_id)
+            result.setdefault(system_id, []).append(
+                {
+                    "hierarchy_node_key": row["hierarchy_node_key"],
+                    "leaf_component_key": row["leaf_component_key"],
+                    "evidence_component_key": row["evidence_component_key"],
+                    "star_id_text": row["star_id_text"],
+                    "stable_object_key": row["stable_object_key"],
+                    "display_name": row["display_name"],
+                    "catalog_component_label": row["catalog_component_label"],
+                    "classification_value": row["classification_value"] or "UNKNOWN",
+                    "classification_status": row["classification_status"] or "missing",
+                    "evidence_basis": row["evidence_basis"],
+                    "selected_fact_id": row["selected_fact_id"],
+                    "source_catalog": row["source_catalog"],
+                    "source_version": row["source_version"],
+                }
+            )
+    except sqlite3.OperationalError:
+        overlay_system_ids = set()
+    canonical_ids = [
+        int(value) for value in system_ids if int(value) not in overlay_system_ids
+    ]
+    if not canonical_ids:
+        return result
+    placeholders = ",".join("?" for _ in canonical_ids)
     for row in con.execute(
         f"""
         SELECT system_id,star_id,stable_object_key,star_name,
@@ -314,7 +411,7 @@ def stellar_badges_for_systems(
         WHERE system_id IN ({placeholders})
         ORDER BY system_id,star_id
         """,
-        [int(value) for value in system_ids],
+        canonical_ids,
     ):
         system_id = int(row["system_id"])
         result.setdefault(system_id, []).append(
@@ -372,9 +469,10 @@ def system_summary(
         return None
     item = _system_payload(row)
     aliases = aliases_for_systems(con, [system_id]).get(int(system_id), [])
+    naming_aliases = system_naming_aliases(con, [system_id]).get(int(system_id), [])
     display = choose_display_name_info(
         item.get("system_name"),
-        aliases,
+        naming_aliases,
         root_system=True,
         name_style=name_style,
     )
@@ -653,15 +751,49 @@ def identifier_resolution(
     )
     if bound_system_ids:
         status = "exact_match"
+        resolution_status = "accepted"
+        deferred = False
         reason = "accepted_identifier_binding"
     else:
         status = "exact_no_match"
+        outcomes = {
+            str(row.get("outcome") or "missing").strip().lower()
+            for row in records
+        }
+        resolution_status = next(
+            (
+                candidate
+                for candidate in (
+                    "ambiguous",
+                    "quarantined",
+                    "deferred",
+                    "missing",
+                    "source_missing",
+                    "excluded",
+                )
+                if candidate in outcomes
+            ),
+            sorted(outcomes)[0] if outcomes else "not_found",
+        )
+        deferred = resolution_status in {
+            "ambiguous",
+            "quarantined",
+            "deferred",
+            "missing",
+            "source_missing",
+        }
         reason = records[0].get("reason") or records[0].get("outcome")
     return {
+        "schema_version": "spacegate.search_query_resolution.v1",
+        "mode": "exact_identifier",
         "namespace": namespace.lower(),
+        "identifier": identifier_norm,
         "identifier_norm": identifier_norm.lower(),
         "match_status": status,
+        "resolution_status": resolution_status,
+        "deferred": deferred,
         "reason": reason,
+        "evidence_record_count": len(records),
         "bound_system_ids": bound_system_ids,
         "outcomes": records,
     }
@@ -716,6 +848,8 @@ def _candidate_terms(
     ]
     if exact:
         return exact, "exact"
+    if is_strict_exact_search_query(q_norm):
+        return [], "exact_no_match"
     if len(q_norm) < 2:
         return [], "exact_no_match"
     prefix = [
@@ -907,10 +1041,16 @@ def search_systems(
         )
         if query_resolution is None:
             query_resolution = {
+                "schema_version": "spacegate.search_query_resolution.v1",
+                "mode": "exact_identifier",
                 "namespace": identifier_namespace.lower(),
+                "identifier": identifier_norm,
                 "identifier_norm": identifier_norm.lower(),
                 "match_status": "exact_no_match",
+                "resolution_status": "not_found",
+                "deferred": False,
                 "reason": "identifier_not_in_registered_evidence",
+                "evidence_record_count": 0,
                 "bound_system_ids": [],
                 "outcomes": [],
             }
@@ -1101,13 +1241,14 @@ def search_systems(
     items = [_system_payload(row) for row in selected_rows]
     system_ids = [int(item["system_id"]) for item in items]
     aliases = aliases_for_systems(con, system_ids)
+    naming_aliases = system_naming_aliases(con, system_ids)
     stellar_badges = stellar_badges_for_systems(con, system_ids)
     planet_badges = planet_badges_for_systems(con, system_ids)
     for item in items:
         system_id = int(item["system_id"])
         display = choose_display_name_info(
             item.get("system_name"),
-            aliases.get(system_id, []),
+            naming_aliases.get(system_id, []),
             preferred_query_norm=q_norm,
             root_system=True,
             name_style=name_style,

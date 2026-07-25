@@ -16,7 +16,7 @@ import duckdb
 
 PROJECTION_SCHEMA = "spacegate.public_read.v2"
 PLANET_LINEAGE_VERSION = "spacegate.planet_selected_fact_lineage.v1"
-VERIFY_VERSION = "public_read_artifact_verifier_v1"
+VERIFY_VERSION = "public_read_artifact_verifier_v2"
 
 
 def utc_now() -> str:
@@ -62,6 +62,67 @@ def stream_identity_digest(rows: Iterable[tuple[Any, ...]]) -> tuple[int, str]:
     return count, digest.hexdigest()
 
 
+def stellar_overlay_source_rows(
+    source: duckdb.DuckDBPyConnection,
+) -> Iterable[tuple[Any, ...]]:
+    return duck_rows(
+        source.execute(
+            """
+            WITH leaf_counts AS (
+              SELECT CAST(system_id AS BIGINT) AS system_id, COUNT(*) AS leaf_count
+              FROM arm_db.stellar_leaf_display_classifications
+              WHERE system_id IS NOT NULL
+              GROUP BY 1
+            ),
+            mismatched AS (
+              SELECT DISTINCT CAST(leaf.system_id AS BIGINT) AS system_id
+              FROM arm_db.stellar_leaf_display_classifications leaf
+              LEFT JOIN arm_db.e6_selected_stellar_display_classifications selected
+                ON CAST(selected.system_id AS BIGINT) = CAST(leaf.system_id AS BIGINT)
+               AND selected.star_id = leaf.star_id
+              WHERE leaf.system_id IS NOT NULL
+                AND (
+                  leaf.star_id IS NULL
+                  OR COALESCE(leaf.classification_value, 'UNKNOWN')
+                     <> COALESCE(selected.classification_value, 'UNKNOWN')
+                )
+            ),
+            eligible AS (
+              SELECT counts.system_id
+              FROM leaf_counts counts
+              JOIN systems system_row USING (system_id)
+              WHERE counts.leaf_count <> COALESCE(system_row.star_count, 0)
+                 OR counts.system_id IN (SELECT system_id FROM mismatched)
+            )
+            SELECT
+              CAST(leaf.system_id AS BIGINT),
+              ROW_NUMBER() OVER (
+                PARTITION BY leaf.system_id
+                ORDER BY leaf.hierarchy_node_key, leaf.leaf_component_key
+              ) - 1 AS badge_order,
+              leaf.hierarchy_node_key,
+              leaf.leaf_component_key,
+              leaf.evidence_component_key,
+              CAST(leaf.star_id AS VARCHAR),
+              leaf.stable_object_key,
+              leaf.display_name,
+              leaf.catalog_component_label,
+              COALESCE(leaf.classification_value, 'UNKNOWN'),
+              COALESCE(leaf.classification_status, 'missing'),
+              leaf.evidence_basis,
+              leaf.selected_fact_id,
+              leaf.source_catalog,
+              leaf.source_version
+            FROM arm_db.stellar_leaf_display_classifications leaf
+            JOIN eligible
+              ON eligible.system_id = CAST(leaf.system_id AS BIGINT)
+            WHERE leaf.system_id IS NOT NULL
+            ORDER BY CAST(leaf.system_id AS BIGINT), badge_order
+            """
+        )
+    )
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     build_dir = Path(args.build_dir).resolve(strict=True)
     build_id = build_dir.name
@@ -88,8 +149,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         duck_rows(
             source.execute(
                 """
-                SELECT CAST(system_id AS BIGINT),stable_object_key,
-                       CAST(star_count AS BIGINT),CAST(planet_count AS BIGINT)
+                SELECT CAST(system_id AS BIGINT),stable_object_key
                 FROM systems ORDER BY system_id
                 """
             )
@@ -98,8 +158,53 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     projected_system_count, projected_system_digest = stream_identity_digest(
         target.execute(
             """
-            SELECT system_id,stable_object_key,star_count,planet_count
+            SELECT system_id,stable_object_key
             FROM systems ORDER BY system_id
+            """
+        )
+    )
+    source_public_count, source_public_digest = stream_identity_digest(
+        duck_rows(
+            source.execute(
+                """
+                WITH leaf_counts AS (
+                  SELECT CAST(system_id AS BIGINT) AS system_id, COUNT(*) AS leaf_count
+                  FROM arm_db.stellar_leaf_display_classifications
+                  WHERE system_id IS NOT NULL
+                  GROUP BY 1
+                )
+                SELECT
+                  CAST(s.system_id AS BIGINT),
+                  CAST(COALESCE(leaves.leaf_count, s.star_count, 0) AS BIGINT),
+                  CAST(COALESCE(s.planet_count, 0) AS BIGINT)
+                FROM systems s
+                LEFT JOIN leaf_counts leaves USING (system_id)
+                ORDER BY s.system_id
+                """
+            )
+        )
+    )
+    projected_public_count, projected_public_digest = stream_identity_digest(
+        target.execute(
+            """
+            SELECT system_id,star_count,planet_count
+            FROM systems ORDER BY system_id
+            """
+        )
+    )
+    source_overlay_count, source_overlay_digest = stream_identity_digest(
+        stellar_overlay_source_rows(source)
+    )
+    projected_overlay_count, projected_overlay_digest = stream_identity_digest(
+        target.execute(
+            """
+            SELECT
+              system_id,badge_order,hierarchy_node_key,leaf_component_key,
+              evidence_component_key,star_id_text,stable_object_key,display_name,
+              catalog_component_label,classification_value,classification_status,
+              evidence_basis,selected_fact_id,source_catalog,source_version
+            FROM stellar_badge_overlays
+            ORDER BY system_id,badge_order
             """
         )
     )
@@ -231,6 +336,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "source_systems": source_system_count,
         "projected_systems": projected_system_count,
         "projected_stars": int(target.execute("SELECT COUNT(*) FROM stars").fetchone()[0]),
+        "stellar_badge_overlays": projected_overlay_count,
         "projected_planets": planet_rows,
         "full_scene_policy_minimum": len(full_scene_source),
         "full_scene_targets": len(full_scene_projected),
@@ -248,6 +354,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "system_identity_digest_mismatch": int(
             source_system_digest != projected_system_digest
+        ),
+        "public_count_digest_mismatch": int(
+            source_public_count != projected_public_count
+            or source_public_digest != projected_public_digest
+        ),
+        "stellar_badge_overlay_digest_mismatch": int(
+            source_overlay_count != projected_overlay_count
+            or source_overlay_digest != projected_overlay_digest
+        ),
+        "manifest_stellar_badge_overlay_count_mismatch": int(
+            int((manifest.get("counts") or {}).get("stellar_badge_overlays", -1))
+            != projected_overlay_count
         ),
         "required_full_scene_systems_missing": len(
             full_scene_source - full_scene_projected
@@ -278,6 +396,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "identity": {
             "source_system_sha256": source_system_digest,
             "projected_system_sha256": projected_system_digest,
+            "source_public_count_sha256": source_public_digest,
+            "projected_public_count_sha256": projected_public_digest,
+            "source_stellar_badge_overlay_sha256": source_overlay_digest,
+            "projected_stellar_badge_overlay_sha256": projected_overlay_digest,
         },
         "bundles": {
             "compressed_bytes": bundle_compressed_bytes,

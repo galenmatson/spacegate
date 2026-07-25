@@ -13,14 +13,20 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import freeze_simulation_scenes as freezer  # noqa: E402
 
 
-def write_scene(path: Path, *, build_id: str, system_id: int) -> None:
+def write_scene(
+    path: Path,
+    *,
+    build_id: str,
+    system_id: int,
+    materializer_version: str = freezer.SCENE_MATERIALIZER_VERSION,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": "spacegate.simulation_scene.v1",
         "system_id": system_id,
         "materialization": {
             "materialized": True,
-            "materializer_version": "simulation_scene_artifact_v5",
+            "materializer_version": materializer_version,
             "build_id": build_id,
             "deterministic": True,
         },
@@ -98,3 +104,37 @@ def test_repeated_freeze_records_deterministic_match(tmp_path: Path) -> None:
     second = freezer.run(args)
     assert first["verification"]["previous_archive_sha256"] is None
     assert second["verification"]["deterministic_rebuild_match"] is True
+
+
+def test_freezer_rejects_stale_scene_materializer_version(tmp_path: Path) -> None:
+    build_id = "build-test"
+    public_read = tmp_path / "public-read"
+    public_read.mkdir()
+    con = sqlite3.connect(public_read / "public_read.sqlite")
+    con.execute(
+        "CREATE TABLE systems(system_id INTEGER PRIMARY KEY, scene_representation TEXT)"
+    )
+    con.execute("INSERT INTO systems VALUES (1,'full_scene')")
+    con.commit()
+    con.close()
+    cache = tmp_path / "cache"
+    write_scene(
+        cache / "system_1.json.gz",
+        build_id=build_id,
+        system_id=1,
+        materializer_version="simulation_scene_artifact_v5",
+    )
+    try:
+        freezer.run(
+            Namespace(
+                state_dir=str(tmp_path),
+                build_id=build_id,
+                public_read_dir=str(public_read),
+                cache_dir=str(cache),
+                output_dir=str(tmp_path / "frozen"),
+            )
+        )
+    except SystemExit as exc:
+        assert "invalid=1" in str(exc)
+    else:
+        raise AssertionError("stale scene artifact was accepted")

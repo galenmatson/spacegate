@@ -451,7 +451,7 @@ test.describe("public 3D map beta", () => {
     }).toBeGreaterThan(20);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
     await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toBeVisible();
-    await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("K");
+    await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("G");
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
     await page.locator(".system-detail-v2 h1").click({ force: true });
@@ -1927,13 +1927,8 @@ test.describe("public 3D map beta", () => {
     const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
     await expect(pinnedReadout).toBeVisible();
     await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
-    const idCopy = page.locator("[data-testid='system-preview-id-copy']");
-    await expect(idCopy).toBeVisible();
-    await expect(idCopy).toHaveAttribute("data-full-id", /star:gaia:/);
-    const fullId = await idCopy.getAttribute("data-full-id");
-    const visibleId = (await idCopy.locator("span").innerText()).trim();
-    expect(fullId?.length || 0).toBeGreaterThan(visibleId.length);
-    expect(visibleId).toContain("...");
+    await expect(page.locator("[data-testid='system-preview-id-copy']")).toHaveCount(0);
+    await expect(pinnedReadout.locator(".system-preview-pinned-title")).not.toHaveText("");
     await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
     await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
     await pinnedReadout.locator(".evidence-pill").first().focus();
@@ -2155,8 +2150,10 @@ test.describe("public 3D map beta", () => {
     );
     expect(castorSubsystemNames).toEqual(expect.arrayContaining(["Castor A", "Castor B", "Castor C"]));
     const castorStars = scenePayload.render_scene?.bodies?.stars || [];
-    expect(castorStars).toHaveLength(6);
-    expect(castorStars.map((star) => star.spectral_class).sort()).toEqual(["A", "A", "M", "M", "M", "M"]);
+    expect(castorStars).toHaveLength(7);
+    expect(castorStars.map((star) => star.spectral_class || "UNKNOWN").sort()).toEqual(
+      ["A", "A", "L", "M", "M", "M", "UNKNOWN"]
+    );
     const dwarfNotationStars = castorStars.filter((item) => item.fields?.spectral_type_raw?.value === "dM1e");
     expect(dwarfNotationStars.length).toBeGreaterThan(0);
     for (const star of dwarfNotationStars) {
@@ -2254,7 +2251,7 @@ test.describe("public 3D map beta", () => {
     const scenePayload = await sceneResponse.json();
     const stars = scenePayload.render_scene?.bodies?.stars || [];
     const tentativeWhiteDwarf = stars.find((star) => star.fields?.spectral_type_raw?.value === "WD?");
-    expect(tentativeWhiteDwarf?.spectral_class).toBe("D");
+    expect(tentativeWhiteDwarf?.spectral_class).toBe("WD");
     expect(tentativeWhiteDwarf?.body_class).toBe("white_dwarf");
     const inferredM = stars.find((star) => star.fields?.visual_stellar_class?.status === "assumed");
     expect(inferredM?.fields?.visual_stellar_class?.value).toBe("M");

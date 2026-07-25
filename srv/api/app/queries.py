@@ -398,6 +398,11 @@ def _strict_exact_search_query(value: Any) -> bool:
     return False
 
 
+def is_strict_exact_search_query(value: Any) -> bool:
+    """Return whether a catalog-like public query must not fall through to fuzzy search."""
+    return _strict_exact_search_query(value)
+
+
 def fetch_tess_identifier_resolution(
     con: duckdb.DuckDBPyConnection,
     *,

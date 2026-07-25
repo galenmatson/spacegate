@@ -204,6 +204,53 @@ def test_search_v2_exact_prefix_substring_and_bounded_typo(tmp_path: Path) -> No
     con.close()
 
 
+def test_search_v2_catalog_like_names_do_not_fall_through_to_fuzzy(tmp_path: Path) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    con.execute(
+        "INSERT INTO search_terms VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (3, 1, "system", 1, None, None, "V1581 Cyg", "v1581 cyg", "name", 1, 1, "test", "v1"),
+    )
+    rows, count, _ = search(con, "v1513 cyg")
+    assert rows == []
+    assert count == 0
+    con.close()
+
+
+def test_root_naming_uses_system_alias_scope_not_member_proper_name(tmp_path: Path) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    con.executemany(
+        "INSERT INTO aliases VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            (1, 1, 11, "star", 11, "canon:star:test", "Ran", "ran", "proper_name", 1, 0, "test", "v1"),
+            (2, 1, None, "system", 1, "canon:system:test", "Epsilon Eridani", "epsilon eridani", "member_bayer_expanded_name", 22, 0, "test", "v1"),
+        ],
+    )
+    naming = public_read.system_naming_aliases(con, [1])[1]
+    display = public_read.choose_display_name_info(
+        "eps Eri",
+        naming,
+        preferred_query_norm="epsilon eridani",
+        root_system=True,
+    )
+    assert display["display_name"] == "Epsilon Eridani"
+    con.close()
+
+
+def test_stellar_badge_overlay_supersedes_core_badges(tmp_path: Path) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    con.executemany(
+        "INSERT INTO stellar_badge_overlays VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            (1, 0, "leaf:a", "comp:a", "comp:a", None, "leaf:a", "Alpha Test A", "a", "G", "source", "direct", "fact-g", "test", "v1"),
+            (1, 1, "leaf:b", "comp:b", "comp:b", None, "leaf:b", "Alpha Test B", "b", "M", "assumed", "mass prior", "fact-m", "test", "v1"),
+        ],
+    )
+    badges = public_read.stellar_badges_for_systems(con, [1])[1]
+    assert [row["classification_value"] for row in badges] == ["G", "M"]
+    assert [row["catalog_component_label"] for row in badges] == ["a", "b"]
+    con.close()
+
+
 def test_search_v2_direct_system_identity(tmp_path: Path) -> None:
     con = make_projection(tmp_path / "read.sqlite")
     rows, total, resolution = search(
@@ -228,6 +275,9 @@ def test_identifier_outcomes_never_fall_through_to_fuzzy_results(tmp_path: Path)
     )
     assert [row["system_id"] for row in accepted] == [1]
     assert resolution["match_status"] == "exact_match"
+    assert resolution["resolution_status"] == "accepted"
+    assert resolution["deferred"] is False
+    assert resolution["evidence_record_count"] == 1
 
     deferred, count, resolution = search(
         con,
@@ -238,7 +288,21 @@ def test_identifier_outcomes_never_fall_through_to_fuzzy_results(tmp_path: Path)
     assert deferred == []
     assert count == 0
     assert resolution["match_status"] == "exact_no_match"
+    assert resolution["resolution_status"] == "deferred"
+    assert resolution["deferred"] is True
     assert resolution["reason"] == "ambiguous_component_scope"
+
+    unknown, count, resolution = search(
+        con,
+        "tic 1000",
+        identifier_namespace="tic",
+        identifier_norm="tic 1000",
+    )
+    assert unknown == []
+    assert count == 0
+    assert resolution["match_status"] == "exact_no_match"
+    assert resolution["resolution_status"] == "not_found"
+    assert resolution["deferred"] is False
     con.close()
 
 

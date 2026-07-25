@@ -16,7 +16,7 @@ from typing import Any, Iterable, Sequence
 
 import duckdb
 
-MATERIALIZER_VERSION = "simulation_scene_artifact_v5"
+MATERIALIZER_VERSION = "simulation_scene_artifact_v6"
 _SCENE_BUILDER = None
 _SCENE_WORKER_CONTEXT: dict[str, Any] = {}
 
@@ -258,9 +258,15 @@ def _select_system_rows(
         con.close()
 
 
-def _public_read_full_scene_ids(state_dir: Path, build_id: str) -> list[int]:
+def _public_read_full_scene_ids(
+    state_dir: Path,
+    build_id: str,
+    public_read_dir: Path | None = None,
+) -> list[int]:
     database = (
-        state_dir
+        public_read_dir / "public_read.sqlite"
+        if public_read_dir is not None
+        else state_dir
         / "derived"
         / "public_read"
         / build_id
@@ -484,7 +490,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             raise SystemExit(
                 "--public-read-full-scene-policy cannot be combined with --system-id"
             )
-        selected_system_ids = _public_read_full_scene_ids(state_dir, build_id)
+        selected_system_ids = _public_read_full_scene_ids(
+            state_dir,
+            build_id,
+            (
+                Path(args.public_read_dir).resolve()
+                if getattr(args, "public_read_dir", None)
+                else None
+            ),
+        )
     system_rows = _select_system_rows(
         build_dir,
         system_ids=selected_system_ids,
@@ -690,6 +704,10 @@ def parse_args() -> argparse.Namespace:
         "--public-read-full-scene-policy",
         action="store_true",
         help="Select the exact build-keyed full-scene set from the public-read artifact.",
+    )
+    parser.add_argument(
+        "--public-read-dir",
+        help="Explicit staged public-read directory for full-scene policy selection.",
     )
     parser.add_argument("--limit", type=int, default=1000, help="Maximum systems to select when --system-id is not provided.")
     parser.add_argument("--sort", choices=["distance", "coolness", "name"], default="distance")

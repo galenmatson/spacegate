@@ -20,6 +20,20 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config" / "public_read" / "projection_v2.json"
 DEFAULT_BATCH_SIZE = 20_000
 BUILDER_VERSION = "public_read_compiler_v2"
+SPECTRAL_CLASS_MASKS = {
+    "O": 1,
+    "B": 2,
+    "A": 4,
+    "F": 8,
+    "G": 16,
+    "K": 32,
+    "M": 64,
+    "L": 128,
+    "T": 256,
+    "Y": 512,
+    "D": 1024,
+    "WD": 1024,
+}
 
 
 def utc_now() -> str:
@@ -230,6 +244,25 @@ def create_schema(con: sqlite3.Connection) -> None:
           source_row_hash TEXT,
           transform_version TEXT
         );
+
+        CREATE TABLE stellar_badge_overlays (
+          system_id INTEGER NOT NULL,
+          badge_order INTEGER NOT NULL,
+          hierarchy_node_key TEXT,
+          leaf_component_key TEXT,
+          evidence_component_key TEXT,
+          star_id_text TEXT,
+          stable_object_key TEXT,
+          display_name TEXT,
+          catalog_component_label TEXT,
+          classification_value TEXT NOT NULL,
+          classification_status TEXT NOT NULL,
+          evidence_basis TEXT,
+          selected_fact_id TEXT,
+          source_catalog TEXT,
+          source_version TEXT,
+          PRIMARY KEY (system_id, badge_order)
+        ) WITHOUT ROWID;
 
         CREATE TABLE planets (
           planet_id INTEGER PRIMARY KEY,
@@ -548,6 +581,124 @@ def insert_stars(
         inserted += len(batch)
     target.commit()
     return inserted
+
+
+def insert_stellar_badge_overlays(
+    source: duckdb.DuckDBPyConnection,
+    target: sqlite3.Connection,
+    *,
+    sample_limit: int | None,
+) -> tuple[int, int]:
+    """Store only leaf projections that differ from the canonical star rows."""
+    scope = ""
+    if sample_limit:
+        scope = (
+            " AND CAST(leaf.system_id AS BIGINT) IN "
+            "(SELECT system_id FROM systems ORDER BY system_id "
+            f"LIMIT {int(sample_limit)})"
+        )
+    cursor = source.execute(
+        f"""
+        WITH leaf_counts AS (
+          SELECT CAST(system_id AS BIGINT) AS system_id, COUNT(*) AS leaf_count
+          FROM arm_db.stellar_leaf_display_classifications
+          WHERE system_id IS NOT NULL
+          GROUP BY 1
+        ),
+        mismatched AS (
+          SELECT DISTINCT CAST(leaf.system_id AS BIGINT) AS system_id
+          FROM arm_db.stellar_leaf_display_classifications leaf
+          LEFT JOIN arm_db.e6_selected_stellar_display_classifications selected
+            ON CAST(selected.system_id AS BIGINT) = CAST(leaf.system_id AS BIGINT)
+           AND selected.star_id = leaf.star_id
+          WHERE leaf.system_id IS NOT NULL
+            AND (
+              leaf.star_id IS NULL
+              OR COALESCE(leaf.classification_value, 'UNKNOWN')
+                 <> COALESCE(selected.classification_value, 'UNKNOWN')
+            )
+        ),
+        eligible AS (
+          SELECT counts.system_id
+          FROM leaf_counts counts
+          JOIN systems system_row USING (system_id)
+          WHERE counts.leaf_count <> COALESCE(system_row.star_count, 0)
+             OR counts.system_id IN (SELECT system_id FROM mismatched)
+        )
+        SELECT
+          CAST(leaf.system_id AS BIGINT), leaf.hierarchy_node_key,
+          leaf.leaf_component_key, leaf.evidence_component_key,
+          CAST(leaf.star_id AS VARCHAR), leaf.stable_object_key,
+          leaf.display_name, leaf.catalog_component_label,
+          COALESCE(leaf.classification_value, 'UNKNOWN'),
+          COALESCE(leaf.classification_status, 'missing'),
+          leaf.evidence_basis, leaf.selected_fact_id,
+          leaf.source_catalog, leaf.source_version
+        FROM arm_db.stellar_leaf_display_classifications leaf
+        JOIN eligible
+          ON eligible.system_id = CAST(leaf.system_id AS BIGINT)
+        WHERE leaf.system_id IS NOT NULL {scope}
+        ORDER BY CAST(leaf.system_id AS BIGINT), leaf.hierarchy_node_key,
+                 leaf.leaf_component_key
+        """
+    )
+    insert_sql = (
+        "INSERT INTO stellar_badge_overlays VALUES ("
+        + ",".join("?" for _ in range(15))
+        + ")"
+    )
+    inserted = 0
+    systems: dict[int, list[str]] = {}
+    current_system_id: int | None = None
+    badge_order = 0
+    batch: list[tuple[Any, ...]] = []
+    for row in rows(cursor, DEFAULT_BATCH_SIZE):
+        system_id = int(row[0])
+        if system_id != current_system_id:
+            current_system_id = system_id
+            badge_order = 0
+        classification = str(row[8] or "UNKNOWN").strip().upper()
+        batch.append((system_id, badge_order, *row[1:]))
+        systems.setdefault(system_id, []).append(classification)
+        badge_order += 1
+        if len(batch) >= DEFAULT_BATCH_SIZE:
+            target.executemany(insert_sql, batch)
+            inserted += len(batch)
+            batch.clear()
+    if batch:
+        target.executemany(insert_sql, batch)
+        inserted += len(batch)
+
+    updates: list[tuple[int, str, int, int]] = []
+    for system_id, classifications in sorted(systems.items()):
+        normalized = sorted(
+            {
+                "D" if token == "WD" else token
+                for token in classifications
+                if token and token != "UNKNOWN"
+            }
+        )
+        mask = 0
+        for token in classifications:
+            mask |= SPECTRAL_CLASS_MASKS.get(token, 0)
+        updates.append(
+            (
+                len(classifications),
+                canonical_json(normalized),
+                mask,
+                system_id,
+            )
+        )
+    target.executemany(
+        """
+        UPDATE systems
+        SET star_count=?, spectral_classes_json=?, spectral_class_mask=?
+        WHERE system_id=?
+        """,
+        updates,
+    )
+    target.commit()
+    return inserted, len(systems)
 
 
 def insert_planets(
@@ -985,6 +1136,29 @@ def representation_policies(
             """
         ).fetchall()
     }
+    leaf_multistar_ids: set[int] = set()
+    if table_exists(source, "arm_db", "stellar_leaf_display_classifications"):
+        leaf_scope = ""
+        if sample_limit:
+            leaf_scope = (
+                " AND CAST(system_id AS BIGINT) IN "
+                "(SELECT system_id FROM systems ORDER BY system_id "
+                f"LIMIT {int(sample_limit)})"
+            )
+        leaf_multistar_ids = {
+            int(row[0])
+            for row in source.execute(
+                f"""
+                SELECT CAST(system_id AS BIGINT)
+                FROM arm_db.stellar_leaf_display_classifications
+                WHERE system_id IS NOT NULL {leaf_scope}
+                GROUP BY CAST(system_id AS BIGINT)
+                HAVING COUNT(*) > 1
+                ORDER BY CAST(system_id AS BIGINT)
+                """
+            ).fetchall()
+        }
+        full_scene_ids.update(leaf_multistar_ids)
     rank_max = int(
         (policy.get("full_scene_policy") or {}).get("include_high_coolness_rank_max")
         or 0
@@ -1057,6 +1231,7 @@ def representation_policies(
         full_scene_ids,
         {
             "hierarchy_bundle_required": len(hierarchy_bundle_ids),
+            "leaf_multistar_required": len(leaf_multistar_ids),
             "compact_singleton_seed": len(compact_seed_ids - full_scene_ids),
             "full_scene_required": len(full_scene_ids),
         },
@@ -1133,6 +1308,7 @@ def verify(
     for table in [
         "systems",
         "stars",
+        "stellar_badge_overlays",
         "planets",
         "aliases",
         "search_terms",
@@ -1351,6 +1527,20 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
         phase("stars", began, star_count)
 
         began = time.perf_counter()
+        stellar_badge_overlay_count, stellar_badge_overlay_system_count = (
+            insert_stellar_badge_overlays(
+                source,
+                target,
+                sample_limit=args.sample_limit,
+            )
+        )
+        phase(
+            "stellar_badge_overlays",
+            began,
+            stellar_badge_overlay_count,
+        )
+
+        began = time.perf_counter()
         planet_count = insert_planets(source, target, sample_limit=args.sample_limit)
         phase("planets", began, planet_count)
 
@@ -1389,6 +1579,7 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
         expected = {
             "systems": system_count,
             "stars": star_count,
+            "stellar_badge_overlays": stellar_badge_overlay_count,
             "planets": planet_count,
             "aliases": alias_count,
             "search_terms": term_count,
@@ -1416,6 +1607,16 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
                 target,
                 "stars",
                 ["star_id", "system_id", "stable_object_key", "selected_classification"],
+            ),
+            "stellar_badge_overlays": logical_digest(
+                target,
+                "stellar_badge_overlays",
+                [
+                    "system_id",
+                    "badge_order",
+                    "leaf_component_key",
+                    "classification_value",
+                ],
             ),
             "search_terms": logical_digest(
                 target,
@@ -1456,6 +1657,7 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
             },
             "counts": verification["counts"],
             "representation_counts": representation_counts,
+            "stellar_badge_overlay_system_count": stellar_badge_overlay_system_count,
             "source_accounting": accounting,
             "logical_hashes": logical_hashes,
             "verification": verification,

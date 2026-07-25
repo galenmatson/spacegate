@@ -58,7 +58,7 @@
     },
     "name_fuzzy": {
       "category": "search_fuzzy",
-      "path": "/api/v1/systems/search?q=Castro&sort=match&limit=5",
+      "path": "/api/v1/systems/search?q=Castpr&sort=match&limit=5",
       "expected_status": [200]
     },
     "search_broad": {
@@ -73,7 +73,7 @@
     },
     "detail_simple": {
       "category": "detail",
-      "path": "/api/v1/systems/11267287",
+      "path": "/api/v1/systems/17786544",
       "expected_status": [200]
     },
     "detail_complex": {
@@ -88,7 +88,7 @@
     },
     "summary_simple": {
       "category": "system_summary",
-      "path": "/api/v1/systems/11267287/summary",
+      "path": "/api/v1/systems/17786544/summary",
       "expected_status": [200]
     },
     "summary_complex": {
@@ -103,12 +103,12 @@
     },
     "scene_seed_singleton": {
       "category": "scene_seed",
-      "path": "/api/v1/systems/11267287/scene-seed",
+      "path": "/api/v1/systems/17786544/scene-seed",
       "expected_status": [200]
     },
     "scene_singleton": {
       "category": "scene_singleton",
-      "path": "/api/v1/systems/11267287/simulation-scene",
+      "path": "/api/v1/systems/17786544/simulation-scene",
       "expected_status": [200],
       "expected_cache": ["singleton-seed"]
     },

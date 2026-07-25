@@ -44,10 +44,12 @@ test.describe("runtime capacity correctness preflight", () => {
     expect(malformed.status()).toBe(400);
     expect((await malformed.json()).error?.code).toBe("invalid_identifier");
 
-    const fuzzy = await search("Castro");
+    const fuzzy = await search("Castpr");
     expect(fuzzy.response.ok()).toBeTruthy();
     expect(fuzzy.payload.query_resolution).toBeNull();
     expect(fuzzy.payload.items.length).toBeGreaterThan(0);
+    expect(fuzzy.payload.items[0]?.display_name).toBe("Castor");
+    expect(fuzzy.payload.items[0]?.match_resolution).toBe("fuzzy");
   });
 
   test("Star Search never renders unrelated cards for a deferred TIC", async ({ page }) => {

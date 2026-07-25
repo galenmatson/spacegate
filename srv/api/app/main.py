@@ -230,7 +230,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v5"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v6"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -2662,7 +2662,7 @@ def _render_scene_contract(
             preferred_display_name = str(core_star.get("display_name") or "").strip()
             if preferred_display_name:
                 display_name = preferred_display_name
-        if core_id < 0 and _is_technical_member_display_name(display_name):
+        if _is_technical_member_display_name(display_name):
             system_display_name = str(system.get("display_name") or system.get("system_name") or "").strip()
             component_label = str(node.get("catalog_component_label") or node.get("member_role") or "").strip().upper()
             if system_display_name and not _is_technical_member_display_name(system_display_name) and component_label:
@@ -4653,6 +4653,9 @@ def _overlay_stellar_leaf_classifications(
         )
         if row:
             node["stellar_leaf_classification"] = row
+            if row.get("catalog_component_label"):
+                node["catalog_component_label"] = row["catalog_component_label"]
+                node["member_role"] = row["catalog_component_label"]
             facts = node.get("quick_facts")
             if not isinstance(facts, dict):
                 facts = {}
