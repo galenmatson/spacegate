@@ -643,6 +643,10 @@ Success criteria:
   the same build/system are coalesced into one assembly. Subsequent requests,
   including requests after an API restart, reuse the generated artifact rather
   than repeating ARM, hierarchy, readiness, and render-contract work.
+- Runtime artifacts are also keyed by normalized name style. `public_full`
+  retains the deployment-compatible root layout; diagnostic styles use
+  separate bounded subdirectories. A `source_technical` request therefore
+  cannot overwrite or invalidate the warmed public scene for the same system.
 - Public Read v2 adds a build-keyed `singleton_scene_seed_v1` projection for
   ordinary accepted one-star/no-planet systems. The seed contains stable
   identity and display fields plus selected stellar class, temperature,

@@ -4243,6 +4243,11 @@ Representative commits:
   different payloads. Strict process-isolated workers now own their connections
   and attachments, and attachment failure rejects the artifact. No named-system
   branch or deprecated database authority was introduced.
+- The same review found that runtime scenes for alternate naming styles shared
+  one on-disk path. A `source_technical` diagnostic request could overwrite a
+  warmed `public_full` artifact. Runtime artifacts are now style-keyed beneath
+  the build cache and pruned recursively, preserving the public scene while
+  retaining bounded diagnostic caching.
 
 ## Recurrent Defect Classes and Mitigations
 

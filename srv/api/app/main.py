@@ -5281,13 +5281,34 @@ def _simulation_scene_cache_set(build_id: str, system_id: int, payload: Dict[str
             _SIMULATION_SCENE_CACHE.popitem(last=False)
 
 
-def _simulation_scene_runtime_artifact_path(build_id: str, system_id: int) -> Path:
+def _simulation_scene_runtime_artifact_path(
+    build_id: str,
+    system_id: int,
+    *,
+    name_style: str = "public_full",
+) -> Path:
     safe_build_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(build_id or "unknown"))[:160]
-    return _state_dir() / "cache" / "simulation_scenes" / safe_build_id / f"system_{int(system_id)}.json.gz"
+    root = _state_dir() / "cache" / "simulation_scenes" / safe_build_id
+    normalized_style = normalize_name_style(name_style)
+    if normalized_style != "public_full":
+        safe_style = re.sub(r"[^A-Za-z0-9_.-]+", "_", normalized_style)[:80]
+        root = root / "styles" / safe_style
+    return root / f"system_{int(system_id)}.json.gz"
 
 
-def _write_simulation_scene_runtime_artifact(build_id: str, system_id: int, payload: Dict[str, Any]) -> None:
-    target = _simulation_scene_runtime_artifact_path(build_id, system_id)
+def _write_simulation_scene_runtime_artifact(
+    build_id: str,
+    system_id: int,
+    payload: Dict[str, Any],
+    *,
+    name_style: str = "public_full",
+) -> None:
+    normalized_style = normalize_name_style(name_style)
+    target = _simulation_scene_runtime_artifact_path(
+        build_id,
+        system_id,
+        name_style=normalized_style,
+    )
     target.parent.mkdir(parents=True, exist_ok=True)
     artifact_payload = copy.deepcopy(payload)
     artifact_payload["materialization"] = {
@@ -5301,6 +5322,7 @@ def _write_simulation_scene_runtime_artifact(build_id: str, system_id: int, payl
             .replace("+00:00", "Z")
         ),
         "materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+        "name_style": normalized_style,
         "output_mode": "runtime-cache",
     }
     encoded = json.dumps(artifact_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -5326,7 +5348,7 @@ def _prune_simulation_scene_runtime_cache(*, protected: Optional[Path] = None) -
         root = _state_dir() / "cache" / "simulation_scenes"
         files: List[tuple[float, int, Path]] = []
         total = 0
-        for path in root.glob("*/*.json.gz"):
+        for path in root.rglob("system_*.json.gz"):
             try:
                 info = path.stat()
             except FileNotFoundError:
@@ -5343,7 +5365,11 @@ def _prune_simulation_scene_runtime_cache(*, protected: Optional[Path] = None) -
                 total -= size
             except FileNotFoundError:
                 pass
-        for directory in root.glob("*"):
+        for directory in sorted(
+            (path for path in root.rglob("*") if path.is_dir()),
+            key=lambda path: len(path.parts),
+            reverse=True,
+        ):
             if directory.is_dir():
                 try:
                     directory.rmdir()
@@ -5372,28 +5398,59 @@ def _simulation_scene_build_complete(build_id: str, system_id: int) -> None:
         event.set()
 
 
-def _simulation_scene_artifact_path(build_id: str, system_id: int) -> Optional[Path]:
+def _simulation_scene_artifact_path(
+    build_id: str,
+    system_id: int,
+    *,
+    name_style: str = "public_full",
+) -> Optional[Path]:
     scene_name = f"system_{int(system_id)}.json.gz"
     state_dir = _state_dir()
-    candidates = [
-        state_dir / "served" / "current" / "disc" / "simulation_scenes" / scene_name,
-        state_dir / "out" / str(build_id) / "disc" / "simulation_scenes" / scene_name,
-        _simulation_scene_runtime_artifact_path(build_id, system_id),
-    ]
+    normalized_style = normalize_name_style(name_style)
+    candidates = []
+    if normalized_style == "public_full":
+        candidates.extend(
+            [
+                state_dir
+                / "served"
+                / "current"
+                / "disc"
+                / "simulation_scenes"
+                / scene_name,
+                state_dir
+                / "out"
+                / str(build_id)
+                / "disc"
+                / "simulation_scenes"
+                / scene_name,
+            ]
+        )
+    candidates.append(
+        _simulation_scene_runtime_artifact_path(
+            build_id,
+            system_id,
+            name_style=normalized_style,
+        )
+    )
     for candidate in candidates:
         try:
             resolved = candidate.resolve(strict=True)
         except FileNotFoundError:
             continue
         if resolved.is_file() and _simulation_scene_artifact_compatible(
-            resolved, expected_build_id=build_id
+            resolved,
+            expected_build_id=build_id,
+            expected_name_style=normalized_style,
         ):
             return resolved
     return None
 
 
 def _simulation_scene_artifact_compatible(
-    path: Path, *, expected_build_id: str
+    path: Path,
+    *,
+    expected_build_id: str,
+    expected_name_style: str = "public_full",
 ) -> bool:
     try:
         with gzip.open(path, "rt", encoding="utf-8") as handle:
@@ -5409,7 +5466,7 @@ def _simulation_scene_artifact_compatible(
         isinstance(membership, dict)
         and membership.get("membership_gate") is not None
         and isinstance(system, dict)
-        and system.get("requested_name_style") == "public_full"
+        and system.get("requested_name_style") == normalize_name_style(expected_name_style)
         and isinstance(materialization, dict)
         and materialization.get("materializer_version") == SIMULATION_SCENE_ARTIFACT_VERSION
         and str(payload.get("build_id") or "") == str(expected_build_id)
@@ -6806,11 +6863,12 @@ def system_simulation_scene(
         build_id = db.build_id()
         if not build_id:
             raise DatabaseUnavailable("active build identity unavailable")
-        artifact_path = _simulation_scene_artifact_path(build_id, system_id)
-        if (
-            normalized_name_style == "public_full"
-            and artifact_path is not None
-        ):
+        artifact_path = _simulation_scene_artifact_path(
+            build_id,
+            system_id,
+            name_style=normalized_name_style,
+        )
+        if artifact_path is not None:
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "prebuilt"
             response.headers["Content-Encoding"] = "gzip"
             response.headers["Cache-Control"] = "public, max-age=3600"
@@ -6869,7 +6927,12 @@ def system_simulation_scene(
             )
             _simulation_scene_cache_set(cache_build_id, system_id, payload)
             if normalized_name_style == "public_full":
-                _write_simulation_scene_runtime_artifact(build_id, system_id, payload)
+                _write_simulation_scene_runtime_artifact(
+                    build_id,
+                    system_id,
+                    payload,
+                    name_style=normalized_name_style,
+                )
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
             return payload
         finally:

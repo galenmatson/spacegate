@@ -12,10 +12,10 @@ sys.path.insert(0, str(ROOT / "srv" / "api"))
 from app import main  # noqa: E402
 
 
-def _scene(build_id: str) -> dict[str, object]:
+def _scene(build_id: str, *, name_style: str = "public_full") -> dict[str, object]:
     return {
         "build_id": build_id,
-        "system": {"requested_name_style": "public_full"},
+        "system": {"requested_name_style": name_style},
         "render_scene": {
             "diagnostics": {
                 "membership_reconciliation": {
@@ -70,6 +70,52 @@ def test_runtime_scene_artifact_carries_build_contract(monkeypatch, tmp_path: Pa
         payload = json.load(handle)
     assert payload["materialization"]["output_mode"] == "runtime-cache"
     assert payload["materialization"]["build_id"] == "candidate-build"
+
+
+def test_runtime_scene_name_styles_use_separate_artifacts(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(main, "_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(main, "_prune_simulation_scene_runtime_cache", lambda **_: None)
+    public_payload = {
+        **_scene("candidate-build"),
+        "materialization": {},
+    }
+    technical_payload = {
+        **_scene("candidate-build", name_style="source_technical"),
+        "materialization": {},
+    }
+    main._write_simulation_scene_runtime_artifact(
+        "candidate-build",
+        9,
+        public_payload,
+        name_style="public_full",
+    )
+    main._write_simulation_scene_runtime_artifact(
+        "candidate-build",
+        9,
+        technical_payload,
+        name_style="source_technical",
+    )
+    public_path = main._simulation_scene_runtime_artifact_path(
+        "candidate-build", 9
+    )
+    technical_path = main._simulation_scene_runtime_artifact_path(
+        "candidate-build",
+        9,
+        name_style="source_technical",
+    )
+    assert public_path != technical_path
+    assert main._simulation_scene_artifact_path(
+        "candidate-build",
+        9,
+        name_style="public_full",
+    ) == public_path.resolve()
+    assert main._simulation_scene_artifact_path(
+        "candidate-build",
+        9,
+        name_style="source_technical",
+    ) == technical_path.resolve()
 
 
 def test_simulation_prefers_selected_luminosity_and_preserves_derivation_status() -> None:
