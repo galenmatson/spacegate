@@ -1986,15 +1986,22 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Complete strict process-isolated warming and verification for all 14,145
   required hierarchy bundles, including selected hierarchy-leaf labels and
   nested group-pair orbit inputs
-- [ ] Complete strict process-isolated warming and verification for all 7,724
+- [x] Complete strict process-isolated warming and verification for all 7,724
   policy-selected full scenes; freeze scenes into one deterministic deployment
-  archive
+  archive. The zero-failure 12-worker run took 2,812.94 seconds and the second
+  freeze reproduced the 81,069,057-byte archive hash exactly
 - [ ] Rebuild Photon Docker services and pass API, search, hierarchy,
   nested-orbit, simulation, map, desktop/mobile Playwright, visual, canvas, and
   compatibility-fallback retirement gates
 - [ ] Repeat the full M8.3d cold/warm/idle/burst/sustained/recovery/coalescing
   and constrained concurrency campaign against Public Read v2; document final
   antiproton capacity recommendation without deploying
+- [ ] Before the next public deployment, migrate React Router v6 to the patched
+  v7 line and rerun route, query-string, object-focus, map handoff, and
+  desktop/mobile browser parity. The current Vite client does not use SSR and
+  constructs public navigation from internal paths, but the upstream open-
+  redirect/bypass advisories have no patched v6 release and should not be left
+  as permanent deployment debt
 - [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 

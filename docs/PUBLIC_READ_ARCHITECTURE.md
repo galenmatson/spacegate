@@ -1,6 +1,6 @@
 # Public Read Architecture v2
 
-Status: projection parity complete; scene freezing, local promotion, browser
+Status: projection and scene-artifact parity complete; local promotion, browser
 parity, and the final constrained capacity campaign remain in progress on
 `feature/public-read-architecture-v2`
 
@@ -163,6 +163,11 @@ The parity-complete candidate is 16,455,413,760 bytes and accounts for 5,869,091
 systems, 5,874,636 stars, 2,826 planets, 1,026,480 aliases, 12,768,410 search
 terms, 6,669,279 accepted identifiers, 54,237 explicit identifier outcomes, and
 81,043 quarantine rows. Its versioned full-scene policy selects 7,724 systems.
+All selected scenes materialized without failure in 2,812.94 seconds using 12
+isolated workers. Their 80,736,527 compressed bytes freeze into one
+81,069,057-byte deterministic archive; a second freeze reproduced SHA-256
+`f12e5ea9af7bf1baffaa0f08c25ebaa313ad5340ea3bb3fd1de0d97471501922`.
+Full validation of the warmed payloads took 3.83 seconds.
 
 The artifact is opened read-only and immutable. Runtime validation requires exact
 build, projection, search, and stellar-badge-overlay schema identity. Missing
@@ -276,3 +281,11 @@ and workload manifests, writes one immutable report directory, applies the
 pinned SLO checker to every profile, and runs the configured concurrency
 staircase. The runner expects the normal Photon and isolated constrained stacks
 to be healthy; it does not change host quotas, deploy, or contact another host.
+
+The July 25 dependency audit leaves no high-severity npm advisory after the
+PostCSS lockfile update. The remaining audit entries are moderate React Router
+v6 advisories: open-redirect variants and SSR hydration error deserialization.
+There is no patched v6 release. Spacegate's Vite SPA does not use the affected
+SSR data-router mode and public navigation constructs internal paths, but the
+v7 migration and full route parity run remain a predeployment security gate
+rather than ignored advisories.

@@ -2892,8 +2892,10 @@ outcomes, 81,043 quarantine records, 5,861,345 singleton seeds, and a compact
 c1 control improves from 559.9-ms p95/2.34 requests per second on the Evidence
 Lake legacy consumer to 15.6-ms p95/131.19 requests per second on Public Read
 v2. All 14,145 hierarchy bundles are materialized. Strict, process-isolated
-warming of all 7,724 policy-selected full scenes is running before local
-promotion, Docker/browser parity, and constrained acceptance.
+warming generated all 7,724 policy-selected full scenes without failure in
+2,812.94 seconds using 12 workers. The 80,736,527 scene bytes freeze into an
+81,069,057-byte archive whose SHA-256 reproduced exactly on the second pass.
+Local promotion, Docker/browser parity, and constrained acceptance remain.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

@@ -691,6 +691,11 @@ Success criteria:
   artifact with a manifest. Artifact v6 also preserves selected hierarchy-leaf
   component labels across the full-scene path. Freezing does not mutate CORE,
   ARM, or DISC.
+- The accepted M8.3e run generated 7,724/7,724 artifact-v6 scenes with zero
+  failures in 2,812.94 seconds using 12 workers. The scenes occupy 80,736,527
+  compressed bytes. Frozen-set verification inspected all payloads in 3.83
+  seconds, and two normalized archive passes reproduced the same
+  81,069,057-byte SHA-256 artifact.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to

@@ -9,6 +9,7 @@ import json
 import os
 import sqlite3
 import tarfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -85,6 +86,7 @@ def required_system_ids(public_read_db: Path) -> list[int]:
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    started = time.perf_counter()
     state_dir = Path(args.state_dir).resolve()
     build_id = args.build_id
     public_read_dir = (
@@ -113,6 +115,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     compressed_payloads: dict[int, bytes] = {}
     missing: list[int] = []
     invalid: list[dict[str, Any]] = []
+    validation_started = time.perf_counter()
     for system_id in required:
         path = cache_dir / f"system_{system_id}.json.gz"
         if not path.is_file():
@@ -133,6 +136,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "scene_schema_version": payload.get("schema_version"),
             }
         )
+    validation_seconds = time.perf_counter() - validation_started
     if missing or invalid:
         raise SystemExit(
             f"scene coverage incomplete: missing={len(missing)} invalid={len(invalid)}"
@@ -152,6 +156,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     archive = output_dir / "simulation_scenes.tar.gz"
     previous_archive_sha256 = sha256_file(archive) if archive.is_file() else None
     temporary = archive.with_name(f".{archive.name}.tmp.{os.getpid()}")
+    archive_started = time.perf_counter()
     try:
         with temporary.open("wb") as raw:
             with gzip.GzipFile(
@@ -189,6 +194,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         temporary.unlink(missing_ok=True)
 
     archive_sha256 = sha256_file(archive)
+    archive_seconds = time.perf_counter() - archive_started
     report = {
         **artifact_manifest,
         "archive": {
@@ -207,6 +213,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 if previous_archive_sha256 is not None
                 else None
             ),
+        },
+        "performance": {
+            "validation_seconds": round(validation_seconds, 6),
+            "archive_seconds": round(archive_seconds, 6),
+            "total_seconds": round(time.perf_counter() - started, 6),
         },
     }
     atomic_json(output_dir / "manifest.json", report)
