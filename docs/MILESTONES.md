@@ -2884,14 +2884,16 @@ Success criteria:
   recovery, and error budgets without deleting science
 
 Status: in progress on `feature/public-read-architecture-v2`. The bounded
-adaptation decision and base projection are implemented and pushed. The
-18,881,593,344-byte base artifact deterministically projects 5,869,091 systems,
+adaptation decision and parity-complete projection are implemented and pushed.
+The 16,455,413,760-byte candidate deterministically projects 5,869,091 systems,
 6,669,279 accepted identifiers, 12,768,410 terms, 54,237 explicit TIC/TOI
-outcomes, 81,043 quarantine records, and 5,862,333 singleton seeds. The matched
+outcomes, 81,043 quarantine records, 5,861,345 singleton seeds, and a compact
+16,167-row selected-leaf badge overlay for 5,312 exceptional systems. The matched
 c1 control improves from 559.9-ms p95/2.34 requests per second on the Evidence
 Lake legacy consumer to 15.6-ms p95/131.19 requests per second on Public Read
-v2. Strict, process-isolated warming of 13,268 hierarchy bundles and 6,733 full
-scenes is running before Docker/browser and constrained acceptance.
+v2. All 14,145 hierarchy bundles are materialized. Strict, process-isolated
+warming of all 7,724 policy-selected full scenes is running before local
+promotion, Docker/browser parity, and constrained acceptance.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

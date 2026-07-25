@@ -66,6 +66,9 @@ warming finish, integrity passes, and the final artifact hash is recorded.
 projection schema, search-policy, hierarchy-policy, render-policy, or HZ-policy
 change invalidates the applicable artifact. Runtime startup must reject
 build/schema mismatches visibly instead of falling back to partial science.
+The compact selected-leaf stellar badge overlay carries an independent schema
+version in both manifest and SQLite metadata; changing its columns or semantics
+also invalidates the projection.
 
 Frozen simulation-scene sets live under
 `$SPACEGATE_STATE_DIR/derived/simulation_scenes/<build_id>/`. Keep every frozen

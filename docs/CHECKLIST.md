@@ -1983,9 +1983,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Replace inventory-wide fuzzy work with exact/prefix indexes, FTS5 trigram
   candidates, and bounded edit distance; preserve object focus, filters, sorts,
   cursors, and exact TIC/TOI miss semantics
-- [ ] Complete strict process-isolated warming and verification for all 13,268
-  hierarchy bundles and 6,733 policy-selected full scenes; freeze scenes into
-  one deterministic deployment archive
+- [x] Complete strict process-isolated warming and verification for all 14,145
+  required hierarchy bundles, including selected hierarchy-leaf labels and
+  nested group-pair orbit inputs
+- [ ] Complete strict process-isolated warming and verification for all 7,724
+  policy-selected full scenes; freeze scenes into one deterministic deployment
+  archive
 - [ ] Rebuild Photon Docker services and pass API, search, hierarchy,
   nested-orbit, simulation, map, desktop/mobile Playwright, visual, canvas, and
   compatibility-fallback retirement gates

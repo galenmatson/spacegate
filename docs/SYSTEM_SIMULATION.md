@@ -662,13 +662,14 @@ Success criteria:
 - Public Read v2's full-scene policy selects every current multistar system and
   confirmed planet host, plus compact/exotic, public-golden, and bounded
   high-coolness classes. The policy is versioned and data-driven; production
-  code never branches on a benchmark name or identifier.
+  code never branches on a benchmark name or identifier. The accepted Evidence
+  Lake build selects 7,724 full-scene systems and 5,861,345 singleton seeds.
 - Map Peek treats `simulation-scene` as the selected-system data request: its
   returned system/star/planet records also populate the compact source
   tooltips. Coolness-component enrichment is lazy on COOL tooltip intent, and
   a short selection debounce prevents rapid transient selections from starting
   scene assembly. This does not replace the need for prebuilt priority scenes,
-  a future cheaper singleton scene contract.
+  or the Public Read v2 singleton seed contract.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the
@@ -687,7 +688,9 @@ Success criteria:
   timestamps are removed, gzip `mtime` is zero, and the materializer contract
   is embedded. `scripts/freeze_simulation_scenes.py` verifies exact policy
   coverage and packages the warmed set as a deterministic normalized tar/gzip
-  artifact with a manifest. Freezing does not mutate CORE, ARM, or DISC.
+  artifact with a manifest. Artifact v6 also preserves selected hierarchy-leaf
+  component labels across the full-scene path. Freezing does not mutate CORE,
+  ARM, or DISC.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to

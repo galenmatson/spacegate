@@ -1,6 +1,8 @@
 # Public Read Architecture v2
 
-Status: implementation in progress on `feature/public-read-architecture-v2`
+Status: projection parity complete; scene freezing, local promotion, browser
+parity, and the final constrained capacity campaign remain in progress on
+`feature/public-read-architecture-v2`
 
 This document defines the public consumer boundary introduced after the Evidence
 Lake v2 promotion. It does not change scientific authority. CORE, ARM, DISC, and
@@ -135,6 +137,10 @@ The database contains separate tables for:
 
 - `systems`: compact facets, positions, counts, DISC values, and representation policy;
 - `stars`: public selected values, classifications, status, and selected-fact lineage;
+- `stellar_badge_overlays`: a compact, separately versioned exceptional
+  projection for systems whose selected hierarchy leaves differ from the
+  canonical root-star rows; 16,167 rows cover 5,312 systems without duplicating
+  the remaining inventory;
 - `planets`: public confirmed-planet summary values, lifecycle state, and a
   compact per-quantity selected-fact lineage document containing uncertainty
   bounds and fact IDs for every populated orbital, size, mass, temperature,
@@ -148,14 +154,20 @@ The database contains separate tables for:
 - `identifier_outcomes`: accepted, missing, excluded, ambiguous, deferred, and
   quarantined exact-identifier outcomes, including explicit TIC/TOI semantics;
 - `identifier_quarantine`: all 81,043 current reviewed quarantine records;
-- `singleton_scene_seeds`: an indexed deterministic view over eligible
-  `systems` and `stars`, avoiding a second 5.86-million-row physical copy;
-- `hierarchy_bundles`: compressed, versioned nontrivial hierarchy/detail payloads.
+- `singleton_scene_seeds`: an indexed deterministic view over 5,861,345 eligible
+  `systems` and `stars`, avoiding a second physical copy;
+- `hierarchy_bundles`: 14,145 compressed, versioned nontrivial
+  hierarchy/detail payloads.
+
+The parity-complete candidate is 16,455,413,760 bytes and accounts for 5,869,091
+systems, 5,874,636 stars, 2,826 planets, 1,026,480 aliases, 12,768,410 search
+terms, 6,669,279 accepted identifiers, 54,237 explicit identifier outcomes, and
+81,043 quarantine rows. Its versioned full-scene policy selects 7,724 systems.
 
 The artifact is opened read-only and immutable. Runtime validation requires exact
-build and schema identity. Missing artifacts may use an instrumented compatibility
-path during the migration window. Corrupt, mismatched, sample, or incompatible
-artifacts fail visibly.
+build, projection, search, and stellar-badge-overlay schema identity. Missing
+artifacts may use an instrumented compatibility path during the migration
+window. Corrupt, mismatched, sample, or incompatible artifacts fail visibly.
 
 `scripts/profile_public_read_plans.py` records the SQLite query plan for exact
 terms and identifiers, summary/object reads, hierarchy bundles, singleton seeds,
@@ -255,3 +267,9 @@ compatibility window. They are never reopened as scientific authority.
 6. Repeat the M8.3d capacity campaign.
 7. Freeze deployment artifacts, document warming and rollback, and retire or
    explicitly bound every remaining fallback.
+
+`scripts/run_public_read_capacity_campaign.py` executes the checked-in campaign
+and workload manifests, writes one immutable report directory, applies the
+pinned SLO checker to every profile, and runs the configured concurrency
+staircase. The runner expects the normal Photon and isolated constrained stacks
+to be healthy; it does not change host quotas, deploy, or contact another host.
