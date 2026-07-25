@@ -455,14 +455,28 @@ def resolve_artifacts(
 ) -> list[tuple[str, Path]]:
     state_real = state_dir.resolve(strict=True)
     active_real = (state_dir / "served/current").resolve(strict=True)
+    build_id = str(manifest.get("build_id") or "")
+    allowed_derived: set[Path] = set()
+    if build_id and active_real.name == build_id:
+        for candidate in (
+            state_dir / "derived/public_read" / build_id / "public_read.sqlite",
+            state_dir
+            / "derived/simulation_scenes"
+            / build_id
+            / "simulation_scenes.tar.gz",
+        ):
+            if candidate.is_file():
+                allowed_derived.add(candidate.resolve(strict=True))
     result: list[tuple[str, Path]] = []
     for relative in manifest.get("artifacts") or []:
         path = state_dir / str(relative)
         resolved = path.resolve(strict=True)
         if not resolved.is_relative_to(state_real):
             raise ValueError(f"artifact escapes state directory: {relative}")
-        if not resolved.is_relative_to(active_real):
-            raise ValueError(f"artifact is outside the active served build: {relative}")
+        if not resolved.is_relative_to(active_real) and resolved not in allowed_derived:
+            raise ValueError(
+                f"artifact is outside the active build artifact set: {relative}"
+            )
         if not resolved.is_file():
             raise ValueError(f"artifact is not a file: {relative}")
         result.append((str(relative), resolved))

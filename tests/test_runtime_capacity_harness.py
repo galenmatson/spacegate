@@ -79,6 +79,50 @@ def test_resolve_artifacts_is_confined_to_active_build(tmp_path: Path) -> None:
         )
 
 
+def test_resolve_artifacts_allows_only_registered_build_derived_files(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    active = state / "out/build-1"
+    active.mkdir(parents=True)
+    (active / "core.duckdb").write_bytes(b"core")
+    (state / "served").mkdir()
+    (state / "served/current").symlink_to(active)
+    derived = state / "derived/public_read/build-1"
+    derived.mkdir(parents=True)
+    public_read = derived / "public_read.sqlite"
+    public_read.write_bytes(b"sqlite")
+    unrelated = derived / "unrelated.sqlite"
+    unrelated.write_bytes(b"unrelated")
+
+    resolved = HARNESS.resolve_artifacts(
+        state,
+        {
+            "build_id": "build-1",
+            "artifacts": [
+                "derived/public_read/build-1/public_read.sqlite",
+            ],
+        },
+    )
+    assert resolved == [
+        (
+            "derived/public_read/build-1/public_read.sqlite",
+            public_read.resolve(),
+        )
+    ]
+
+    with pytest.raises(ValueError, match="outside the active build artifact set"):
+        HARNESS.resolve_artifacts(
+            state,
+            {
+                "build_id": "build-1",
+                "artifacts": [
+                    "derived/public_read/build-1/unrelated.sqlite",
+                ],
+            },
+        )
+
+
 def test_targeted_eviction_never_requests_global_cache_drop(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
