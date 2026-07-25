@@ -2201,10 +2201,13 @@ def _render_scene_contract(
     rendered_display_names: set[str] = set()
     hierarchy_star_nodes = _iter_hierarchy_render_star_nodes((hierarchy or {}).get("root"))
     hierarchy_star_count = int(((hierarchy or {}).get("counts") or {}).get("stars") or 0)
-    hierarchy_render_star_keys = {
-        _component_key_for_hierarchy_star_node(node)
+    hierarchy_star_by_render_key = {
+        render_key: node
         for node in hierarchy_star_nodes
-        if _component_key_for_hierarchy_star_node(node)
+        if (render_key := _component_key_for_hierarchy_star_node(node))
+    }
+    hierarchy_render_star_keys = {
+        *hierarchy_star_by_render_key
     }
     system_wds_id = str(system.get("wds_id") or "").strip()
     render_key_by_wds_label: Dict[tuple[str, str], str] = {}
@@ -2390,10 +2393,33 @@ def _render_scene_contract(
                 render_stars[component_key] = dict(render_stars[core_key])
                 render_stars[component_key]["render_key"] = component_key
                 render_stars[component_key]["source_component_key"] = component_key
+                hierarchy_node = hierarchy_star_by_render_key.get(component_key) or {}
+                selected_component_label = (
+                    component.get("catalog_component_label")
+                    or hierarchy_node.get("catalog_component_label")
+                    or hierarchy_node.get("member_role")
+                )
+                if selected_component_label:
+                    render_stars[component_key]["component"] = selected_component_label
                 if len(stars) != 1:
                     render_stars[component_key]["display_name"] = _component_or_core_member_display_name(
                         component.get("display_name"),
                         render_stars[core_key]["display_name"],
+                    )
+                member_display_name = str(
+                    render_stars[component_key].get("display_name") or ""
+                ).strip()
+                system_display_name = str(
+                    system.get("display_name") or system.get("system_name") or ""
+                ).strip()
+                if (
+                    _is_technical_member_display_name(member_display_name)
+                    and system_display_name
+                    and not _is_technical_member_display_name(system_display_name)
+                ):
+                    label = str(selected_component_label or "").strip().upper()
+                    render_stars[component_key]["display_name"] = (
+                        f"{system_display_name} {label}" if label else system_display_name
                     )
                 if core_key != component_key:
                     render_stars.pop(core_key, None)

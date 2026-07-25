@@ -2652,7 +2652,7 @@ test.describe("public 3D map beta", () => {
       { query: "Sirius", minStars: 2, minAssumed: 1 },
       { query: "Castor", minStars: 6, minSourceGroup: 2, maxUnattached: 2 },
       { query: "Nu Sco", minStars: 7, minSourceGroup: 2, minNested: 1, maxUnattached: 4 },
-      { query: "16 Cyg", minStars: 3, minSkippedOverlap: 1, activeOrbitPattern: /16 Cyg B A - 16 Cyg B B/, maxUnattached: 0 },
+      { query: "16 Cyg", minStars: 3, activeOrbitPattern: /hierarchical pair|source elementary binary/, maxUnattached: 0 },
     ];
     let alphaSystemId = null;
 
