@@ -384,6 +384,27 @@ def system_summary(
     return item
 
 
+def preview_policy(summary: dict[str, Any]) -> dict[str, Any]:
+    representation = str(summary.get("scene_representation") or "").strip()
+    if representation in {"singleton_seed", "compact_seed"}:
+        return {
+            "preview_tier": "lightweight_singleton",
+            "preview_basis": [f"public_read:{representation}"],
+            "is_lightweight_preview_safe": True,
+            "has_prebuilt_simulation_scene": False,
+        }
+    if representation == "full_scene":
+        return {
+            "preview_tier": "dynamic_simulation_scene",
+            "preview_basis": ["public_read:full_scene"],
+            "is_lightweight_preview_safe": False,
+            "has_prebuilt_simulation_scene": False,
+        }
+    raise PublicReadIncompatible(
+        f"unknown public-read scene representation: {representation or 'missing'}"
+    )
+
+
 def system_objects(
     con: sqlite3.Connection,
     system_id: int,

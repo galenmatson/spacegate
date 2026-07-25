@@ -252,7 +252,18 @@ def test_summary_and_singleton_seed_retain_selected_fact_lineage(tmp_path: Path)
     assert seed["luminosity_lsun_fact_id"] == "fact-lum"
     assert stars[0]["arm_evidence"]["selected_parameters"]["mass_msun_fact_id"] == "fact-mass"
     assert planets == []
+    assert public_read.preview_policy(summary) == {
+        "preview_tier": "lightweight_singleton",
+        "preview_basis": ["public_read:singleton_seed"],
+        "is_lightweight_preview_safe": True,
+        "has_prebuilt_simulation_scene": False,
+    }
     con.close()
+
+
+def test_projection_preview_policy_rejects_unknown_representation() -> None:
+    with pytest.raises(public_read.PublicReadIncompatible):
+        public_read.preview_policy({"scene_representation": "legacy_guess"})
 
 
 def test_singleton_seed_view_is_coverage_preserving_and_indexed(tmp_path: Path) -> None:

@@ -93,6 +93,24 @@ Browser code may turn selected luminosity and a pinned HZ policy into inexpensiv
 geometry. It may not select among evidence records, infer a missing luminosity,
 or silently substitute presentation priors.
 
+## Duplicate Consumer Logic Audit
+
+| Logic | Disposition |
+| --- | --- |
+| Legacy API `_search_preview_policy` count/class/coolness heuristic | Retained only inside the instrumented DuckDB compatibility path |
+| Browser lightweight-preview count/class/coolness heuristic | Removed; projection consumers require compiler-assigned `scene_representation`/preview policy |
+| Stellar class text parsing in badge components | Presentation normalization and compatibility only; projected object badges and selected leaf classifications win |
+| System/public naming preference | Shared display-name policy consumes projected alias kind, priority, scope, and style; it does not create identity |
+| Map representative class and label priority | Remain immutable tile presentation fields compiled from the same selected classifications and DISC policy |
+| Planet category filtering and badges | Consume compiled category flags/classes; browser code only decodes flags and renders icons |
+| HZ and condensation-line geometry | Intentionally client-side from selected luminosity/temperature plus pinned model versions; no evidence selection occurs |
+| Orbit position, scale compression, and equal-mass visual fallback | Renderer geometry only; source/derived/assumed state remains explicit and no canonical orbit is created |
+| Canonical hierarchy and selected group-pair orbits | Compiler/bundle output only; missing required bundles fail visibly |
+
+This audit distinguishes presentation math from scientific selection. The
+former may remain in the renderer when it is versioned and inspectable; the
+latter belongs in Evidence Lake selection and the immutable read compiler.
+
 ## Artifact Contract
 
 The first implementation uses one SQLite database per immutable scientific build:

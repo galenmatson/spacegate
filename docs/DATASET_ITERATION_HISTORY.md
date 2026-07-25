@@ -4254,6 +4254,12 @@ Representative commits:
   Public Read v2 now carries an expression index matching the exact stable sort,
   and the plan report gates it alongside identity, summary, hierarchy, seed,
   facet, and trigram indexes.
+- Projection consumers no longer reclassify a system as a lightweight preview
+  from browser-side counts, class parsing, coolness, or thresholds. The
+  compiler's versioned `scene_representation` drives the API response and
+  browser tier. The old heuristic remains only in the instrumented DuckDB
+  compatibility path; HZ/orbit geometry remains client-side presentation math
+  over selected inputs, not source selection.
 
 ## Recurrent Defect Classes and Mitigations
 

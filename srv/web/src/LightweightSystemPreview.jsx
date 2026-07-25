@@ -15,14 +15,8 @@ function previewTier(system) {
 }
 
 export function isLightweightPreviewSystem(system) {
-  if (system?.is_lightweight_preview_safe === true) return true;
-  if (previewTier(system) === "lightweight_singleton") return true;
-  const starCount = Number(system?.star_count ?? 0);
-  const planetCount = Number(system?.planet_count ?? 0);
-  const coolness = Number(system?.coolness_score ?? 0);
-  const tokens = stellarClassTokensFromSystem(system, { includeUnknown: false });
-  const exotic = tokens.some((token) => ["WD", "WR", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE"].includes(token));
-  return starCount <= 1 && planetCount === 0 && !exotic && coolness < 20;
+  return system?.is_lightweight_preview_safe === true
+    || previewTier(system) === "lightweight_singleton";
 }
 
 export function LightweightSystemPreview({ system, displayName, stateLabel = "Lightweight preview" }) {

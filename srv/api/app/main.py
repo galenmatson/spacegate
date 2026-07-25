@@ -6581,7 +6581,7 @@ def systems_search(
         has_more = False
     for item in items:
         if projection_used:
-            item.update(_search_preview_policy(item))
+            item.update(public_read.preview_policy(item))
         _attach_snapshot_url(item)
         system_id = item.get("system_id")
         if system_id is None:
