@@ -136,3 +136,8 @@ def test_compiles_conditional_streamed_deployment_decision(
     assert report["decision"]["recommendation"] == "conditional_go"
     assert report["campaign"]["status"] == "pass"
     assert sorted(report["controls"]) == ["retained_control"]
+    transfer_seconds = report["deployment_storage"][
+        "transfer_seconds_at_effective_rate"
+    ]
+    assert sorted(transfer_seconds) == ["10", "100", "20", "250", "50"]
+    assert transfer_seconds["10"] >= transfer_seconds["250"]

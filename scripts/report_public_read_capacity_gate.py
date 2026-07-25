@@ -235,6 +235,12 @@ def main() -> int:
     )
     streamed_reserve = available_after_cleanup - streamed_peak_addition
     staged_reserve = available_after_cleanup - staged_archive_peak_addition
+    transfer_seconds = {
+        str(rate_mbps): round(
+            transfer_payload * 8 / (rate_mbps * 1_000_000 * 0.85)
+        )
+        for rate_mbps in (10, 20, 50, 100, 250)
+    }
     runtime_status = campaign["status"]
     minimum_reserve = 15 * 1024**3
     if runtime_status != "pass":
@@ -290,6 +296,8 @@ def main() -> int:
             "archive_staged_peak_addition_bytes": staged_archive_peak_addition,
             "archive_staged_reserve_bytes": staged_reserve,
             "minimum_operational_reserve_bytes": minimum_reserve,
+            "transfer_seconds_at_effective_rate": transfer_seconds,
+            "transfer_rate_unit": "nominal Mbps with 85% payload efficiency",
             "rollback_policy": (
                 "retain the current extracted build until public verification; "
                 "retire only separately reviewed standby/archive artifacts"
