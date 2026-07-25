@@ -21,24 +21,46 @@ _SCENE_BUILDER = None
 _SCENE_WORKER_CONTEXT: dict[str, Any] = {}
 
 
-def _performance_token() -> tuple[float, float, resource.struct_rusage]:
-    return time.perf_counter(), time.process_time(), resource.getrusage(resource.RUSAGE_SELF)
+def _performance_token() -> tuple[
+    float,
+    float,
+    resource.struct_rusage,
+    resource.struct_rusage,
+]:
+    return (
+        time.perf_counter(),
+        time.process_time(),
+        resource.getrusage(resource.RUSAGE_SELF),
+        resource.getrusage(resource.RUSAGE_CHILDREN),
+    )
 
 
 def _performance_delta(
     name: str,
-    token: tuple[float, float, resource.struct_rusage],
+    token: tuple[
+        float,
+        float,
+        resource.struct_rusage,
+        resource.struct_rusage,
+    ],
     *,
     output_bytes: int | None = None,
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    wall_started, cpu_started, usage_started = token
+    wall_started, cpu_started, usage_started, children_started = token
     usage = resource.getrusage(resource.RUSAGE_SELF)
+    children = resource.getrusage(resource.RUSAGE_CHILDREN)
     result: dict[str, Any] = {
         "name": name,
         "wall_seconds": round(time.perf_counter() - wall_started, 6),
         "cpu_seconds": round(time.process_time() - cpu_started, 6),
         "peak_rss_kib": int(usage.ru_maxrss),
+        "child_cpu_seconds": round(
+            (children.ru_utime - children_started.ru_utime)
+            + (children.ru_stime - children_started.ru_stime),
+            6,
+        ),
+        "max_child_peak_rss_kib": int(children.ru_maxrss),
         "input_blocks": int(usage.ru_inblock - usage_started.ru_inblock),
         "output_blocks": int(usage.ru_oublock - usage_started.ru_oublock),
     }
