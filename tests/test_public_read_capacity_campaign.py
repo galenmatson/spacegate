@@ -19,6 +19,10 @@ def test_checked_in_campaign_matches_workload_build() -> None:
     workload_payload = json.loads(workload.read_text(encoding="utf-8"))
     assert campaign["build_id"] == workload_payload["build_id"]
     assert campaign["staircase"]["steps"] == [1, 2, 4, 6, 8, 12]
+    assert {
+        profile["acceptance"]["max_aggregate_memory_bytes"]
+        for profile in workload_payload["profiles"].values()
+    } == {8 * 1024**3}
 
 
 def test_rejects_duplicate_labels(

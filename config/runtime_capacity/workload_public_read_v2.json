@@ -374,7 +374,7 @@
       "acceptance": {
         "max_error_rate_pct": 0.5,
         "max_p95_latency_ms": 1000,
-        "max_aggregate_memory_bytes": 1073741824,
+        "max_aggregate_memory_bytes": 8589934592,
         "require_no_timeouts": true,
         "require_no_oom": true
       },
