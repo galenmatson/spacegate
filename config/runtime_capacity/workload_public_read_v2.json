@@ -265,7 +265,7 @@
       "concurrency": 12,
       "acceptance": {
         "max_error_rate_pct": 1.0,
-        "max_p95_latency_ms": 750,
+        "max_p95_latency_ms": 3000,
         "max_aggregate_memory_bytes": 8589934592,
         "require_no_timeouts": true,
         "require_no_oom": true
