@@ -23,7 +23,7 @@ from materialize_simulation_scenes import (  # noqa: E402
 
 
 def _write_scene(path: Path, *, version: str, build_id: str | None) -> None:
-    materialization = {"materializer_version": version}
+    materialization = {"materializer_version": version, "deterministic": True}
     if build_id is not None:
         materialization["build_id"] = build_id
     with gzip.open(path, "wt", encoding="utf-8") as handle:
@@ -47,6 +47,30 @@ def test_corrupt_scene_is_not_reusable(tmp_path: Path) -> None:
     artifact = tmp_path / "scene.json.gz"
     artifact.write_bytes(b"not gzip")
     assert not _scene_artifact_reusable(artifact, build_id="candidate")
+
+
+def test_legacy_nondeterministic_scene_is_not_reusable(tmp_path: Path) -> None:
+    artifact = tmp_path / "scene.json.gz"
+    with gzip.open(artifact, "wt", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "materialization": {
+                    "materializer_version": MATERIALIZER_VERSION,
+                    "build_id": "candidate",
+                }
+            },
+            handle,
+        )
+    assert not _scene_artifact_reusable(artifact, build_id="candidate")
+
+
+def test_scene_writer_is_byte_deterministic(tmp_path: Path) -> None:
+    first = tmp_path / "first.json.gz"
+    second = tmp_path / "second.json.gz"
+    payload = {"generated_at_utc": None, "system_id": 7}
+    _write_materialized_scene(first, payload)
+    _write_materialized_scene(second, payload)
+    assert first.read_bytes() == second.read_bytes()
 
 
 def test_explicit_out_build_infers_external_state_root(tmp_path: Path, monkeypatch) -> None:
@@ -84,7 +108,10 @@ def test_runtime_cache_mode_does_not_mutate_immutable_build(tmp_path: Path, monk
     monkeypatch.setenv("SPACEGATE_STATE_DIR", str(state_dir))
     monkeypatch.setattr(
         "materialize_simulation_scenes._load_scene_builder",
-        lambda _root, _build: lambda system_id, build_id: {"system_id": system_id, "build_id": build_id},
+        lambda _root, _build, **_kwargs: lambda system_id, build_id: {
+            "system_id": system_id,
+            "build_id": build_id,
+        },
     )
     args = argparse.Namespace(
         build_dir=str(build_dir),
@@ -110,7 +137,7 @@ def test_runtime_cache_mode_does_not_mutate_immutable_build(tmp_path: Path, monk
     assert report["performance"]["wall_seconds"] >= 0
     assert report["performance"]["cpu_seconds"] >= 0
     assert [phase["name"] for phase in report["phases"]] == [
-        "setup_and_scene_builder_load",
+        "setup",
         "system_selection",
         "scene_materialization",
         "runtime_cache_prune",
@@ -120,8 +147,8 @@ def test_runtime_cache_mode_does_not_mutate_immutable_build(tmp_path: Path, monk
     assert not (build_dir / "disc" / "simulation_scenes").exists()
     with gzip.open(cache_file, "rt", encoding="utf-8") as handle:
         payload = json.load(handle)
-    assert payload["materialization"]["output_mode"] == "runtime-cache"
     assert payload["materialization"]["build_id"] == build_id
+    assert payload["materialization"]["deterministic"] is True
 
     args.system_id = [99]
     with pytest.raises(SystemExit, match="absent from build"):

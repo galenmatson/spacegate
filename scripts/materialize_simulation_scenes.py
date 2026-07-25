@@ -2,19 +2,23 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import gzip
 import json
 import os
 import resource
+import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
 import duckdb
 
 MATERIALIZER_VERSION = "simulation_scene_artifact_v5"
+_SCENE_BUILDER = None
+_SCENE_WORKER_CONTEXT: dict[str, Any] = {}
 
 
 def _performance_token() -> tuple[float, float, resource.struct_rusage]:
@@ -184,21 +188,6 @@ def _select_system_rows(
                     )
                 )
                 """,
-                """
-                lower(COALESCE(s.system_name, s.stable_object_key, '')) IN (
-                  'tau ceti',
-                  'trappist-1',
-                  'alpha centauri',
-                  'proxima centauri',
-                  'sirius',
-                  '55 cnc',
-                  'epsilon eridani',
-                  'barnard''s star',
-                  'wolf 359',
-                  'vega',
-                  'fomalhaut'
-                )
-                """,
             ]
             if has_coolness and top_coolness_limit > 0:
                 priority_clauses.append("COALESCE(c.rank, 9223372036854775807) <= ?")
@@ -247,6 +236,34 @@ def _select_system_rows(
         con.close()
 
 
+def _public_read_full_scene_ids(state_dir: Path, build_id: str) -> list[int]:
+    database = (
+        state_dir
+        / "derived"
+        / "public_read"
+        / build_id
+        / "public_read.sqlite"
+    )
+    if not database.is_file():
+        raise SystemExit(f"Missing public-read policy artifact: {database}")
+    uri = f"file:{database.resolve()}?mode=ro&immutable=1"
+    con = sqlite3.connect(uri, uri=True)
+    try:
+        return [
+            int(row[0])
+            for row in con.execute(
+                """
+                SELECT system_id
+                FROM systems
+                WHERE scene_representation='full_scene'
+                ORDER BY system_id
+                """
+            )
+        ]
+    finally:
+        con.close()
+
+
 def _emit_progress(payload: dict[str, Any]) -> None:
     print("[simulation-scene-progress] " + json.dumps(payload, sort_keys=True), flush=True)
 
@@ -255,11 +272,15 @@ def _progress_interval(total: int) -> int:
     return max(10, min(1000, max(1, total // 50)))
 
 
-def _load_scene_builder(root: Path, build_dir: Path):
+def _load_scene_builder(root: Path, build_dir: Path, *, workers: int):
     api_root = root / "srv" / "api"
     sys.path.insert(0, str(api_root))
     os.environ["SPACEGATE_DB_PATH"] = str(build_dir / "core.duckdb")
     os.environ.setdefault("SPACEGATE_STATE_DIR", str(_state_dir(root)))
+    os.environ["SPACEGATE_STRICT_SIDE_DB_ATTACH"] = "1"
+    os.environ["SPACEGATE_API_DB_POOL_SIZE"] = str(workers)
+    os.environ["SPACEGATE_API_DUCKDB_THREADS"] = "1"
+    os.environ["SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS"] = "60"
     from app.main import _system_simulation_scene_payload  # noqa: PLC0415
 
     return _system_simulation_scene_payload
@@ -271,7 +292,13 @@ def _write_scene(path: Path, payload: dict[str, Any]) -> int:
     tmp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
     try:
         with tmp_path.open("wb") as raw:
-            with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=6, mtime=0) as f:
+            with gzip.GzipFile(
+                filename="",
+                fileobj=raw,
+                mode="wb",
+                compresslevel=6,
+                mtime=0,
+            ) as f:
                 f.write(encoded)
         tmp_path.chmod(0o664)
         os.replace(tmp_path, path)
@@ -327,7 +354,83 @@ def _scene_artifact_reusable(path: Path, *, build_id: str) -> bool:
         isinstance(materialization, dict)
         and materialization.get("materializer_version") == MATERIALIZER_VERSION
         and materialization.get("build_id") == build_id
+        and materialization.get("deterministic") is True
     )
+
+
+def _initialize_scene_worker(
+    root_text: str,
+    build_dir_text: str,
+    output_dir_text: str,
+    state_dir_text: str,
+    build_id: str,
+    force: bool,
+    output_mode: str,
+) -> None:
+    global _SCENE_BUILDER, _SCENE_WORKER_CONTEXT
+    root = Path(root_text)
+    build_dir = Path(build_dir_text)
+    _SCENE_BUILDER = _load_scene_builder(root, build_dir, workers=1)
+    _SCENE_WORKER_CONTEXT = {
+        "build_dir": build_dir,
+        "output_dir": Path(output_dir_text),
+        "state_dir": Path(state_dir_text),
+        "build_id": build_id,
+        "force": bool(force),
+        "output_mode": output_mode,
+    }
+
+
+def _materialize_scene_worker(row: dict[str, Any]) -> dict[str, Any]:
+    if _SCENE_BUILDER is None or not _SCENE_WORKER_CONTEXT:
+        raise RuntimeError("scene worker was not initialized")
+    context = _SCENE_WORKER_CONTEXT
+    system_id = int(row["system_id"])
+    output_dir = context["output_dir"]
+    build_id = str(context["build_id"])
+    out_path = output_dir / f"system_{system_id}.json.gz"
+    reusable = (
+        out_path.exists()
+        and not context["force"]
+        and _scene_artifact_reusable(out_path, build_id=build_id)
+    )
+    if reusable:
+        return {
+            "status": "reused",
+            "size_bytes": out_path.stat().st_size,
+            "system_id": system_id,
+            "system_name": row.get("system_name"),
+            "out_path": str(out_path),
+        }
+    incompatible = bool(out_path.exists() and not context["force"])
+    try:
+        payload = _SCENE_BUILDER(system_id, build_id=build_id)
+        payload["generated_at_utc"] = None
+        payload["materialization"] = {
+            "materialized": True,
+            "materializer_version": MATERIALIZER_VERSION,
+            "build_id": build_id,
+            "deterministic": True,
+        }
+        size = _write_scene(out_path, payload)
+        return {
+            "status": "generated",
+            "size_bytes": size,
+            "system_id": system_id,
+            "system_name": row.get("system_name"),
+            "out_path": str(out_path),
+            "incompatible": incompatible,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "status": "failed",
+            "size_bytes": 0,
+            "system_id": system_id,
+            "system_name": row.get("system_name"),
+            "out_path": str(out_path),
+            "incompatible": incompatible,
+            "error": str(exc),
+        }
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -346,13 +449,23 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         state_dir = _state_dir(root)
         build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
     build_dir = build_dir.resolve()
-    scene_builder = _load_scene_builder(root, build_dir)
-    phases.append(_performance_delta("setup_and_scene_builder_load", setup_started))
+    workers = max(1, int(getattr(args, "workers", 1) or 1))
+    phases.append(_performance_delta("setup", setup_started))
 
     selection_started = _performance_token()
+    selected_system_ids = list(args.system_id)
+    public_read_full_scene_policy = bool(
+        getattr(args, "public_read_full_scene_policy", False)
+    )
+    if public_read_full_scene_policy:
+        if selected_system_ids:
+            raise SystemExit(
+                "--public-read-full-scene-policy cannot be combined with --system-id"
+            )
+        selected_system_ids = _public_read_full_scene_ids(state_dir, build_id)
     system_rows = _select_system_rows(
         build_dir,
-        system_ids=args.system_id,
+        system_ids=selected_system_ids,
         limit=args.limit,
         sort=args.sort,
         priority_profile=args.priority_profile,
@@ -362,8 +475,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         min_star_count=args.min_star_count,
         min_planet_count=args.min_planet_count,
     )
-    if args.system_id:
-        requested_ids = {int(system_id) for system_id in args.system_id}
+    if selected_system_ids:
+        requested_ids = {int(system_id) for system_id in selected_system_ids}
         found_ids = {int(row["system_id"]) for row in system_rows}
         missing_ids = sorted(requested_ids - found_ids)
         if missing_ids:
@@ -391,7 +504,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     total_bytes = 0
     examples: list[dict[str, Any]] = []
     interval = _progress_interval(requested)
-
     _emit_progress(
         {
             "stage": "start",
@@ -401,69 +513,82 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "sort": args.sort,
             "force": bool(args.force),
             "output_mode": args.output_mode,
+            "workers": workers,
         }
     )
 
     materialization_started = _performance_token()
-    for idx, row in enumerate(system_rows, start=1):
-        system_id = int(row["system_id"])
-        out_path = output_dir / f"system_{system_id}.json.gz"
-        reusable = out_path.exists() and not args.force and _scene_artifact_reusable(
-            out_path,
-            build_id=build_id,
+    initializer_args = (
+        str(root),
+        str(build_dir),
+        str(output_dir),
+        str(state_dir),
+        build_id,
+        bool(args.force),
+        args.output_mode,
+    )
+    executor: concurrent.futures.Executor
+    if workers == 1:
+        _initialize_scene_worker(*initializer_args)
+        result_rows: Iterable[dict[str, Any]] = map(
+            _materialize_scene_worker, system_rows
         )
-        if reusable:
-            reused += 1
-            total_bytes += out_path.stat().st_size
-        else:
-            if out_path.exists() and not args.force:
+        executor = None  # type: ignore[assignment]
+    else:
+        executor = concurrent.futures.ProcessPoolExecutor(
+            max_workers=workers,
+            initializer=_initialize_scene_worker,
+            initargs=initializer_args,
+        )
+        result_rows = executor.map(_materialize_scene_worker, system_rows)
+    try:
+        for idx, result_row in enumerate(result_rows, start=1):
+            status = result_row["status"]
+            total_bytes += int(result_row.get("size_bytes") or 0)
+            if result_row.get("incompatible"):
                 incompatible_existing += 1
-            try:
-                payload = scene_builder(system_id, build_id=build_id)
-                payload.setdefault("materialization", {})
-                payload["materialization"] = {
-                    "materialized": True,
-                    "materializer_version": MATERIALIZER_VERSION,
-                    "build_id": build_id,
-                    "materialized_at_utc": _utc_now(),
-                    "artifact_path": (
-                        str(out_path.relative_to(build_dir))
-                        if args.output_mode == "build-artifact"
-                        else str(out_path.relative_to(state_dir))
-                    ),
-                    "output_mode": args.output_mode,
-                }
-                total_bytes += _write_scene(out_path, payload)
+            if status == "generated":
                 generated += 1
-            except Exception as exc:  # noqa: BLE001
+            elif status == "reused":
+                reused += 1
+            else:
                 failed += 1
                 if len(examples) < 12:
-                    examples.append({"system_id": system_id, "error": str(exc)})
-        if len(examples) < 8 and out_path.exists():
-            examples.append(
-                {
-                    "system_id": system_id,
-                    "system_name": row.get("system_name"),
-                    "artifact_path": (
-                        str(out_path.relative_to(build_dir))
-                        if args.output_mode == "build-artifact"
-                        else str(out_path.relative_to(state_dir))
-                    ),
-                    "size_bytes": out_path.stat().st_size,
-                }
-            )
-        if idx == requested or idx % interval == 0:
-            _emit_progress(
-                {
-                    "stage": "materializing",
-                    "processed": idx,
-                    "requested": requested,
-                    "generated": generated,
-                    "reused": reused,
-                    "incompatible_existing": incompatible_existing,
-                    "failed": failed,
-                }
-            )
+                    examples.append(
+                        {
+                            "system_id": result_row["system_id"],
+                            "error": result_row.get("error"),
+                        }
+                    )
+            out_path = Path(result_row["out_path"])
+            if len(examples) < 8 and out_path.exists():
+                examples.append(
+                    {
+                        "system_id": result_row["system_id"],
+                        "system_name": result_row.get("system_name"),
+                        "artifact_path": (
+                            str(out_path.relative_to(build_dir))
+                            if args.output_mode == "build-artifact"
+                            else str(out_path.relative_to(state_dir))
+                        ),
+                        "size_bytes": out_path.stat().st_size,
+                    }
+                )
+            if idx == requested or idx % interval == 0:
+                _emit_progress(
+                    {
+                        "stage": "materializing",
+                        "processed": idx,
+                        "requested": requested,
+                        "generated": generated,
+                        "reused": reused,
+                        "incompatible_existing": incompatible_existing,
+                        "failed": failed,
+                    }
+                )
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True, cancel_futures=False)
     phases.append(
         _performance_delta(
             "scene_materialization",
@@ -504,12 +629,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "top_coolness_limit": args.top_coolness_limit,
             "limit": args.limit,
             "system_id": args.system_id,
+            "public_read_full_scene_policy": public_read_full_scene_policy,
             "min_dist_ly": args.min_dist_ly,
             "max_dist_ly": args.max_dist_ly,
             "min_star_count": args.min_star_count,
             "min_planet_count": args.min_planet_count,
             "force": bool(args.force),
             "output_mode": args.output_mode,
+            "workers": workers,
         },
         "requested": requested,
         "generated": generated,
@@ -537,9 +664,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--build-id", default=None, help="Build ID to target (defaults to served/current).")
     parser.add_argument("--build-dir", default=None, help="Explicit build directory, including an unpromoted .tmp build.")
     parser.add_argument("--system-id", action="append", type=int, default=[], help="Specific system_id to materialize; can be repeated.")
+    parser.add_argument(
+        "--public-read-full-scene-policy",
+        action="store_true",
+        help="Select the exact build-keyed full-scene set from the public-read artifact.",
+    )
     parser.add_argument("--limit", type=int, default=1000, help="Maximum systems to select when --system-id is not provided.")
     parser.add_argument("--sort", choices=["distance", "coolness", "name"], default="distance")
-    parser.add_argument("--priority-profile", choices=["none", "search-preview"], default="none", help="Optional priority selector for prebuilding high-value preview scenes.")
+    parser.add_argument("--priority-profile", choices=["none", "search-preview"], default="none", help="Optional property-based priority selector for prebuilding high-value preview scenes.")
     parser.add_argument(
         "--output-mode",
         choices=["build-artifact", "runtime-cache"],
@@ -552,6 +684,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-star-count", type=int, default=None)
     parser.add_argument("--min-planet-count", type=int, default=None)
     parser.add_argument("--force", action="store_true", help="Regenerate existing scene artifacts.")
+    parser.add_argument("--workers", type=int, default=1, help="Concurrent scene workers; output remains deterministic and build-keyed.")
     return parser.parse_args()
 
 
@@ -561,6 +694,8 @@ def main() -> int:
         raise SystemExit("--limit must be > 0 unless --system-id is provided")
     if args.top_coolness_limit < 0:
         raise SystemExit("--top-coolness-limit must be >= 0")
+    if args.workers < 1 or args.workers > 32:
+        raise SystemExit("--workers must be between 1 and 32")
     if args.min_dist_ly is not None and args.min_dist_ly < 0:
         raise SystemExit("--min-dist-ly must be >= 0")
     if args.max_dist_ly is not None and args.max_dist_ly < 0:

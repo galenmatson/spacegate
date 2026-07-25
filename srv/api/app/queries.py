@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 from collections import defaultdict
@@ -187,7 +188,7 @@ def _attach_side_db(
     except Exception:
         pass
     db_path_sql = str(disc_db_path).replace("'", "''")
-    for delay_seconds in (0.0, 0.02, 0.05):
+    for delay_seconds in (0.0, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0):
         if delay_seconds:
             time.sleep(delay_seconds)
         try:
@@ -195,6 +196,12 @@ def _attach_side_db(
             return True
         except Exception:
             continue
+    if str(os.getenv("SPACEGATE_STRICT_SIDE_DB_ATTACH", "")).lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        raise RuntimeError(f"required side database could not be attached as {alias}")
     return False
 
 
