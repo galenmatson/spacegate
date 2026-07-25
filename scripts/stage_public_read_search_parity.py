@@ -125,6 +125,7 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         ),
     )
     target.commit()
+    target.execute("VACUUM")
     logical_hashes = refresh_modified_logical_hashes(target, manifest)
     integrity = str(target.execute("PRAGMA integrity_check").fetchone()[0])
     target.close()
