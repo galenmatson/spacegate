@@ -15,7 +15,7 @@ from . import db
 from .queries import choose_display_name_info
 
 
-EXPECTED_PROJECTION_SCHEMA = "spacegate.public_read.v1"
+EXPECTED_PROJECTION_SCHEMA = "spacegate.public_read.v2"
 EXPECTED_SEARCH_SCHEMA = "spacegate.search.v2"
 DEFAULT_CANDIDATE_TERMS = 5000
 DEFAULT_CANDIDATE_SYSTEMS = 2000
@@ -257,6 +257,13 @@ def _planet_payload(row: sqlite3.Row) -> dict[str, Any]:
     item["planet_insolation_class"] = item.pop("insolation_class", None)
     item["planet_composition_proxy_class"] = item.pop("composition_proxy_class", None)
     item["planet_classifier_version"] = item.pop("classifier_version", None)
+    encoded_lineage = item.pop("selected_fact_lineage_json", None)
+    try:
+        item["selected_fact_lineage"] = (
+            json.loads(encoded_lineage) if encoded_lineage else {}
+        )
+    except (TypeError, ValueError) as exc:
+        raise PublicReadIncompatible("planet selected-fact lineage is invalid") from exc
     item["provenance"] = {
         "source_catalog": item.pop("source_catalog", None),
         "source_version": item.pop("source_version", None),

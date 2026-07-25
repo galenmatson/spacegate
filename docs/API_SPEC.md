@@ -1689,6 +1689,11 @@ Public Read v2 serves ordinary one-star/no-planet systems directly from compact
 selected-fact projections. Systems marked `bundle_required` are served from a
 verified compressed hierarchy/detail bundle. Until bundle coverage is complete,
 the compatibility adapter is counted and may use the legacy bounded assembler.
+Projected planet rows retain a `selected_fact_lineage` object keyed by public
+quantity. Each populated orbital period, semimajor axis, eccentricity,
+inclination, radius, mass, equilibrium-temperature, or insolation scalar carries
+its selected fact ID and lower/upper bounds; the compact source-row provenance
+does not substitute for this per-quantity lineage.
 
 ### GET /systems/{system_id}/summary
 

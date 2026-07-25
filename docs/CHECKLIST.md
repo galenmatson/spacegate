@@ -1972,6 +1972,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Compile deterministic Public Read v2 base artifact with complete system,
   exact-identifier, alias, search-term, TIC/TOI outcome, quarantine, selected
   star/planet, summary, facet, and singleton-seed accounting
+- [x] Retain per-quantity selected fact IDs and uncertainty bounds for every
+  populated projected planet scalar; verify that all 2,826 public planet rows
+  agree exactly with the Evidence Lake selected-parameter projection
 - [x] Route search, singleton detail, hierarchy/summary endpoints, and singleton
   scenes through immutable SQLite projections with instrumented DuckDB
   compatibility fallback and visible incompatibility failures

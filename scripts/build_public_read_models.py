@@ -17,9 +17,9 @@ import duckdb
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_POLICY = ROOT / "config" / "public_read" / "projection_v1.json"
+DEFAULT_POLICY = ROOT / "config" / "public_read" / "projection_v2.json"
 DEFAULT_BATCH_SIZE = 20_000
-BUILDER_VERSION = "public_read_compiler_v1"
+BUILDER_VERSION = "public_read_compiler_v2"
 
 
 def utc_now() -> str:
@@ -261,6 +261,7 @@ def create_schema(con: sqlite3.Connection) -> None:
           insolation_class TEXT,
           composition_proxy_class TEXT,
           classifier_version TEXT,
+          selected_fact_lineage_json TEXT NOT NULL,
           source_catalog TEXT,
           source_version TEXT,
           source_row_hash TEXT,
@@ -379,7 +380,7 @@ def load_planet_facets(
     if sample_limit:
         limited_join = (
             "JOIN (SELECT system_id FROM systems ORDER BY system_id "
-            f"LIMIT {int(sample_limit)}) limited USING (system_id)"
+            f"LIMIT {int(sample_limit)}) limited ON limited.system_id = p.system_id"
         )
     category = planet_category_bit_sql("p")
     eligible = planet_category_eligibility_sql("p")
@@ -559,7 +560,7 @@ def insert_planets(
     if sample_limit:
         limited_join = (
             "JOIN (SELECT system_id FROM systems ORDER BY system_id "
-            f"LIMIT {int(sample_limit)}) limited USING (system_id)"
+            f"LIMIT {int(sample_limit)}) limited ON limited.system_id = p.system_id"
         )
     cur = source.execute(
         f"""
@@ -574,15 +575,69 @@ def insert_planets(
           CAST(p.match_confidence AS DOUBLE), p.match_notes, p.planet_status,
           p.planet_size_mass_class, p.planet_insolation_class,
           p.planet_composition_proxy_class, p.planet_classifier_version,
+          to_json(struct_pack(
+            lineage_version := 'spacegate.planet_selected_fact_lineage.v1',
+            orbital_period_days := struct_pack(
+              lower := sp.orbital_period_days_lower,
+              upper := sp.orbital_period_days_upper,
+              fact_id := sp.orbital_period_days_fact_id
+            ),
+            semi_major_axis_au := struct_pack(
+              lower := sp.semi_major_axis_au_lower,
+              upper := sp.semi_major_axis_au_upper,
+              fact_id := sp.semi_major_axis_au_fact_id
+            ),
+            eccentricity := struct_pack(
+              lower := sp.eccentricity_lower,
+              upper := sp.eccentricity_upper,
+              fact_id := sp.eccentricity_fact_id
+            ),
+            inclination_deg := struct_pack(
+              lower := sp.inclination_deg_lower,
+              upper := sp.inclination_deg_upper,
+              fact_id := sp.inclination_deg_fact_id
+            ),
+            radius_earth := struct_pack(
+              lower := sp.radius_earth_lower,
+              upper := sp.radius_earth_upper,
+              fact_id := sp.radius_earth_fact_id
+            ),
+            radius_jup := struct_pack(
+              lower := sp.radius_jup_lower,
+              upper := sp.radius_jup_upper,
+              fact_id := sp.radius_jup_fact_id
+            ),
+            mass_earth := struct_pack(
+              lower := sp.best_mass_earth_lower,
+              upper := sp.best_mass_earth_upper,
+              fact_id := sp.best_mass_earth_fact_id
+            ),
+            mass_jup := struct_pack(
+              lower := sp.best_mass_jup_lower,
+              upper := sp.best_mass_jup_upper,
+              fact_id := sp.best_mass_jup_fact_id
+            ),
+            eq_temp_k := struct_pack(
+              lower := sp.eq_temp_k_lower,
+              upper := sp.eq_temp_k_upper,
+              fact_id := sp.eq_temp_k_fact_id
+            ),
+            insol_earth := struct_pack(
+              lower := sp.insol_earth_lower,
+              upper := sp.insol_earth_upper,
+              fact_id := sp.insol_earth_fact_id
+            )
+          )),
           p.source_catalog, p.source_version, p.source_row_hash,
           p.transform_version
         FROM planets p
+        JOIN arm_db.e6_selected_planet_parameters sp USING (planet_id)
         {limited_join}
         WHERE p.system_id IS NOT NULL
         ORDER BY p.planet_id
         """
     )
-    sql = "INSERT INTO planets VALUES (" + ",".join("?" for _ in range(33)) + ")"
+    sql = "INSERT INTO planets VALUES (" + ",".join("?" for _ in range(34)) + ")"
     batch = list(rows(cur, DEFAULT_BATCH_SIZE))
     for part in chunks(batch, DEFAULT_BATCH_SIZE):
         target.executemany(sql, part)

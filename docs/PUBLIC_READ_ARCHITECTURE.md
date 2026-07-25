@@ -135,7 +135,10 @@ The database contains separate tables for:
 
 - `systems`: compact facets, positions, counts, DISC values, and representation policy;
 - `stars`: public selected values, classifications, status, and selected-fact lineage;
-- `planets`: public confirmed-planet summary values and lifecycle state;
+- `planets`: public confirmed-planet summary values, lifecycle state, and a
+  compact per-quantity selected-fact lineage document containing uncertainty
+  bounds and fact IDs for every populated orbital, size, mass, temperature,
+  and insolation scalar;
 - `aliases`: scoped source aliases;
 - `search_terms`: every accepted public search term with focus identity;
 - `exact_identifiers`: all 6,669,279 accepted permanent identifiers with

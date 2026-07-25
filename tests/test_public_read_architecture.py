@@ -261,6 +261,43 @@ def test_summary_and_singleton_seed_retain_selected_fact_lineage(tmp_path: Path)
     con.close()
 
 
+def test_planet_projection_exposes_quantity_fact_lineage(tmp_path: Path) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    con.execute(
+        """
+        INSERT INTO planets(
+          planet_id,system_id,stable_object_key,planet_name,
+          orbital_period_days,selected_fact_lineage_json
+        ) VALUES (?,?,?,?,?,?)
+        """,
+        [
+            21,
+            1,
+            "canon:planet:test-b",
+            "Alpha Test b",
+            12.5,
+            json.dumps(
+                {
+                    "lineage_version": "spacegate.planet_selected_fact_lineage.v1",
+                    "orbital_period_days": {
+                        "lower": 12.4,
+                        "upper": 12.6,
+                        "fact_id": "fact-period",
+                    },
+                }
+            ),
+        ],
+    )
+    _, planets = public_read.system_objects(con, 1)
+    assert planets[0]["orbital_period_days"] == 12.5
+    assert planets[0]["selected_fact_lineage"]["orbital_period_days"] == {
+        "lower": 12.4,
+        "upper": 12.6,
+        "fact_id": "fact-period",
+    }
+    con.close()
+
+
 def test_projection_preview_policy_rejects_unknown_representation() -> None:
     with pytest.raises(public_read.PublicReadIncompatible):
         public_read.preview_policy({"scene_representation": "legacy_guess"})
