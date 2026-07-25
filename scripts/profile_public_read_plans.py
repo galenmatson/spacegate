@@ -38,11 +38,18 @@ def run(database: Path) -> dict[str, Any]:
                 "SELECT system_id FROM systems ORDER BY system_id LIMIT 1"
             ).fetchone()[0]
         )
-        bundle_id = int(
-            con.execute(
-                "SELECT system_id FROM hierarchy_bundles ORDER BY system_id LIMIT 1"
-            ).fetchone()[0]
-        )
+        bundle_row = con.execute(
+            "SELECT system_id FROM hierarchy_bundles ORDER BY system_id LIMIT 1"
+        ).fetchone()
+        if bundle_row is None:
+            bundle_row = con.execute(
+                """
+                SELECT system_id FROM systems
+                WHERE hierarchy_representation='bundle_required'
+                ORDER BY system_id LIMIT 1
+                """
+            ).fetchone()
+        bundle_id = int(bundle_row[0] if bundle_row is not None else system_id)
         seed_id = int(
             con.execute(
                 "SELECT system_id FROM singleton_scene_seeds ORDER BY system_id LIMIT 1"
