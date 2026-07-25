@@ -631,7 +631,7 @@ def insert_planets(
           p.source_catalog, p.source_version, p.source_row_hash,
           p.transform_version
         FROM planets p
-        JOIN arm_db.e6_selected_planet_parameters sp USING (planet_id)
+        LEFT JOIN arm_db.e6_selected_planet_parameters sp USING (planet_id)
         {limited_join}
         WHERE p.system_id IS NOT NULL
         ORDER BY p.planet_id

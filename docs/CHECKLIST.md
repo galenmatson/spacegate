@@ -1973,8 +1973,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   exact-identifier, alias, search-term, TIC/TOI outcome, quarantine, selected
   star/planet, summary, facet, and singleton-seed accounting
 - [x] Retain per-quantity selected fact IDs and uncertainty bounds for every
-  populated projected planet scalar; verify that all 2,826 public planet rows
-  agree exactly with the Evidence Lake selected-parameter projection
+  populated projected planet scalar; verify that 2,811 public rows agree
+  exactly with the Evidence Lake selected-parameter projection and that the 15
+  source-only rows without a selected-parameter record expose no unlineaged
+  scalar
 - [x] Route search, singleton detail, hierarchy/summary endpoints, and singleton
   scenes through immutable SQLite projections with instrumented DuckDB
   compatibility fallback and visible incompatibility failures

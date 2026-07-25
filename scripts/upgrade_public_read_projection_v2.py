@@ -109,7 +109,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         SELECT CAST(p.planet_id AS BIGINT) AS planet_id,
                {",".join(selected_columns)}
         FROM planets p
-        JOIN arm_db.e6_selected_planet_parameters sp USING (planet_id)
+        LEFT JOIN arm_db.e6_selected_planet_parameters sp USING (planet_id)
         WHERE p.system_id IS NOT NULL
         ORDER BY p.planet_id
         """
