@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 
 from app.main import (  # noqa: E402
+    _apply_selected_leaf_body_class,
     _is_planetary_orbit_relation,
     _overlay_stellar_leaf_classifications,
     _planet_orbit_solutions_by_stable_key,
@@ -16,6 +17,58 @@ from app.main import (  # noqa: E402
 
 
 class StellarLeafOverlayTests(unittest.TestCase):
+    def test_selected_white_dwarf_leaf_promotes_renderer_body_class(self) -> None:
+        render_star = {
+            "render_key": "comp:test:wd",
+            "body_class": "star",
+            "compact_type": None,
+            "fields": {
+                "object_type": {
+                    "value": "star",
+                    "status": "derived",
+                },
+                "spectral_type_raw": {
+                    "value": None,
+                    "status": "missing",
+                },
+            },
+        }
+        leaf_row = {
+            "classification_value": "WD",
+            "classification_status": "source",
+            "evidence_basis": "selected_white_dwarf_catalog_applicability",
+            "source_catalog": "compact.gaia_edr3_white_dwarf",
+            "source_pk": "wd:test",
+            "confidence_score": 0.93,
+        }
+
+        _apply_selected_leaf_body_class(render_star, leaf_row)
+
+        self.assertEqual(render_star["body_class"], "white_dwarf")
+        self.assertEqual(render_star["compact_type"], "white_dwarf")
+        self.assertEqual(render_star["fields"]["object_type"]["value"], "white_dwarf")
+        self.assertEqual(render_star["fields"]["object_type"]["status"], "derived")
+        self.assertEqual(render_star["fields"]["visual_stellar_class"]["value"], "D")
+
+    def test_selected_ordinary_leaf_does_not_override_direct_compact_body(self) -> None:
+        render_star = {
+            "render_key": "comp:test:direct-wd",
+            "body_class": "white_dwarf",
+            "compact_type": "white_dwarf",
+            "fields": {},
+        }
+
+        _apply_selected_leaf_body_class(
+            render_star,
+            {
+                "classification_value": "M",
+                "classification_status": "assumed",
+            },
+        )
+
+        self.assertEqual(render_star["body_class"], "white_dwarf")
+        self.assertEqual(render_star["compact_type"], "white_dwarf")
+
     def test_planet_orbit_lookup_accepts_legacy_and_evidence_lake_tokens(self) -> None:
         arm = {
             "orbit_edges": {

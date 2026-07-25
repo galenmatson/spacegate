@@ -230,7 +230,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v6"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v7"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -1696,11 +1696,83 @@ def _stellar_body_class(star: Dict[str, Any], fallback: Optional[str] = None) ->
     spectral_type = str(star.get("spectral_type_raw") or star.get("spectral_type") or "").strip().upper()
     if raw_type in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar", "brown_dwarf"}:
         return raw_type
-    if _spectral_type_indicates_white_dwarf(spectral_type) or spectral_class == "D":
+    if _spectral_type_indicates_white_dwarf(spectral_type) or spectral_class in {"D", "WD"}:
         return "white_dwarf"
     if spectral_class in {"L", "T", "Y"}:
         return "brown_dwarf"
     return raw_type or "star"
+
+
+def _apply_selected_leaf_body_class(
+    render_star: Dict[str, Any],
+    leaf_row: Dict[str, Any],
+) -> None:
+    class_token = str(leaf_row.get("classification_value") or "").strip().upper()
+    current_body_class = str(render_star.get("body_class") or "star").strip().lower()
+    compact_classes = {
+        "WD": "white_dwarf",
+        "D": "white_dwarf",
+        "NS": "neutron_star",
+        "PSR": "pulsar",
+        "BH": "black_hole",
+    }
+    selected_body_class = compact_classes.get(class_token)
+    if selected_body_class is None and class_token in {"L", "T", "Y"}:
+        selected_body_class = "brown_dwarf"
+    if selected_body_class is None or selected_body_class == current_body_class:
+        return
+    if current_body_class in {
+        "white_dwarf",
+        "neutron_star",
+        "black_hole",
+        "pulsar",
+        "magnetar",
+    }:
+        return
+
+    fields = render_star.setdefault("fields", {})
+    classification_status = str(leaf_row.get("classification_status") or "missing")
+    source_catalog = leaf_row.get("source_catalog")
+    source_reference = leaf_row.get("source_pk")
+    render_star["body_class"] = selected_body_class
+    render_star["compact_type"] = _compact_type_for_body_class(selected_body_class)
+    fields["object_type"] = _simulation_field(
+        key="object_type",
+        label="Object type",
+        value=selected_body_class,
+        unit=None,
+        status="derived",
+        basis=(
+            "arm.stellar_leaf_display_classifications:"
+            + str(leaf_row.get("evidence_basis") or "selected_leaf_classification")
+        ),
+        layer="arm",
+        confidence_tier=(
+            "high" if classification_status == "source" else "illustrative"
+        ),
+        replacement_target="reviewed component-specific compact-object classification",
+        source_catalog=source_catalog,
+        source_reference=source_reference,
+        generator_version="selected_leaf_body_class_v1",
+        confidence=_float_or_none(leaf_row.get("confidence_score")),
+        notes=(
+            "Renderer body class derived from the shared selected hierarchy-leaf "
+            "classification; the selected classification remains the scientific fact."
+        ),
+    )
+    fields["visual_stellar_class"] = _visual_stellar_class_field(
+        fields=fields,
+        body_class=selected_body_class,
+        spectral_class=class_token,
+        spectral_type_raw=(fields.get("spectral_type_raw") or {}).get("value"),
+        seed=_stable_seed(
+            render_star.get("render_key"),
+            "selected_leaf_body_class",
+            class_token,
+        ),
+        source_catalog=source_catalog,
+        source_reference=source_reference,
+    )
 
 
 def _compact_type_for_body_class(body_class: str) -> Optional[str]:
@@ -3007,6 +3079,7 @@ def _render_scene_contract(
             generator_version=leaf_row.get("projection_version"),
             notes="Shared hierarchy-leaf display projection used by map, system, and simulation badge surfaces.",
         )
+        _apply_selected_leaf_body_class(render_star, leaf_row)
 
     render_star_key_by_core_star_id: Dict[int, str] = {}
     for render_key, render_star in render_stars.items():
@@ -3103,12 +3176,126 @@ def _render_scene_contract(
 
     render_subsystems: List[Dict[str, Any]] = []
     rendered_subsystem_keys: set[str] = set()
+    rendered_subsystem_leaf_sets: set[frozenset[str]] = set()
+
+    for subsystem_key in sorted(
+        orbit_group_leaf_component_keys_by_key,
+        key=lambda key: (
+            len(orbit_group_leaf_component_keys_by_key.get(key) or []),
+            key,
+        ),
+    ):
+        component = components_by_key.get(subsystem_key) or {}
+        if str(component.get("component_type") or "") != "subsystem":
+            continue
+        child_body_keys = sorted(
+            {
+                equivalent_render_component_key(key)
+                for key in orbit_group_leaf_component_keys_by_key[subsystem_key]
+                if equivalent_render_component_key(key) in render_stars
+            }
+        )
+        child_set = frozenset(child_body_keys)
+        if len(child_set) < 2 or child_set in rendered_subsystem_leaf_sets:
+            continue
+        component_label = str(
+            component.get("catalog_component_label") or subsystem_key.rsplit(":", 1)[-1]
+        ).strip()
+        display_name = str(component.get("display_name") or "").strip()
+        system_display_name = str(
+            system.get("display_name") or system.get("system_name") or ""
+        ).strip()
+        if (
+            not display_name
+            or _is_technical_member_display_name(display_name)
+            or (
+                system_display_name
+                and display_name.lower().startswith(
+                    str(system.get("system_name") or "").strip().lower()
+                )
+                and system_display_name.lower()
+                != str(system.get("system_name") or "").strip().lower()
+            )
+        ):
+            display_name = f"{system_display_name} {component_label}".strip()
+        fields = {
+            "component_label": _simulation_field(
+                key="component_label",
+                label="Component label",
+                value=component_label,
+                unit=None,
+                status="source",
+                basis="arm.stellar_orbit_group_memberships:source_component_label",
+                layer="arm",
+                confidence_tier="high",
+                replacement_target="reviewed subsystem/component label",
+                source_catalog=component.get("source_catalog"),
+                source_reference=component.get("source_pk"),
+                confidence=0.9,
+            ),
+            "hierarchy_basis": _simulation_field(
+                key="hierarchy_basis",
+                label="Hierarchy basis",
+                value="source_orbit_group",
+                unit=None,
+                status="derived",
+                basis="arm.stellar_orbit_group_memberships:accepted_descendant_leaves",
+                layer="arm",
+                confidence_tier="medium",
+                replacement_target="reviewed canonical subsystem containment",
+                source_catalog=component.get("source_catalog"),
+                source_reference=component.get("source_pk"),
+                confidence=0.75,
+                notes=(
+                    "Presentation-only source subsystem handle over accepted "
+                    "canonical descendant leaves; it does not create CORE containment."
+                ),
+            ),
+            "rendered_child_star_count": _simulation_field(
+                key="rendered_child_star_count",
+                label="Rendered child stars",
+                value=len(child_body_keys),
+                unit=None,
+                status="derived",
+                basis="arm.stellar_orbit_group_memberships:descendant_render_star_count",
+                layer="arm",
+                confidence_tier="medium",
+                replacement_target="reviewed canonical subsystem membership",
+                source_catalog=component.get("source_catalog"),
+                source_reference=component.get("source_pk"),
+                confidence=0.75,
+            ),
+        }
+        render_subsystems.append(
+            {
+                "render_key": subsystem_key,
+                "object_type": "subsystem",
+                "display_name": display_name or subsystem_key,
+                "component": component_label,
+                "node_kind": "source_orbit_group",
+                "child_body_keys": child_body_keys,
+                "fields": fields,
+                "source": {
+                    "layer": "arm",
+                    "stable_component_key": subsystem_key,
+                    "source_catalog": component.get("source_catalog"),
+                    "source_reference": component.get("source_pk"),
+                    "basis": "stellar_orbit_group_memberships",
+                },
+                "fallback_subsystem": False,
+                "sort_index": len(render_subsystems),
+            }
+        )
+        rendered_subsystem_keys.add(subsystem_key)
+        rendered_subsystem_leaf_sets.add(child_set)
+
     for node in _iter_hierarchy_subsystem_nodes((hierarchy or {}).get("root")):
         subsystem_key = str(node.get("stable_component_key") or "")
         if not subsystem_key or subsystem_key in rendered_subsystem_keys:
             continue
         child_body_keys = resolve_render_child_keys(subsystem_key) or hierarchy_descendant_render_star_keys(node)
-        if len(child_body_keys) < 2:
+        child_set = frozenset(child_body_keys)
+        if len(child_set) < 2 or child_set in rendered_subsystem_leaf_sets:
             continue
         display_name = str(node.get("display_name") or subsystem_key)
         component_label = node.get("catalog_component_label") or node.get("member_role") or node.get("component_type") or "subsystem"
@@ -3173,6 +3360,7 @@ def _render_scene_contract(
             }
         )
         rendered_subsystem_keys.add(subsystem_key)
+        rendered_subsystem_leaf_sets.add(child_set)
 
     def render_body_mass_msun(body_key: str) -> Optional[float]:
         body = render_stars.get(body_key)

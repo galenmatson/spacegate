@@ -2073,16 +2073,23 @@ test.describe("public 3D map beta", () => {
     const searchPayload = await searchResponse.json();
     expect(searchPayload.items?.[0]?.hip_id).toBe(19335);
     expect(searchPayload.items?.[0]?.hd_id).toBe(25998);
-    expect(String(searchPayload.items?.[0]?.gaia_id || searchPayload.items?.[0]?.gaia_source_id)).toBe("225668203191521280");
-    expect([...searchPayload.items?.[0]?.stellar_class_badges].sort()).toEqual(["F", "K", "M", "M", "UNKNOWN"].sort());
+    expect(String(searchPayload.items?.[0]?.gaia_id || searchPayload.items?.[0]?.gaia_source_id)).toBe("225709641034907264");
+    expect([...searchPayload.items?.[0]?.stellar_class_badges].sort()).toEqual(["F", "G", "M", "M", "UNKNOWN"].sort());
     expect(searchPayload.items?.[0]?.stellar_object_badges).toHaveLength(5);
+    const retainedGaiaAliasResponse = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Gaia DR3 225668203191521280", limit: "1", sort: "match" },
+    });
+    expect(retainedGaiaAliasResponse.ok()).toBeTruthy();
+    const retainedGaiaAlias = (await retainedGaiaAliasResponse.json()).items?.[0];
+    expect(retainedGaiaAlias?.system_id).toBe(searchPayload.items?.[0]?.system_id);
+    expect(retainedGaiaAlias?.matched_alias).toBe("Gaia DR3 225668203191521280");
 
     const cases = [
-      { label: "HD 110067", expected: ["G", "K", "M", "M"] },
-      { label: "HD 79107", expected: ["F", "K", "M", "M"] },
-      { label: "Gl 161.1", expected: ["F", "K", "M", "M", "UNKNOWN"] },
+      { label: "HD 110067", expected: ["K", "K", "M", "M"] },
+      { label: "HD 79107", expected: ["F", "K", "M", "UNKNOWN"] },
+      { label: "Gl 161.1", expected: ["F", "G", "M", "M", "UNKNOWN"] },
       { label: "HD 18134", expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
-      { label: "Castor", expected: ["A", "A", "M", "M", "M", "M"] },
+      { label: "Castor", expected: ["A", "A", "L", "M", "M", "M", "UNKNOWN"] },
       { label: "HD 57041", expected: ["K", "WD"] },
     ];
     const sorted = (values) => [...values].sort();
@@ -2154,13 +2161,16 @@ test.describe("public 3D map beta", () => {
     expect(castorStars.map((star) => star.spectral_class || "UNKNOWN").sort()).toEqual(
       ["A", "A", "L", "M", "M", "M", "UNKNOWN"]
     );
-    const dwarfNotationStars = castorStars.filter((item) => item.fields?.spectral_type_raw?.value === "dM1e");
-    expect(dwarfNotationStars.length).toBeGreaterThan(0);
-    for (const star of dwarfNotationStars) {
-      expect(star.spectral_class).toBe("M");
-      expect(star.body_class).toBe("star");
-      expect(star.compact_type || null).toBeNull();
-    }
+    const sourceClassifiedStars = castorStars.filter(
+      (item) => item.fields?.stellar_leaf_display_class?.status === "source"
+    );
+    expect(sourceClassifiedStars).toHaveLength(5);
+    expect(sourceClassifiedStars.map((star) => star.spectral_class)).toEqual(
+      expect.arrayContaining(["A", "M"])
+    );
+    expect(castorStars.find((star) => star.spectral_class === "L")?.fields?.stellar_leaf_display_class?.status).toBe("assumed");
+    expect(castorStars.find((star) => star.spectral_class === "L")?.body_class).toBe("brown_dwarf");
+    expect(castorStars.filter((star) => star.compact_type)).toHaveLength(0);
     for (const subsystem of scenePayload.render_scene?.bodies?.subsystems || []) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
       expect(subsystem.fields?.hierarchy_basis?.status).toBe("derived");
@@ -2224,16 +2234,17 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassSourceCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(6);
+    ).toBeGreaterThanOrEqual(5);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
-    ).toBe(0);
+    ).toBe(1);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='a']")).toHaveCount(2);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(4);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(3);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='l']")).toHaveCount(1);
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='wd']")).toHaveCount(0);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(0);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(1);
   });
 
   test("source compact evidence outranks visual mass fallbacks", async ({ page }, testInfo) => {
@@ -2250,11 +2261,19 @@ test.describe("public 3D map beta", () => {
     expect(sceneResponse.ok()).toBeTruthy();
     const scenePayload = await sceneResponse.json();
     const stars = scenePayload.render_scene?.bodies?.stars || [];
-    const tentativeWhiteDwarf = stars.find((star) => star.fields?.spectral_type_raw?.value === "WD?");
+    const tentativeWhiteDwarf = stars.find(
+      (star) => star.fields?.stellar_leaf_display_class?.value === "WD"
+    );
     expect(tentativeWhiteDwarf?.spectral_class).toBe("WD");
     expect(tentativeWhiteDwarf?.body_class).toBe("white_dwarf");
-    const inferredM = stars.find((star) => star.fields?.visual_stellar_class?.status === "assumed");
-    expect(inferredM?.fields?.visual_stellar_class?.value).toBe("M");
+    expect(tentativeWhiteDwarf?.compact_type).toBe("white_dwarf");
+    expect(tentativeWhiteDwarf?.fields?.stellar_leaf_display_class?.status).toBe("source");
+    const inferredM = stars.find(
+      (star) =>
+        star.fields?.stellar_leaf_display_class?.value === "M"
+        && star.fields?.stellar_leaf_display_class?.status === "assumed"
+    );
+    expect(inferredM?.spectral_class).toBe("M");
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     const objectList = page.locator("[data-testid='system-preview-object-list']");
@@ -2394,7 +2413,7 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThan(100);
+    ).toBeGreaterThan(45);
     await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i }).first().click();
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
@@ -2462,21 +2481,18 @@ test.describe("public 3D map beta", () => {
       "AB",
       "A",
       "AAB",
-      "CD",
-      "D",
     ]));
     for (const subsystem of subsystems) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
       expect(subsystem.fields?.hierarchy_basis?.status).toBe("derived");
       expect(subsystem.fields?.hierarchy_basis?.layer).toBe("arm");
+      expect(subsystem.fallback_subsystem).toBe(false);
     }
-    expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(2);
-    expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(4);
-    expect(scenePayload.render_scene?.simulation_tree?.diagnostics?.active_orbit_count).toBe(5);
-    expect(scenePayload.render_scene?.simulation_tree?.diagnostics?.skipped_orbits || []).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ orbit_key: "orbit:13216", reason: expect.stringContaining("overlap") }),
-      ])
+    expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(1);
+    expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(3);
+    expect(scenePayload.render_scene?.simulation_tree?.diagnostics?.active_orbit_count).toBe(4);
+    expect(scenePayload.render_scene?.diagnostics?.membership_reconciliation?.unmatched_orbit_endpoint_keys || []).toContain(
+      "comp:star:canon:star:stable:star:wds:16120-1928:d"
     );
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
@@ -2486,15 +2502,15 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.directOrbitGuideCount || 0)),
       { timeout: 3000 }
-    ).toBe(2);
+    ).toBe(1);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupOrbitGuideCount || 0)),
       { timeout: 3000 }
-    ).toBe(4);
+    ).toBe(3);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
       { timeout: 3000 }
-    ).toBe(5);
+    ).toBe(3);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
       { timeout: 3000 }
@@ -2502,15 +2518,15 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableSubsystemCount || 0)),
       { timeout: 3000 }
-    ).toBe(5);
+    ).toBe(3);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
       { timeout: 3000 }
-    ).toBe(6);
+    ).toBe(4);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.orbitTraceProvenanceCount || 0)),
       { timeout: 3000 }
-    ).toBe(6);
+    ).toBe(4);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }
@@ -2530,7 +2546,7 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(2);
   });
 
   test("V1054 Oph preview reconciles source leaves without orphan endpoints", async ({ page }, testInfo) => {
@@ -2556,7 +2572,7 @@ test.describe("public 3D map beta", () => {
     expect(membership.membership_gate).toBe("source_hierarchy_leaves");
     expect(membership.source_hierarchy_leaf_count).toBe(5);
     expect(membership.rendered_stellar_body_count).toBe(5);
-    expect(membership.unmatched_orbit_endpoint_keys || []).toContain("comp:msc:wds:16555-0820:d");
+    expect(membership.unmatched_orbit_endpoint_keys || []).toEqual([]);
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
@@ -2568,10 +2584,16 @@ test.describe("public 3D map beta", () => {
     ).toBe(5);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList).toBeVisible();
-    await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(6);
+    await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(9);
     for (const name of ["V1054 Oph", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
       await expect(objectList.getByText(name, { exact: true })).toBeVisible();
     }
+    await expect(
+      objectList.getByRole("button", { name: /V1054 Oph AC - VB 8.*Group/i })
+    ).toBeVisible();
+    await expect(
+      objectList.getByRole("button", { name: /V1054 Oph - V1054 Oph B.*Group/i })
+    ).toBeVisible();
     await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);
   });
 
@@ -2591,7 +2613,7 @@ test.describe("public 3D map beta", () => {
     const stars = scenePayload.render_scene?.bodies?.stars || [];
     const orbits = scenePayload.render_scene?.orbits || [];
     expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining(["Sirius", "Sirius B"]));
-    expect(stars.map((star) => star.spectral_class)).toEqual(expect.arrayContaining(["A", "D"]));
+    expect(stars.map((star) => star.spectral_class)).toEqual(expect.arrayContaining(["A", "WD"]));
     const siriusB = stars.find((star) => star.display_name === "Sirius B");
     expect(siriusB?.body_class).toBe("white_dwarf");
     expect(siriusB?.compact_type).toBe("white_dwarf");

@@ -503,10 +503,23 @@ function visualStellarClassValue(body) {
 
 function starClassProvenanceField(body) {
   const classValue = body?.spectral_class || "";
+  const selectedLeafClassField = fieldRecord(body?.fields, "stellar_leaf_display_class");
   const spectralTypeField = fieldRecord(body?.fields, "spectral_type_raw");
   const visualClassField = fieldRecord(body?.fields, "visual_stellar_class");
   const teffField = fieldRecord(body?.fields, "teff_k");
   const objectTypeField = fieldRecord(body?.fields, "object_type");
+  if (selectedLeafClassField?.value && selectedLeafClassField.value !== "UNKNOWN") {
+    return {
+      ...selectedLeafClassField,
+      key: "spectral_class",
+      label: "Selected stellar class",
+      value: selectedLeafClassField.value,
+      notes: (
+        selectedLeafClassField.notes
+        || "Shared compiler-selected hierarchy-leaf class used by map, detail, hierarchy, and simulation consumers."
+      ),
+    };
+  }
   if (spectralTypeField?.value) {
     const sourceTokens = stellarClassTokensFromText(spectralTypeField.value);
     return {
@@ -3627,8 +3640,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
       const field = starClassProvenanceField(star);
       const status = String(field.status || "missing").toLowerCase();
       counts[status] = (counts[status] || 0) + 1;
-      const spectralTypeField = fieldRecord(star?.fields, "spectral_type_raw");
-      if (status === "source" && !spectralTypeField?.value) {
+      if (status === "source" && !field.source_catalog && !field.source_reference) {
         counts.unsafeSource += 1;
       }
     });
