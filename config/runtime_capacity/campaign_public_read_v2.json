@@ -103,6 +103,9 @@
       "profile": "scene_dynamic_diverse",
       "environment_profile": "antiproton_like",
       "cache_state": "application_cold",
+      "restart_containers_before": [
+        "spacegate-capacity-api-1"
+      ],
       "duration_seconds": 60,
       "concurrency": 5
     },
@@ -111,6 +114,9 @@
       "profile": "scene_coalesced",
       "environment_profile": "antiproton_like",
       "cache_state": "application_cold",
+      "restart_containers_before": [
+        "spacegate-capacity-api-1"
+      ],
       "duration_seconds": 60,
       "concurrency": 12
     },

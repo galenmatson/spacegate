@@ -942,6 +942,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--evict-file-cache", action="store_true")
     parser.add_argument(
+        "--cache-preparation-method",
+        default="",
+        help="record a campaign-managed cache preparation performed before this process",
+    )
+    parser.add_argument(
         "--insecure-tls",
         action="store_true",
         help="Disable TLS verification for an explicitly local benchmark endpoint.",
@@ -1033,6 +1038,16 @@ def main() -> int:
     eviction = None
     if args.evict_file_cache:
         eviction = evict_artifact_pages(artifacts)
+    if args.cache_preparation_method:
+        if eviction is not None:
+            raise SystemExit(
+                "campaign-managed and in-process cache preparation cannot be combined"
+            )
+        eviction = {
+            "method": args.cache_preparation_method,
+            "global_cache_drop": False,
+            "performed_before_harness_start": True,
+        }
     artifact_after_eviction = inventory_artifacts(artifacts)
 
     stop_event = threading.Event()

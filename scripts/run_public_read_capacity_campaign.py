@@ -7,8 +7,10 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -57,6 +59,13 @@ def load_campaign(path: Path) -> tuple[dict[str, Any], Path]:
         raise SystemExit("campaign has an unlabeled run")
     if len(labels) != len(set(labels)):
         raise SystemExit("campaign labels must be unique")
+    for run in campaign.get("runs") or []:
+        for name in run.get("restart_containers_before") or []:
+            if re.fullmatch(r"spacegate-capacity-[a-z0-9_-]+-\d+", str(name)) is None:
+                raise SystemExit(
+                    "campaign container restart is restricted to the isolated "
+                    f"capacity stack: {name}"
+                )
     return campaign, workload
 
 
@@ -65,6 +74,42 @@ def run_command(command: list[str], *, dry_run: bool) -> int:
     if dry_run:
         return 0
     return int(subprocess.run(command, check=False).returncode)
+
+
+def restart_capacity_containers(names: list[str]) -> None:
+    if not names:
+        return
+    subprocess.run(
+        ["docker", "restart", *names],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    deadline = time.monotonic() + 90.0
+    pending = set(names)
+    while pending and time.monotonic() < deadline:
+        for name in list(pending):
+            status = subprocess.run(
+                [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}",
+                    name,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if status in {"healthy", "running"}:
+                pending.remove(name)
+        if pending:
+            time.sleep(1.0)
+    if pending:
+        raise RuntimeError(
+            "capacity containers did not recover after restart: "
+            + ", ".join(sorted(pending))
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -169,6 +214,22 @@ def main() -> int:
             "--label",
             label,
         ]
+        restarted_containers = [
+            str(value) for value in run.get("restart_containers_before") or []
+        ]
+        if restarted_containers:
+            if unconstrained:
+                raise SystemExit(
+                    "campaign may not restart unconstrained Photon containers"
+                )
+            if not args.dry_run:
+                restart_capacity_containers(restarted_containers)
+            command.extend(
+                [
+                    "--cache-preparation-method",
+                    "isolated_capacity_api_restart",
+                ]
+            )
         if run.get("target_rps") is not None:
             command.extend(["--target-rps", str(run["target_rps"])])
         if run.get("request_limit") is not None:
@@ -194,6 +255,14 @@ def main() -> int:
         results.append(
             {
                 "label": label,
+                "cache_preparation": (
+                    {
+                        "method": "isolated_capacity_api_restart",
+                        "containers": restarted_containers,
+                    }
+                    if restarted_containers
+                    else None
+                ),
                 "harness_returncode": harness_code,
                 "slo_returncode": slo_code,
                 "status": (
