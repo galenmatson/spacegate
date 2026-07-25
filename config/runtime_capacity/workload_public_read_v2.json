@@ -285,6 +285,74 @@
         ["scene_prebuilt", 4]
       ]
     },
+    "search_exact_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 150,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tic_exact", 2],
+        ["toi_exact", 2],
+        ["tic_deferred", 1],
+        ["name_exact", 2]
+      ]
+    },
+    "search_fuzzy_filtered_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["name_fuzzy", 2],
+        ["search_broad", 1],
+        ["search_filtered", 2]
+      ]
+    },
+    "summary_hierarchy_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["detail_simple", 2],
+        ["detail_complex", 1],
+        ["detail_planets", 1],
+        ["summary_simple", 2],
+        ["summary_complex", 2],
+        ["hierarchy_complex", 2]
+      ]
+    },
+    "scene_fast_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 150,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["scene_seed_singleton", 2],
+        ["scene_singleton", 2],
+        ["scene_prebuilt", 2]
+      ]
+    },
     "singleton_scene": {
       "duration_seconds": 60,
       "concurrency": 12,

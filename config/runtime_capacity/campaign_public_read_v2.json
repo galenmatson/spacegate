@@ -1,0 +1,160 @@
+{
+  "schema_version": "spacegate.runtime_capacity_campaign.v1",
+  "campaign_id": "m8.3e_public_read_v2_final",
+  "build_id": "e7_24cb15211f430a37f199f462_full_public",
+  "workload_manifest": "config/runtime_capacity/workload_public_read_v2.json",
+  "resource_model": {
+    "constrained": "antiproton_like_6vcpu_12gib",
+    "unconstrained": "photon_control",
+    "note": "Photon cgroup quotas model resource quantity, not exact OVH core speed."
+  },
+  "runs": [
+    {
+      "label": "unconstrained_mixed_control",
+      "profile": "mixed",
+      "environment_profile": "unconstrained_photon",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_cold_single",
+      "profile": "mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "targeted_eviction",
+      "evict_file_cache": true,
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "constrained_exact_c1",
+      "profile": "search_exact_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "constrained_fuzzy_filtered_c1",
+      "profile": "search_fuzzy_filtered_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "constrained_summary_hierarchy_c1",
+      "profile": "summary_hierarchy_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "constrained_scene_fast_c1",
+      "profile": "scene_fast_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "constrained_mixed",
+      "profile": "mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 120,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_search",
+      "profile": "search",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 120,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_public_read_endpoints",
+      "profile": "public_read_endpoints",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 120,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_static",
+      "profile": "static",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 24
+    },
+    {
+      "label": "constrained_scene_prebuilt",
+      "profile": "scene_prebuilt",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_scene_dynamic_diverse",
+      "profile": "scene_dynamic_diverse",
+      "environment_profile": "antiproton_like",
+      "cache_state": "application_cold",
+      "duration_seconds": 60,
+      "concurrency": 5
+    },
+    {
+      "label": "constrained_scene_coalesced_miss",
+      "profile": "scene_coalesced",
+      "environment_profile": "antiproton_like",
+      "cache_state": "application_cold",
+      "duration_seconds": 60,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_scene_coalesced_hit",
+      "profile": "scene_coalesced",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_burst_20rps",
+      "profile": "mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 12,
+      "target_rps": 20
+    },
+    {
+      "label": "constrained_sustained",
+      "profile": "mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 300,
+      "concurrency": 12
+    },
+    {
+      "label": "constrained_idle",
+      "profile": "idle",
+      "environment_profile": "antiproton_like",
+      "cache_state": "idle",
+      "duration_seconds": 300,
+      "concurrency": 0
+    }
+  ],
+  "staircase": {
+    "profile": "mixed",
+    "environment_profile": "antiproton_like",
+    "cache_state": "warm",
+    "steps": [1, 2, 4, 6, 8, 12],
+    "duration_seconds_per_step": 30,
+    "recovery_seconds": 20,
+    "continue_through_slo_fail": true
+  }
+}
