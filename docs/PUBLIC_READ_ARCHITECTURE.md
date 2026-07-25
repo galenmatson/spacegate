@@ -166,8 +166,10 @@ terms, 6,669,279 accepted identifiers, 54,237 explicit identifier outcomes, and
 
 The artifact is opened read-only and immutable. Runtime validation requires exact
 build, projection, search, and stellar-badge-overlay schema identity. Missing
-artifacts may use an instrumented compatibility path during the migration
-window. Corrupt, mismatched, sample, or incompatible artifacts fail visibly.
+artifacts and corrupt, mismatched, sample, or incompatible artifacts fail
+visibly. The legacy path is available only with the explicit
+`SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK` diagnostic setting; it is never
+the default production response to an artifact failure.
 
 `scripts/profile_public_read_plans.py` records the SQLite query plan for exact
 terms and identifiers, summary/object reads, hierarchy bundles, singleton seeds,
@@ -242,7 +244,8 @@ but no renderer-critical body, hierarchy, orbit, or scientific field is removed.
 ## Compatibility Window And Retirement
 
 Compatibility fallback counters are exposed with health/runtime telemetry. The
-legacy path can be retired only when:
+normal production configuration disables fallback. The explicit diagnostic
+legacy path can be removed entirely when:
 
 1. all canonical systems, aliases, accepted terms, and identifier outcomes are
    accounted for;

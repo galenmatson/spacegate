@@ -1501,6 +1501,10 @@ Implementation notes:
 - Runtime startup requires matching build, projection, search, and
   `spacegate.stellar_badge_overlay.v1` contracts. A missing or incompatible
   overlay cannot silently fall back to canonical root-star badges.
+- Missing public-read artifacts return a visible `503 public_read_unavailable`.
+  The legacy DuckDB consumer is reachable only when
+  `SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK=true` is deliberately set for
+  migration diagnostics; normal containers leave it disabled.
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
 - Evidence Lake clean foundation `9c2d08086275ead386f71bf7` makes that
   projection deterministic from permanent canonical names, aliases, and

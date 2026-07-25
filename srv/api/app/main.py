@@ -6473,7 +6473,16 @@ def systems_search(
                         "details": {},
                     },
                 ) from exc
-            except public_read.PublicReadUnavailable:
+            except public_read.PublicReadUnavailable as exc:
+                if not public_read.compatibility_fallback_enabled():
+                    raise HTTPException(
+                        status_code=503,
+                        detail={
+                            "code": "public_read_unavailable",
+                            "message": str(exc),
+                            "details": {},
+                        },
+                    ) from exc
                 projection = None
                 public_read.record_compatibility_fallback()
             if projection is not None:
@@ -6807,7 +6816,9 @@ def _projected_singleton_simulation_scene(
     except public_read.PublicReadIncompatible:
         raise
     except public_read.PublicReadUnavailable:
-        return None
+        if public_read.compatibility_fallback_enabled():
+            return None
+        raise
     try:
         seed = public_read.singleton_scene_seed(projection, system_id)
         if seed is None:
@@ -6998,6 +7009,15 @@ def system_simulation_scene(
                 "details": {"system_id": system_id},
             },
         ) from exc
+    except public_read.PublicReadUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_unavailable",
+                "message": str(exc),
+                "details": {"system_id": system_id},
+            },
+        ) from exc
 
 
 def _projection_or_compatibility_error(exc: Exception) -> None:
@@ -7121,7 +7141,16 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
     except public_read.PublicReadIncompatible as exc:
         _projection_or_compatibility_error(exc)
         projection = None
-    except public_read.PublicReadUnavailable:
+    except public_read.PublicReadUnavailable as exc:
+        if not public_read.compatibility_fallback_enabled():
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "public_read_unavailable",
+                    "message": str(exc),
+                    "details": {},
+                },
+            ) from exc
         projection = None
         public_read.record_compatibility_fallback()
     if projection is not None:
@@ -7132,7 +7161,16 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
                     system_id,
                     name_style=normalize_name_style(name_style),
                 )
-            except public_read.PublicReadUnavailable:
+            except public_read.PublicReadUnavailable as exc:
+                if not public_read.compatibility_fallback_enabled():
+                    raise HTTPException(
+                        status_code=503,
+                        detail={
+                            "code": "public_read_unavailable",
+                            "message": str(exc),
+                            "details": {"system_id": system_id},
+                        },
+                    ) from exc
                 projected = None
                 public_read.record_compatibility_fallback()
         finally:

@@ -432,6 +432,35 @@ def test_runtime_rejects_sample_or_build_mismatched_artifact(
         public_read.connect()
 
 
+def test_legacy_compatibility_fallback_requires_explicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(
+        "SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK",
+        raising=False,
+    )
+    assert public_read.compatibility_fallback_enabled() is False
+    monkeypatch.setenv("SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK", "true")
+    assert public_read.compatibility_fallback_enabled() is True
+
+
+def test_missing_projection_fails_detail_visibly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable(*_args, **_kwargs):
+        raise public_read.PublicReadUnavailable("projection missing")
+
+    monkeypatch.delenv(
+        "SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK",
+        raising=False,
+    )
+    monkeypatch.setattr(public_read, "connect", unavailable)
+    with pytest.raises(api_main.HTTPException) as error:
+        api_main.system_detail(1)
+    assert error.value.status_code == 503
+    assert error.value.detail["code"] == "public_read_unavailable"
+
+
 def test_missing_required_hierarchy_bundle_fails_visible(
     tmp_path: Path,
 ) -> None:

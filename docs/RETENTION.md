@@ -69,6 +69,9 @@ build/schema mismatches visibly instead of falling back to partial science.
 The compact selected-leaf stellar badge overlay carries an independent schema
 version in both manifest and SQLite metadata; changing its columns or semantics
 also invalidates the projection.
+The legacy consumer is not an artifact-loss fallback in normal operation.
+`SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK` is a temporary diagnostic switch
+and must remain unset in production.
 
 Frozen simulation-scene sets live under
 `$SPACEGATE_STATE_DIR/derived/simulation_scenes/<build_id>/`. Keep every frozen

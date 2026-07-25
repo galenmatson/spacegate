@@ -63,6 +63,12 @@ def record_compatibility_fallback() -> None:
     _increment("compatibility_fallbacks")
 
 
+def compatibility_fallback_enabled() -> bool:
+    return str(
+        os.getenv("SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK", "")
+    ).strip().lower() in {"1", "true", "yes"}
+
+
 def _state_dir() -> Path:
     root = Path(__file__).resolve().parents[3]
     return Path(
