@@ -1965,11 +1965,28 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   configured `/data/docker` root with the root-filesystem BuildKit content
   store; inventory Docker/containerd layer ownership and mounts, preserve
   rollback, and keep regenerable build cache separate from scientific artifacts
-- [ ] M8.3e Map/Search consumer architecture review: inventory deprecated-data
-  assumptions and duplicated scientific selection/fallback logic across Map,
-  Search, System Page, Peek, Explorer, tiles, scenes, and APIs; produce a
-  measured adapt-versus-rewrite decision, versioned target contract, migration
-  tests, compatibility window, and retirement plan
+- [x] M8.3e consumer audit and adapt-versus-rewrite decision: preserve public
+  routes/React workflows and tiled map transport; replace internal scan-heavy
+  search, detail, hierarchy, and singleton scene assembly with versioned
+  build-keyed projections
+- [x] Compile deterministic Public Read v2 base artifact with complete system,
+  exact-identifier, alias, search-term, TIC/TOI outcome, quarantine, selected
+  star/planet, summary, facet, and singleton-seed accounting
+- [x] Route search, singleton detail, hierarchy/summary endpoints, and singleton
+  scenes through immutable SQLite projections with instrumented DuckDB
+  compatibility fallback and visible incompatibility failures
+- [x] Replace inventory-wide fuzzy work with exact/prefix indexes, FTS5 trigram
+  candidates, and bounded edit distance; preserve object focus, filters, sorts,
+  cursors, and exact TIC/TOI miss semantics
+- [ ] Complete strict process-isolated warming and verification for all 13,268
+  hierarchy bundles and 6,733 policy-selected full scenes; freeze scenes into
+  one deterministic deployment archive
+- [ ] Rebuild Photon Docker services and pass API, search, hierarchy,
+  nested-orbit, simulation, map, desktop/mobile Playwright, visual, canvas, and
+  compatibility-fallback retirement gates
+- [ ] Repeat the full M8.3d cold/warm/idle/burst/sustained/recovery/coalescing
+  and constrained concurrency campaign against Public Read v2; document final
+  antiproton capacity recommendation without deploying
 - [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 

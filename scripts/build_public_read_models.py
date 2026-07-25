@@ -344,31 +344,6 @@ def create_schema(con: sqlite3.Connection) -> None:
           evidence_json TEXT
         ) WITHOUT ROWID;
 
-        CREATE TABLE singleton_scene_seeds (
-          system_id INTEGER PRIMARY KEY,
-          stable_object_key TEXT NOT NULL,
-          system_name TEXT,
-          star_id INTEGER NOT NULL,
-          star_stable_object_key TEXT NOT NULL,
-          star_name TEXT,
-          selected_classification TEXT NOT NULL,
-          classification_status TEXT NOT NULL,
-          classification_fact_id TEXT,
-          teff_k REAL,
-          teff_k_fact_id TEXT,
-          radius_rsun REAL,
-          radius_rsun_fact_id TEXT,
-          mass_msun REAL,
-          mass_msun_fact_id TEXT,
-          luminosity_lsun REAL,
-          luminosity_lsun_fact_id TEXT,
-          luminosity_status TEXT,
-          luminosity_basis TEXT,
-          seed_version TEXT NOT NULL,
-          render_policy_version TEXT NOT NULL,
-          habitable_zone_policy_version TEXT NOT NULL
-        );
-
         CREATE TABLE hierarchy_bundles (
           system_id INTEGER PRIMARY KEY,
           stable_object_key TEXT NOT NULL,
@@ -889,30 +864,41 @@ def insert_singleton_seeds(
     target: sqlite3.Connection,
     policy: dict[str, Any],
 ) -> int:
+    target.executemany(
+        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
+        [
+            ("singleton_scene_seed_version", policy["singleton_scene_seed_version"]),
+            ("render_policy_version", policy["render_policy_version"]),
+            (
+                "habitable_zone_policy_version",
+                policy["habitable_zone_policy_version"],
+            ),
+        ],
+    )
     target.execute(
         """
-        INSERT INTO singleton_scene_seeds
+        CREATE VIEW singleton_scene_seeds AS
         SELECT
           s.system_id, s.stable_object_key, s.system_name,
-          st.star_id, st.stable_object_key, st.star_name,
+          st.star_id, st.stable_object_key AS star_stable_object_key, st.star_name,
           st.selected_classification, st.classification_status,
           st.classification_fact_id, st.teff_k, st.teff_k_fact_id,
           st.radius_rsun, st.radius_rsun_fact_id, st.mass_msun,
           st.mass_msun_fact_id, st.luminosity_lsun,
           st.luminosity_lsun_fact_id, st.luminosity_status,
-          st.luminosity_basis, ?, ?, ?
+          st.luminosity_basis,
+          (SELECT value FROM metadata WHERE key='singleton_scene_seed_version')
+            AS seed_version,
+          (SELECT value FROM metadata WHERE key='render_policy_version')
+            AS render_policy_version,
+          (SELECT value FROM metadata WHERE key='habitable_zone_policy_version')
+            AS habitable_zone_policy_version
         FROM systems s
         JOIN stars st USING (system_id)
         WHERE s.star_count = 1
           AND s.planet_count = 0
           AND s.scene_representation IN ('singleton_seed', 'compact_seed')
-        ORDER BY s.system_id
-        """,
-        [
-            policy["singleton_scene_seed_version"],
-            policy["render_policy_version"],
-            policy["habitable_zone_policy_version"],
-        ],
+        """
     )
     count = int(target.execute("SELECT COUNT(*) FROM singleton_scene_seeds").fetchone()[0])
     target.commit()

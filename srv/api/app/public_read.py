@@ -574,7 +574,7 @@ def projected_system_detail(
         payload.setdefault("read_backend", "public_read_v2_bundle")
         return payload
     if summary.get("hierarchy_representation") != "singleton_seed":
-        raise PublicReadUnavailable("required hierarchy bundle is not materialized")
+        raise PublicReadIncompatible("required hierarchy bundle is not materialized")
     stars, planets = system_objects(con, system_id, name_style=name_style)
     if len(stars) != 1 or planets:
         raise PublicReadIncompatible("singleton representation disagrees with projected objects")

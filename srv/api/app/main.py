@@ -6705,6 +6705,8 @@ def _projected_singleton_simulation_scene(
 ) -> Optional[Dict[str, Any]]:
     try:
         projection = public_read.connect(build_id)
+    except public_read.PublicReadIncompatible:
+        raise
     except public_read.PublicReadUnavailable:
         return None
     try:
@@ -6882,6 +6884,15 @@ def system_simulation_scene(
                 "details": {"system_id": system_id},
             },
         )
+    except public_read.PublicReadIncompatible as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_incompatible",
+                "message": str(exc),
+                "details": {"system_id": system_id},
+            },
+        ) from exc
 
 
 def _projection_or_compatibility_error(exc: Exception) -> None:

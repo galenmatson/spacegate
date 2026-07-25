@@ -4208,6 +4208,42 @@ Representative commits:
 - `docs/RUNTIME_CAPACITY_GATE.md` makes M8.3e's immutable indexed search
   projection and bounded detail summaries the next deployment prerequisite.
 
+### 163) Public Read v2 Replaces Continuous Scientific-Database Scans
+
+- On July 25, 2026, M8.3e retained FastAPI and the existing public route
+  contracts but moved the default interactive lookup path to deterministic,
+  build-keyed read models. DuckDB remains the scientific compiler and bounded
+  evidence/diagnostic engine; it is no longer the intended per-keystroke
+  search, summary, hierarchy, or singleton-scene lookup engine.
+- The full immutable SQLite projection accounts 5,869,091 systems, 5,874,636
+  stars, 2,826 system-bound confirmed planets, 1,026,480 aliases, 12,768,410
+  search terms, 6,669,279 accepted exact identifiers, 54,237 TIC/TOI outcomes,
+  and 81,043 quarantine records. It provides indexed exact identity/name
+  tables, trigram FTS candidate retrieval, compact facets, summaries,
+  hierarchy bundles, and 5,862,333 singleton scene seeds without removing
+  evidence or changing selected science.
+- Identical short controls measured retained July 17 legacy reads at p95
+  735.575 ms, the promoted Evidence Lake legacy path at p95 559.864 ms, and
+  the projection path at p95 15.592 ms. The result supports adapting the
+  existing API and consumers around new read boundaries rather than replacing
+  FastAPI or rewriting the visual application.
+- Exact TIC/TOI searches now resolve accepted bindings directly and return an
+  explicit exact-no-match outcome for missing, excluded, ambiguous, deferred,
+  or quarantined identities. Prefix, substring, and typo-tolerant search use
+  bounded indexed candidates; no request computes edit distance over the full
+  term inventory.
+- Ordinary one-star/no-planet systems use compact versioned singleton scene
+  seeds. Full-scene warming remains a resumable policy-driven admin job for all
+  multistar and confirmed-planet-host systems plus bounded priority classes.
+  Frozen scene sets are deterministic deployment artifacts, not CORE, ARM, or
+  DISC mutations.
+- Artifact verification exposed a general concurrency defect before promotion:
+  DuckDB side-database attachments belong to one connection, so thread workers
+  could lose ARM or hierarchy attachments and silently produce structurally
+  different payloads. Strict process-isolated workers now own their connections
+  and attachments, and attachment failure rejects the artifact. No named-system
+  branch or deprecated database authority was introduced.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

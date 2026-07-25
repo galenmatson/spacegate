@@ -48,6 +48,33 @@ Keep the served build's directory during normal operation; directories for
 build IDs no longer retained in `out/` or referenced by `served/` may be pruned
 as a separate cache cleanup after promotion verification.
 
+Public Read v2 projections live under
+`$SPACEGATE_STATE_DIR/derived/public_read/<build_id>/`. The directory contains
+the immutable SQLite read model, its manifest, compiler/accounting reports, and
+optional warmed hierarchy bundles. It is a derived deployment artifact, not a
+scientific authority. Retain the exact projection referenced by the current
+runtime, every deployment/rollback package, and every capacity or scientific
+parity report. A replacement is eligible for retirement only after its source
+build remains reproducible, the replacement passes identity, alias, hierarchy,
+search, deterministic-hash, API, and browser gates, and no served, rollback, or
+published manifest references it. Never prune individual pages or tables from a
+projection.
+
+A projection manifest is promoted only after its compiler and optional bundle
+warming finish, integrity passes, and the final artifact hash is recorded.
+`status="warming"` or a missing final hash is not deployable. A source build,
+projection schema, search-policy, hierarchy-policy, render-policy, or HZ-policy
+change invalidates the applicable artifact. Runtime startup must reject
+build/schema mismatches visibly instead of falling back to partial science.
+
+Frozen simulation-scene sets live under
+`$SPACEGATE_STATE_DIR/derived/simulation_scenes/<build_id>/`. Keep every frozen
+set referenced by a current or rollback deployment manifest. The runtime cache
+under `cache/simulation_scenes/` remains regenerable and may be evicted by its
+bounded cache policy; the frozen archive is an immutable deployment artifact
+and follows projection retention. Warming is an independently resumable admin
+job and is not part of the scientific compiler critical path.
+
 E7 timed-pipeline logs live under
 `/mnt/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries
 live under

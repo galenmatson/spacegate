@@ -69,6 +69,33 @@ identity and 19 ineligible-scope cluster claims remain rejected. Runtime
 endpoints continue to use the stability projection until the identity tail and
 public A/B gate pass.
 
+## Public Read v2 Contract (M8.3e)
+
+The promoted Evidence Lake scientific databases remain authoritative, but the
+default interactive implementation is a build-keyed immutable SQLite
+projection. DuckDB remains available for bounded evidence/diagnostic requests,
+admin work, and an instrumented compatibility window; it is not the intended
+continuous public search/detail path.
+
+The projection preserves existing response routes and fields while reporting
+`read_backend` as `public_read_v2`, `public_read_v2_singleton`,
+`public_read_v2_bundle`, or `duckdb_compatibility`. Health/runtime telemetry
+reports projection hits, misses, incompatible artifacts, and compatibility
+fallbacks without exposing filesystem paths.
+
+Artifact validation requires the active scientific build ID plus exact
+projection/search schema versions. A missing projection may use the measured
+compatibility path during migration. A sample, corrupt, warming,
+identity-mismatched, or schema-incompatible artifact returns a visible `503`;
+it never silently returns a scientifically incomplete projection.
+
+Search v2 uses indexed exact and prefix lookup, FTS5 trigram
+substring/candidate retrieval, and edit distance over a bounded candidate set.
+Exact TIC/TOI resolution is evaluated first. Accepted identifiers bind directly
+to stable system/object focus; missing, excluded, ambiguous, deferred, and
+quarantined identifiers return explicit exact-no-match metadata and never fall
+through to unrelated fuzzy names.
+
 ## Common Types
 
 ### Provenance
@@ -1657,6 +1684,34 @@ fallback snapshot metadata. Public system pages should be simulation-first:
 the live `/systems/{system_id}/simulation-scene` payload is the primary visual
 anchor when WebGL is available, while this detail payload supplies inventory,
 copyable identifiers, table rows, hierarchy, and evidence/provenance sections.
+
+Public Read v2 serves ordinary one-star/no-planet systems directly from compact
+selected-fact projections. Systems marked `bundle_required` are served from a
+verified compressed hierarchy/detail bundle. Until bundle coverage is complete,
+the compatibility adapter is counted and may use the legacy bounded assembler.
+
+### GET /systems/{system_id}/summary
+
+Returns the compact immutable system summary used by search cards, map
+sidebars, heroes, badges, counts, basic vitals, and handoffs. Selected values
+retain their fact/derivation lineage. Competing evidence is intentionally
+excluded from this hot response.
+
+### GET /systems/{system_id}/hierarchy
+
+Returns the accepted presentation-ready hierarchy from a verified bundle or the
+singleton hierarchy projection. Missing required bundles fail visibly during
+the post-warming production phase; they are not replaced with invented
+containment.
+
+### GET /systems/{system_id}/scene-seed
+
+Returns the versioned singleton renderer seed when the system has exactly one
+star and no confirmed planet. The seed contains stable identity, display class,
+selected temperature/luminosity/radius/mass, status and selected-fact
+references, plus render and HZ policy versions. The browser may compute cheap
+geometry from these selected inputs but may not choose source values or infer
+missing science.
 
 Path params:
 - `system_id` (int)

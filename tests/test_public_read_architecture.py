@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "srv" / "api"))
 
 import build_public_read_models as builder  # noqa: E402
+import materialize_public_read_bundles as bundle_materializer  # noqa: E402
 from app import public_read  # noqa: E402
 from app import main as api_main  # noqa: E402
 
@@ -151,18 +152,13 @@ def make_projection(path: Path) -> sqlite3.Connection:
         "INSERT INTO identifier_outcomes VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         ("deferred-tic-999", "tic", "tic 999", "deferred", "ambiguous_component_scope", None, None, None, "tic", "v1", "{}"),
     )
-    con.execute(
-        """
-        INSERT INTO singleton_scene_seeds
-        SELECT s.system_id,s.stable_object_key,s.system_name,st.star_id,
-               st.stable_object_key,st.star_name,st.selected_classification,
-               st.classification_status,st.classification_fact_id,st.teff_k,
-               st.teff_k_fact_id,st.radius_rsun,st.radius_rsun_fact_id,
-               st.mass_msun,st.mass_msun_fact_id,st.luminosity_lsun,
-               st.luminosity_lsun_fact_id,st.luminosity_status,
-               st.luminosity_basis,'seed-v1','render-v1','hz-v1'
-        FROM systems s JOIN stars st USING(system_id)
-        """
+    builder.insert_singleton_seeds(
+        con,
+        {
+            "singleton_scene_seed_version": "seed-v1",
+            "render_policy_version": "render-v1",
+            "habitable_zone_policy_version": "hz-v1",
+        },
     )
     builder.create_indexes(con)
     return con
@@ -259,6 +255,39 @@ def test_summary_and_singleton_seed_retain_selected_fact_lineage(tmp_path: Path)
     con.close()
 
 
+def test_singleton_seed_view_is_coverage_preserving_and_indexed(tmp_path: Path) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    seed = con.execute(
+        "SELECT system_id,star_id,seed_version FROM singleton_scene_seeds"
+    ).fetchone()
+    assert tuple(seed) == (1, 11, "seed-v1")
+    plan = " ".join(
+        str(row[3])
+        for row in con.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM singleton_scene_seeds WHERE system_id=?",
+            [1],
+        )
+    )
+    assert "INTEGER PRIMARY KEY" in plan
+    storage = bundle_materializer.compact_singleton_seed_storage(
+        con,
+        policy={
+            "singleton_scene_seed_version": "seed-v2",
+            "render_policy_version": "render-v2",
+            "habitable_zone_policy_version": "hz-v2",
+        },
+    )
+    assert storage == {
+        "converted_from_table": False,
+        "rows": 1,
+        "storage": "indexed_system_star_view",
+    }
+    assert con.execute(
+        "SELECT seed_version FROM singleton_scene_seeds WHERE system_id=1"
+    ).fetchone()[0] == "seed-v2"
+    con.close()
+
+
 def test_runtime_rejects_sample_or_build_mismatched_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -281,6 +310,22 @@ def test_runtime_rejects_sample_or_build_mismatched_artifact(
     monkeypatch.setattr(public_read.db, "build_id", lambda: "test-build")
     with pytest.raises(public_read.PublicReadIncompatible, match="sample"):
         public_read.connect()
+
+
+def test_missing_required_hierarchy_bundle_fails_visible(
+    tmp_path: Path,
+) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    con.execute(
+        "UPDATE systems SET hierarchy_representation='bundle_required' WHERE system_id=1"
+    )
+    con.commit()
+    with pytest.raises(
+        public_read.PublicReadIncompatible,
+        match="required hierarchy bundle",
+    ):
+        public_read.projected_system_detail(con, 1)
+    con.close()
 
 
 def test_singleton_scene_uses_projected_selected_values_without_duckdb(

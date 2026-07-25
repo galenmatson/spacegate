@@ -61,6 +61,73 @@ def load_manifest(path: Path) -> dict[str, Any]:
     return value
 
 
+def compact_singleton_seed_storage(
+    con: sqlite3.Connection,
+    *,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
+    object_type = con.execute(
+        "SELECT type FROM sqlite_schema WHERE name='singleton_scene_seeds'"
+    ).fetchone()
+    if object_type and object_type[0] == "table":
+        before = int(
+            con.execute("SELECT COUNT(*) FROM singleton_scene_seeds").fetchone()[0]
+        )
+        con.execute("DROP TABLE singleton_scene_seeds")
+        converted = True
+    else:
+        before = None
+        converted = False
+        if object_type and object_type[0] == "view":
+            con.execute("DROP VIEW singleton_scene_seeds")
+    con.executemany(
+        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
+        [
+            ("singleton_scene_seed_version", policy["singleton_scene_seed_version"]),
+            ("render_policy_version", policy["render_policy_version"]),
+            (
+                "habitable_zone_policy_version",
+                policy["habitable_zone_policy_version"],
+            ),
+        ],
+    )
+    con.execute(
+        """
+        CREATE VIEW singleton_scene_seeds AS
+        SELECT
+          s.system_id, s.stable_object_key, s.system_name,
+          st.star_id, st.stable_object_key AS star_stable_object_key,
+          st.star_name, st.selected_classification,
+          st.classification_status, st.classification_fact_id,
+          st.teff_k, st.teff_k_fact_id, st.radius_rsun,
+          st.radius_rsun_fact_id, st.mass_msun, st.mass_msun_fact_id,
+          st.luminosity_lsun, st.luminosity_lsun_fact_id,
+          st.luminosity_status, st.luminosity_basis,
+          (SELECT value FROM metadata WHERE key='singleton_scene_seed_version')
+            AS seed_version,
+          (SELECT value FROM metadata WHERE key='render_policy_version')
+            AS render_policy_version,
+          (SELECT value FROM metadata WHERE key='habitable_zone_policy_version')
+            AS habitable_zone_policy_version
+        FROM systems s
+        JOIN stars st USING (system_id)
+        WHERE s.star_count = 1
+          AND s.planet_count = 0
+          AND s.scene_representation IN ('singleton_seed', 'compact_seed')
+        """
+    )
+    after = int(con.execute("SELECT COUNT(*) FROM singleton_scene_seeds").fetchone()[0])
+    if before is not None and before != after:
+        raise RuntimeError(
+            f"singleton seed compaction changed coverage: {before} != {after}"
+        )
+    return {
+        "converted_from_table": converted,
+        "rows": after,
+        "storage": "indexed_system_star_view",
+    }
+
+
 def load_payload_builder(build_dir: Path, *, workers: int):
     api_root = ROOT / "srv" / "api"
     if str(api_root) not in sys.path:
@@ -215,6 +282,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     final_count = int(con.execute("SELECT COUNT(*) FROM hierarchy_bundles").fetchone()[0])
     complete = final_count == required and not failed and not args.limit
     con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    singleton_storage = None
+    if complete:
+        policy_ref = str((manifest.get("policy") or {}).get("path") or "")
+        policy_path = (ROOT / policy_ref).resolve()
+        if not policy_ref or ROOT not in policy_path.parents:
+            raise RuntimeError("public-read manifest policy path is invalid")
+        policy = load_manifest(policy_path)
+        singleton_storage = compact_singleton_seed_storage(con, policy=policy)
+        con.commit()
     if complete:
         integrity = con.execute("PRAGMA integrity_check").fetchone()[0]
     else:
@@ -253,6 +329,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             else None
         ),
         "workers": workers,
+        "singleton_seed_storage": singleton_storage,
         "sqlite_integrity": integrity,
         "logical_sha256": logical_digest.hexdigest(),
         "wall_seconds": round(time.perf_counter() - started, 6),

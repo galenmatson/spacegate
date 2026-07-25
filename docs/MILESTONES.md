@@ -2834,13 +2834,13 @@ retirement occurred. M8.3e must produce an immutable indexed search projection
 and bounded detail summaries, then rerun this gate without weakening science.
 See `docs/RUNTIME_CAPACITY_GATE.md`.
 
-### M8.3e. Map and Search Consumer Architecture Review
+### M8.3e. Public Consumer and API Read Architecture v2
 
 Goal:
 
-- decide whether Map and Search should adapt to Evidence Lake v2 through stable
-  projections or receive a deeper rewrite, based on measured coupling rather
-  than assuming either answer.
+- replace scan-heavy public search, detail, hierarchy, and ordinary singleton
+  scene assembly with deterministic build-keyed read models while preserving
+  Evidence Lake scientific authority and current public workflows.
 
 Dependencies:
 
@@ -2849,29 +2849,49 @@ Dependencies:
 
 Deliverables:
 
-- inventory of legacy assumptions in Map, Star Search, System Page, Peek,
-  Explorer, tile payloads, simulation scenes, and their API clients
+- inventory and adapt-versus-rewrite decision for Map, Star Search, Search
+  Cards, Peek, Explorer, System Page, hierarchy, scenes, tiles, and APIs
 - trace each displayed scientific value and identity from selected-fact/runtime
   projections, identifying duplicated fallback, classification, naming,
   hierarchy, planet, and orbit logic in consumers
-- contract and performance gap analysis for richer values, evidence summaries,
-  component focus, pagination, null/limit semantics, and future object detail
-- written adapt-versus-rewrite decision with migration boundaries, compatibility
-  window, verification plan, and retirement criteria for deprecated consumer
-  paths
-- prefer adaptation when a bounded versioned projection cleanly isolates the
-  UI; choose a rewrite where legacy data-shape coupling would preserve
-  scientific inconsistency, duplicate selection logic, or prevent required
-  scale and provenance
+- deterministic SQLite Search v2 with indexed exact identifiers/names, FTS5
+  trigram candidate retrieval, bounded edit distance, stable facets, object
+  focus, alias/release lineage, and explicit TIC/TOI/quarantine outcomes
+- build-keyed system summaries, selected star/planet rows, singleton scene
+  seeds, and compressed canonical hierarchy bundles
+- route-compatible FastAPI adapters with visible artifact mismatch failure and
+  instrumented compatibility fallback
+- exact property-selected full-scene warming for multistars, planet hosts, and
+  bounded priority systems through resumable offline admin work
+- deterministic scene compression and one frozen deployment archive rather
+  than millions of files
+- matched retained-build, Evidence Lake legacy, and Public Read v2 controls,
+  followed by the complete M8.3d constrained capacity campaign
 
 Success criteria:
 
-- Map and Search consume one documented scientific projection instead of
-  reconstructing facts independently
-- any rewrite is justified by specific coupling and acceptance tests, not by
-  the existence of a richer backend alone
-- the selected path preserves current public workflows while creating an
-  orderly retirement path for deprecated dataset assumptions
+- every canonical system, accepted identifier, alias, term, singleton seed,
+  hierarchy target, and full-scene target is represented or explicitly
+  accounted for
+- exact/prefix/substring/fuzzy/filtered search never performs inventory-wide
+  edit distance and explicit identifier misses never leak to fuzzy results
+- ordinary singleton detail and simulation avoid synchronous DuckDB/ARM
+  assembly; multistar and planet-host fidelity is preserved in verified
+  prebuilt scenes
+- current route, search, focus, badge, hierarchy, orbit, map, Peek, Explorer,
+  System Page, simulation, desktop, and mobile behavior remains at parity
+- the repeated 6-vCPU/12-GiB gate passes accepted latency, queue, memory,
+  recovery, and error budgets without deleting science
+
+Status: in progress on `feature/public-read-architecture-v2`. The bounded
+adaptation decision and base projection are implemented and pushed. The
+18,881,593,344-byte base artifact deterministically projects 5,869,091 systems,
+6,669,279 accepted identifiers, 12,768,410 terms, 54,237 explicit TIC/TOI
+outcomes, 81,043 quarantine records, and 5,862,333 singleton seeds. The matched
+c1 control improves from 559.9-ms p95/2.34 requests per second on the Evidence
+Lake legacy consumer to 15.6-ms p95/131.19 requests per second on Public Read
+v2. Strict, process-isolated warming of 13,268 hierarchy bundles and 6,733 full
+scenes is running before Docker/browser and constrained acceptance.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

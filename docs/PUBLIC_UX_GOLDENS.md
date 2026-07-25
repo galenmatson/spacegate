@@ -74,6 +74,22 @@ The Playwright map suite imports
 - the map parity subset verifies WebGL recovery, routes, naming modes, system
   detail return, mobile controls, and simulation Peek/Explorer behavior on the
   tiled production path
+- Search v2 parity verifies exact accepted TIC/TOI identifiers, explicit
+  missing/deferred outcomes without unrelated fuzzy leakage, exact and prefix
+  names, bounded typo-tolerant search, filters, stable ordering, and object
+  focus through the immutable projection.
+- Public Read v2 parity verifies that Search Cards, map sidebars, System Page
+  heroes, Peek, Explorer, object badges, hierarchy, and handoff routes consume
+  one build-keyed system-summary/hierarchy contract while preserving visible
+  source, derived, assumed, missing, ambiguous, and quarantined states.
+- Simulation parity covers both ordinary singleton seeds and policy-selected
+  full scenes. Singleton systems must render without synchronous ARM/hierarchy
+  assembly; multistar, planet-host, compact/exotic, and high-interest systems
+  must retain the full scene contract, nested orbits, planets, HZ inputs,
+  classifications, and diagnostics.
+- Desktop and constrained-mobile browser runs must prove a nonblank map and
+  simulator canvas, stable selection and object focus, usable results scrolling,
+  and no incoherent overlap after the projection migration.
 
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend

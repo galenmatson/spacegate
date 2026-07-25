@@ -643,6 +643,22 @@ Success criteria:
   the same build/system are coalesced into one assembly. Subsequent requests,
   including requests after an API restart, reuse the generated artifact rather
   than repeating ARM, hierarchy, readiness, and render-contract work.
+- Public Read v2 adds a build-keyed `singleton_scene_seed_v1` projection for
+  ordinary accepted one-star/no-planet systems. The seed contains stable
+  identity and display fields plus selected stellar class, temperature,
+  luminosity, radius, mass, status, lineage references, and pinned render/HZ
+  policy versions. It does not contain competing evidence and does not select
+  science in the browser. The client may calculate inexpensive geometry from
+  these selected inputs using the named policy version.
+- The public simulation route now resolves in this order: verified immutable
+  full-scene artifact, singleton scene seed, in-process/runtime-cache full
+  scene, then coalesced dynamic assembly for compatibility. Stale-build,
+  schema-incompatible, corrupt, or identity-mismatched artifacts are rejected
+  rather than served or treated as scientifically complete.
+- Public Read v2's full-scene policy selects every current multistar system and
+  confirmed planet host, plus compact/exotic, public-golden, and bounded
+  high-coolness classes. The policy is versioned and data-driven; production
+  code never branches on a benchmark name or identifier.
 - Map Peek treats `simulation-scene` as the selected-system data request: its
   returned system/star/planet records also populate the compact source
   tooltips. Coolness-component enrichment is lazy on COOL tooltip intent, and
@@ -656,6 +672,18 @@ Success criteria:
   spikes for materialized systems without changing the simulation-scene
   contract. Photon default hot-cache command:
   `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --limit 1000 --sort distance --max-dist-ly 100`.
+- The M8.3e complete priority run uses
+  `scripts/materialize_simulation_scenes.py --public-read-full-scene-policy
+  --output-mode runtime-cache`. It is resumable and build-keyed. Worker
+  processes own independent DuckDB connections and side-database attachments;
+  thread-shared attachment state is prohibited because DuckDB attachments are
+  connection-local. Strict mode fails a scene rather than silently omitting ARM
+  or canonical hierarchy evidence.
+- Scene payloads and gzip containers are deterministic: volatile generation
+  timestamps are removed, gzip `mtime` is zero, and the materializer contract
+  is embedded. `scripts/freeze_simulation_scenes.py` verifies exact policy
+  coverage and packages the warmed set as a deterministic normalized tar/gzip
+  artifact with a manifest. Freezing does not mutate CORE, ARM, or DISC.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to

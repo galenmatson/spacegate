@@ -122,7 +122,8 @@ The database contains separate tables for:
 - `identifier_outcomes`: accepted, missing, excluded, ambiguous, deferred, and
   quarantined exact-identifier outcomes, including explicit TIC/TOI semantics;
 - `identifier_quarantine`: all 81,043 current reviewed quarantine records;
-- `singleton_scene_seeds`: one compact row for each eligible singleton;
+- `singleton_scene_seeds`: an indexed deterministic view over eligible
+  `systems` and `stars`, avoiding a second 5.86-million-row physical copy;
 - `hierarchy_bundles`: compressed, versioned nontrivial hierarchy/detail payloads.
 
 The artifact is opened read-only and immutable. Runtime validation requires exact
