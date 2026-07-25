@@ -146,6 +146,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / "simulation_scenes.tar.gz"
+    previous_archive_sha256 = sha256_file(archive) if archive.is_file() else None
     temporary = archive.with_name(f".{archive.name}.tmp.{os.getpid()}")
     try:
         with temporary.open("wb") as raw:
@@ -183,18 +184,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     finally:
         temporary.unlink(missing_ok=True)
 
+    archive_sha256 = sha256_file(archive)
     report = {
         **artifact_manifest,
         "archive": {
             "path": archive.name,
             "bytes": archive.stat().st_size,
-            "sha256": sha256_file(archive),
+            "sha256": archive_sha256,
         },
         "verification": {
             "status": "pass",
             "missing_count": 0,
             "invalid_count": 0,
             "duplicate_system_count": len(required) - len(set(required)),
+            "previous_archive_sha256": previous_archive_sha256,
+            "deterministic_rebuild_match": (
+                previous_archive_sha256 == archive_sha256
+                if previous_archive_sha256 is not None
+                else None
+            ),
         },
     }
     atomic_json(output_dir / "manifest.json", report)
@@ -218,7 +226,22 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     report = run(parse_args())
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "status": report["verification"]["status"],
+                "build_id": report["build_id"],
+                "scene_count": report["scene_count"],
+                "total_scene_bytes": report["total_scene_bytes"],
+                "archive": report["archive"],
+                "deterministic_rebuild_match": report["verification"][
+                    "deterministic_rebuild_match"
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
