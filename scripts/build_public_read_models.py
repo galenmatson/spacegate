@@ -1289,7 +1289,7 @@ def logical_digest(con: sqlite3.Connection, table: str, columns: Sequence[str]) 
     selected = ",".join(columns)
     order = ",".join(str(index + 1) for index in range(len(columns)))
     for row in con.execute(f"SELECT {selected} FROM {table} ORDER BY {order}"):
-        digest.update(canonical_json(row).encode("utf-8"))
+        digest.update(canonical_json(list(row)).encode("utf-8"))
         digest.update(b"\n")
     return digest.hexdigest()
 
@@ -1478,6 +1478,9 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
             "builder_version": BUILDER_VERSION,
             "projection_schema_version": policy["projection_schema_version"],
             "search_schema_version": policy["search_schema_version"],
+            "stellar_badge_overlay_schema_version": policy[
+                "stellar_badge_overlay_schema_version"
+            ],
             "policy_sha256": sha256_file(policy_path),
             "source_core_sha256": sha256_file(core_path),
             "source_arm_sha256": sha256_file(arm_path),
@@ -1636,6 +1639,9 @@ def compile_projection(args: argparse.Namespace) -> dict[str, Any]:
             "builder_version": BUILDER_VERSION,
             "projection_schema_version": policy["projection_schema_version"],
             "search_schema_version": policy["search_schema_version"],
+            "stellar_badge_overlay_schema_version": policy[
+                "stellar_badge_overlay_schema_version"
+            ],
             "policy": {
                 "path": str(policy_path.relative_to(ROOT)),
                 "sha256": sha256_file(policy_path),

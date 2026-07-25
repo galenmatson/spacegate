@@ -79,6 +79,15 @@ def run(database: Path) -> dict[str, Any]:
                 "SELECT * FROM stars WHERE system_id=? ORDER BY star_id",
                 [system_id],
             ),
+            "stellar_badge_overlay": query_plan(
+                con,
+                """
+                SELECT * FROM stellar_badge_overlays
+                WHERE system_id=?
+                ORDER BY badge_order
+                """,
+                [system_id],
+            ),
             "hierarchy_bundle": query_plan(
                 con,
                 "SELECT * FROM hierarchy_bundles WHERE system_id=?",
@@ -149,6 +158,9 @@ def run(database: Path) -> dict[str, Any]:
             ),
             "system_stars_index": includes(
                 plans["system_stars"], "stars_system_idx"
+            ),
+            "stellar_badge_overlay_primary_key": includes(
+                plans["stellar_badge_overlay"], "PRIMARY KEY"
             ),
             "hierarchy_bundle_primary_key": includes(
                 plans["hierarchy_bundle"], "INTEGER PRIMARY KEY"

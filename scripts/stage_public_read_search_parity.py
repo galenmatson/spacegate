@@ -58,6 +58,105 @@ def create_overlay_table(target: sqlite3.Connection) -> None:
     )
 
 
+def refresh_modified_logical_hashes(
+    target: sqlite3.Connection,
+    manifest: dict[str, Any],
+) -> dict[str, str]:
+    logical_hashes = dict(manifest.get("logical_hashes") or {})
+    logical_hashes["metadata"] = builder.logical_digest(
+        target,
+        "metadata",
+        ["key", "value"],
+    )
+    logical_hashes["systems"] = builder.logical_digest(
+        target,
+        "systems",
+        [
+            "system_id",
+            "stable_object_key",
+            "system_name_norm",
+            "star_count",
+            "planet_count",
+        ],
+    )
+    logical_hashes["stellar_badge_overlays"] = builder.logical_digest(
+        target,
+        "stellar_badge_overlays",
+        [
+            "system_id",
+            "badge_order",
+            "leaf_component_key",
+            "classification_value",
+        ],
+    )
+    return logical_hashes
+
+
+def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
+    staging_dir = Path(args.staging_dir).resolve(strict=True)
+    database = staging_dir / "public_read.sqlite"
+    manifest_path = staging_dir / "manifest.json"
+    policy = builder.load_json(builder.DEFAULT_POLICY)
+    for path in (database, manifest_path):
+        if not path.is_file():
+            raise SystemExit(f"Missing required staged artifact: {path}")
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    target = sqlite3.connect(str(database), timeout=60)
+    target.row_factory = sqlite3.Row
+    target.execute("PRAGMA journal_mode=DELETE")
+    target.execute("PRAGMA synchronous=FULL")
+    if (
+        target.execute(
+            """
+            SELECT 1 FROM sqlite_schema
+            WHERE type='table' AND name='stellar_badge_overlays'
+            """
+        ).fetchone()
+        is None
+    ):
+        target.close()
+        raise SystemExit("Staged artifact lacks stellar_badge_overlays")
+    target.execute(
+        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
+        (
+            "stellar_badge_overlay_schema_version",
+            policy["stellar_badge_overlay_schema_version"],
+        ),
+    )
+    target.commit()
+    logical_hashes = refresh_modified_logical_hashes(target, manifest)
+    integrity = str(target.execute("PRAGMA integrity_check").fetchone()[0])
+    target.close()
+    if integrity != "ok":
+        raise RuntimeError(f"Staged public-read integrity failed: {integrity}")
+
+    manifest["stellar_badge_overlay_schema_version"] = policy[
+        "stellar_badge_overlay_schema_version"
+    ]
+    manifest["logical_hashes"] = logical_hashes
+    manifest.setdefault("artifact", {})["bytes"] = database.stat().st_size
+    manifest["artifact"]["sha256"] = builder.sha256_file(database)
+    manifest["artifact"]["hash_status"] = "verified"
+    atomic_json(manifest_path, manifest)
+    report = {
+        "schema_version": "spacegate.public_read_search_parity_refresh.v1",
+        "status": "pass",
+        "build_id": manifest.get("build_id"),
+        "staging_dir": str(staging_dir),
+        "artifact": manifest["artifact"],
+        "logical_hashes": logical_hashes,
+        "sqlite_integrity": integrity,
+        "generated_at_utc": utc_now(),
+    }
+    if args.report_dir:
+        report_dir = Path(args.report_dir).resolve()
+        report_dir.mkdir(parents=True, exist_ok=True)
+        atomic_json(report_dir / "search_parity_refresh.json", report)
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return report
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     state_dir = Path(args.state_dir).resolve()
     build_dir = Path(args.build_dir).resolve(strict=True)
@@ -101,6 +200,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     builder.attach_if_present(source, build_dir / "arm.duckdb", "arm_db")
     builder.attach_if_present(source, build_dir / "disc.duckdb", "disc_db")
     policy = builder.load_json(builder.DEFAULT_POLICY)
+    target = sqlite3.connect(str(database), timeout=60)
+    target.row_factory = sqlite3.Row
+    target.execute("PRAGMA journal_mode=DELETE")
+    target.execute("PRAGMA synchronous=FULL")
+    target.execute(
+        "INSERT OR REPLACE INTO metadata(key,value) VALUES (?,?)",
+        (
+            "stellar_badge_overlay_schema_version",
+            policy["stellar_badge_overlay_schema_version"],
+        ),
+    )
+    target.commit()
     (
         hierarchy_bundle_ids,
         compact_seed_ids,
@@ -108,10 +219,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         representation_counts,
     ) = builder.representation_policies(source, policy, sample_limit=None)
 
-    target = sqlite3.connect(str(database), timeout=60)
-    target.row_factory = sqlite3.Row
-    target.execute("PRAGMA journal_mode=DELETE")
-    target.execute("PRAGMA synchronous=FULL")
     target.execute("BEGIN IMMEDIATE")
     create_overlay_table(target)
     target.execute("DELETE FROM stellar_badge_overlays")
@@ -161,6 +268,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     target.execute("ANALYZE")
     target.commit()
     integrity = str(target.execute("PRAGMA integrity_check").fetchone()[0])
+    logical_hashes = refresh_modified_logical_hashes(target, manifest)
     full_scene_count = int(
         target.execute(
             "SELECT COUNT(*) FROM systems WHERE scene_representation='full_scene'"
@@ -188,6 +296,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     manifest["counts"]["singleton_scene_seeds"] = singleton_seed_count
     manifest["representation_counts"] = representation_counts
     manifest["stellar_badge_overlay_system_count"] = overlay_systems
+    manifest["stellar_badge_overlay_schema_version"] = policy[
+        "stellar_badge_overlay_schema_version"
+    ]
+    manifest["logical_hashes"] = logical_hashes
     manifest["search_parity_upgrade"] = {
         "upgrader_version": UPGRADER_VERSION,
         "overlay_rows": overlay_rows,
@@ -210,6 +322,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "hierarchy_bundle_targets": bundle_required_count,
         "singleton_scene_seeds": singleton_seed_count,
         "representation_counts": representation_counts,
+        "logical_hashes": logical_hashes,
         "sqlite_integrity": integrity,
         "generated_at_utc": utc_now(),
     }
@@ -226,7 +339,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--build-dir", required=True)
+    parser.add_argument("--build-dir")
     parser.add_argument(
         "--state-dir",
         default=os.getenv("SPACEGATE_STATE_DIR", "/data/spacegate/state"),
@@ -235,8 +348,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--staging-dir")
     parser.add_argument("--report-dir")
     parser.add_argument("--replace", action="store_true")
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="refresh schema metadata, logical hashes, and the physical checksum",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    run(parse_args())
+    arguments = parse_args()
+    if arguments.refresh_existing:
+        if not arguments.staging_dir:
+            raise SystemExit("--refresh-existing requires --staging-dir")
+        refresh_existing(arguments)
+    else:
+        if not arguments.build_dir:
+            raise SystemExit("--build-dir is required")
+        run(arguments)

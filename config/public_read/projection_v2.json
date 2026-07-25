@@ -2,6 +2,7 @@
   "schema_version": "spacegate.public_read_policy.v1",
   "projection_schema_version": "spacegate.public_read.v2",
   "search_schema_version": "spacegate.search.v2",
+  "stellar_badge_overlay_schema_version": "spacegate.stellar_badge_overlay.v1",
   "singleton_scene_seed_version": "spacegate.singleton_scene_seed.v1",
   "hierarchy_bundle_version": "spacegate.hierarchy_bundle.v1",
   "render_policy_version": "simulation_tree_v1",

@@ -17,6 +17,7 @@ from .queries import choose_display_name_info, is_strict_exact_search_query
 
 EXPECTED_PROJECTION_SCHEMA = "spacegate.public_read.v2"
 EXPECTED_SEARCH_SCHEMA = "spacegate.search.v2"
+EXPECTED_STELLAR_BADGE_OVERLAY_SCHEMA = "spacegate.stellar_badge_overlay.v1"
 DEFAULT_CANDIDATE_TERMS = 5000
 DEFAULT_CANDIDATE_SYSTEMS = 2000
 
@@ -129,12 +130,29 @@ def connect(expected_build_id: str | None = None) -> sqlite3.Connection:
     if manifest.get("search_schema_version") != EXPECTED_SEARCH_SCHEMA:
         _increment("incompatible_artifacts")
         raise PublicReadIncompatible("public-read search schema mismatch")
+    if (
+        manifest.get("stellar_badge_overlay_schema_version")
+        != EXPECTED_STELLAR_BADGE_OVERLAY_SCHEMA
+    ):
+        _increment("incompatible_artifacts")
+        raise PublicReadIncompatible("public-read stellar badge overlay schema mismatch")
     con = _connect_path(paths.database)
     metadata = dict(con.execute("SELECT key,value FROM metadata").fetchall())
     if metadata.get("build_id") != build_id:
         con.close()
         _increment("incompatible_artifacts")
         raise PublicReadIncompatible("public-read database build identity mismatch")
+    if (
+        metadata.get("stellar_badge_overlay_schema_version")
+        != EXPECTED_STELLAR_BADGE_OVERLAY_SCHEMA
+        or con.execute(
+            "SELECT 1 FROM sqlite_schema WHERE type='table' AND name='stellar_badge_overlays'"
+        ).fetchone()
+        is None
+    ):
+        con.close()
+        _increment("incompatible_artifacts")
+        raise PublicReadIncompatible("public-read stellar badge overlay contract missing")
     _increment("projection_hits")
     return con
 
@@ -361,41 +379,38 @@ def stellar_badges_for_systems(
     placeholders = ",".join("?" for _ in system_ids)
     result: dict[int, list[dict[str, Any]]] = {}
     overlay_system_ids: set[int] = set()
-    try:
-        for row in con.execute(
-            f"""
-            SELECT system_id,hierarchy_node_key,leaf_component_key,
-                   evidence_component_key,star_id_text,stable_object_key,
-                   display_name,catalog_component_label,classification_value,
-                   classification_status,evidence_basis,selected_fact_id,
-                   source_catalog,source_version
-            FROM stellar_badge_overlays
-            WHERE system_id IN ({placeholders})
-            ORDER BY system_id,badge_order
-            """,
-            [int(value) for value in system_ids],
-        ):
-            system_id = int(row["system_id"])
-            overlay_system_ids.add(system_id)
-            result.setdefault(system_id, []).append(
-                {
-                    "hierarchy_node_key": row["hierarchy_node_key"],
-                    "leaf_component_key": row["leaf_component_key"],
-                    "evidence_component_key": row["evidence_component_key"],
-                    "star_id_text": row["star_id_text"],
-                    "stable_object_key": row["stable_object_key"],
-                    "display_name": row["display_name"],
-                    "catalog_component_label": row["catalog_component_label"],
-                    "classification_value": row["classification_value"] or "UNKNOWN",
-                    "classification_status": row["classification_status"] or "missing",
-                    "evidence_basis": row["evidence_basis"],
-                    "selected_fact_id": row["selected_fact_id"],
-                    "source_catalog": row["source_catalog"],
-                    "source_version": row["source_version"],
-                }
-            )
-    except sqlite3.OperationalError:
-        overlay_system_ids = set()
+    for row in con.execute(
+        f"""
+        SELECT system_id,hierarchy_node_key,leaf_component_key,
+               evidence_component_key,star_id_text,stable_object_key,
+               display_name,catalog_component_label,classification_value,
+               classification_status,evidence_basis,selected_fact_id,
+               source_catalog,source_version
+        FROM stellar_badge_overlays
+        WHERE system_id IN ({placeholders})
+        ORDER BY system_id,badge_order
+        """,
+        [int(value) for value in system_ids],
+    ):
+        system_id = int(row["system_id"])
+        overlay_system_ids.add(system_id)
+        result.setdefault(system_id, []).append(
+            {
+                "hierarchy_node_key": row["hierarchy_node_key"],
+                "leaf_component_key": row["leaf_component_key"],
+                "evidence_component_key": row["evidence_component_key"],
+                "star_id_text": row["star_id_text"],
+                "stable_object_key": row["stable_object_key"],
+                "display_name": row["display_name"],
+                "catalog_component_label": row["catalog_component_label"],
+                "classification_value": row["classification_value"] or "UNKNOWN",
+                "classification_status": row["classification_status"] or "missing",
+                "evidence_basis": row["evidence_basis"],
+                "selected_fact_id": row["selected_fact_id"],
+                "source_catalog": row["source_catalog"],
+                "source_version": row["source_version"],
+            }
+        )
     canonical_ids = [
         int(value) for value in system_ids if int(value) not in overlay_system_ids
     ]

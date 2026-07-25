@@ -15,6 +15,7 @@ import duckdb
 
 
 PROJECTION_SCHEMA = "spacegate.public_read.v2"
+STELLAR_BADGE_OVERLAY_SCHEMA = "spacegate.stellar_badge_overlay.v1"
 PLANET_LINEAGE_VERSION = "spacegate.planet_selected_fact_lineage.v1"
 VERIFY_VERSION = "public_read_artifact_verifier_v2"
 
@@ -346,11 +347,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "bundles_materialized": len(materialized_bundles),
         "singleton_seeds": seed_count,
     }
+    overlay_schema_row = target.execute(
+        "SELECT value FROM metadata WHERE key='stellar_badge_overlay_schema_version'"
+    ).fetchone()
+    overlay_schema_metadata = overlay_schema_row[0] if overlay_schema_row else None
     failures = {
         "build_identity_mismatch": int(manifest.get("build_id") != build_id),
         "manifest_not_final": int(manifest.get("status") != "pass"),
         "projection_schema_mismatch": int(
             manifest.get("projection_schema_version") != PROJECTION_SCHEMA
+        ),
+        "stellar_badge_overlay_schema_mismatch": int(
+            manifest.get("stellar_badge_overlay_schema_version")
+            != STELLAR_BADGE_OVERLAY_SCHEMA
+            or overlay_schema_metadata != STELLAR_BADGE_OVERLAY_SCHEMA
         ),
         "system_identity_digest_mismatch": int(
             source_system_digest != projected_system_digest

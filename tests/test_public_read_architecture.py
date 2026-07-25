@@ -28,6 +28,10 @@ def make_projection(path: Path) -> sqlite3.Connection:
             ("build_id", "test-build"),
             ("projection_schema_version", public_read.EXPECTED_PROJECTION_SCHEMA),
             ("search_schema_version", public_read.EXPECTED_SEARCH_SCHEMA),
+            (
+                "stellar_badge_overlay_schema_version",
+                public_read.EXPECTED_STELLAR_BADGE_OVERLAY_SCHEMA,
+            ),
         ],
     )
     system_row = [
@@ -414,6 +418,9 @@ def test_runtime_rejects_sample_or_build_mismatched_artifact(
                 "build_id": "test-build",
                 "projection_schema_version": public_read.EXPECTED_PROJECTION_SCHEMA,
                 "search_schema_version": public_read.EXPECTED_SEARCH_SCHEMA,
+                "stellar_badge_overlay_schema_version": (
+                    public_read.EXPECTED_STELLAR_BADGE_OVERLAY_SCHEMA
+                ),
                 "sample_limit": 1,
             }
         ),
