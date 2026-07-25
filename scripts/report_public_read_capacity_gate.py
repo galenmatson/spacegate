@@ -85,8 +85,19 @@ def request_metrics(report: dict[str, Any]) -> dict[str, Any]:
 def collect_campaign(
     campaign_dir: Path,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    campaign_run_path = campaign_dir / "campaign_run.json"
+    if not campaign_run_path.is_file():
+        raise SystemExit(
+            f"campaign completion manifest is missing: {campaign_run_path}"
+        )
+    campaign_run = load_json(campaign_run_path)
+    if (
+        campaign_run.get("schema_version")
+        != "spacegate.public_read_capacity_campaign_run.v1"
+    ):
+        raise SystemExit("campaign completion manifest has an incompatible schema")
     runs: list[dict[str, Any]] = []
-    evidence: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = [file_ref(campaign_run_path)]
     for summary_path in sorted(campaign_dir.glob("*/summary.json")):
         report = load_json(summary_path)
         if report.get("schema_version") != "spacegate.runtime_capacity_report.v1":
@@ -111,10 +122,24 @@ def collect_campaign(
         evidence.append(file_ref(path))
     if not runs:
         raise SystemExit(f"campaign contains no capacity summaries: {campaign_dir}")
-    status = "pass" if all(row["slo_status"] == "pass" for row in runs) else "fail"
+    expected_labels = {
+        str(row.get("label") or "") for row in campaign_run.get("runs") or []
+    }
+    observed_labels = {str(row["metrics"].get("label") or "") for row in runs}
+    if not expected_labels or expected_labels != observed_labels:
+        raise SystemExit(
+            "campaign completion manifest and capacity summaries disagree"
+        )
+    status = (
+        "pass"
+        if campaign_run.get("status") == "pass"
+        and all(row["slo_status"] == "pass" for row in runs)
+        else "fail"
+    )
     return (
         {
             "status": status,
+            "completion": campaign_run,
             "run_count": len(runs),
             "staircase_count": len(staircases),
             "runs": runs,

@@ -48,6 +48,19 @@ def test_compiles_conditional_streamed_deployment_decision(
         campaign / "warm" / "capacity_slo_report.json",
         {"status": "pass", "gates": {"passed": True}},
     )
+    write_json(
+        campaign / "campaign_run.json",
+        {
+            "schema_version": "spacegate.public_read_capacity_campaign_run.v1",
+            "status": "pass",
+            "started_at_utc": "2026-07-25T00:00:00Z",
+            "completed_at_utc": "2026-07-25T00:01:00Z",
+            "campaign": {"sha256": "campaign"},
+            "workload": {"sha256": "workload"},
+            "runs": [{"label": "test", "status": "pass"}],
+            "staircase_returncode": 0,
+        },
+    )
 
     build_dir = tmp_path / build_id
     build_dir.mkdir()
