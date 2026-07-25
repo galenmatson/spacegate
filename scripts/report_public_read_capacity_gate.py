@@ -154,6 +154,8 @@ def collect_controls(control_dir: Path) -> tuple[dict[str, Any], list[dict[str, 
     controls: dict[str, Any] = {}
     evidence: list[dict[str, Any]] = []
     for path in sorted(control_dir.glob("*/summary.json")):
+        if not path.parent.name.endswith("_control"):
+            continue
         report = load_json(path)
         controls[path.parent.name] = request_metrics(report)
         evidence.append(file_ref(path))

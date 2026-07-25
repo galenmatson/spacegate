@@ -42,7 +42,8 @@ def test_compiles_conditional_streamed_deployment_decision(
         "database_runtime": {"numeric_delta": {}},
         "gates": {"final_health_ok": True},
     }
-    write_json(controls / "retained" / "summary.json", summary)
+    write_json(controls / "retained_control" / "summary.json", summary)
+    write_json(controls / "diagnostic_smoke" / "summary.json", summary)
     write_json(campaign / "warm" / "summary.json", summary)
     write_json(
         campaign / "warm" / "capacity_slo_report.json",
@@ -134,3 +135,4 @@ def test_compiles_conditional_streamed_deployment_decision(
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["decision"]["recommendation"] == "conditional_go"
     assert report["campaign"]["status"] == "pass"
+    assert sorted(report["controls"]) == ["retained_control"]
