@@ -67,6 +67,8 @@ def test_refreshes_every_logical_hash_modified_by_parity_upgrade() -> None:
           classification_value TEXT
         );
         INSERT INTO stellar_badge_overlays VALUES (1,0,'leaf:a','G');
+        CREATE TABLE singleton_scene_seeds(system_id INTEGER PRIMARY KEY);
+        INSERT INTO singleton_scene_seeds VALUES (1);
         """
     )
     initial = stage.refresh_modified_logical_hashes(con, {"logical_hashes": {}})
@@ -113,6 +115,8 @@ def test_refresh_existing_finalizes_schema_and_hash(
           classification_value TEXT
         );
         INSERT INTO stellar_badge_overlays VALUES (1,0,'leaf:a','G');
+        CREATE TABLE singleton_scene_seeds(system_id INTEGER PRIMARY KEY);
+        INSERT INTO singleton_scene_seeds VALUES (1);
         """
     )
     con.close()
@@ -125,6 +129,21 @@ def test_refresh_existing_finalizes_schema_and_hash(
                     "path": "public_read.sqlite",
                     "sha256": None,
                     "hash_status": "pending",
+                },
+                "counts": {
+                    "singleton_scene_seeds": 2,
+                    "stellar_badge_overlays": 2,
+                },
+                "verification": {
+                    "counts": {
+                        "singleton_scene_seeds": 2,
+                        "stellar_badge_overlays": 2,
+                    },
+                    "expected_counts": {
+                        "singleton_scene_seeds": 2,
+                        "stellar_badge_overlays": 2,
+                    },
+                    "count_mismatches": {},
                 },
                 "logical_hashes": {},
             }
@@ -145,6 +164,8 @@ def test_refresh_existing_finalizes_schema_and_hash(
     assert result["status"] == "pass"
     assert manifest["artifact"]["hash_status"] == "verified"
     assert manifest["artifact"]["sha256"] == stage.builder.sha256_file(database)
+    assert manifest["counts"]["singleton_scene_seeds"] == 1
+    assert manifest["counts"]["stellar_badge_overlays"] == 1
     assert (
         metadata["stellar_badge_overlay_schema_version"]
         == "spacegate.stellar_badge_overlay.v1"

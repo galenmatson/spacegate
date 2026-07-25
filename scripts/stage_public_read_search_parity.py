@@ -169,6 +169,12 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
         ),
     )
     target.commit()
+    singleton_seed_count = int(
+        target.execute("SELECT COUNT(*) FROM singleton_scene_seeds").fetchone()[0]
+    )
+    overlay_rows = int(
+        target.execute("SELECT COUNT(*) FROM stellar_badge_overlays").fetchone()[0]
+    )
     target.close()
     canonicalize_database(database)
     target = sqlite3.connect(str(database), timeout=60)
@@ -182,6 +188,11 @@ def refresh_existing(args: argparse.Namespace) -> dict[str, Any]:
     manifest["stellar_badge_overlay_schema_version"] = policy[
         "stellar_badge_overlay_schema_version"
     ]
+    refresh_manifest_accounting(
+        manifest,
+        singleton_seed_count=singleton_seed_count,
+        overlay_rows=overlay_rows,
+    )
     manifest["logical_hashes"] = logical_hashes
     manifest.setdefault("artifact", {})["bytes"] = database.stat().st_size
     manifest["artifact"]["sha256"] = builder.sha256_file(database)
