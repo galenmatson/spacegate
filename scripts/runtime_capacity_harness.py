@@ -917,6 +917,11 @@ def parse_args() -> argparse.Namespace:
         default="spacegate-capacity-api-1,spacegate-capacity-web-1",
     )
     parser.add_argument(
+        "--host-only",
+        action="store_true",
+        help="Permit a pinned short control without container probes; host metrics remain recorded.",
+    )
+    parser.add_argument(
         "--cache-state",
         choices=("warm", "application_cold", "targeted_eviction", "idle"),
         default="warm",
@@ -991,7 +996,7 @@ def main() -> int:
         for name in (value.strip() for value in args.containers.split(","))
         if name and (probe := ContainerProbe.create(name)) is not None
     ]
-    if not probes:
+    if not probes and not args.host_only:
         raise SystemExit("No benchmark containers are running")
 
     health = requests.get(

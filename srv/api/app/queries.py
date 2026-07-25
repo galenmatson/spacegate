@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -185,12 +186,16 @@ def _attach_side_db(
             return True
     except Exception:
         pass
-    try:
-        db_path_sql = str(disc_db_path).replace("'", "''")
-        con.execute(f"ATTACH '{db_path_sql}' AS {alias} (READ_ONLY)")
-        return True
-    except Exception:
-        return False
+    db_path_sql = str(disc_db_path).replace("'", "''")
+    for delay_seconds in (0.0, 0.02, 0.05):
+        if delay_seconds:
+            time.sleep(delay_seconds)
+        try:
+            con.execute(f"ATTACH '{db_path_sql}' AS {alias} (READ_ONLY)")
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def _has_table(
@@ -2899,8 +2904,10 @@ def _fetch_canonical_hierarchy_for_system(
     canonical_hierarchy_db_path: Optional[str],
     arm_db_path: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    if not _attach_side_db(con, canonical_hierarchy_db_path, alias="canon_hier"):
+    if not canonical_hierarchy_db_path:
         return None
+    if not _attach_side_db(con, canonical_hierarchy_db_path, alias="canon_hier"):
+        raise RuntimeError("canonical hierarchy database could not be attached")
     if not _has_table(con, alias="canon_hier", table_name="hierarchy_nodes"):
         return None
     if not _has_table(con, alias="canon_hier", table_name="hierarchy_edges"):

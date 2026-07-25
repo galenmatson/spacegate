@@ -1,0 +1,23 @@
+{
+  "schema_version": "spacegate.public_read_policy.v1",
+  "projection_schema_version": "spacegate.public_read.v1",
+  "search_schema_version": "spacegate.search.v2",
+  "singleton_scene_seed_version": "spacegate.singleton_scene_seed.v1",
+  "hierarchy_bundle_version": "spacegate.hierarchy_bundle.v1",
+  "render_policy_version": "simulation_tree_v1",
+  "habitable_zone_policy_version": "kopparapu_luminosity_scaled_v1",
+  "search": {
+    "max_candidate_terms": 5000,
+    "max_candidate_systems": 2000,
+    "fuzzy_min_length": 4,
+    "fuzzy_max_distance_short": 1,
+    "fuzzy_max_distance_medium": 2,
+    "fuzzy_max_distance_long": 3
+  },
+  "full_scene_policy": {
+    "star_count_min": 2,
+    "planet_count_min": 1,
+    "include_compact_or_exotic": true,
+    "include_high_coolness_rank_max": 1000
+  }
+}

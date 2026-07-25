@@ -41,14 +41,18 @@ from . import admin_db
 from . import auth
 from . import db
 from . import inference_registry
+from . import public_read
 from .narration import system_narrative_blocks
 from . import wise_images
 from .db import DatabaseUnavailable
 from .planet_categories import (
     SUPPORTED_PLANET_CATEGORIES,
     parse_planet_categories,
+    planet_category_mask,
 )
 from .queries import (
+    _search_preview_policy,
+    _spectral_filter_mask,
     choose_display_name,
     choose_display_name_info,
     fetch_arm_evidence_for_stars,
@@ -6014,6 +6018,7 @@ def health():
         "status": "ok",
         "build_id": db.build_id(),
         "database_runtime": db.runtime_stats(),
+        "public_read_runtime": public_read.runtime_stats(),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
 
@@ -6354,50 +6359,110 @@ def systems_search(
 
     started_at = datetime.datetime.utcnow()
 
+    projection_used = False
     try:
-        with db.connection_scope() as con:
-            rows, total_count = search_systems(
-                con,
-                q_norm=q_norm or None,
-                q_raw=q,
-                system_id_exact=system_id_exact,
-                id_query=id_query,
-                max_dist_ly=max_dist_ly,
-                min_dist_ly=min_dist_ly,
-                origin_x_ly=origin_x_ly,
-                origin_y_ly=origin_y_ly,
-                origin_z_ly=origin_z_ly,
-                min_star_count=min_star_count,
-                max_star_count=max_star_count,
-                min_planet_count=min_planet_count,
-                max_planet_count=max_planet_count,
-                min_temp_k=min_temp_k,
-                max_temp_k=max_temp_k,
-                spectral_classes=spectral_classes,
-                has_planets=has_planets_bool,
-                has_habitable=has_habitable_bool,
-                planet_categories=planet_categories,
-                min_coolness_score=min_coolness_score,
-                max_coolness_score=max_coolness_score,
-                sort=sort_key,
-                match_mode=match_mode,
-                limit=limit + 1,
-                include_total=bool(include_total_bool),
-                cursor_values=cursor_values,
-                disc_db_path=disc_db_path,
-                arm_db_path=arm_db_path,
-                name_style=normalized_name_style,
-            )
-            build_id = fetch_build_id(con)
-            query_resolution = (
-                fetch_tess_identifier_resolution(
+        use_projection = True
+        if use_projection:
+            try:
+                projection = public_read.connect()
+            except public_read.PublicReadIncompatible as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "public_read_incompatible",
+                        "message": str(exc),
+                        "details": {},
+                    },
+                ) from exc
+            except public_read.PublicReadUnavailable:
+                projection = None
+                public_read.record_compatibility_fallback()
+            if projection is not None:
+                try:
+                    identifier_namespace = (
+                        str(tess_identifier_query.get("namespace"))
+                        if tess_identifier_query
+                        else None
+                    )
+                    rows, total_count, query_resolution = public_read.search_systems(
+                        projection,
+                        q_norm=q_norm or None,
+                        system_id_exact=system_id_exact,
+                        identifier_namespace=identifier_namespace,
+                        identifier_norm=q_norm if identifier_namespace else None,
+                        max_dist_ly=max_dist_ly,
+                        min_dist_ly=min_dist_ly,
+                        origin=(
+                            (float(origin_x_ly), float(origin_y_ly), float(origin_z_ly))
+                            if has_origin
+                            else None
+                        ),
+                        min_star_count=min_star_count,
+                        max_star_count=max_star_count,
+                        min_planet_count=min_planet_count,
+                        max_planet_count=max_planet_count,
+                        min_temp_k=min_temp_k,
+                        max_temp_k=max_temp_k,
+                        spectral_mask=_spectral_filter_mask(spectral_classes),
+                        has_planets=has_planets_bool,
+                        has_habitable=has_habitable_bool,
+                        planet_category_mask=planet_category_mask(planet_categories),
+                        min_coolness_score=min_coolness_score,
+                        max_coolness_score=max_coolness_score,
+                        sort=sort_key,
+                        limit=limit + 1,
+                        include_total=bool(include_total_bool),
+                        name_style=normalized_name_style,
+                        cursor_values=cursor_values,
+                    )
+                    build_id = db.build_id()
+                    projection_used = True
+                finally:
+                    projection.close()
+        if not projection_used:
+            with db.connection_scope() as con:
+                rows, total_count = search_systems(
                     con,
-                    identifier_query=tess_identifier_query,
+                    q_norm=q_norm or None,
+                    q_raw=q,
+                    system_id_exact=system_id_exact,
+                    id_query=id_query,
+                    max_dist_ly=max_dist_ly,
+                    min_dist_ly=min_dist_ly,
+                    origin_x_ly=origin_x_ly,
+                    origin_y_ly=origin_y_ly,
+                    origin_z_ly=origin_z_ly,
+                    min_star_count=min_star_count,
+                    max_star_count=max_star_count,
+                    min_planet_count=min_planet_count,
+                    max_planet_count=max_planet_count,
+                    min_temp_k=min_temp_k,
+                    max_temp_k=max_temp_k,
+                    spectral_classes=spectral_classes,
+                    has_planets=has_planets_bool,
+                    has_habitable=has_habitable_bool,
+                    planet_categories=planet_categories,
+                    min_coolness_score=min_coolness_score,
+                    max_coolness_score=max_coolness_score,
+                    sort=sort_key,
+                    match_mode=match_mode,
+                    limit=limit + 1,
+                    include_total=bool(include_total_bool),
+                    cursor_values=cursor_values,
+                    disc_db_path=disc_db_path,
                     arm_db_path=arm_db_path,
+                    name_style=normalized_name_style,
                 )
-                if tess_identifier_query
-                else None
-            )
+                build_id = fetch_build_id(con)
+                query_resolution = (
+                    fetch_tess_identifier_resolution(
+                        con,
+                        identifier_query=tess_identifier_query,
+                        arm_db_path=arm_db_path,
+                    )
+                    if tess_identifier_query
+                    else None
+                )
     except ValueError as exc:
         _audit_systems_search(
             request,
@@ -6458,6 +6523,8 @@ def systems_search(
             }
         has_more = False
     for item in items:
+        if projection_used:
+            item.update(_search_preview_policy(item))
         _attach_snapshot_url(item)
         system_id = item.get("system_id")
         if system_id is None:
@@ -6597,6 +6664,7 @@ def systems_search(
         } if has_origin else None,
         "name_style": normalized_name_style,
         "query_resolution": query_resolution,
+        "read_backend": "public_read_v2" if projection_used else "duckdb_compatibility",
     }
 
 
@@ -6629,6 +6697,102 @@ def map_systems(
         )
 
 
+def _projected_singleton_simulation_scene(
+    system_id: int,
+    *,
+    build_id: str,
+    name_style: str,
+) -> Optional[Dict[str, Any]]:
+    try:
+        projection = public_read.connect(build_id)
+    except public_read.PublicReadUnavailable:
+        return None
+    try:
+        seed = public_read.singleton_scene_seed(projection, system_id)
+        if seed is None:
+            return None
+        detail = public_read.projected_system_detail(
+            projection,
+            system_id,
+            name_style=name_style,
+        )
+    finally:
+        projection.close()
+    if detail is None or len(detail.get("stars") or []) != 1:
+        return None
+    system = detail["system"]
+    stars = detail["stars"]
+    planets: List[Dict[str, Any]] = []
+    star = stars[0]
+    selected = (star.get("arm_evidence") or {}).get("selected_parameters") or {}
+    stellar_parameters = {
+        "star_id": star.get("star_id"),
+        "system_id": system_id,
+        "stable_object_key": star.get("stable_object_key"),
+        **selected,
+    }
+    leaf_rows = detail.get("stellar_leaf_classifications") or []
+    arm = {
+        "components": {"count": 0, "items": []},
+        "hierarchy_edges": {"count": 0, "items": []},
+        "orbit_edges": {"count": 0, "items": []},
+        "orbital_solutions": {"count": 0, "items": []},
+        "stellar_orbit_group_memberships": {"count": 0, "items": []},
+        "msc_system_details": {"count": 0, "items": []},
+        "stellar_parameters": {"count": 1, "items": [stellar_parameters]},
+        "derived_physical_parameters": {"count": 0, "items": []},
+        "derived_stellar_classifications": {"count": 0, "items": []},
+        "stellar_leaf_display_classifications": {
+            "count": len(leaf_rows),
+            "items": leaf_rows,
+        },
+        "errors": [],
+    }
+    readiness = _simulation_readiness_diagnostics(stars, planets, arm)
+    render_scene = _render_scene_contract(
+        system,
+        stars,
+        planets,
+        arm,
+        readiness,
+        hierarchy=detail.get("hierarchy"),
+        build_id=build_id,
+        persisted_assumption_keys=set(),
+    )
+    return {
+        "schema_version": "simulation_scene_v0",
+        "scope": "system_simulation_scene",
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "build_id": build_id,
+        "frame": "heliocentric_icrs_j2016",
+        "system": system,
+        "bodies": {"stars": stars, "planets": planets},
+        "hierarchy": detail.get("hierarchy"),
+        "stellar_leaf_classifications": leaf_rows,
+        "arm": arm,
+        "simulation_readiness": readiness,
+        "render_scene": render_scene,
+        "scene_tier": "singleton_seed",
+        "scene_seed": {
+            **seed,
+            "selection_policy": "compiler_selected_values_only",
+        },
+        "policy": {
+            "canonical_layer": "core",
+            "derived_layer": "arm",
+            "presentation_assumption_layer": "disc",
+            "fiction_overlay_layer": "rim",
+            "time_policy": "static_epoch_scene_until_client_simulation_clock_contract",
+            "missing_orbit_policy": "do_not_invent_canonical_orbits",
+            "agency_policy": "unreviewed_agency_output_must_not_write_core",
+        },
+        "links": {
+            "detail": f"/api/v1/systems/{system_id}",
+            "public_detail": f"/systems/{system_id}",
+        },
+    }
+
+
 @app.get("/api/v1/systems/{system_id}/simulation-scene")
 def system_simulation_scene(
     system_id: int,
@@ -6637,8 +6801,9 @@ def system_simulation_scene(
 ):
     try:
         normalized_name_style = normalize_name_style(name_style)
-        with db.connection_scope() as con:
-            build_id = fetch_build_id(con)
+        build_id = db.build_id()
+        if not build_id:
+            raise DatabaseUnavailable("active build identity unavailable")
         artifact_path = _simulation_scene_artifact_path(build_id, system_id)
         if (
             normalized_name_style == "public_full"
@@ -6652,6 +6817,15 @@ def system_simulation_scene(
                 media_type="application/json",
                 headers=dict(response.headers),
             )
+        singleton = _projected_singleton_simulation_scene(
+            system_id,
+            build_id=build_id,
+            name_style=normalized_name_style,
+        )
+        if singleton is not None:
+            response.headers["X-Spacegate-Simulation-Scene-Cache"] = "singleton-seed"
+            response.headers["Cache-Control"] = "public, max-age=3600"
+            return singleton
         cache_build_id = f"{build_id or 'unknown'}:{normalized_name_style}"
         cached = _simulation_scene_cache_get(cache_build_id, system_id)
         if cached is not None:
@@ -6710,8 +6884,155 @@ def system_simulation_scene(
         )
 
 
+def _projection_or_compatibility_error(exc: Exception) -> None:
+    if isinstance(exc, public_read.PublicReadIncompatible):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_incompatible",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+
+
+@app.get("/api/v1/systems/{system_id}/summary")
+def projected_system_summary(
+    system_id: int, name_style: str = Query(default="public_full")
+):
+    try:
+        projection = public_read.connect()
+        try:
+            summary = public_read.system_summary(
+                projection,
+                system_id,
+                name_style=normalize_name_style(name_style),
+            )
+        finally:
+            projection.close()
+    except public_read.PublicReadUnavailable as exc:
+        _projection_or_compatibility_error(exc)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_unavailable",
+                "message": "System summary projection is unavailable",
+                "details": {},
+            },
+        ) from exc
+    if summary is None:
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    return {
+        "build_id": db.build_id(),
+        "system": summary,
+        "read_backend": "public_read_v2",
+    }
+
+
+@app.get("/api/v1/systems/{system_id}/hierarchy")
+def projected_system_hierarchy(
+    system_id: int, name_style: str = Query(default="public_full")
+):
+    try:
+        projection = public_read.connect()
+        try:
+            payload = public_read.projected_system_detail(
+                projection,
+                system_id,
+                name_style=normalize_name_style(name_style),
+            )
+        finally:
+            projection.close()
+    except public_read.PublicReadUnavailable as exc:
+        _projection_or_compatibility_error(exc)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    if payload is None:
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    return {
+        "build_id": db.build_id(),
+        "system_id": system_id,
+        "hierarchy": payload.get("hierarchy"),
+        "stellar_leaf_classifications": payload.get("stellar_leaf_classifications", []),
+        "read_backend": payload.get("read_backend", "public_read_v2"),
+    }
+
+
+@app.get("/api/v1/systems/{system_id}/scene-seed")
+def projected_singleton_scene_seed(system_id: int):
+    try:
+        projection = public_read.connect()
+        try:
+            seed = public_read.singleton_scene_seed(projection, system_id)
+        finally:
+            projection.close()
+    except public_read.PublicReadUnavailable as exc:
+        _projection_or_compatibility_error(exc)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "public_read_unavailable",
+                "message": "Singleton scene-seed projection is unavailable",
+                "details": {},
+            },
+        ) from exc
+    if seed is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_singleton_seed",
+                "message": "System requires a full simulation scene",
+                "details": {"system_id": system_id},
+            },
+        )
+    return {
+        "build_id": db.build_id(),
+        "seed": seed,
+        "read_backend": "public_read_v2",
+    }
+
+
 @app.get("/api/v1/systems/{system_id}")
 def system_detail(system_id: int, name_style: str = Query(default="public_full")):
+    try:
+        projection = public_read.connect()
+    except public_read.PublicReadIncompatible as exc:
+        _projection_or_compatibility_error(exc)
+        projection = None
+    except public_read.PublicReadUnavailable:
+        projection = None
+        public_read.record_compatibility_fallback()
+    if projection is not None:
+        try:
+            try:
+                projected = public_read.projected_system_detail(
+                    projection,
+                    system_id,
+                    name_style=normalize_name_style(name_style),
+                )
+            except public_read.PublicReadUnavailable:
+                projected = None
+                public_read.record_compatibility_fallback()
+        finally:
+            projection.close()
+        if projected is not None:
+            if not projected.get("narrative_blocks"):
+                projected["narrative_blocks"] = system_narrative_blocks(
+                    disc_db_path=_resolve_disc_db_path(),
+                    system=projected["system"],
+                    stars=projected["stars"],
+                    planets=projected["planets"],
+                    hierarchy=projected["hierarchy"],
+                    infrared_evidence=projected["infrared_evidence"],
+                )
+            return projected
+
     disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()

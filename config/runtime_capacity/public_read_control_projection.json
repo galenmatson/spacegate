@@ -1,0 +1,74 @@
+{
+  "schema_version": "spacegate.runtime_capacity_workload.v1",
+  "workload_id": "public_read_control_projection_v1",
+  "build_id": "e7_24cb15211f430a37f199f462_full_public",
+  "random_seed": 831338,
+  "notes": [
+    "Short post-projection control for M8.3e.",
+    "Queries, weights, concurrency, request count, and cache preparation match the retained and pre-projection controls."
+  ],
+  "artifacts": [],
+  "endpoints": {
+    "health": {
+      "category": "health",
+      "path": "/api/v1/health",
+      "expected_status": [200]
+    },
+    "name_exact": {
+      "category": "search_exact",
+      "path": "/api/v1/systems/search?q=Sirius&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "name_prefix": {
+      "category": "search_prefix",
+      "path": "/api/v1/systems/search?q=alpha&sort=match&limit=10",
+      "expected_status": [200]
+    },
+    "name_substring": {
+      "category": "search_substring",
+      "path": "/api/v1/systems/search?q=centauri&sort=match&limit=10",
+      "expected_status": [200]
+    },
+    "name_fuzzy": {
+      "category": "search_fuzzy",
+      "path": "/api/v1/systems/search?q=Castro&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "detail_singleton": {
+      "category": "detail",
+      "path": "/api/v1/systems/1",
+      "expected_status": [200]
+    }
+  },
+  "profiles": {
+    "control_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "request_limit": 36,
+      "acceptance": {
+        "max_error_rate_pct": 0.0,
+        "max_p95_latency_ms": 10000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["health", 1],
+        ["name_exact", 3],
+        ["name_prefix", 3],
+        ["name_substring", 3],
+        ["name_fuzzy", 3],
+        ["detail_singleton", 3]
+      ]
+    }
+  },
+  "stop_conditions": {
+    "error_rate_pct": 5.0,
+    "rolling_window_requests": 20,
+    "rolling_error_rate_pct": 20.0,
+    "rolling_p95_latency_ms": 15000,
+    "client_queue_depth_per_worker": 2,
+    "aggregate_cgroup_memory_bytes": 9663676416,
+    "minimum_host_available_bytes": 4294967296
+  }
+}
