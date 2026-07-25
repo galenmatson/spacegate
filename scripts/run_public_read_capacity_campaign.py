@@ -79,6 +79,14 @@ def parse_args() -> argparse.Namespace:
         help="disable TLS verification only for the unconstrained control endpoint",
     )
     parser.add_argument("--constrained-url", default="http://127.0.0.1:18081")
+    parser.add_argument(
+        "--unconstrained-containers",
+        default="app-api-1,app-web-1",
+    )
+    parser.add_argument(
+        "--constrained-containers",
+        default="spacegate-capacity-api-1,spacegate-capacity-web-1",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=45.0)
     parser.add_argument("--start-at-label", default="")
     parser.add_argument("--skip-existing", action="store_true")
@@ -125,9 +133,9 @@ def main() -> int:
             args.unconstrained_url if unconstrained else args.constrained_url
         )
         containers = (
-            "spacegate-api-1,spacegate-web-1"
+            args.unconstrained_containers
             if unconstrained
-            else "spacegate-capacity-api-1,spacegate-capacity-web-1"
+            else args.constrained_containers
         )
         run_dir = output_dir / label
         if (run_dir / "summary.json").is_file() and args.skip_existing:
@@ -225,7 +233,7 @@ def main() -> int:
         "--output-dir",
         str(staircase_dir),
         "--containers",
-        "spacegate-capacity-api-1,spacegate-capacity-web-1",
+        args.constrained_containers,
         "--environment-profile",
         str(staircase["environment_profile"]),
     ]
