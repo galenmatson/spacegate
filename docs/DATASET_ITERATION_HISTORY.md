@@ -4260,6 +4260,12 @@ Representative commits:
   browser tier. The old heuristic remains only in the instrumented DuckDB
   compatibility path; HZ/orbit geometry remains client-side presentation math
   over selected inputs, not source selection.
+- Projected singleton detail also stopped opening `disc.duckdb` to probe a
+  narrative table absent from the promoted build. It now generates the same
+  deterministic narrative blocks from projected selected inputs. Full bundles
+  retain their embedded narrative payload; future reviewed singleton
+  narratives must be explicitly projected rather than restoring a per-request
+  scientific-database probe.
 
 ## Recurrent Defect Classes and Mitigations
 

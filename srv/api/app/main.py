@@ -42,7 +42,7 @@ from . import auth
 from . import db
 from . import inference_registry
 from . import public_read
-from .narration import system_narrative_blocks
+from .narration import generate_system_narrative_blocks, system_narrative_blocks
 from . import wise_images
 from .db import DatabaseUnavailable
 from .planet_categories import (
@@ -7097,8 +7097,7 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
             projection.close()
         if projected is not None:
             if not projected.get("narrative_blocks"):
-                projected["narrative_blocks"] = system_narrative_blocks(
-                    disc_db_path=_resolve_disc_db_path(),
+                projected["narrative_blocks"] = generate_system_narrative_blocks(
                     system=projected["system"],
                     stars=projected["stars"],
                     planets=projected["planets"],

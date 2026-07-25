@@ -359,3 +359,28 @@ def test_singleton_scene_uses_projected_selected_values_without_duckdb(
     assert scene["scene_tier"] == "singleton_seed"
     assert scene["scene_seed"]["luminosity_lsun_fact_id"] == "fact-lum"
     assert scene["render_scene"]["bodies"]["stars"]
+
+
+def test_projected_singleton_detail_does_not_probe_disc_narratives(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = tmp_path / "public_read.sqlite"
+    con = make_projection(artifact)
+    con.close()
+    monkeypatch.setattr(
+        api_main.public_read,
+        "connect",
+        lambda _build_id=None: public_read._connect_path(artifact),
+    )
+    monkeypatch.setattr(api_main.db, "build_id", lambda: "test-build")
+    monkeypatch.setattr(
+        api_main,
+        "system_narrative_blocks",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("projected singleton probed DISC narration")
+        ),
+    )
+    detail = api_main.system_detail(1, name_style="public_full")
+    assert detail["read_backend"] == "public_read_v2_singleton"
+    assert detail["narrative_blocks"]
