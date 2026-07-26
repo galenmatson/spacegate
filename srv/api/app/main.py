@@ -42,6 +42,7 @@ from . import auth
 from . import db
 from . import inference_registry
 from . import public_read
+from . import smart_tags
 from .narration import generate_system_narrative_blocks, system_narrative_blocks
 from . import wise_images
 from .db import DatabaseUnavailable
@@ -108,6 +109,45 @@ SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
 SIM_STELLAR_SUBCLASS_PRIOR_VERSION = "spectral_subclass_main_sequence_mass_prior_v1"
 SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
+
+
+def _parse_tag_filter(value: Optional[str]) -> List[str]:
+    if value is None:
+        return []
+    keys = sorted(
+        {
+            part.strip().lower()
+            for part in value.split(",")
+            if part.strip()
+        }
+    )
+    if len(keys) > 32:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Too many smart-tag filters",
+                "details": {"maximum": 32},
+            },
+        )
+    invalid = [
+        key
+        for key in keys
+        if not re.fullmatch(
+            r"(?:science|presentation|evidence|source|rim):[a-z0-9_.-]+",
+            key,
+        )
+    ]
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid smart-tag filter",
+                "details": {"invalid": invalid},
+            },
+        )
+    return keys
 
 
 def _public_text_env(name: str, fallback: str, max_length: int = 80) -> str:
@@ -6419,6 +6459,110 @@ def extended_object_detail(extended_object_id: int):
     return {"status": "ok", "build_id": build_id, "object": _json_safe_extended_object_ids(row)}
 
 
+@app.get("/api/v1/tags")
+def smart_tag_registry():
+    build_id = db.build_id()
+    if not build_id:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "active_build_unavailable",
+                "message": "Active build identity is unavailable",
+                "details": {},
+            },
+        )
+    try:
+        con = smart_tags.connect(build_id)
+    except smart_tags.SmartTagsUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    try:
+        return {"status": "ok", **smart_tags.registry_payload(con)}
+    finally:
+        con.close()
+
+
+@app.get("/api/v1/tags/{tag_key:path}")
+def smart_tag_definition(tag_key: str):
+    build_id = db.build_id()
+    if not build_id:
+        raise HTTPException(status_code=503, detail="Active build unavailable")
+    try:
+        con = smart_tags.connect(build_id)
+    except smart_tags.SmartTagsUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    try:
+        definition = smart_tags.definition_payload(con, tag_key.strip().lower())
+    finally:
+        con.close()
+    if definition is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "tag_not_found",
+                "message": "Smart tag not found",
+                "details": {"tag_key": tag_key},
+            },
+        )
+    return {"status": "ok", "build_id": build_id, "tag": definition}
+
+
+@app.get("/api/v1/systems/{system_id}/tags")
+def system_smart_tags(system_id: int):
+    try:
+        con = public_read.connect()
+    except public_read.PublicReadUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    try:
+        if (
+            con.execute(
+                "SELECT 1 FROM systems WHERE system_id=?", (system_id,)
+            ).fetchone()
+            is None
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "code": "system_not_found",
+                    "message": "System not found",
+                    "details": {"system_id": system_id},
+                },
+            )
+        if not smart_tags.is_attached(con):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "smart_tags_unavailable",
+                    "message": "Matching smart-tag artifact is not promoted",
+                    "details": {},
+                },
+            )
+        payload = smart_tags.system_payload(con, system_id)
+        return {"status": "ok", "build_id": db.build_id(), **payload}
+    finally:
+        con.close()
+
+
 @app.get("/api/v1/systems/search")
 def systems_search(
     request: Request,
@@ -6446,6 +6590,9 @@ def systems_search(
     limit: int = Query(default=50, ge=1, le=200),
     include_total: Optional[str] = Query(default=None),
     cursor: Optional[str] = Query(default=None),
+    tags_any: Optional[str] = Query(default=None),
+    tags_all: Optional[str] = Query(default=None),
+    tags_exclude: Optional[str] = Query(default=None),
 ):
     if max_dist_ly is not None and min_dist_ly is not None and min_dist_ly > max_dist_ly:
         raise HTTPException(
@@ -6710,12 +6857,24 @@ def systems_search(
                         include_total=bool(include_total_bool),
                         name_style=normalized_name_style,
                         cursor_values=cursor_values,
+                        tags_any=_parse_tag_filter(tags_any),
+                        tags_all=_parse_tag_filter(tags_all),
+                        tags_exclude=_parse_tag_filter(tags_exclude),
                     )
                     build_id = db.build_id()
                     projection_used = True
                 finally:
                     projection.close()
         if not projection_used:
+            if any((tags_any, tags_all, tags_exclude)):
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "smart_tags_unavailable",
+                        "message": "Smart-tag filters require the Public Read projection",
+                        "details": {},
+                    },
+                )
             with db.connection_scope() as con:
                 rows, total_count = search_systems(
                     con,
@@ -7284,6 +7443,10 @@ def projected_system_hierarchy(
         "system_id": system_id,
         "hierarchy": payload.get("hierarchy"),
         "stellar_leaf_classifications": payload.get("stellar_leaf_classifications", []),
+        "smart_tags": payload.get("smart_tags")
+        or (payload.get("system") or {}).get("smart_tags", []),
+        "source_summary": payload.get("source_summary")
+        or (payload.get("system") or {}).get("source_summary", []),
         "read_backend": payload.get("read_backend", "public_read_v2"),
     }
 

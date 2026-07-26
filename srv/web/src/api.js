@@ -139,3 +139,13 @@ export async function fetchSpectralMix() {
   }
   return res.json();
 }
+
+export async function fetchSmartTagRegistry() {
+  const url = apiUrl("/api/v1/tags");
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Smart-tag registry failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}

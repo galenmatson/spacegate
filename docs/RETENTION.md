@@ -1591,3 +1591,37 @@ The API enforces the cap opportunistically when WISE metadata/previews are
 requested. It removes oldest cached files first. Cache metadata must retain IRSA
 source URLs, retrieval timestamp, bands, cutout size, and attribution so lost
 previews can be regenerated or marked stale.
+
+## Smart Tag Artifacts
+
+Smart Tag output lives under:
+
+```text
+$SPACEGATE_STATE_DIR/derived/smart_tags/<build_id>/<registry_hash>/
+```
+
+Each immutable generation contains an indexed SQLite projection, portable
+Parquet assignments, registry snapshot, manifest, coverage report, quarantine
+report, logical hashes, checksums, and timing. The sibling `current` symlink is
+an atomic build-local promotion pointer.
+
+Protect:
+
+- the tag generation referenced by any served, staged, deployed, rollback, or
+  published release;
+- every generation referenced by a report, public concept review, or
+  deterministic comparison;
+- the immediately previous verified registry hash until rollback and
+  post-promotion checks pass.
+
+An unreferenced generation is regenerable only while the exact Public Read
+input, source-release registry, tag registry, evaluator code, and proposal
+inventory remain available. Retention may remove an unreferenced duplicate
+only after manifest/logical hashes are recorded and the usual dry-run review
+passes. Never delete `current` independently of its target, and never keep a
+served pointer whose target was removed.
+
+Smart Tags are small derived public artifacts relative to Public Read, but are
+part of the public release contract once
+`SPACEGATE_SMART_TAGS_REQUIRED=1`. They must not be moved to Proton or an NFS
+runtime path.

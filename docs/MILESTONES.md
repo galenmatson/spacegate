@@ -2921,8 +2921,9 @@ Goal:
   cryptographically verified scientific/projection/scene release while
   retaining the July 17 public build as immediate rollback.
 
-Status: release preparation complete; large artifact transfer and activation
-are awaiting the operator-run synchronization checkpoint.
+Status: all three artifacts are staged and verified on antiproton; activation,
+code deployment, public verification, rollback rehearsal, and soak acceptance
+remain.
 
 - `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
   into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
@@ -2951,8 +2952,13 @@ are awaiting the operator-run synchronization checkpoint.
 - The transfer must remain streamed: install and delete the incoming scientific
   archive before sending Search v2. The helper enforces 57,356,235,850 starting
   free bytes and a 15-GiB reserve after every stage.
-- Antiproton remains on its July 17 build. No large artifact transfer, pointer
-  activation, container restart, or public release has occurred.
+- On July 26, the streamed helper transferred, staged, and re-verified all
+  33,588,971,005 bytes. The 16,455,413,760-byte Public Read artifact passed
+  checksum, SQLite identity, and quick-check; all 7,724 frozen scenes passed
+  membership verification; the final installed-release verification returned
+  `status=pass` with 29,245,730,816 bytes free.
+- Antiproton remains on its July 17 build. The helper deliberately did not
+  change `served/current`, restart containers, or expose the staged build.
 
 Success criteria:
 
@@ -2964,6 +2970,56 @@ Success criteria:
   pass;
 - the July 17 extracted build remains available until the public soak is
   accepted.
+
+### M8.3e.2. Smart Tags and Concepts v1
+
+Goal:
+
+- replace scattered public labels with a reviewed, expandable, deterministic
+  tag vocabulary, build-keyed assignments, shared accessible interaction,
+  filtering, source context, and first educational concept routes.
+
+Status: implementation and local verification in progress on
+`feature/smart-tags-v1`.
+
+Delivered at the implementation checkpoint:
+
+- `spacegate.smart_tag_registry.v1` uses stable namespaced keys, explicit
+  target/layer/kind/category/source policy, compact/normal/expanded priorities,
+  bounded evaluator IDs, concept routes, and rollup/filter policy. Registry
+  files cannot execute SQL or expressions.
+- `config/tags/proposal_inventory.json` accounts for the broad `docs/TAGS.md`
+  vocabulary as enabled or explicitly deferred; missing orbit data cannot
+  produce a `rogue` tag.
+- the build-keyed compiler writes separate immutable SQLite and Parquet
+  projections with object assignments, system rollups, source references,
+  coverage/quarantine reports, logical hashes, checksums, and atomic
+  registry-hash promotion. It does not mutate the 16-GB Public Read database or
+  any science layer.
+- the API attaches the matching artifact read-only and adds registry,
+  definition, system-tag, source-summary, and indexed any/all/exclude search
+  contracts. Present but incompatible artifacts fail visibly.
+- Search Results and System Pages consume compiled tags. Stellar-class badges
+  use the same hover/focus/click/touch shell. Popovers expose cautious
+  explanations, source policy, source links, concept navigation, filtered
+  search, and copyable links.
+- the first reviewed concept routes cover spectral class, white dwarfs, brown
+  dwarfs, multiple systems, exoplanets, habitable zones, orbital period, and
+  evidence/provenance.
+- the Admin action catalog exposes audited Smart Tag compilation as a
+  post-Public-Read presentation job.
+
+Remaining acceptance work:
+
+- record full-build timing, storage, counts, and a second deterministic logical
+  rebuild;
+- complete API/search/browser/mobile accessibility and performance goldens;
+- finish compatibility accounting for remaining hierarchy/source/evidence
+  pills and map-side selection surfaces;
+- bind the tag artifact into a future public edge release before making it
+  required.
+
+See `docs/SMART_TAGS.md`.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

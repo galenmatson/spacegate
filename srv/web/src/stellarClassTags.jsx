@@ -1,4 +1,5 @@
 import React from "react";
+import { SmartTag } from "./SmartTag.jsx";
 
 export const STELLAR_CLASS_ORDER = [
   "O",
@@ -137,6 +138,29 @@ export function normalizeStellarClassToken(rawToken) {
     return "BLACK HOLE";
   }
   return STELLAR_CLASS_TAGS[token] ? token : "U";
+}
+
+export function stellarClassTagKey(rawToken) {
+  const token = normalizeStellarClassToken(rawToken);
+  const keys = {
+    O: "science:stellar.o",
+    B: "science:stellar.b",
+    A: "science:stellar.a",
+    F: "science:stellar.f",
+    G: "science:stellar.g",
+    K: "science:stellar.k",
+    M: "science:stellar.m",
+    L: "science:stellar.l",
+    T: "science:stellar.t",
+    Y: "science:stellar.y",
+    WR: "science:stellar.wolf_rayet",
+    WD: "science:stellar.white_dwarf",
+    NS: "science:stellar.neutron_star",
+    PULSAR: "science:stellar.pulsar",
+    MAGNETAR: "science:stellar.magnetar",
+    "BLACK HOLE": "science:stellar.black_hole",
+  };
+  return keys[token] || "";
 }
 
 export function stellarClassTooltip(rawToken, suffix = "") {
@@ -300,15 +324,13 @@ export function StellarClassChips({
         const normalizedToken = normalizeStellarClassToken(token);
         const tag = STELLAR_CLASS_TAGS[normalizedToken] || STELLAR_CLASS_TAGS.U;
         return (
-          <span
+          <SmartTag
             key={token}
-            className="stellar-class-chip"
-            data-stellar-token={normalizedToken.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
-            title={stellarClassTooltip(normalizedToken)}
-            style={{ "--stellar-chip-color": tag.color }}
-          >
-            {tag.label}
-          </span>
+            tagKey={stellarClassTagKey(normalizedToken)}
+            label={tag.label}
+            tooltip={tag.text}
+            variant="stellar"
+          />
         );
       })}
     </span>

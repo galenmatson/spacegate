@@ -3,6 +3,23 @@
 This document defines Spacegate's **editable fictional overlay schema**.
 Rim data is intentionally separate from core science and disc derived artifacts.
 
+## Reserved Smart Tag Extension
+
+`rim:` Smart Tag keys are reserved for future user and pack-authored
+worldbuilding labels. M8.3e.2 does not implement editing or persistence.
+
+When implemented, every RIM tag must retain:
+
+- owner or pack identity and immutable definition version;
+- target type and stable target key;
+- visibility and review state;
+- creation/update attribution;
+- a visual token that is distinct from science, evidence, and source tags.
+
+RIM assignments must use RIM-owned tables and APIs. They may share the public
+Smart Tag interaction shell, but must never write the intrinsic compiled
+science assignment tables or be presented as canonical astronomy.
+
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
 - `docs/SCHEMA_ARM.md`: immutable science evidence/support graph, orbit, and

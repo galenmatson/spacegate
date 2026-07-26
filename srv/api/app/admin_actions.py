@@ -385,6 +385,42 @@ def _build_command_materialize_simulation_scenes(params: Dict[str, Any]) -> List
     return cmd
 
 
+def _build_command_compile_smart_tags(params: Dict[str, Any]) -> List[str]:
+    build_id = _normalize_string(params.get("build_id"))
+    if not build_id:
+        current = _state_dir() / "served" / "current"
+        try:
+            build_id = current.resolve(strict=True).name
+        except OSError as exc:
+            raise ActionValidationError(
+                "served/current is unavailable; provide a retained build id"
+            ) from exc
+    public_read = (
+        _state_dir()
+        / "derived"
+        / "public_read"
+        / build_id
+        / "public_read.sqlite"
+    )
+    if not public_read.is_file():
+        raise ActionValidationError(
+            f"Public Read projection is unavailable for build {build_id}"
+        )
+    cmd = [
+        sys.executable,
+        str(ROOT_DIR / "scripts" / "compile_smart_tags.py"),
+        "--public-read",
+        str(public_read),
+        "--output-root",
+        str(_state_dir() / "derived" / "smart_tags"),
+    ]
+    if _normalize_boolean(params.get("hash_input", False)):
+        cmd.append("--hash-input")
+    if _normalize_boolean(params.get("force", False)):
+        cmd.append("--force")
+    return cmd
+
+
 def _build_command_save_coolness_profile(params: Dict[str, Any]) -> List[str]:
     profile_id = str(params.get("profile_id", "") or "").strip()
     profile_version = str(params.get("profile_version", "") or "").strip()
@@ -969,7 +1005,7 @@ ACTION_GROUPS: List[Dict[str, Any]] = [
         "key": "presentation",
         "title": "Presentation Generation",
         "description": "Generate ranking, scene-cache, and snapshot artifacts without changing canonical science rows.",
-        "actions": ["score_coolness", "materialize_simulation_scenes", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
+        "actions": ["score_coolness", "compile_smart_tags", "materialize_simulation_scenes", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
         "sequence": ["Score Coolness", "Warm Simulation Scenes", "Generate Snapshots", "Save Profile", "Activate Profile"],
     },
     {
@@ -1109,6 +1145,18 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "failure_next_actions": ["Inspect the job log; the public API may continue assembling uncached scenes on demand."],
         "warnings": ["CPU intensive while running.", "Runtime cache files are regenerable presentation products and are not promotion evidence."],
         "docs_links": ["docs/SYSTEM_SIMULATION.md", "docs/RETENTION.md"],
+    },
+    "compile_smart_tags": {
+        "group_key": "presentation",
+        "purpose": "Compiles reviewed Smart Tag definitions into an immutable build-keyed public projection.",
+        "prerequisites": "The target build must have a verified Public Read v2 projection and the repository tag registry must validate.",
+        "writes_to": "$SPACEGATE_STATE_DIR/derived/smart_tags/<build_id>/<registry_hash>/ and its atomic current pointer.",
+        "outputs": ["smart_tags.sqlite", "assignments.parquet", "registry snapshot", "coverage, quarantine, timing, and determinism reports"],
+        "expected_duration": "medium",
+        "success_next_actions": ["Verify tag search, system summaries, concept links, and source popovers before deployment promotion."],
+        "failure_next_actions": ["Inspect registry validation, evaluator quarantine, Public Read identity, and free disk space."],
+        "warnings": ["This is a presentation compiler and must not mutate CORE, ARM, DISC, or RIM.", "Force replaces only the same build and registry-hash artifact."],
+        "docs_links": ["docs/TAGS.md", "docs/SMART_TAGS.md", "docs/RETENTION.md"],
     },
     "backup_admin_db": {
         "group_key": "recovery",
@@ -1619,6 +1667,36 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         risk_level="medium",
         build_command=_build_command_materialize_simulation_scenes,
     ),
+    "compile_smart_tags": ActionSpec(
+        name="compile_smart_tags",
+        display_name="Compile Smart Tags",
+        description="Compile and atomically promote reviewed Smart Tags for a verified Public Read build.",
+        params_schema={
+            "build_id": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "placeholder": "leave empty for served/current",
+                "label": "Build ID (optional)",
+            },
+            "hash_input": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Re-hash the 16 GB Public Read input",
+            },
+            "force": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Replace the same registry-hash output",
+            },
+        },
+        category="presentation",
+        risk_level="medium",
+        build_command=_build_command_compile_smart_tags,
+    ),
     "save_coolness_profile": ActionSpec(
         name="save_coolness_profile",
         display_name="Save Coolness Profile",
@@ -1831,7 +1909,7 @@ def _validate_params(spec: ActionSpec, params: Dict[str, Any]) -> Dict[str, Any]
 
         normalized[name] = value
 
-    if spec.name in {"verify_build", "publish_db", "build_database", "score_coolness", "generate_snapshots", "materialize_simulation_scenes"}:
+    if spec.name in {"verify_build", "publish_db", "build_database", "score_coolness", "generate_snapshots", "materialize_simulation_scenes", "compile_smart_tags"}:
         build_id = str(normalized.get("build_id", "") or "").strip()
         if build_id and not _is_safe_build_id(build_id):
             raise ActionValidationError("Invalid build_id format")
@@ -2945,6 +3023,15 @@ def _job_artifact_hints(job: Dict[str, Any]) -> List[Dict[str, Any]]:
             [
                 _path_hint(kind="runtime_cache", label="Simulation scene cache", path=cache_dir, description="Regenerable build-keyed compressed scene payloads."),
                 _path_hint(kind="report", label="materialization_report.json", path=cache_dir / "materialization_report.json", description="Latest runtime-cache materialization summary."),
+            ]
+        )
+    elif action == "compile_smart_tags":
+        tag_root = state_dir / "derived" / "smart_tags" / build_id
+        hints.extend(
+            [
+                _path_hint(kind="tag_projection", label="Smart Tags", path=tag_root / "current", description="Current immutable registry-hash artifact for this build."),
+                _path_hint(kind="manifest", label="Smart Tag manifest", path=tag_root / "current" / "manifest.json", description="Build identity, logical hashes, timing, counts, and artifact checksums."),
+                _path_hint(kind="report", label="Smart Tag coverage", path=tag_root / "current" / "coverage.json", description="Per-tag assignment coverage and proposal accounting."),
             ]
         )
     elif action in {"save_coolness_profile", "apply_coolness_profile"}:

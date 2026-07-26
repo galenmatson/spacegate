@@ -1,3 +1,15 @@
+# Spacegate Tag Vocabulary
+
+This file is the expandable editorial proposal inventory for tags and related
+concepts. It is intentionally broader than the active product vocabulary.
+Implemented definitions live in the reviewed machine registry under
+`config/tags/`; every family here must be recorded as enabled, deferred,
+retired, or rejected in `config/tags/proposal_inventory.json`.
+
+The v1 architecture, compiler, API, interaction contract, and RIM boundary are
+defined in `docs/SMART_TAGS.md`. Missing data is never positive evidence for a
+tag, and evocative prose here must be reviewed before it becomes public copy.
+
 ## Tag Color Schema
 
 Tag colors should teach category at a glance without becoming the only carrier

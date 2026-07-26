@@ -16,6 +16,7 @@ import { isLightweightPreviewSystem, LightweightSystemPreview } from "./Lightwei
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
+import { SmartTagList, SmartTagRegistryProvider } from "./SmartTag.jsx";
 import {
   StellarClassChips,
   stellarClassTokensFromRecord,
@@ -176,6 +177,11 @@ const HEADER_LINKS = [
   { label: "DATA", href: HEADER_DATA_LINK, title: "Source data", external: false },
 ];
 const MARKDOWN_CONTENT = import.meta.glob("../content/*.md", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+});
+const CONCEPT_MARKDOWN_CONTENT = import.meta.glob("../content/concepts/*.md", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -2112,24 +2118,33 @@ function SystemTechnicalFacts({ system, armSummary = {} }) {
   );
 }
 
-function ConceptExplainerGrid() {
+function ConceptExplainerGrid({ smartTags = [] }) {
+  const taggedConcepts = Array.from(new Map(
+    (Array.isArray(smartTags) ? smartTags : [])
+      .filter((tag) => tag?.concept_slug)
+      .map((tag) => [tag.concept_slug, {
+        slug: tag.concept_slug,
+        label: tag.name,
+        text: tag.short_tooltip || tag.tooltip,
+      }]),
+  ).values()).slice(0, 6);
   const items = [
-    ["Spectral class", "A star's color and temperature family. O and B stars are hot and blue; K and M stars are cooler and longer-lived; D marks white-dwarf remnants."],
-    ["Habitable zone", "A broad orbital region where stellar energy could allow liquid water on a suitable rocky world. It is not proof that a planet is habitable."],
-    ["Orbital period", "How long a body takes to complete one orbit. In the simulation, source periods are preferred over derived or assumed values."],
-    ["Eccentricity", "How stretched an orbit is. Zero is circular; higher values produce more elongated paths and larger seasonal energy swings."],
-    ["Hierarchy", "The nesting of stars, subsystems, planets, and orbits. Multi-star systems need hierarchy so the simulation does not flatten everything into one decorative cluster."],
-    ["Uncertainty", "Some values are source facts, some are derived, some are presentation assumptions, and some are missing. Evidence sections keep those roles visible."],
+    { slug: "spectral-class", label: "Spectral class", text: "How spectra reveal stellar temperature families without turning a class into a claim about age or habitability." },
+    { slug: "habitable-zone", label: "Habitable zone", text: "A modeled energy range and screening tool, not proof that a planet is habitable." },
+    { slug: "orbital-period", label: "Orbital period", text: "How long an orbit takes and how measured, derived, and missing orbital values differ." },
+    { slug: "binary-and-multiple-stars", label: "Multiple systems", text: "Why gravity organizes stars into nested pairs, groups, and barycentric orbits." },
+    { slug: "astronomical-evidence", label: "Evidence", text: "How Spacegate separates source facts, derived results, presentation assumptions, and uncertainty." },
   ];
+  const visible = taggedConcepts.length ? taggedConcepts : items;
   return (
     <section className="panel concept-panel">
       <h3>Reading This System</h3>
       <div className="concept-grid">
-        {items.map(([label, text]) => (
-          <div key={label} className="concept-card">
-            <strong>{label}</strong>
-            <span>{text}</span>
-          </div>
+        {visible.map((item) => (
+          <Link key={item.slug} className="concept-card" to={`/concepts/${item.slug}`}>
+            <strong>{item.label}</strong>
+            <span>{item.text}</span>
+          </Link>
         ))}
       </div>
     </section>
@@ -3006,6 +3021,34 @@ function DataPage({ buildId = "" }) {
   );
 }
 
+function ConceptPage({ buildId = "" }) {
+  const { slug = "" } = useParams();
+  const key = `../content/concepts/${slug}.md`;
+  const markdown = CONCEPT_MARKDOWN_CONTENT[key];
+  if (typeof markdown !== "string") {
+    return (
+      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
+        <section className="detail-layout concept-page-layout">
+          <section className="panel markdown-panel">
+            <h1>Concept not found</h1>
+            <p>This concept page is not part of the current reviewed content set.</p>
+            <Link className="button compact" to="/search">Return to Star Search</Link>
+          </section>
+        </section>
+      </Layout>
+    );
+  }
+  return (
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
+      <section className="detail-layout concept-page-layout">
+        <section className="panel markdown-panel concept-article">
+          <MarkdownContent markdown={markdown} />
+        </section>
+      </section>
+    </Layout>
+  );
+}
+
 function SearchPage({ buildId = "" }) {
   const { theme, defaultScaleMode, nameStyle } = useThemeControls();
   const navigate = useNavigate();
@@ -3015,6 +3058,11 @@ function SearchPage({ buildId = "" }) {
   const initialSpectralExcludeTokens = parseSpectralTokens(searchParams.get("spectral_exclude") || "");
   const hasExplicitSpectralOverrides = searchParams.has("spectral_include") || searchParams.has("spectral_exclude");
   const [query, setQuery] = useState(() => searchParams.get("q") || "");
+  const [tagFilters, setTagFilters] = useState(() => ({
+    any: searchParams.get("tags_any") || "",
+    all: searchParams.get("tags_all") || "",
+    exclude: searchParams.get("tags_exclude") || "",
+  }));
   const [minDist, setMinDist] = useState(() => parseRangeParam(
     searchParams,
     "min_dist_ly",
@@ -3188,6 +3236,7 @@ function SearchPage({ buildId = "" }) {
     spectralExclude: [],
     hasHabitableMode: "",
     pageSize: "50",
+    tagFilters: { any: "", all: "", exclude: "" },
   });
   const currentFilterState = () => ({
     query,
@@ -3206,6 +3255,7 @@ function SearchPage({ buildId = "" }) {
     spectralExclude,
     hasHabitableMode,
     pageSize,
+    tagFilters,
   });
   const applyFilterState = (next) => {
     setQuery(next.query);
@@ -3224,6 +3274,7 @@ function SearchPage({ buildId = "" }) {
     setSpectralExclude(next.spectralExclude || []);
     setHasHabitableMode(next.hasHabitableMode);
     setPageSize(next.pageSize);
+    setTagFilters(next.tagFilters || { any: "", all: "", exclude: "" });
   };
 
   const buildBaseParamsFromFilters = (filters) => {
@@ -3240,6 +3291,15 @@ function SearchPage({ buildId = "" }) {
     const tempMax = Math.max(filters.minTempK, filters.maxTempK);
     if (filters.query.trim()) {
       params.q = filters.query.trim();
+    }
+    if (filters.tagFilters?.any) {
+      params.tags_any = filters.tagFilters.any;
+    }
+    if (filters.tagFilters?.all) {
+      params.tags_all = filters.tagFilters.all;
+    }
+    if (filters.tagFilters?.exclude) {
+      params.tags_exclude = filters.tagFilters.exclude;
     }
     if (distMin > filterLimits.distance.min) {
       params.min_dist_ly = String(distMin);
@@ -3919,7 +3979,6 @@ function SearchPage({ buildId = "" }) {
               {results.map((item) => {
                 const displayName = systemDisplayName(item);
                 const canonicalName = String(item?.system_name || "").trim();
-                const resultTags = buildSearchResultTags(item);
                 return (
                 <article
                   key={item.system_id}
@@ -3955,15 +4014,13 @@ function SearchPage({ buildId = "" }) {
                           {Array.isArray(item?.display_aliases) && item.display_aliases.length > 0 ? (
                             <div className="muted">Aliases: {item.display_aliases.slice(0, 4).join(" · ")}</div>
                           ) : null}
-                          {resultTags.length > 0 ? (
-                            <div className="result-tags" aria-label={`${displayName} notable tags`}>
-                              {resultTags.map((tag) => (
-                                <span className="result-tag" key={`${item.system_id}-${tag.label}`} title={tag.title || undefined}>
-                                  {tag.label}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
+                          <SmartTagList
+                            tags={item.smart_tags}
+                            sources={item.source_summary}
+                            limit={6}
+                            className="result-tags"
+                            label={`${displayName} smart tags`}
+                          />
                           <SystemObjectBadges system={item} className="result-stellar-tags" />
                         </div>
                         <div className="distance" title="Coolness rank">
@@ -4530,12 +4587,7 @@ function SystemDetailPage({ buildId = "" }) {
     limit: 5,
   });
   const armSummary = system?.arm_evidence_summary || {};
-  const systemTags = buildSearchResultTags({
-    ...system,
-    spectral_classes: Array.from(new Set((stars || [])
-      .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().slice(0, 1).toUpperCase())
-      .filter(Boolean))),
-  }, { limit: 12 });
+  const systemTags = Array.isArray(system?.smart_tags) ? system.smart_tags : [];
 
   return (
     <Layout showSearchLink={false} buildId={buildId}>
@@ -4581,15 +4633,13 @@ function SystemDetailPage({ buildId = "" }) {
                 planets={planets}
                 className="system-detail-stellar-tags"
               />
-              {systemTags.length > 0 ? (
-                <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
-                  {systemTags.map((tag) => (
-                    <span className="result-tag" key={`${system.system_id}-${tag.label}`} title={tag.title || undefined}>
-                      {tag.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              <SmartTagList
+                tags={systemTags}
+                sources={system?.source_summary}
+                limit={12}
+                className="result-tags system-detail-tags"
+                label={`${currentSystemDisplayName} smart tags`}
+              />
             </div>
           </div>
         </section>
@@ -4610,7 +4660,7 @@ function SystemDetailPage({ buildId = "" }) {
 
         <InfraredSkyView system={system} narrativeBlocks={narrativeBlocks} />
 
-        <ConceptExplainerGrid />
+        <ConceptExplainerGrid smartTags={systemTags} />
 
         <SystemHierarchyPanel hierarchy={hierarchy} />
 
@@ -4902,6 +4952,7 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={themeContextValue}>
+      <SmartTagRegistryProvider>
       <Routes>
         <Route
           path="/"
@@ -4926,6 +4977,7 @@ export default function App() {
         <Route path="/help" element={<HelpPage buildId={buildId} />} />
         <Route path="/about" element={<AboutPage buildId={buildId} />} />
         <Route path="/data" element={<DataPage buildId={buildId} />} />
+        <Route path="/concepts/:slug" element={<ConceptPage buildId={buildId} />} />
         <Route
           path="/map"
           element={(
@@ -4946,6 +4998,7 @@ export default function App() {
         <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
         <Route path="/objects/:extendedObjectId" element={<ExtendedObjectDetailPage buildId={buildId} />} />
       </Routes>
+      </SmartTagRegistryProvider>
     </ThemeContext.Provider>
   );
 }

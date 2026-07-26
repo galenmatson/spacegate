@@ -2012,6 +2012,59 @@ Fetch a system by stable key, with stars and planets.
 
 Response 200: same as `/systems/{system_id}`.
 
+### Smart Tags
+
+`GET /tags` returns the active build-keyed reviewed definition registry.
+
+`GET /tags/{tag_key}` returns one definition by its stable namespaced key.
+
+`GET /systems/{system_id}/tags` returns system discovery membership, including
+direct versus member-rollup scope and bounded source references.
+
+Search accepts comma-separated stable keys:
+
+- `tags_any`: at least one requested tag;
+- `tags_all`: every requested tag;
+- `tags_exclude`: none of the requested tags.
+
+Unknown, malformed, or non-filterable keys return `400`. Tag lookup is exact
+and indexed; it does not use fuzzy term search. Public Read search results,
+`/systems/{system_id}/summary`, hierarchy bundles, and main system detail
+payloads expose:
+
+```json
+{
+  "smart_tags": [
+    {
+      "key": "science:system.multiple",
+      "label": "Multiple",
+      "category": "system_architecture",
+      "layer": "core_selected",
+      "concept_slug": "binary-and-multiple-stars",
+      "assignment": {
+        "scope": "system",
+        "member_count": 1,
+        "basis_kind": "direct"
+      }
+    }
+  ],
+  "source_summary": [
+    {
+      "key": "source:multiplicity.wds",
+      "source_id": "multiplicity.wds",
+      "publisher": "USNO",
+      "citation_url": "https://...",
+      "contribution_kind": "multiplicity"
+    }
+  ]
+}
+```
+
+The API validates tag manifest, build identity, registry hash, and schema
+before attaching the separate read-only SQLite artifact. A present but
+incompatible artifact fails visibly. A genuinely absent artifact is tolerated
+only during the documented first-release compatibility window.
+
 ### GET /extended-objects/search
 
 Searches aliases and identifiers without mixing extended objects into system

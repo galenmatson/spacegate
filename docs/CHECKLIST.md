@@ -275,14 +275,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C5.5 Phase D.6 - Planet Taxonomy and Habitability
 
 - [ ] Implement deterministic taxonomy tags from observational data (size/mass, insolation, orbit, composition proxy, detection/host context)
-- [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, Star Search "Find more" links, and interactive visualizations where useful
+- [x] Add the first reviewed educational concept routes for spectral class,
+  white dwarfs, brown dwarfs, multiple systems, exoplanets, habitable zones,
+  orbital period, and evidence/provenance with plain-language explanations and
+  Smart Tag `Find more` links. Representative-system curation and interactive
+  visualizations remain later content work
 - [x] Create `docs/CONCEPTS.md` with the public concept-page route, page contract,
   first-page priorities, and science-education backlog
 - [ ] Audit all public pills, chips, compact metrics, and badges for missing
   tooltips/popovers; add helpful exposition, assumption detail popups, and
   concept-page hooks where useful
-- [ ] Define tag priority tiers for compact, normal, and expanded UI surfaces
-  so the tagging system can be comprehensive without cluttering tight layouts
+- [x] Define compact, normal, and expanded Smart Tag priority tiers plus
+  surface limits in the reviewed machine registry so the vocabulary can expand
+  without crowding tight layouts
 - [x] Implement `spacegate_hab_score` + confidence/reasons metadata
 - [x] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range
@@ -920,8 +925,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Plan selectable multi-wavelength sky backgrounds for the 3D map: visible
   Milky Way baseline, infrared sky, X-ray sky, and later survey layers as
   attributed presentation overlays
-- [ ] Build Concept Tag Foundation: tag priority tiers, clickable concept-page
-  hooks, complete tooltip/popover audit, and first `/concepts/:slug` pages
+- [ ] Complete M8.3e.2 Smart Tags and Concepts v1: registry/compiler/API/shared
+  accessible popover and first `/concepts/:slug` pages are implemented; finish
+  full-build determinism, browser/mobile goldens, performance, and remaining
+  compatibility-pill accounting
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science
@@ -2028,8 +2035,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Synchronize release code without restart, install the small release
   manifest, pin and verify measured runtime limits in the local environment
   overlay, and pass the complete transfer dry run with a 15-second SSH cooldown
-- [ ] Transfer and stage the three M8.3e artifacts with the streamed helper;
-  do not activate or restart until installed verification passes
+- [x] Transfer and stage the three M8.3e artifacts with the streamed helper;
+  final installed verification passed for all 33,588,971,005 bytes and 7,724
+  scenes with 29,245,730,816 bytes free. The release remains unactivated
 - [ ] Activate M8.3e atomically, deploy code, run public API/browser/security
   gates, test rollback, and accept the public soak before retiring July 17
   rollback material

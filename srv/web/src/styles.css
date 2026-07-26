@@ -7830,6 +7830,189 @@ main {
   white-space: nowrap;
 }
 
+.smart-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.smart-tag-root {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  --tag-color: var(--accent);
+  --tag-ink: var(--accent-dark);
+}
+
+.smart-tag-root[data-tag-category="stellar_class"],
+.smart-tag-root[data-tag-category="compact_object"] {
+  --tag-color: #5f86b7;
+  --tag-ink: #315477;
+}
+
+.smart-tag-root[data-tag-category="system_architecture"] {
+  --tag-color: #338a76;
+  --tag-ink: #196254;
+}
+
+.smart-tag-root[data-tag-category="planet_type"],
+.smart-tag-root[data-tag-category="planet_context"] {
+  --tag-color: #a75e81;
+  --tag-ink: #713b59;
+}
+
+.smart-tag-root[data-tag-category="habitability"] {
+  --tag-color: #5c8d43;
+  --tag-ink: #3c652a;
+}
+
+.smart-tag-root[data-tag-category="orbit"] {
+  --tag-color: #9b7131;
+  --tag-ink: #6c4b1c;
+}
+
+.smart-tag-root[data-tag-category="distance"] {
+  --tag-color: #4d8199;
+  --tag-ink: #315f73;
+}
+
+.smart-tag-trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 48%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tag-color) 12%, var(--panel));
+  color: color-mix(in srgb, var(--tag-ink) 82%, var(--ink));
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.69rem;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.smart-tag-trigger:hover,
+.smart-tag-trigger:focus-visible,
+.smart-tag-trigger[aria-expanded="true"] {
+  border-color: var(--tag-color);
+  background: color-mix(in srgb, var(--tag-color) 21%, var(--panel));
+  outline: none;
+}
+
+.smart-tag-stellar .smart-tag-trigger.stellar-class-chip {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-transform: none;
+}
+
+.smart-tag-popover {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 7px);
+  left: 0;
+  display: grid;
+  width: min(320px, calc(100vw - 32px));
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 96%, #000 4%);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.42;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+.smart-tag-popover-heading,
+.smart-tag-policy,
+.smart-tag-sources {
+  display: grid;
+  gap: 3px;
+}
+
+.smart-tag-popover-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.smart-tag-popover-heading strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.smart-tag-popover-heading > span,
+.smart-tag-policy > span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.smart-tag-sources a,
+.smart-tag-actions a,
+.smart-tag-actions button {
+  color: var(--accent);
+}
+
+.smart-tag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 3px;
+  border-top: 1px solid var(--border);
+}
+
+.smart-tag-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.concept-card {
+  color: inherit;
+  text-decoration: none;
+}
+
+.concept-card:hover,
+.concept-card:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  outline: none;
+}
+
+.concept-page-layout {
+  max-width: 980px;
+}
+
+.concept-article .markdown-content {
+  max-width: 78ch;
+}
+
+@media (max-width: 640px) {
+  .smart-tag-popover {
+    position: fixed;
+    inset: auto 12px 12px;
+    width: auto;
+    max-height: min(72vh, 520px);
+    overflow: auto;
+  }
+}
+
 .result-meta {
   display: flex;
   flex-wrap: wrap;

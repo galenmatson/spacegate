@@ -1,0 +1,29 @@
+{
+  "schema_version": "spacegate.smart_tag_proposal_inventory.v1",
+  "source_document": "docs/TAGS.md",
+  "status_vocabulary": ["enabled", "deferred", "retired", "rejected"],
+  "families": [
+    {"family": "stellar spectral and compact classes", "status": "enabled", "reason": "Selected hierarchy-leaf classifications provide object-scoped evidence."},
+    {"family": "system architecture and multiplicity", "status": "enabled", "reason": "Accepted hierarchy and member counts support bounded presentation tags."},
+    {"family": "confirmed broad planet categories", "status": "enabled", "reason": "Existing versioned six-category policy is already shared by API and map."},
+    {"family": "habitable-zone screen", "status": "enabled", "reason": "Existing selected planet environment screen is explicitly non-habitability."},
+    {"family": "ultra-short-period planet", "status": "enabled", "reason": "Selected period under the conventional one-day screen is deterministic."},
+    {"family": "source catalogs and publications", "status": "enabled", "reason": "Rendered as exact reference tokens from source and citation registries, not taxonomy assignments."},
+    {"family": "evidence status", "status": "enabled", "reason": "Rendered as typed provenance tokens from existing SOURCE/DERIVED/ASSUMED/MISSING states."},
+    {"family": "distance bands", "status": "enabled", "reason": "Retains current 25/100-light-year DISC presentation thresholds explicitly."},
+    {"family": "eccentric inclined edge-on retrograde resonant", "status": "deferred", "reason": "Needs reviewed thresholds, reference-plane semantics, and parameter uncertainty policy."},
+    {"family": "tidally locked", "status": "deferred", "reason": "Often model-inferred rather than directly observed; requires a timescale and confidence policy."},
+    {"family": "rogue", "status": "deferred", "reason": "Missing orbit data is not evidence of an unbound planetary-mass object."},
+    {"family": "temperature and condensation lines", "status": "deferred", "reason": "These are inspectable simulation overlays and concepts before they are object assignments."},
+    {"family": "galactic direction and equatorial context", "status": "deferred", "reason": "Needs explicit angular regions and coordinate/epoch policy."},
+    {"family": "circumpolar visible-now and observer context", "status": "deferred", "reason": "Reserved contextual evaluators require explicit observer latitude, longitude, and time."},
+    {"family": "constellation membership", "status": "deferred", "reason": "Requires pinned boundary, epoch, attribution, and cultural-pack policy."},
+    {"family": "kinematic motion classes", "status": "deferred", "reason": "Needs reviewed velocity/proper-motion thresholds and uncertainty handling."},
+    {"family": "stellar evolutionary stage and luminosity class", "status": "deferred", "reason": "Must distinguish source classifications from selected model estimates."},
+    {"family": "explosive and variable events", "status": "deferred", "reason": "Requires event state, historical occurrence, candidate, and progenitor distinctions."},
+    {"family": "future remnant and obliterated", "status": "deferred", "reason": "Model predictions must not be presented as certain future outcomes."},
+    {"family": "emission signatures and hazards", "status": "deferred", "reason": "Requires accepted band-specific evidence and quantitative hazard policy."},
+    {"family": "fusion mode population and composition", "status": "deferred", "reason": "Requires model applicability and direct-versus-inferred composition policy."},
+    {"family": "RIM and user tags", "status": "deferred", "reason": "Namespace and presentation extension points are reserved; editing belongs to M8.4/M9."}
+  ]
+}

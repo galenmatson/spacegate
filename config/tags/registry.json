@@ -1,0 +1,33 @@
+{
+  "schema_version": "spacegate.smart_tag_registry.v1",
+  "registry_id": "spacegate_public",
+  "registry_version": "2026-07-26-v1",
+  "definition_files": [
+    "definitions/foundation.json"
+  ],
+  "source_registry": "config/evidence_lake/source_releases.json",
+  "rules": {
+    "allow_raw_sql": false,
+    "allow_executable_expressions": false,
+    "require_known_evaluator": true,
+    "require_explicit_target_types": true,
+    "require_source_policy": true,
+    "rim_namespace_reserved": true
+  },
+  "surface_limits": {
+    "compact_science": 4,
+    "compact_sources": 2,
+    "normal_science": 8,
+    "normal_sources": 3
+  },
+  "context_evaluator_contract": {
+    "schema_version": "spacegate.smart_tag_context.v1",
+    "inputs": [
+      "observer_latitude_deg",
+      "observer_longitude_deg",
+      "observed_at",
+      "camera_position_ly"
+    ],
+    "persist_assignments": false
+  }
+}

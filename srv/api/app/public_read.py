@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from . import db
+from . import smart_tags
 from .queries import choose_display_name_info, is_strict_exact_search_query
 
 
@@ -159,6 +160,15 @@ def connect(expected_build_id: str | None = None) -> sqlite3.Connection:
         con.close()
         _increment("incompatible_artifacts")
         raise PublicReadIncompatible("public-read stellar badge overlay contract missing")
+    try:
+        smart_tags.attach_to_public_read(con, build_id)
+    except smart_tags.SmartTagsIncompatible as exc:
+        con.close()
+        _increment("incompatible_artifacts")
+        raise PublicReadIncompatible(str(exc)) from exc
+    except smart_tags.SmartTagsUnavailable as exc:
+        con.close()
+        raise PublicReadUnavailable(str(exc)) from exc
     _increment("projection_hits")
     return con
 
@@ -507,6 +517,12 @@ def system_summary(
     item["planet_object_badges"] = planet_badges_for_systems(
         con, [system_id]
     ).get(int(system_id), [])
+    item["smart_tags"] = smart_tags.system_tags_attached(
+        con, [system_id]
+    ).get(int(system_id), [])
+    item["source_summary"] = smart_tags.source_summary_attached(
+        con, [system_id]
+    ).get(int(system_id), [])
     return item
 
 
@@ -718,6 +734,12 @@ def projected_system_detail(
     bundle = hierarchy_bundle(con, system_id)
     if bundle and isinstance(bundle.get("payload"), dict):
         payload = dict(bundle["payload"])
+        payload["system"] = {
+            **(payload.get("system") or {}),
+            **summary,
+        }
+        payload["smart_tags"] = summary.get("smart_tags", [])
+        payload["source_summary"] = summary.get("source_summary", [])
         payload.setdefault("read_backend", "public_read_v2_bundle")
         return payload
     if summary.get("hierarchy_representation") != "singleton_seed":
@@ -1046,6 +1068,9 @@ def search_systems(
     include_total: bool,
     name_style: str,
     cursor_values: dict[str, Any] | None = None,
+    tags_any: list[str] | None = None,
+    tags_all: list[str] | None = None,
+    tags_exclude: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int | None, dict[str, Any] | None]:
     _increment("search_requests")
     started = time.perf_counter()
@@ -1110,6 +1135,40 @@ def search_systems(
         min_coolness_score=min_coolness_score,
         max_coolness_score=max_coolness_score,
     )
+    requested_tag_filters = {
+        "any": tags_any or [],
+        "all": tags_all or [],
+        "exclude": tags_exclude or [],
+    }
+    if any(requested_tag_filters.values()) and not smart_tags.is_attached(con):
+        raise ValueError("smart-tag filters require the matching tag artifact")
+    tag_filters = {
+        mode: smart_tags.validate_filter_keys(con, values)
+        for mode, values in requested_tag_filters.items()
+    }
+    if tag_filters["any"]:
+        placeholders = ",".join("?" for _ in tag_filters["any"])
+        filter_terms.append(
+            "EXISTS (SELECT 1 FROM smart_tags.system_tag_membership stm "
+            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))"
+        )
+        params.extend(tag_filters["any"])
+    if tag_filters["all"]:
+        placeholders = ",".join("?" for _ in tag_filters["all"])
+        filter_terms.append(
+            "(SELECT count(DISTINCT stm.tag_key) "
+            "FROM smart_tags.system_tag_membership stm "
+            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))=?"
+        )
+        params.extend(tag_filters["all"])
+        params.append(len(tag_filters["all"]))
+    if tag_filters["exclude"]:
+        placeholders = ",".join("?" for _ in tag_filters["exclude"])
+        filter_terms.append(
+            "NOT EXISTS (SELECT 1 FROM smart_tags.system_tag_membership stm "
+            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))"
+        )
+        params.extend(tag_filters["exclude"])
     if candidate_system_ids is not None:
         if not candidate_system_ids:
             return [], 0 if include_total else None, query_resolution
@@ -1265,6 +1324,8 @@ def search_systems(
     naming_aliases = system_naming_aliases(con, system_ids)
     stellar_badges = stellar_badges_for_systems(con, system_ids)
     planet_badges = planet_badges_for_systems(con, system_ids)
+    tag_values = smart_tags.system_tags_attached(con, system_ids)
+    source_values = smart_tags.source_summary_attached(con, system_ids)
     for item in items:
         system_id = int(item["system_id"])
         display = choose_display_name_info(
@@ -1281,6 +1342,8 @@ def search_systems(
             row.get("classification_value") or "UNKNOWN" for row in badges
         ]
         item["planet_object_badges"] = planet_badges.get(system_id, [])
+        item["smart_tags"] = tag_values.get(system_id, [])
+        item["source_summary"] = source_values.get(system_id, [])
         matched = best_by_system.get(system_id)
         item["match_rank"] = {"exact": 0, "prefix": 1, "substring": 2, "fuzzy": 3}.get(
             match_kind, 0

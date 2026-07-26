@@ -4353,6 +4353,34 @@ Representative commits:
   verification, and rollback testing follow only after installed verification
   passes.
 
+### 166) Smart Tags Become a Build-Keyed Public Vocabulary
+
+- On July 26, 2026, M8.3e.2 began on `feature/smart-tags-v1` after the accepted
+  Public Read v2 edge payload finished staging. The edge helper verified all
+  three installed artifacts and 7,724 scenes but did not activate them.
+- The earlier planned flat DISC `system_tags` table and frontend-only
+  `buildSearchResultTags` heuristics were rejected as the durable design.
+  The replacement uses reviewed namespaced definitions, typed object
+  assignments, separate system rollups, and source references. Registry data
+  cannot contain executable SQL or arbitrary expressions.
+- The compiler consumes selected immutable Public Read facts and writes a
+  separate build/registry-hash SQLite and Parquet artifact. This preserves the
+  Evidence Lake authority policies and avoids mutating or enlarging the hot
+  16-GB search database whenever explanatory copy or tag priority changes.
+- The initial safe evaluator set covers selected stellar/compact classes,
+  accepted multiplicity and hierarchy, confirmed planet-host status, six broad
+  planet map categories, a non-habitability HZ screen, sub-one-day confirmed
+  planets, and current distance bands. Broad proposals with unsettled
+  thresholds, reference planes, uncertainty, or observer context remain
+  explicitly deferred.
+- Public consumers now receive compiled tag definitions, assignments, and
+  bounded source summaries. Any/all/exclude search uses exact indexed keys.
+  The first concept routes and one accessible tag interaction shell replace
+  the most visible result/system/classification tooltip duplication.
+- The `rim:` namespace and visual boundary are reserved without implementing
+  editing. Future user-authored tags must remain RIM-owned and visibly
+  separate from intrinsic science.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

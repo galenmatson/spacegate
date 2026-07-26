@@ -185,31 +185,27 @@ Rules:
 - it does not change canonical scientific truth
 - default enrichment order should prefer systems, then stars, then planets unless the queue policy explicitly overrides it
 
-## system_tags
+## Smart Tag Projection
 
-Semantic labels attached to systems for filtering/discovery.
+The earlier planned monolithic `system_tags` table is superseded by
+`spacegate.smart_tags.v1`; see `docs/SMART_TAGS.md`.
 
-| Column            | Type      | Description |
-|-------------------|-----------|-------------|
-| system_id         | BIGINT    | Core system ID for same-build convenience |
-| stable_object_key | TEXT      | Canonical cross-build join key |
-| tag_key           | TEXT      | Machine tag in `snake_case` |
-| tag_type          | TEXT      | `derived` or `pack` |
-| tag_source        | TEXT      | `profile_id`/generator or `pack_id` |
-| confidence        | DOUBLE    | `1.0` for deterministic tags |
-| build_id          | TEXT      | Build that generated tag |
-| created_at        | TIMESTAMP | Creation timestamp |
+Smart Tags remain DISC-owned presentation/derivation products but are compiled
+as a separate immutable artifact keyed to Public Read build identity and
+registry hash. Object-scoped assignments are not flattened into systems:
 
-Constraints:
-- Derived tags are deterministic and reproducible.
-- Pack tags must reference pack metadata.
-- No manual edits to deterministic derived tags.
+- `tag_definitions` stores reviewed semantics, layer, evaluator, priorities,
+  concept route, and source policy;
+- `tag_assignments` stores target type/key, system context, evidence status,
+  basis reference, confidence, and evaluator version;
+- `system_tag_membership` stores indexed direct and member-rollup discovery
+  membership;
+- `source_definitions` and `system_sources` store source references separately
+  from science taxonomy;
+- `quarantine` records evaluator failures.
 
-Indexes:
-- `(tag_key)`
-- `(system_id)`
-- `(stable_object_key)`
-- `(tag_type)`
+No manual edit may change deterministic assignments. RIM/user tags do not
+write these tables.
 
 ## system_neighbors
 
