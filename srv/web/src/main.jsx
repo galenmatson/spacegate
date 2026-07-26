@@ -28,19 +28,13 @@ function normalizeThemeId(raw) {
 }
 
 function bootstrapThemeAttribute() {
-  let theme = "simple_light";
+  let theme = "simple_dark";
   try {
     const stored = normalizeThemeId(window.localStorage.getItem(THEME_STORAGE_KEY));
     if (stored) {
       theme = stored;
-    } else if (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches) {
-      theme = "simple_dark";
     }
-  } catch (_) {
-    if (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches) {
-      theme = "simple_dark";
-    }
-  }
+  } catch (_) {}
   document.documentElement.setAttribute("data-theme", theme);
 }
 
