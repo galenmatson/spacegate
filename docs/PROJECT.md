@@ -37,11 +37,13 @@ tier only through manifest-first copy, independent destination hashing, atomic
 archive publication, and a separately reviewed local retirement. The cold tier
 is not compiler scratch or a transparent runtime dependency.
 
-The immediate gate before any antiproton transfer is measured CPU, memory, I/O,
-cache, and concurrency testing under its 6-vCPU/12-GiB envelope. A separate
-Map/Search consumer review will then decide adaptation versus deeper rewrite
-from measured legacy coupling. Concept Tags and a secure, citation-backed,
-reviewed AI Astronomy Agency vertical slice follow these foundation gates.
+The measured Public Read v2 consumer architecture is active on antiproton as
+build `e7_24cb15211f430a37f199f462_full_public`. Search, bounded system
+projections, hierarchy bundles, singleton seeds, and policy-selected frozen
+scenes passed the 6-vCPU/12-GiB capacity gate and public deployment checks. The
+July 17 build remains the immediate rollback while the release soaks. Smart
+Tags and a secure, citation-backed, reviewed AI Astronomy Agency vertical slice
+are the next presentation and investigation foundations.
 
 ## Core Principles
 
@@ -1000,22 +1002,18 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
-   resolve only material production regressions while the scientific rebuild
-   proceeds in parallel.
-2. Use verified E5 selected-fact build `0a57f778ce13de1c2c800103` from E4 release
-   set `6c19de054e9b807674c37d3c` as the immutable scientific input to the E6
-   shadow build. Its atomic release manifest composes all 38 registered sources
-   across 36 immutable shards without duplicating 448.9 GB of evidence.
-3. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B scientific diff,
-   shared-consumer behavior, performance, and rollback before local promotion
-   or deployment.
-4. Build the Concept Tag Foundation after the evidence contract is stable so
-   public tags are driven by selected, provenance-bearing facts.
-5. Implement one secure AAA evidence-portfolio vertical slice with source-text
+1. Observe the M8.3e public release under normal traffic, retain the July 17
+   build and published artifacts, and review errors, latency, memory, cache, and
+   scene-hit telemetry before accepting the soak.
+2. Reconcile the public-edge scene-permission hotfix into active feature work
+   and preserve the deployment reports.
+3. Build the Concept Tag Foundation now that the selected-fact and public-read
+   contracts are stable so public tags are driven by selected,
+   provenance-bearing facts.
+4. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-6. Later, expose the selected and competing evidence through a collapsed System
+5. Later, expose the selected and competing evidence through a collapsed System
    Page inspector, then build interactive source-attributed spectrum, light-
    curve, image, and atmosphere-analysis labs with scientifically safe
    gamification.

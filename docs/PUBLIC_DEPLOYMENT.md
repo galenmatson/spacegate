@@ -172,6 +172,13 @@ The activation command verifies all three installed artifacts before atomically
 replacing `served/current`, and records the previous target. `--skip-auto-score`
 is mandatory because immutable DISC output is already verified.
 
+Frozen public scenes must be runtime-readable before activation. The installer
+normalizes each build-keyed cache directory to `0755` and its manifest and
+scene payloads to `0644`; `verify-installed` rejects a cache that cannot be
+traversed or read independently of the deploy user's group. Do not repair this
+by making the API container privileged or by granting write access to immutable
+scene payloads.
+
 ## Public Verification
 
 ```bash
@@ -210,3 +217,19 @@ Use the private operator route, `IdentitiesOnly`, `BatchMode`, an eight-second
 connect timeout, and at least a two-second cooldown between independent SSH
 connections. Do not run SSH-heavy diagnostics in parallel. Avoid
 `docker compose config`, which can expose expanded secrets.
+
+## July 26, 2026 Activation Record
+
+Release `e7_24cb15211f430a37f199f462_full_public` was staged, activated,
+rolled back on the first failed search gate, repaired through general hotfix
+`555c46b`, shadow-verified, and reactivated. The failure was a `2700`
+build-cache directory inherited from the staging process: the API could read
+the scene files by mode but could not traverse their parent. The rollback
+compatibility flag was also present in the host environment but absent from the
+Compose environment contract; the same hotfix closes both defects.
+
+The corrected public release passes API integration, exact TIC/TOI outcomes,
+known-system and nested-orbit benchmarks, all four map manifests, desktop and
+mobile browser smoke, 4K canvas-pixel verification, and progressive 1,000-ly
+rendering. Compatibility fallback is disabled. Retain the July 17 extracted
+build and publication artifacts until soak acceptance.

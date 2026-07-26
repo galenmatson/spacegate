@@ -2921,8 +2921,8 @@ Goal:
   cryptographically verified scientific/projection/scene release while
   retaining the July 17 public build as immediate rollback.
 
-Status: release preparation complete; large artifact transfer and activation
-are awaiting the operator-run synchronization checkpoint.
+Status: active on antiproton; public soak is in progress and the July 17 build
+remains the immediate rollback.
 
 - `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
   into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
@@ -2951,8 +2951,18 @@ are awaiting the operator-run synchronization checkpoint.
 - The transfer must remain streamed: install and delete the incoming scientific
   archive before sending Search v2. The helper enforces 57,356,235,850 starting
   free bytes and a 15-GiB reserve after every stage.
-- Antiproton remains on its July 17 build. No large artifact transfer, pointer
-  activation, container restart, or public release has occurred.
+- The streamed transfer staged and independently verified all three artifacts.
+  Activation exposed a scene-cache directory mode inherited from the deploy
+  user; the first substantive search gate returned 500, triggering the recorded
+  rollback. Hotfix `555c46b` makes cache directories `0755`, payloads `0644`,
+  validates runtime readability, prevents optional cache probes from crashing
+  search, and passes the rollback compatibility flag through Compose.
+- The corrected release was shadow-tested, activated, and verified publicly.
+  Full API integration, exact TIC/TOI outcomes, 12 known-system benchmarks,
+  nine wide/nested-orbit benchmarks, four map manifests, desktop/mobile
+  Playwright checks, 4K Bright rendering, and the progressive 1,000-ly canvas
+  pass with zero compatibility fallbacks. Reports are retained under
+  `state/reports/public_edge_deployment/20260726T2226Z_e7_24cb15211f430a37f199f462_full_public`.
 
 Success criteria:
 

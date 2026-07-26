@@ -2028,11 +2028,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Synchronize release code without restart, install the small release
   manifest, pin and verify measured runtime limits in the local environment
   overlay, and pass the complete transfer dry run with a 15-second SSH cooldown
-- [ ] Transfer and stage the three M8.3e artifacts with the streamed helper;
+- [x] Transfer and stage the three M8.3e artifacts with the streamed helper;
   do not activate or restart until installed verification passes
-- [ ] Activate M8.3e atomically, deploy code, run public API/browser/security
-  gates, test rollback, and accept the public soak before retiring July 17
-  rollback material
+- [x] Activate M8.3e atomically, deploy code, run public API/browser/security
+  gates, and test rollback; permission hotfix `555c46b` makes scene cache modes
+  explicit and wires the diagnostic fallback through Compose
+- [ ] Accept the M8.3e public soak before retiring July 17 rollback material
 - [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 
