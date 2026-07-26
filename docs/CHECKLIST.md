@@ -2008,12 +2008,28 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Record Public Read v2 compiler, hierarchy, scene-warming, archive,
   Playwright, and capacity timings plus optimization priorities in
   `docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`
-- [ ] Before the next public deployment, migrate React Router v6 to the patched
-  v7 line and rerun route, query-string, object-focus, map handoff, and
+- [x] Before the next public deployment, migrate React Router v6 to v7.18.1,
+  closing the open-redirect/XSS range; record that npm still flags an RSC-only
+  advisory for code paths Spacegate does not ship and that fully patched v8.3
+  is not yet available from npm. Production build and tile tests pass. Rerun
+  route, query-string, object-focus, map handoff, and
   desktop/mobile browser parity. The current Vite client does not use SSR and
-  constructs public navigation from internal paths, but the upstream open-
-  redirect/bypass advisories have no patched v6 release and should not be left
-  as permanent deployment debt
+  constructs public navigation from internal paths. Full container/browser
+  parity remains part of the release checkpoint
+- [x] Reconcile accepted M8.3e through `d4b90e7` into `master`, push, and tag
+  `m8.3e-local-accepted-20260726`
+- [x] Add one build-keyed public edge release contract covering scientific
+  archive, Public Read SQLite, and frozen scenes; reject unsafe paths, hash,
+  build-identity, scene-coverage, runtime-contract, and free-space mismatches
+- [x] Rehearse isolated three-artifact stage, atomic activation, and recorded
+  rollback; verify the real 33,588,971,005-byte source set without copying it
+- [x] Perform reviewed antiproton preflight and cleanup while retaining current
+  served/published rollback; free space is 70,120,824,832 bytes
+- [ ] Transfer and stage the three M8.3e artifacts with the streamed helper;
+  do not activate or restart until installed verification passes
+- [ ] Activate M8.3e atomically, deploy code, run public API/browser/security
+  gates, test rollback, and accept the public soak before retiring July 17
+  rollback material
 - [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 

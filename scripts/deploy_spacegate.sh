@@ -25,6 +25,7 @@ SSH_RETRY_ATTEMPTS="${SPACEGATE_DEPLOY_SSH_RETRY_ATTEMPTS:-5}"
 SSH_RETRY_DELAY_SECONDS="${SPACEGATE_DEPLOY_SSH_RETRY_DELAY_SECONDS:-2}"
 SSH_COOLDOWN_SECONDS="${SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS:-3}"
 DRY_RUN=0
+SYNC_ONLY=0
 SSH_CONNECTION_COUNT=0
 
 usage() {
@@ -48,6 +49,7 @@ Options:
   --no-build             Restart containers without --build
   --skip-auto-score      Skip remote auto-score when coolness outputs are missing
   --skip-public-check    Skip public URL checks
+  --sync-only            Sync the app tree without restarting or checking services
   --dry-run              Show rsync/deploy actions without changing remote files
   -h, --help             Show this help
 USAGE
@@ -259,6 +261,11 @@ main() {
         CHECK_PUBLIC=0
         shift 1
         ;;
+      --sync-only)
+        SYNC_ONLY=1
+        CHECK_PUBLIC=0
+        shift 1
+        ;;
       --dry-run)
         DRY_RUN=1
         shift 1
@@ -338,6 +345,7 @@ main() {
   echo "Build images:     $BUILD_IMAGES"
   echo "Auto-score miss:  $AUTO_SCORE_COOLNESS"
   echo "Dry run:          $DRY_RUN"
+  echo "Sync only:        $SYNC_ONLY"
   echo "SSH cooldown:     ${SSH_COOLDOWN_SECONDS}s"
   if [[ -n "${SSH_KEY_PATH:-}" ]]; then
     echo "SSH key:          $SSH_KEY_PATH"
@@ -359,6 +367,10 @@ main() {
 
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "Dry run complete. Skipping remote restart/checks."
+    exit 0
+  fi
+  if [[ "$SYNC_ONLY" == "1" ]]; then
+    echo "Sync-only complete. Remote services were not restarted."
     exit 0
   fi
 

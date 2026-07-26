@@ -100,6 +100,24 @@ with SHA-256
 `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`;
 the second freeze reproduced that hash exactly.
 
+Public edge releases bind the scientific archive, Public Read projection, and
+frozen scene set in one
+`spacegate.public_edge_release.v1` manifest under
+`$SPACEGATE_STATE_DIR/releases/<build_id>/release.json`. Protect every manifest
+referenced by an incoming, staged, current, or rollback deployment. During
+constrained edge staging, the verified incoming scientific archive may be
+removed only after its exact extracted build and install marker exist; this is
+intentional streamed staging, not retention of an incomplete evidentiary chain.
+Keep the previously served extracted build until activation, rollback testing,
+and public soak all pass.
+
+The July 26 antiproton cleanup retired only unreferenced
+`20260717T0336Z_8bee500_side`, its archive, a stranded July 14 bootstrap cache
+archive, and unused BuildKit cache. It retained active
+`20260717T0614Z_f452835_side` and its published archive. Future cleanup must
+recompute live served/download pointers and must not repeat these names by
+pattern.
+
 E7 timed-pipeline logs live under
 `/mnt/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries
 live under

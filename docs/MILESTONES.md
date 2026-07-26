@@ -2913,6 +2913,53 @@ streamed extraction to preserve a 15-GiB reserve. No deployment occurred.
 See `docs/PUBLIC_READ_ARCHITECTURE.md` and
 `docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`.
 
+### M8.3e.1. Public Read v2 Edge Release
+
+Goal:
+
+- deploy the accepted Public Read v2 build through one build-keyed,
+  cryptographically verified scientific/projection/scene release while
+  retaining the July 17 public build as immediate rollback.
+
+Status: release preparation complete; large artifact transfer and activation
+are awaiting the operator-run synchronization checkpoint.
+
+- `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
+  into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
+- React Router migrated from the v6 line to v7.18.1. This closes the
+  open-redirect/XSS range. npm still reports the newer RSC-action advisory,
+  but Spacegate ships Declarative Mode and no RSC/loaders/actions; the fully
+  patched 8.3 package is not yet available from npm. Production build and tile
+  tests pass; full container/browser parity remains a release checkpoint.
+- The versioned release manifest binds the 17,052,804,724-byte scientific
+  archive, 16,455,413,760-byte Public Read SQLite projection, and
+  80,752,521-byte/7,724-scene frozen set to exact build
+  `e7_24cb15211f430a37f199f462_full_public`.
+- General release tooling verifies hashes, paths, SQLite build identity, scene
+  membership, disk reserve, runtime limits, installed state, atomic activation,
+  and recorded rollback. The isolated full stage/activate/rollback drill and
+  path/build-mismatch tests pass.
+- Antiproton preflight retained the active July 17 build and published archive,
+  retired only a superseded build/archive, stranded bootstrap cache, and unused
+  BuildKit cache, and increased free space from 32,632,963,072 to
+  70,120,824,832 bytes.
+- The transfer must remain streamed: install and delete the incoming scientific
+  archive before sending Search v2. The helper enforces 57,356,235,850 starting
+  free bytes and a 15-GiB reserve after every stage.
+- Antiproton remains on its July 17 build. No large artifact transfer, pointer
+  activation, container restart, or public release has occurred.
+
+Success criteria:
+
+- operator transfer completes with all three artifact hashes and build
+  identities verified;
+- measured `5GB/1-thread/pool-6/30-second` runtime limits are active and
+  compatibility fallback is disabled;
+- atomic activation, public API/browser/security gates, and rollback rehearsal
+  pass;
+- the July 17 extracted build remains available until the public soak is
+  accepted.
+
 ### M8.3f. Public Evidence Inspector (Later)
 
 Goal:

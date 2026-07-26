@@ -4313,6 +4313,40 @@ Representative commits:
   prohibited. Antiproton was not contacted or deployed, and Proton was not
   mutated.
 
+### 165) Public Read v2 Becomes One Verified Edge Release
+
+- On July 26, 2026, accepted M8.3e through `d4b90e7` was fast-forwarded into
+  `master`, pushed, and tagged `m8.3e-local-accepted-20260726`. Release work
+  continues on `release/public-read-v2-edge`.
+- React Router moved from v6 to v7.18.1, closing the open-redirect/XSS range.
+  npm still flags an RSC-action advisory, but Spacegate ships Declarative Mode
+  and no RSC/loaders/actions. Upstream lists v8.3 as fully patched, but npm does
+  not yet publish it. The production build and tile tests pass; final Docker and
+  Playwright route parity remains an activation gate.
+- `spacegate.public_edge_release.v1` binds the scientific archive, immutable
+  Public Read SQLite, and frozen 7,724-scene set to the same full-public build.
+  The manifest records exact hashes, bytes, extracted size, runtime limits,
+  transfer order, and disk reserves. Source verification passes for all
+  33,588,971,005 transfer bytes.
+- The general installer rejects traversal, symlinks, unexpected archive
+  members, corrupt hashes, SQLite build mismatch, scene membership mismatch,
+  insufficient reserve, and incompatible runtime limits. It stages without
+  promotion, then verifies all three installed roles before an atomic symlink
+  replacement. Rollback uses the recorded prior target. An isolated
+  stage/activate/rollback drill and focused negative tests pass.
+- Read-only antiproton preflight found the healthy public service on
+  `20260717T0614Z_f452835_side`, authentication enabled, legacy Compose resource
+  defaults, 32,632,963,072 bytes free, and 9.9 GB of unused BuildKit cache.
+  Reviewed cleanup removed only superseded/unreferenced July build artifacts,
+  one stranded bootstrap cache archive, and unused BuildKit cache. Current
+  served and published rollback material remained exact; free space increased
+  to 70,120,824,832 bytes.
+- No large file was transferred, no served pointer changed, no container was
+  restarted, and the public build remains the July 17 checkpoint. The next
+  operator action is the streamed three-artifact transfer; configuration,
+  activation, public verification, and rollback testing follow only after
+  installed verification passes.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

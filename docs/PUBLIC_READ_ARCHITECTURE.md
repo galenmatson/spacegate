@@ -337,10 +337,12 @@ The machine decision is:
 Build timings and derived-artifact optimization priorities are in
 `docs/PUBLIC_READ_BUILD_PERFORMANCE_2026-07-25.md`.
 
-The July 25 dependency audit leaves no high-severity npm advisory after the
-PostCSS lockfile update. The remaining audit entries are moderate React Router
-v6 advisories: open-redirect variants and SSR hydration error deserialization.
-There is no patched v6 release. Spacegate's Vite SPA does not use the affected
-SSR data-router mode and public navigation constructs internal paths, but the
-v7 migration and full route parity run remain a predeployment security gate
-rather than ignored advisories.
+The July 26 release checkpoint migrates the Vite SPA from React Router v6 to
+v7.18.1, outside the open-redirect/XSS range. npm reports the newer high-severity
+RSC-action CSRF advisory for v7.18.1; Spacegate ships Declarative Mode with
+`BrowserRouter` and no RSC, data routers, loaders, or actions, so the vulnerable
+code path is absent. The fully patched v8.3 release is listed upstream but is
+not yet available from npm. This bounded mode-based acceptance is explicit,
+not represented as a clean audit. Production build and tile tests pass; full
+route/query/focus/map handoff desktop/mobile parity runs again against rebuilt
+release containers before public activation.

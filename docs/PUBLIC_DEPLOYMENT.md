@@ -1,168 +1,178 @@
 # Public Deployment Runbook
 
-This runbook covers the Photon-to-antiproton public deployment path for
-`coolstars.org` and `spacegates.org`.
+This runbook covers the Photon-to-antiproton deployment path for
+`coolstars.org` and `spacegates.org`. Antiproton is internet exposed. Never
+build science there, print expanded secret-bearing Compose configuration, or
+activate an artifact that has not passed the release manifest checks.
 
-## Hosts and Roles
+## Release Shape
 
-- Photon builds and verifies canonical/public database artifacts.
-- Antiproton serves the public web/API containers and the public download root.
-- Proton is reference/fallback only; do not mutate it unless explicitly asked.
+Public Read v2 deploys three immutable artifacts sharing one exact build ID:
 
-Antiproton is internet exposed. Prefer prebuilt, verified artifacts from Photon
-over rebuilding catalogs on antiproton. The public VPS has limited CPU/RAM and
-should spend its resources serving requests, not cooking full catalogs.
+1. the scientific CORE/ARM/DISC/hierarchy/map bundle;
+2. the immutable Search v2 and system-summary SQLite projection;
+3. the frozen policy-selected simulation-scene set.
 
-## Public Slice Policy
+The API fails visibly when the active scientific build and Search v2 projection
+do not agree. The frozen scene archive must be unpacked into the build-keyed
+runtime scene cache; copying the archive without installing it does not warm the
+public service.
 
-The active public-host profile is tracked in `docs/SLICE_PROFILES.md`.
+For accepted build `e7_24cb15211f430a37f199f462_full_public`:
 
-For constrained public service, the expected artifact shape is:
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Scientific archive | 17,052,804,724 | `c2954d6a1b641347968f56cb0753ea1d2ef7b4625d6f830fb78cede4462642e9` |
+| Public Read v2 SQLite | 16,455,413,760 | `0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f` |
+| Frozen scenes | 80,752,521 | `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c` |
 
-- `core.duckdb` sliced for the public-host profile
-- `arm.duckdb` sliced to retained systems/components and required Sol side data
-- `canonical_hierarchy.duckdb` sliced to retained system roots/descendants
-- `disc.duckdb` and `disc/*.parquet` sliced to retained systems
-
-Do not publish a core-only slice with full side artifacts to antiproton unless
-that is an intentional emergency fallback. Full side artifacts increase transfer
-time and public API memory pressure.
-
-## Preflight on Photon
-
-Confirm the local build is the intended published artifact:
-
-```bash
-readlink -f /data/spacegate/dl/current
-cat /data/spacegate/dl/current.json
-```
-
-Run local verification before touching antiproton:
-
-```bash
-SPACEGATE_STATE_DIR=/data/spacegate/state scripts/verify_build.sh <build_id>
-.venv/bin/python scripts/test_api_integration.py http://127.0.0.1:8000/api/v1
-.venv/bin/python scripts/verify_known_systems_api.py http://127.0.0.1:8000/api/v1
-```
-
-For the June 29, 2026 public side-sliced build, the expected build id is:
+The exact transfer is 33,588,971,005 bytes. The release manifest is:
 
 ```text
-20260629T_public_aliasfix_v3_side
+/data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json
 ```
 
-## SSH Hygiene
+## Runtime Contract
 
-Antiproton runs UFW and fail2ban. Deploy scripts should use the private
-operator SSH route configured in local, untracked environment files and a small
-cooldown between SSH connections to avoid looking like a bursty automation
-probe. Do not track private network aliases, tunnel addresses, or deploy-key
-paths in the repository.
+The accepted 6-vCPU/12-GiB capacity campaign requires:
 
-Use:
-
-```bash
---ssh-cooldown 2
+```dotenv
+SPACEGATE_API_DUCKDB_MEMORY_LIMIT=5GB
+SPACEGATE_API_DUCKDB_THREADS=1
+SPACEGATE_API_DB_POOL_SIZE=6
+SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS=30
+SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK=0
 ```
 
-Do not run independent SSH-heavy diagnostic commands in parallel against
-antiproton during deploy. If a connection is refused after a burst, wait before
-retrying and check UFW/fail2ban status from an existing trusted session if
-available.
+Authentication remains enabled through the existing private OIDC and session
+settings. The release tool updates only the five non-secret runtime keys and
+preserves every other environment line.
 
-Useful antiproton-side checks and recovery commands:
+## Photon Preflight
+
+Use the repository virtual environment and verify the release:
 
 ```bash
-sudo ufw status numbered
-sudo fail2ban-client status
-sudo fail2ban-client status sshd
-sudo fail2ban-client set sshd unbanip <trusted-source-ip>
+cd /srv/spacegate/app
+.venv/bin/python scripts/public_edge_release.py verify-source \
+  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json
 ```
 
-To allow trusted operator addresses through UFW, prefer narrow source-specific
-rules:
+Run normal local verification and confirm Docker health before transfer:
 
 ```bash
-sudo ufw allow from <trusted-source-ip-or-cidr> to any port 22 proto tcp comment 'trusted Spacegate deploy SSH'
-sudo ufw reload
-sudo ufw status numbered
+SPACEGATE_STATE_DIR=/data/spacegate/state \
+  scripts/verify_build.sh e7_24cb15211f430a37f199f462_full_public
+.venv/bin/python scripts/test_api_integration.py http://127.0.0.1:8000/api/v1
+.venv/bin/python scripts/verify_known_systems_api.py http://127.0.0.1:8000/api/v1
+scripts/compose_spacegate.sh ps
 ```
 
-If an incorrect rule is added, delete by number after checking
-`sudo ufw status numbered`.
+## Edge Disk Gate
 
-## Publish the Database Archive
+The transfer helper enforces 57,356,235,850 free bytes before sending the first
+large file and a 15-GiB reserve after every stage. This covers both peak
+scientific extraction and the final installed artifact set.
 
-Publishing copies the current local DB archive and metadata to
-`/srv/spacegate/dl` on antiproton. This does not activate the runtime database.
+On July 26, 2026 the reviewed preflight removed only:
 
-```bash
-scripts/push_published_db.sh \
-  --remote <deploy-user>@<deploy-host> \
-  --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 2 \
-  --skip-catalogs \
-  --set-current-link
-```
+- superseded extracted build `20260717T0336Z_8bee500_side`;
+- its unreferenced published archive;
+- a stranded July 14 bootstrap download cache;
+- unused Docker BuildKit cache.
 
-The DB archive is already compressed. `scripts/push_published_db.sh` disables
-rsync compression by default and prints the active compression mode before
-transfer. Use `--compress` only for unusual raw-file transfers where the network
-link, not CPU, is the bottleneck. The script keeps interrupted archive uploads
-resumable, so a multi-gigabyte upload can continue from the retained partial
-file instead of restarting from zero.
+The active `20260717T0614Z_f452835_side` build and its published archive remain
+the immediate rollback. Antiproton has 70,120,824,832 bytes free after cleanup.
+Do not repeat the cleanup by pattern or delete the active archive.
 
-After upload, confirm the remote download pointer:
+## Sync Code Without Restart
+
+First push the release tooling and application tree without changing the
+running containers:
 
 ```bash
-ssh -i ~/.ssh/spacegate_antiproton \
-  -o IdentitiesOnly=yes \
-  -o BatchMode=yes \
-  -o ConnectTimeout=8 \
-  <deploy-user>@<deploy-host> \
-  "ls -lh /srv/spacegate/dl/current.json /srv/spacegate/dl/current && readlink -f /srv/spacegate/dl/current"
-```
-
-## Activate the Runtime Database
-
-Activation copies/verifies the published archive from antiproton's local
-download root, extracts it into `/srv/spacegate/data/out/<build_id>`, and
-promotes `/srv/spacegate/data/served/current`.
-
-```bash
-ssh -i ~/.ssh/spacegate_antiproton \
-  -o IdentitiesOnly=yes \
-  -o BatchMode=yes \
-  -o ConnectTimeout=8 \
-  <deploy-user>@<deploy-host> \
-  "cd /srv/spacegate/app && SPACEGATE_STATE_DIR=/srv/spacegate/data scripts/bootstrap_core_db.sh --skip-auto-score --meta-url file:///srv/spacegate/dl/current.json --base-url file:///srv/spacegate/dl/"
-```
-
-Use `--overwrite` only after checking that a partial extracted build exists and
-that replacing it is intentional.
-
-`--skip-auto-score` is required for immutable published artifacts whose DISC
-scores were materialized and verified on Photon. The bootstrapper validates and
-extracts a local `file://` artifact directly from the bounded download root; it
-must not make a second multi-gigabyte cache copy on the constrained edge host.
-
-## Deploy Application Code
-
-After the runtime DB is activated, sync the app and restart containers:
-
-```bash
+cd /srv/spacegate/app
 scripts/deploy_antiproton.sh \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 2 \
+  --ssh-cooldown 3 \
+  --sync-only
+```
+
+Then configure and verify the measured edge limits. This changes the private
+environment file but does not restart the current service:
+
+```bash
+ssh -i ~/.ssh/spacegate_antiproton \
+  -o IdentitiesOnly=yes \
+  -o BatchMode=yes \
+  -o ConnectTimeout=8 \
+  sgdeploy@158.69.198.29 \
+  "cd /srv/spacegate/app && \
+   python3 scripts/public_edge_release.py configure-runtime-env \
+     --manifest /srv/spacegate/data/incoming/public-edge/e7_24cb15211f430a37f199f462_full_public/release.json \
+     --env-file .spacegate.local.env"
+```
+
+The release manifest must be present remotely before that command. The transfer
+helper sends it before applying its runtime and disk gates; alternatively copy
+that small file first as shown in the operator handoff.
+
+## Streamed Transfer And Staging
+
+Do not use the legacy `push_published_db.sh` path for Public Read v2. It knows
+only the scientific archive and cannot produce an atomic three-artifact release.
+
+Run:
+
+```bash
+scripts/push_public_edge_release.sh \
+  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json \
+  --remote sgdeploy@158.69.198.29 \
+  --ssh-key ~/.ssh/spacegate_antiproton \
+  --ssh-cooldown 3
+```
+
+The helper:
+
+1. re-hashes every local source;
+2. checks remote free space and measured runtime settings;
+3. transfers the scientific archive with resumable `rsync`;
+4. verifies and extracts it into `out/<build_id>`;
+5. removes only that temporary incoming archive;
+6. transfers Search v2 directly into its versioned derived location;
+7. verifies and unpacks the frozen scene set;
+8. verifies the complete installed release.
+
+It deliberately does not change `served/current` or restart containers.
+Interrupted transfers retain rsync partial files and are safe to rerun.
+
+## Activation
+
+After staging has passed, activate the release and rebuild the public containers
+at one reviewed checkpoint:
+
+```bash
+ssh -i ~/.ssh/spacegate_antiproton \
+  -o IdentitiesOnly=yes \
+  -o BatchMode=yes \
+  -o ConnectTimeout=8 \
+  sgdeploy@158.69.198.29 \
+  "cd /srv/spacegate/app && \
+   python3 scripts/public_edge_release.py activate \
+     --manifest /srv/spacegate/data/incoming/public-edge/e7_24cb15211f430a37f199f462_full_public/release.json \
+     --state-dir /srv/spacegate/data"
+
+scripts/deploy_antiproton.sh \
+  --ssh-key ~/.ssh/spacegate_antiproton \
+  --ssh-cooldown 3 \
   --skip-auto-score
 ```
 
-The deploy script preserves remote environment files and rebuilds/restarts the
-Compose services.
+The activation command verifies all three installed artifacts before atomically
+replacing `served/current`, and records the previous target. `--skip-auto-score`
+is mandatory because immutable DISC output is already verified.
 
 ## Public Verification
-
-Verify the public build and key API flows:
 
 ```bash
 curl -fsS https://coolstars.org/api/v1/health
@@ -170,26 +180,13 @@ curl -fsS https://coolstars.org/api/v1/health
 .venv/bin/python scripts/verify_known_systems_api.py https://coolstars.org/api/v1
 ```
 
-The health response must report the newly promoted build id before considering
-the deployment complete.
+Also run exact TIC/TOI, hierarchy/nested-orbit, map, simulation, desktop/mobile,
+and authentication checks. Health must report the new build ID. Runtime
+telemetry must report Public Read v2 hits with no compatibility fallbacks.
 
 ## Rollback
 
-Preserve the previous extracted build in `/srv/spacegate/data/out/` until the
-new public deployment is verified. The current served symlink is the critical
-rollback lever:
-
-```text
-/srv/spacegate/data/served/current
-```
-
-If the new build fails public verification, restore that symlink to the previous
-known-good build and restart the API/web containers. Do not delete old extracted
-builds or old public archives until rollback is no longer needed.
-
-## Diagnostics
-
-Use sequential SSH diagnostics with cooldown discipline:
+If activation or public verification fails:
 
 ```bash
 ssh -i ~/.ssh/spacegate_antiproton \
@@ -197,17 +194,19 @@ ssh -i ~/.ssh/spacegate_antiproton \
   -o BatchMode=yes \
   -o ConnectTimeout=8 \
   sgdeploy@158.69.198.29 \
-  "cd /srv/spacegate/app && scripts/compose_spacegate.sh ps"
+  "cd /srv/spacegate/app && \
+   python3 scripts/public_edge_release.py rollback \
+     --build-id e7_24cb15211f430a37f199f462_full_public \
+     --state-dir /srv/spacegate/data && \
+   scripts/compose_spacegate.sh up -d --build api web"
 ```
 
-```bash
-ssh -i ~/.ssh/spacegate_antiproton \
-  -o IdentitiesOnly=yes \
-  -o BatchMode=yes \
-  -o ConnectTimeout=8 \
-  sgdeploy@158.69.198.29 \
-  "cd /srv/spacegate/app && scripts/compose_spacegate.sh logs --tail=120 api"
-```
+Rollback uses the recorded prior extracted target. Preserve it, the new
+installed artifacts, and both activation records until public soak is accepted.
 
-Avoid `docker compose config` in routine diagnostics because expanded
-environment output may contain secrets.
+## SSH Hygiene
+
+Use the private operator route, `IdentitiesOnly`, `BatchMode`, an eight-second
+connect timeout, and at least a two-second cooldown between independent SSH
+connections. Do not run SSH-heavy diagnostics in parallel. Avoid
+`docker compose config`, which can expose expanded secrets.
