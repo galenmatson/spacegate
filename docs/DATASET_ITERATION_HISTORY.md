@@ -4321,8 +4321,9 @@ Representative commits:
 - React Router moved from v6 to v7.18.1, closing the open-redirect/XSS range.
   npm still flags an RSC-action advisory, but Spacegate ships Declarative Mode
   and no RSC/loaders/actions. Upstream lists v8.3 as fully patched, but npm does
-  not yet publish it. The production build and tile tests pass; final Docker and
-  Playwright route parity remains an activation gate.
+  not yet publish it. The production build, tile tests, and full
+  container-backed map suite pass; Playwright reported 62 passes, 48
+  profile-specific skips, and zero failures.
 - `spacegate.public_edge_release.v1` binds the scientific archive, immutable
   Public Read SQLite, and frozen 7,724-scene set to the same full-public build.
   The manifest records exact hashes, bytes, extracted size, runtime limits,
@@ -4341,11 +4342,16 @@ Representative commits:
   one stranded bootstrap cache archive, and unused BuildKit cache. Current
   served and published rollback material remained exact; free space increased
   to 70,120,824,832 bytes.
+- Release code was then synchronized without a service restart. The 2.03-MB
+  release manifest was installed, the measured API limits and disabled
+  compatibility fallback were written to the local environment overlay without
+  exposing or replacing secrets, and remote verification passed. A full dry run
+  accounted for all three artifacts and passed using a 15-second SSH cooldown.
 - No large file was transferred, no served pointer changed, no container was
   restarted, and the public build remains the July 17 checkpoint. The next
-  operator action is the streamed three-artifact transfer; configuration,
-  activation, public verification, and rollback testing follow only after
-  installed verification passes.
+  operator action is the streamed three-artifact transfer; activation, public
+  verification, and rollback testing follow only after installed verification
+  passes.
 
 ## Recurrent Defect Classes and Mitigations
 

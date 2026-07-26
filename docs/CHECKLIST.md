@@ -2014,8 +2014,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   is not yet available from npm. Production build and tile tests pass. Rerun
   route, query-string, object-focus, map handoff, and
   desktop/mobile browser parity. The current Vite client does not use SSR and
-  constructs public navigation from internal paths. Full container/browser
-  parity remains part of the release checkpoint
+  constructs public navigation from internal paths. The container-backed map
+  suite passes 62 tests with 48 intentional profile skips and zero failures
 - [x] Reconcile accepted M8.3e through `d4b90e7` into `master`, push, and tag
   `m8.3e-local-accepted-20260726`
 - [x] Add one build-keyed public edge release contract covering scientific
@@ -2025,6 +2025,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   rollback; verify the real 33,588,971,005-byte source set without copying it
 - [x] Perform reviewed antiproton preflight and cleanup while retaining current
   served/published rollback; free space is 70,120,824,832 bytes
+- [x] Synchronize release code without restart, install the small release
+  manifest, pin and verify measured runtime limits in the local environment
+  overlay, and pass the complete transfer dry run with a 15-second SSH cooldown
 - [ ] Transfer and stage the three M8.3e artifacts with the streamed helper;
   do not activate or restart until installed verification passes
 - [ ] Activate M8.3e atomically, deploy code, run public API/browser/security

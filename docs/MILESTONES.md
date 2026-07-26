@@ -2929,8 +2929,9 @@ are awaiting the operator-run synchronization checkpoint.
 - React Router migrated from the v6 line to v7.18.1. This closes the
   open-redirect/XSS range. npm still reports the newer RSC-action advisory,
   but Spacegate ships Declarative Mode and no RSC/loaders/actions; the fully
-  patched 8.3 package is not yet available from npm. Production build and tile
-  tests pass; full container/browser parity remains a release checkpoint.
+  patched 8.3 package is not yet available from npm. Production build, tile
+  tests, and the full container-backed map browser suite pass: 62 tests passed,
+  48 profile-specific tests were intentionally skipped, and none failed.
 - The versioned release manifest binds the 17,052,804,724-byte scientific
   archive, 16,455,413,760-byte Public Read SQLite projection, and
   80,752,521-byte/7,724-scene frozen set to exact build
@@ -2943,6 +2944,10 @@ are awaiting the operator-run synchronization checkpoint.
   retired only a superseded build/archive, stranded bootstrap cache, and unused
   BuildKit cache, and increased free space from 32,632,963,072 to
   70,120,824,832 bytes.
+- Release code was synchronized without restarting services. The small release
+  manifest was installed, the measured runtime contract was written to the
+  secret-preserving local environment overlay and verified, and a complete
+  three-artifact dry run passed with a 15-second SSH cooldown.
 - The transfer must remain streamed: install and delete the incoming scientific
   archive before sending Search v2. The helper enforces 57,356,235,850 starting
   free bytes and a 15-GiB reserve after every stage.
