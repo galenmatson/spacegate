@@ -82,6 +82,21 @@ async function resolveGoldenSystem(page, golden) {
 }
 
 test.describe("public 3D map beta", () => {
+  test("new visitors default to Simple Dark while explicit theme choices persist", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/map", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("simple_dark");
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.theme") || "")).toBe("simple_dark");
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await menu.locator(".map-theme-select select").selectOption("simple_light");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("simple_light");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("simple_light");
+  });
+
   test("mission control browser header keeps utility links visible", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop browser header check");
     await page.addInitScript(() => {

@@ -452,6 +452,24 @@ def safe_scene_member(member: tarfile.TarInfo) -> PurePosixPath:
     return path
 
 
+def make_public_scene_cache_readable(target: Path) -> None:
+    """Keep immutable public scene payloads readable by the runtime container."""
+    target.chmod(0o755)
+    for path in target.iterdir():
+        if path.is_file():
+            path.chmod(0o644)
+
+
+def verify_public_scene_cache_readable(target: Path) -> None:
+    if target.stat().st_mode & 0o005 != 0o005:
+        raise ValueError("installed simulation scene cache is not runtime-traversable")
+    for path in target.iterdir():
+        if path.is_file() and path.stat().st_mode & 0o004 != 0o004:
+            raise ValueError(
+                f"installed simulation scene artifact is not runtime-readable: {path.name}"
+            )
+
+
 def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
     release = validate_release(load_json(args.manifest.resolve(strict=True)))
     build_id = release["build_id"]
@@ -522,9 +540,11 @@ def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
             atomic_json(
                 staging / "manifest.json", release["simulation_scene_manifest"]
             )
+            make_public_scene_cache_readable(staging)
             os.replace(staging, target)
         finally:
             shutil.rmtree(staging, ignore_errors=True)
+    make_public_scene_cache_readable(target)
     frozen = state / "derived" / "simulation_scenes" / build_id
     frozen.mkdir(parents=True, exist_ok=True)
     archive_target = frozen / "simulation_scenes.tar.gz"
@@ -580,6 +600,7 @@ def verify_installed(release: dict[str, Any], state: Path) -> dict[str, Any]:
         frozen, release["artifacts"]["simulation_scenes"], "simulation_scenes"
     )
     scene_cache = state / "cache" / "simulation_scenes" / build_id
+    verify_public_scene_cache_readable(scene_cache)
     manifest = load_json(scene_cache / "manifest.json")
     entries = release["simulation_scene_manifest"].get("entries") or []
     count = 0

@@ -56,6 +56,22 @@ def test_candidate_lookup_skips_stale_served_scene(monkeypatch, tmp_path: Path) 
     assert main._simulation_scene_artifact_path("candidate-build", 7) == candidate.resolve()
 
 
+def test_candidate_lookup_treats_inaccessible_scene_as_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(main, "_state_dir", lambda: tmp_path)
+    artifact = (
+        tmp_path
+        / "cache/simulation_scenes/candidate-build/system_7.json.gz"
+    )
+    _write(artifact, _scene("candidate-build"))
+    artifact.parent.chmod(0o000)
+    try:
+        assert main._simulation_scene_artifact_path("candidate-build", 7) is None
+    finally:
+        artifact.parent.chmod(0o700)
+
+
 def test_runtime_scene_artifact_carries_build_contract(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(main, "_state_dir", lambda: tmp_path)
     monkeypatch.setattr(main, "_prune_simulation_scene_runtime_cache", lambda **_: None)

@@ -4353,11 +4353,37 @@ Representative commits:
   verification, and rollback testing follow only after installed verification
   passes.
 
+### 165a) Public Read v2 Edge Activation and Permission Gate
+
+- On July 26, 2026, the three-artifact release completed streamed staging and
+  installed verification on antiproton. The first activation passed artifact
+  hashes but the first name-sorted public search returned HTTP 500.
+- The recorded rollback immediately restored
+  `20260717T0614Z_f452835_side`. Recreating that build with the new API exposed
+  a second rollback-contract gap: the host compatibility setting was not passed
+  by Compose. A temporary explicit override restored public search while the
+  candidate was investigated without another pointer change.
+- A UID-matched shadow API isolated the candidate failure to the frozen-scene
+  cache directory: staging inherited mode `2700` from `sgdeploy`, preventing
+  runtime traversal. The Public Read SQLite and scene payload hashes remained
+  correct.
+- General hotfix `555c46b` normalizes immutable scene directories to `0755` and
+  files to `0644`, verifies runtime readability before activation, treats
+  inaccessible optional cache hints as unavailable rather than failing search,
+  and passes `SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK` through Compose.
+  Twenty-seven focused tests pass.
+- The exact installed candidate then passed shadow API integration, TIC/TOI,
+  known-system, singleton/prebuilt scene, and nested-orbit gates. Reactivation
+  passed, fallback was reset to `0`, and live public verification repeated
+  those gates plus desktop/mobile, 4K Bright, and progressive 1,000-ly
+  Playwright checks. The July 17 build remains the immediate rollback during
+  soak.
+
 ### 166) Smart Tags Become a Build-Keyed Public Vocabulary
 
 - On July 26, 2026, M8.3e.2 began on `feature/smart-tags-v1` after the accepted
-  Public Read v2 edge payload finished staging. The edge helper verified all
-  three installed artifacts and 7,724 scenes but did not activate them.
+  Public Read v2 edge payload finished staging and continued after the guarded
+  public activation.
 - The earlier planned flat DISC `system_tags` table and frontend-only
   `buildSearchResultTags` heuristics were rejected as the durable design.
   The replacement uses reviewed namespaced definitions, typed object

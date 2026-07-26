@@ -654,6 +654,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Enterprise/LCARS speed/scale selects remain clickable above the WebGL canvas,
   with brighter Enterprise map chrome and more opaque Simple Light/Geocities
   map overlays for readability
+- [x] Default new and private visitors to Simple Dark while retaining explicit
+  saved theme choices, preventing the Simple Light simulator contrast defect
+  from breaking the first public experience
+- [ ] Complete M8.3e.1a Simple Light Simulation Contrast Repair across Search
+  Card previews, Peek, Explorer, and System Page simulations with
+  desktop/mobile/high-resolution screenshots, canvas-pixel checks, and saved
+  Simple Light persistence coverage
 - [x] Rename the Star Map drill-in neighbor tray to `Cool Stars Nearby` and
   theme embedded simulator dropdown menus so their option popups keep contrast
   across map themes
@@ -2037,10 +2044,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   overlay, and pass the complete transfer dry run with a 15-second SSH cooldown
 - [x] Transfer and stage the three M8.3e artifacts with the streamed helper;
   final installed verification passed for all 33,588,971,005 bytes and 7,724
-  scenes with 29,245,730,816 bytes free. The release remains unactivated
-- [ ] Activate M8.3e atomically, deploy code, run public API/browser/security
-  gates, test rollback, and accept the public soak before retiring July 17
-  rollback material
+  scenes with 29,245,730,816 bytes free before activation
+- [x] Activate M8.3e atomically, deploy code, run public API/browser/security
+  gates, and test rollback; permission hotfix `555c46b` makes scene cache modes
+  explicit and wires the diagnostic fallback through Compose
+- [ ] Accept the M8.3e public soak before retiring July 17 rollback material
 - [x] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
   operations, and Gaia DR4 adapter documentation before any public deployment
 

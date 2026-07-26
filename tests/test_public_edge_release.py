@@ -166,6 +166,10 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     verified = release.command_verify_installed(args)
     assert verified["status"] == "pass"
     assert verified["scene_count"] == 1
+    scene_cache = state / "cache" / "simulation_scenes" / build_id
+    assert scene_cache.stat().st_mode & 0o777 == 0o755
+    assert (scene_cache / "manifest.json").stat().st_mode & 0o777 == 0o644
+    assert (scene_cache / "system_7.json.gz").stat().st_mode & 0o777 == 0o644
 
     activated = release.command_activate(
         type("Args", (), {"manifest": manifest, "state_dir": state})()
@@ -231,3 +235,23 @@ def test_runtime_env_configuration_is_bounded_and_verifiable(
         type("Args", (), {"manifest": manifest, "env_file": [env]})()
     )
     assert verified["status"] == "pass"
+
+
+def test_verify_rejects_runtime_inaccessible_scene_cache(tmp_path: Path) -> None:
+    manifest, source, build_id = make_fixture(tmp_path)
+    state = tmp_path / "state"
+    incoming = state / "incoming"
+    incoming.mkdir(parents=True)
+    value = release.validate_release(release.load_json(manifest))
+    for role, spec in value["artifacts"].items():
+        shutil.copy2(Path(spec["source_path"]), incoming / spec["transfer_filename"])
+
+    args = stage_args(manifest, state, incoming)
+    release.command_stage_scientific(args)
+    release.command_stage_public_read(args)
+    release.command_stage_scenes(args)
+    scene_cache = state / "cache" / "simulation_scenes" / build_id
+    scene_cache.chmod(0o700)
+
+    with pytest.raises(ValueError, match="not runtime-traversable"):
+        release.command_verify_installed(args)

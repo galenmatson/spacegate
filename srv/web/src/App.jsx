@@ -109,7 +109,7 @@ const SPECTRAL_CLASS_INFO = {
   Y: { sentence: "Ultra-cool brown dwarfs approaching giant-planet temperatures.", tempRangeK: [250, 700] },
 };
 const ThemeContext = React.createContext({
-  theme: "simple_light",
+  theme: "simple_dark",
   setTheme: () => {},
   options: THEME_OPTIONS,
   defaultScaleMode: "structure",
@@ -241,16 +241,9 @@ function normalizeSimulationScaleMode(raw) {
   return SIM_SCALE_MODE_IDS.has(value) ? value : "structure";
 }
 
-function detectSystemTheme() {
-  if (typeof window === "undefined") {
-    return "simple_light";
-  }
-  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "simple_dark" : "simple_light";
-}
-
 function resolveInitialTheme() {
   if (typeof window === "undefined") {
-    return "simple_light";
+    return "simple_dark";
   }
   const rootTheme = normalizeThemeId(document.documentElement.getAttribute("data-theme"));
   if (rootTheme) {
@@ -264,7 +257,7 @@ function resolveInitialTheme() {
   } catch (_) {
     // Ignore storage access failures and use system fallback.
   }
-  return detectSystemTheme();
+  return "simple_dark";
 }
 
 function resolveInitialSimulationScaleMode() {

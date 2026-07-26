@@ -2921,9 +2921,8 @@ Goal:
   cryptographically verified scientific/projection/scene release while
   retaining the July 17 public build as immediate rollback.
 
-Status: all three artifacts are staged and verified on antiproton; activation,
-code deployment, public verification, rollback rehearsal, and soak acceptance
-remain.
+Status: active on antiproton; public soak is in progress and the July 17 build
+remains the immediate rollback.
 
 - `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
   into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
@@ -2952,13 +2951,20 @@ remain.
 - The transfer must remain streamed: install and delete the incoming scientific
   archive before sending Search v2. The helper enforces 57,356,235,850 starting
   free bytes and a 15-GiB reserve after every stage.
-- On July 26, the streamed helper transferred, staged, and re-verified all
-  33,588,971,005 bytes. The 16,455,413,760-byte Public Read artifact passed
-  checksum, SQLite identity, and quick-check; all 7,724 frozen scenes passed
-  membership verification; the final installed-release verification returned
-  `status=pass` with 29,245,730,816 bytes free.
-- Antiproton remains on its July 17 build. The helper deliberately did not
-  change `served/current`, restart containers, or expose the staged build.
+- The streamed transfer staged and independently verified all three artifacts.
+  The 16,455,413,760-byte Public Read artifact passed checksum, SQLite identity,
+  and quick-check; all 7,724 frozen scenes passed membership verification.
+  Activation exposed a scene-cache directory mode inherited from the deploy
+  user; the first substantive search gate returned 500, triggering the recorded
+  rollback. Hotfix `555c46b` makes cache directories `0755`, payloads `0644`,
+  validates runtime readability, prevents optional cache probes from crashing
+  search, and passes the rollback compatibility flag through Compose.
+- The corrected release was shadow-tested, activated, and verified publicly.
+  Full API integration, exact TIC/TOI outcomes, 12 known-system benchmarks,
+  nine wide/nested-orbit benchmarks, four map manifests, desktop/mobile
+  Playwright checks, 4K Bright rendering, and the progressive 1,000-ly canvas
+  pass with zero compatibility fallbacks. Reports are retained under
+  `state/reports/public_edge_deployment/20260726T2226Z_e7_24cb15211f430a37f199f462_full_public`.
 
 Success criteria:
 
@@ -2970,6 +2976,39 @@ Success criteria:
   pass;
 - the July 17 extracted build remains available until the public soak is
   accepted.
+
+### M8.3e.1a. Simple Light Simulation Contrast Repair
+
+Goal:
+
+- make every System Simulation surface legible in Simple Light without
+  weakening the dark themes or changing scientific scene content.
+
+Status: queued. Production hotfix `b70bef6` makes Simple Dark the default for
+new and private sessions while preserving explicit saved theme choices. This
+mitigates the public first-visit failure but does not repair Simple Light.
+
+Deliverables:
+
+- define a theme-aware simulation contrast policy for stellar bodies, compact
+  objects, planet bodies and rings, orbit traces, hierarchy orbits, HZ bands,
+  grids, labels, diagnostics, and controls;
+- remove renderer colors or opacity assumptions that require a dark canvas
+  while keeping star color and relative visual meaning recognizable;
+- verify Search Card previews, Peek, Explorer, and System Page simulations
+  across desktop, mobile, and high-resolution displays;
+- retain the new-visitor Simple Dark regression and prove that a deliberately
+  selected Simple Light preference survives reload.
+
+Success criteria:
+
+- representative singleton, planetary, multistar, compact-object, and nested
+  hierarchy scenes remain visibly nonblank and internally distinguishable in
+  Simple Light;
+- automated canvas-pixel and screenshot checks catch white-on-white bodies,
+  low-contrast orbit traces, unreadable labels, and control overlap;
+- text and interactive controls meet the existing accessibility contrast
+  standard, and all other themes retain visual parity.
 
 ### M8.3e.2. Smart Tags and Concepts v1
 
