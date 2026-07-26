@@ -5661,7 +5661,7 @@ def _simulation_scene_artifact_path(
     for candidate in candidates:
         try:
             resolved = candidate.resolve(strict=True)
-        except FileNotFoundError:
+        except OSError:
             continue
         if resolved.is_file() and _simulation_scene_artifact_compatible(
             resolved,
