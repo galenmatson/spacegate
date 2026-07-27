@@ -178,6 +178,16 @@ visibly. The legacy path is available only with the explicit
 `SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK` diagnostic setting; it is never
 the default production response to an artifact failure.
 
+Smart Tags remain a separate build-keyed companion projection rather than
+expanding this 16-GB database. The API attaches the normalized Smart Tag hot
+SQLite read-only after validating the same scientific build ID, registry hash,
+compiler/schema versions, and portable assignment/source-contribution
+artifacts. Search, summaries, System Page, Peek, and Explorer consume its
+shared tag/source fields; object evidence remains paginated outside normal
+responses. `SPACEGATE_SMART_TAGS_REQUIRED=1` turns a missing or incompatible
+companion into a visible failure after the four-artifact release contract is
+installed.
+
 `scripts/profile_public_read_plans.py` records the SQLite query plan for exact
 terms and identifiers, summary/object reads, hierarchy bundles, singleton seeds,
 trigram candidates, filtered search, and unfiltered coolness ordering. M8.3e

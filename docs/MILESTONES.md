@@ -3018,47 +3018,55 @@ Goal:
   tag vocabulary, build-keyed assignments, shared accessible interaction,
   filtering, source context, and first educational concept routes.
 
-Status: implementation and local verification in progress on
-`feature/smart-tags-v1`.
+Status: locally accepted on `feature/smart-tags-v1`; no public deployment was
+performed.
 
-Delivered at the implementation checkpoint:
+Delivered:
 
 - `spacegate.smart_tag_registry.v1` uses stable namespaced keys, explicit
   target/layer/kind/category/source policy, compact/normal/expanded priorities,
   bounded evaluator IDs, concept routes, and rollup/filter policy. Registry
   files cannot execute SQL or expressions.
-- `config/tags/proposal_inventory.json` accounts for the broad `docs/TAGS.md`
-  vocabulary as enabled or explicitly deferred; missing orbit data cannot
-  produce a `rogue` tag.
-- the build-keyed compiler writes separate immutable SQLite and Parquet
-  projections with object assignments, system rollups, source references,
-  coverage/quarantine reports, logical hashes, checksums, and atomic
-  registry-hash promotion. It does not mutate the 16-GB Public Read database or
-  any science layer.
+- proposal accounting covers all 137 `docs/TAGS.md` proposals and 22 families;
+  legacy accounting separately classifies 25 public pill/chip/badge/control
+  surfaces. Unsettled science and observer-time context remain explicitly
+  deferred, and missing orbit data cannot produce a `rogue` tag.
+- compiler v2.2 writes a 407,265,280-byte normalized hot SQLite, a
+  294,656,487-byte complete assignment Parquet, and a 756,799-byte exact source
+  contribution Parquet. It accounts 11,418,384 assignments over 5,869,091
+  systems without mutating Public Read or a science layer.
+- two clean full compilations to separate roots reproduce every logical and
+  physical hash. The hot artifact is about 6.1 GB (5.7 GiB) smaller than the
+  string-heavy v1 baseline and remains below the hard 1.5-GiB serving gate.
+- exact contribution lineage replaces boolean catalog presence. The invalid
+  Gaia NSS fanout to 5,866,306 systems is gone; 90,613 accepted contributions
+  from 14,145 inspected bundles produce 37,472 bounded system/source rows.
 - the API attaches the matching artifact read-only and adds registry,
-  definition, system-tag, source-summary, and indexed any/all/exclude search
-  contracts. Present but incompatible artifacts fail visibly.
-- Search Results and System Pages consume compiled tags. Stellar-class badges
-  use the same hover/focus/click/touch shell. Popovers expose cautious
-  explanations, source policy, source links, concept navigation, filtered
-  search, and copyable links.
+  definition, exact source, system-tag, bounded assignment, and indexed
+  any/all/exclude contracts. Present but incompatible artifacts fail visibly.
+- Search Results, System Page, Peek, Explorer, hierarchy/object lists,
+  evidence/source tokens, stellar-class chips, and relevant sidebars consume
+  the shared contract. The legacy `buildSearchResultTags` selector is retired;
+  non-taxonomy controls remain explicitly outside Smart Tags.
+- one accessible shell provides hover/focus, keyboard, touch pinning,
+  Escape/outside close, copy, Learn, Find More, bounded overflow, mobile-sheet,
+  source, and evidence-state behavior without relying on color alone.
 - the first reviewed concept routes cover spectral class, white dwarfs, brown
   dwarfs, multiple systems, exoplanets, habitable zones, orbital period, and
   evidence/provenance.
 - the Admin action catalog exposes audited Smart Tag compilation as a
   post-Public-Read presentation job.
+- the final 6-vCPU/12-GiB campaign passes cold, warm, idle, constrained c1 and
+  sustained c12 profiles plus the c1-c12 staircase with zero errors, timeouts,
+  OOM events, or safety stops. Exact search is 10.1-ms p95, filtered search
+  104.1 ms, summary/tag reads 32.0 ms, and c12 mixed traffic 2.720 s.
+- public edge release v2 verifies all four build-matched artifacts and the
+  synthetic stage/activate/rollback rehearsal. Required mode remains disabled
+  in the ordinary local compatibility stack and enabled only in the isolated
+  capacity and rehearsed release contracts.
 
-Remaining acceptance work:
-
-- record full-build timing, storage, counts, and a second deterministic logical
-  rebuild;
-- complete API/search/browser/mobile accessibility and performance goldens;
-- finish compatibility accounting for remaining hierarchy/source/evidence
-  pills and map-side selection surfaces;
-- bind the tag artifact into a future public edge release before making it
-  required.
-
-See `docs/SMART_TAGS.md`.
+See `docs/SMART_TAGS.md` and
+`docs/SMART_TAGS_VERIFICATION_2026-07-27.md`.
 
 ### M8.3f. Public Evidence Inspector (Later)
 

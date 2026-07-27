@@ -90,12 +90,26 @@ The Playwright map suite imports
 - Desktop and constrained-mobile browser runs must prove a nonblank map and
   simulator canvas, stable selection and object focus, usable results scrolling,
   and no incoherent overlap after the projection migration.
+- Smart Tag parity verifies registry identity, exact source context, bounded
+  assignment evidence, any/all/exclude filters, Search/System/Peek/Explorer
+  presentation, keyboard and touch pinning, Escape/outside close, copy, Learn,
+  Find More, all eight concept routes, and bounded desktop/mobile/4K behavior in
+  Simple Dark and Simple Light. Science, evidence, source, presentation, and
+  future RIM tokens retain text/shape semantics rather than relying on color.
 
 The accepted M8.3e local parity run
 `public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing
 tests, 48 intentional environment skips, and no unexpected failures or flaky
 retries. The skips cover tests whose checked-in contracts intentionally exclude
 the current local environment; they are not hidden failures.
+
+The M8.3e.2 full parity run
+`smart-tags-v1-full-parity-final-r2-20260727` passed 67 desktop/mobile map,
+system, simulation, tile, tag, concept, theme, and accessibility checks with
+49 intentional project/environment skips and no unexpected failures. Its
+dedicated Smart Tag coverage contributed seven passes and one intentional
+mobile skip for the desktop-only 4K case. Machine screenshots, traces, and the
+JSON/HTML reports remain under the normal Playwright artifact root.
 
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend

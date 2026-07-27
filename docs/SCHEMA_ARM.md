@@ -2,6 +2,15 @@
 
 This document defines the immutable science evidence/support layer (`arm`).
 
+## Smart Tag Boundary
+
+ARM remains the authority for evidence, selected facts, derivations, component
+scope, uncertainty, and quarantine. Smart Tags may reference exact ARM/Public
+Read lineage and expose source, derived, assumed, or screen states, but the tag
+artifact is not evidence authority and never writes ARM. Source tokens mean an
+exact accepted contribution in displayed lineage, not boolean catalog
+presence.
+
 Purpose:
 - store deterministic, provenance-bound science support rows outside core hot
   paths

@@ -932,10 +932,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Plan selectable multi-wavelength sky backgrounds for the 3D map: visible
   Milky Way baseline, infrared sky, X-ray sky, and later survey layers as
   attributed presentation overlays
-- [ ] Complete M8.3e.2 Smart Tags and Concepts v1: registry/compiler/API/shared
-  accessible popover and first `/concepts/:slug` pages are implemented; finish
-  full-build determinism, browser/mobile goldens, performance, and remaining
-  compatibility-pill accounting
+- [x] Complete M8.3e.2 Smart Tags and Concepts v1: exhaustive proposal/legacy
+  accounting, versioned evaluator registry, compact deterministic compiler,
+  exact source lineage, indexed API/search filters, shared accessible token
+  shell, eight reviewed concept routes, public consumer migration, constrained
+  capacity gates, and local four-artifact release rehearsal
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

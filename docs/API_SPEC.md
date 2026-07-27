@@ -2018,8 +2018,17 @@ Response 200: same as `/systems/{system_id}`.
 
 `GET /tags/{tag_key}` returns one definition by its stable namespaced key.
 
+`GET /tag-sources/{source_key}` returns one registered source/release
+presentation definition, including publisher, mission/instrument context,
+citation URL, license, and authority roles.
+
 `GET /systems/{system_id}/tags` returns system discovery membership, including
 direct versus member-rollup scope and bounded source references.
+
+`GET /systems/{system_id}/tag-assignments?offset=0&limit=100` returns a bounded,
+stable page from the portable object-assignment evidence plus bounded exact
+source contributions. `limit` is capped at 200; large diagnostics never attach
+to normal search results.
 
 Search accepts comma-separated stable keys:
 
@@ -2027,7 +2036,7 @@ Search accepts comma-separated stable keys:
 - `tags_all`: every requested tag;
 - `tags_exclude`: none of the requested tags.
 
-Unknown, malformed, or non-filterable keys return `400`. Tag lookup is exact
+Unknown, malformed, or non-filterable keys return `409 conflict`. Tag lookup is exact
 and indexed; it does not use fuzzy term search. Public Read search results,
 `/systems/{system_id}/summary`, hierarchy bundles, and main system detail
 payloads expose:
@@ -2044,7 +2053,10 @@ payloads expose:
       "assignment": {
         "scope": "system",
         "member_count": 1,
-        "basis_kind": "direct"
+        "basis_kind": "direct",
+        "evidence_statuses": ["source"],
+        "min_confidence": 1.0,
+        "max_confidence": 1.0
       }
     }
   ],
@@ -2053,17 +2065,25 @@ payloads expose:
       "key": "source:multiplicity.wds",
       "source_id": "multiplicity.wds",
       "publisher": "USNO",
+      "release_id": "current",
+      "description": "Accepted visual double-star evidence.",
+      "mission_instrument": "ground-based astrometry",
       "citation_url": "https://...",
-      "contribution_kind": "multiplicity"
+      "license": {"name": "catalog terms", "url": "https://..."},
+      "contribution_kind": "multiplicity",
+      "member_count": 1
     }
   ]
 }
 ```
 
-The API validates tag manifest, build identity, registry hash, and schema
-before attaching the separate read-only SQLite artifact. A present but
-incompatible artifact fails visibly. A genuinely absent artifact is tolerated
-only during the documented first-release compatibility window.
+The API validates tag manifest, build identity, registry hash, both portable
+Parquet artifacts, and schema before attaching the separate read-only SQLite
+hot projection. A present but incompatible artifact fails visibly. A genuinely
+absent artifact is tolerated only during the documented first-release
+compatibility window. `/health` reports artifact identity, attachment failures,
+compatibility reads, query counts, result counts, and aggregate/max latency
+without exposing filesystem paths.
 
 ### GET /extended-objects/search
 

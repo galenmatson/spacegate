@@ -4406,6 +4406,41 @@ Representative commits:
 - The `rim:` namespace and visual boundary are reserved without implementing
   editing. Future user-authored tags must remain RIM-owned and visibly
   separate from intrinsic science.
+- The completed proposal audit accounts all 137 `docs/TAGS.md` proposals:
+  52 enabled, 78 deferred, 6 rejected, and 1 retired. Twenty-two proposal
+  families and 25 legacy public token/control surfaces are separately
+  accounted, so navigation controls, scalar facts, identifiers, warnings, and
+  hierarchy roles are not relabeled as taxonomy merely to share appearance.
+- Compiler v2.2 replaces the 6,521,847,808-byte string-heavy serving SQLite
+  with a 407,265,280-byte normalized hot database while retaining complete
+  294,656,487-byte assignment evidence and 756,799-byte exact source
+  contributions in portable Parquet. Two clean 228.8/228.5-second builds
+  reproduce identical logical and physical hashes for 11,418,384 assignments,
+  11,417,955 system memberships, and zero quarantines.
+- Source presentation now requires exact contribution lineage. The invalid
+  boolean Gaia NSS fanout to 5,866,306 systems is eliminated; 90,613 exact
+  contributions from 14,145 valid hierarchy bundles summarize to 37,472
+  system/source rows without claiming that absent tokens mean absent evidence.
+- Full-build verification caught a general hierarchy-shape assumption: accepted
+  composite subsystems can be represented by star-like source nodes rather than
+  literal `group` nodes. `hierarchy_nested_v2` recognizes any non-root accepted
+  node with at least two stellar descendants, producing 3,260 hierarchical
+  systems without a named-object transform.
+- The final constrained campaign passes seven cold/warm/idle profiles and the
+  c1-c12 staircase with zero errors, timeouts, OOM events, or safety stops.
+  Exact c1 search is 10.1-ms p95, tag-filter c1 is 104.1 ms, summary/tag reads
+  are 32.0 ms, sustained c12 mixed traffic is 2.747 seconds, and recovery is
+  98.8 ms. Peak aggregate constrained container memory is 245,510,144 bytes.
+- Public edge release v2 binds science, Public Read, 7,724 frozen scenes, and
+  the verified 374,478,854-byte Smart Tag archive into one 33,963,449,859-byte
+  build-matched contract. Real source verification and a synthetic
+  stage/activate/rollback rehearsal pass. Antiproton was not contacted or
+  deployed, and Proton was not mutated.
+- The final container-backed browser parity run passes 67 desktop/mobile map,
+  system, simulation, tile, Smart Tag, concept, theme, and accessibility checks
+  with 49 intentional project/environment skips and no unexpected failures.
+  The interaction repair removes invalid nested buttons by keeping class/source
+  tags and explicit object-selection controls as sibling interactive elements.
 
 ## Recurrent Defect Classes and Mitigations
 

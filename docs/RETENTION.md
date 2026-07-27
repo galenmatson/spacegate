@@ -100,12 +100,13 @@ with SHA-256
 `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`;
 the second freeze reproduced that hash exactly.
 
-Public edge releases bind the scientific archive, Public Read projection, and
-frozen scene set in one
-`spacegate.public_edge_release.v1` manifest under
-`$SPACEGATE_STATE_DIR/releases/<build_id>/release.json`. Protect every manifest
-referenced by an incoming, staged, current, or rollback deployment. During
-constrained edge staging, the verified incoming scientific archive may be
+Public edge release v2 binds the scientific archive, Public Read projection,
+frozen scene set, and verified Smart Tag archive in one
+`spacegate.public_edge_release.v2` manifest under
+`$SPACEGATE_STATE_DIR/releases/<build_id>/smart-tags-v2/<registry_hash>/release.json`.
+Protect every manifest referenced by an incoming, staged, current, or rollback
+deployment. During constrained edge staging, the verified incoming scientific
+archive may be
 removed only after its exact extracted build and install marker exist; this is
 intentional streamed staging, not retention of an incomplete evidentiary chain.
 Keep the previously served extracted build until activation, rollback testing,
@@ -1600,10 +1601,11 @@ Smart Tag output lives under:
 $SPACEGATE_STATE_DIR/derived/smart_tags/<build_id>/<registry_hash>/
 ```
 
-Each immutable generation contains an indexed SQLite projection, portable
-Parquet assignments, registry snapshot, manifest, coverage report, quarantine
-report, logical hashes, checksums, and timing. The sibling `current` symlink is
-an atomic build-local promotion pointer.
+Each immutable generation contains a compact indexed SQLite hot projection,
+portable Parquet assignments, portable exact source contributions, registry
+snapshot, manifest, coverage/quarantine/proposal/source-accounting reports,
+logical hashes, checksums, and timing. The sibling `current` symlink is an
+atomic build-local promotion pointer.
 
 Protect:
 
@@ -1621,7 +1623,9 @@ only after manifest/logical hashes are recorded and the usual dry-run review
 passes. Never delete `current` independently of its target, and never keep a
 served pointer whose target was removed.
 
-Smart Tags are small derived public artifacts relative to Public Read, but are
+The hot Smart Tag SQLite must remain at or below 1.5 GiB; complete portable
+evidence is retained separately instead of duplicated in string-heavy serving
+tables. Smart Tags are derived public artifacts relative to Public Read and are
 part of the public release contract once
 `SPACEGATE_SMART_TAGS_REQUIRED=1`. They must not be moved to Proton or an NFS
 runtime path.

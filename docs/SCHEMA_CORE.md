@@ -2,6 +2,13 @@
 
 This document defines the canonical core astronomy contract used by ingestion, QC, and API.
 
+## Smart Tag Boundary
+
+M8.3e.2 adds no tags to CORE. Canonical identity, containment, accepted object
+inventory, and confirmed planet lifecycle are compiler inputs; reviewed Smart
+Tag assignments remain a separate build-keyed DISC/public-read projection. A
+tag or member rollup must never create a CORE object, relation, or system claim.
+
 Scope:
 
 - immutable astronomy inventory and relationships

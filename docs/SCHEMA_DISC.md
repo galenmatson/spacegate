@@ -188,7 +188,8 @@ Rules:
 ## Smart Tag Projection
 
 The earlier planned monolithic `system_tags` table is superseded by
-`spacegate.smart_tags.v1`; see `docs/SMART_TAGS.md`.
+`spacegate.smart_tags.v2`, `spacegate.smart_tag_assignments.v2`, and
+`spacegate.smart_tag_source_contributions.v1`; see `docs/SMART_TAGS.md`.
 
 Smart Tags remain DISC-owned presentation/derivation products but are compiled
 as a separate immutable artifact keyed to Public Read build identity and
@@ -196,12 +197,14 @@ registry hash. Object-scoped assignments are not flattened into systems:
 
 - `tag_definitions` stores reviewed semantics, layer, evaluator, priorities,
   concept route, and source policy;
-- `tag_assignments` stores target type/key, system context, evidence status,
-  basis reference, confidence, and evaluator version;
+- portable `tag_assignments` stores target type/key, system context, evidence
+  status, basis reference, confidence, and evaluator version;
 - `system_tag_membership` stores indexed direct and member-rollup discovery
   membership;
-- `source_definitions` and `system_sources` store source references separately
-  from science taxonomy;
+- `source_definitions` and compact `system_sources` store bounded source
+  summaries separately from science taxonomy;
+- portable `source_contributions` preserves the exact target and contribution
+  context behind those summaries;
 - `quarantine` records evaluator failures.
 
 No manual edit may change deterministic assignments. RIM/user tags do not

@@ -7,29 +7,37 @@ activate an artifact that has not passed the release manifest checks.
 
 ## Release Shape
 
-Public Read v2 deploys three immutable artifacts sharing one exact build ID:
+Public edge release v2 deploys four immutable artifacts sharing one exact
+build ID:
 
 1. the scientific CORE/ARM/DISC/hierarchy/map bundle;
 2. the immutable Search v2 and system-summary SQLite projection;
-3. the frozen policy-selected simulation-scene set.
+3. the frozen policy-selected simulation-scene set;
+4. the compact Smart Tag hot projection and portable assignment/source
+   evidence archive.
 
 The API fails visibly when the active scientific build and Search v2 projection
-do not agree. The frozen scene archive must be unpacked into the build-keyed
+do not agree. Once Smart Tags are required, the active tag manifest must also
+match the build and registry schemas. The frozen scene archive must be unpacked into the build-keyed
 runtime scene cache; copying the archive without installing it does not warm the
 public service.
 
-For accepted build `e7_24cb15211f430a37f199f462_full_public`:
+The first three rows below record the already deployed July 26 Public Read v1
+release. The fourth row is the locally accepted M8.3e.2 candidate and has not
+been deployed:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | Scientific archive | 17,052,804,724 | `c2954d6a1b641347968f56cb0753ea1d2ef7b4625d6f830fb78cede4462642e9` |
 | Public Read v2 SQLite | 16,455,413,760 | `0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f` |
 | Frozen scenes | 80,752,521 | `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c` |
+| Smart Tags v2.2 | 374,478,854 | `80169a905eb96c0069bd80c6a48ffb79865e090c2e90d0e2c7cd12e3cb2e95bc` |
 
-The exact transfer is 33,588,971,005 bytes. The release manifest is:
+The historical three-artifact transfer was 33,588,971,005 bytes. The verified
+four-artifact candidate is 33,963,449,859 bytes. Its release manifest is:
 
 ```text
-/data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json
+/data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/smart-tags-v2/80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec/release.json
 ```
 
 ## Runtime Contract
@@ -42,10 +50,11 @@ SPACEGATE_API_DUCKDB_THREADS=1
 SPACEGATE_API_DB_POOL_SIZE=6
 SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS=30
 SPACEGATE_PUBLIC_READ_COMPATIBILITY_FALLBACK=0
+SPACEGATE_SMART_TAGS_REQUIRED=1
 ```
 
 Authentication remains enabled through the existing private OIDC and session
-settings. The release tool updates only the five non-secret runtime keys and
+settings. The release tool updates only the bounded non-secret runtime keys and
 preserves every other environment line.
 
 ## Photon Preflight
@@ -55,7 +64,7 @@ Use the repository virtual environment and verify the release:
 ```bash
 cd /srv/spacegate/app
 .venv/bin/python scripts/public_edge_release.py verify-source \
-  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json
+  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/smart-tags-v2/80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec/release.json
 ```
 
 Run normal local verification and confirm Docker health before transfer:
@@ -120,7 +129,7 @@ that small file first as shown in the operator handoff.
 ## Streamed Transfer And Staging
 
 Do not use the legacy `push_published_db.sh` path for Public Read v2. It knows
-only the scientific archive and cannot produce an atomic three-artifact release.
+only the scientific archive and cannot produce an atomic four-artifact release.
 
 Run:
 
@@ -141,7 +150,8 @@ The helper:
 5. removes only that temporary incoming archive;
 6. transfers Search v2 directly into its versioned derived location;
 7. verifies and unpacks the frozen scene set;
-8. verifies the complete installed release.
+8. verifies and unpacks the Smart Tag hot and portable evidence artifacts;
+9. verifies the complete installed release.
 
 It deliberately does not change `served/current` or restart containers.
 Interrupted transfers retain rsync partial files and are safe to rerun.
@@ -168,8 +178,9 @@ scripts/deploy_antiproton.sh \
   --skip-auto-score
 ```
 
-The activation command verifies all three installed artifacts before atomically
-replacing `served/current`, and records the previous target. `--skip-auto-score`
+The activation command verifies all four installed artifacts, installs the
+build-local Smart Tag `current` pointer, then atomically replaces
+`served/current` and records both previous targets. `--skip-auto-score`
 is mandatory because immutable DISC output is already verified.
 
 Frozen public scenes must be runtime-readable before activation. The installer
@@ -208,8 +219,9 @@ ssh -i ~/.ssh/spacegate_antiproton \
    scripts/compose_spacegate.sh up -d --build api web"
 ```
 
-Rollback uses the recorded prior extracted target. Preserve it, the new
-installed artifacts, and both activation records until public soak is accepted.
+Rollback uses the recorded prior extracted and Smart Tag targets. Preserve
+them, the new installed artifacts, and both activation records until public
+soak is accepted.
 
 ## SSH Hygiene
 
