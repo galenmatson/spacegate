@@ -6,6 +6,8 @@
     "definitions/foundation.json"
   ],
   "source_registry": "config/evidence_lake/source_releases.json",
+  "source_presentation": "config/tags/source_presentation.json",
+  "legacy_token_inventory": "config/tags/legacy_token_inventory.json",
   "rules": {
     "allow_raw_sql": false,
     "allow_executable_expressions": false,

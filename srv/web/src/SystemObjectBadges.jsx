@@ -50,7 +50,12 @@ export function SystemObjectBadges({
           key={star.hierarchy_node_key || star.leaf_component_key || star.stable_object_key || star.fallback_key || `star-${index}`}
           title={star.display_name || `Stellar member ${index + 1}`}
         >
-          <StellarClassChips tokens={[star.classification_value || "UNKNOWN"]} size={size} />
+          <StellarClassChips
+            tokens={[star.classification_value || "UNKNOWN"]}
+            record={star}
+            evidenceStatus={star.classification_status}
+            size={size}
+          />
         </span>
       ))}
       {planetRows.map((planet, index) => {

@@ -5075,16 +5075,21 @@ export default function StarMapPage({
                 const rowText = `${formatName(systemDisplayName(system))}\t${classes.length ? classes.join("/") : "U"}\t${formatNumber(distance_ly, 2)} ly`;
                 return (
                   <li key={system.system_id}>
-                    <button
-                      type="button"
+                    <div
                       className="map-neighbor-tool-system"
                       onClick={() => selectSystem(system, { openPeek: true })}
                       title="Select this neighbor"
                     >
                       <StellarClassChips tokens={classes} size="compact" className="map-neighbor-tool-classes" />
-                      <span>{formatName(systemDisplayName(system))}</span>
-                      <strong>{formatNumber(distance_ly, 2)} ly</strong>
-                    </button>
+                      <button
+                        type="button"
+                        className="map-neighbor-tool-select"
+                        aria-label={`Select ${formatName(systemDisplayName(system))}`}
+                      >
+                        <span>{formatName(systemDisplayName(system))}</span>
+                        <strong>{formatNumber(distance_ly, 2)} ly</strong>
+                      </button>
+                    </div>
                     <button
                       type="button"
                       className="map-neighbor-copy"
@@ -5183,8 +5188,7 @@ export default function StarMapPage({
                   onPointerDown={beginPeekResize}
                 />
               )}
-              <button
-                type="button"
+              <div
                 className="map-system-drill-title"
                 onClick={() => {
                   if (drillMode === "peek") {
@@ -5195,8 +5199,14 @@ export default function StarMapPage({
                   }
                 }}
               >
-                <span>System:</span>
-                <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
+                <button
+                  type="button"
+                  className="map-system-drill-title-select"
+                  aria-label={drillMode === "peek" ? "Explore selected system" : "Open selected system detail"}
+                >
+                  <span>System:</span>
+                  <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
+                </button>
                 {drillStellarClassEntries.length > 0 && (
                   <span className="map-title-stellar-classes" aria-label="Rendered stellar classes">
                     {drillStellarClassEntries.map((entry, index) => (
@@ -5209,7 +5219,7 @@ export default function StarMapPage({
                     ))}
                   </span>
                 )}
-              </button>
+              </div>
             </div>
             <div className="map-system-drill-actions">
               {drillMode === "peek" && (

@@ -1,0 +1,79 @@
+{
+  "schema_version": "spacegate.runtime_capacity_campaign.v1",
+  "campaign_id": "m8.3e.2_smart_tags_v1",
+  "build_id": "e7_24cb15211f430a37f199f462_full_public",
+  "workload_manifest": "config/runtime_capacity/workload_smart_tags_v1.json",
+  "resource_model": {
+    "constrained": "antiproton_like_6vcpu_12gib",
+    "unconstrained": "photon_control",
+    "note": "Photon cgroup quotas model resource quantity, not exact OVH core speed."
+  },
+  "runs": [
+    {
+      "label": "smart_tags_unconstrained_control",
+      "profile": "smart_tags_mixed",
+      "environment_profile": "unconstrained_photon",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 12
+    },
+    {
+      "label": "smart_tags_constrained_cold_c1",
+      "profile": "smart_tags_cold_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "targeted_eviction",
+      "evict_file_cache": true,
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "smart_tags_constrained_exact_c1",
+      "profile": "smart_tags_exact_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "smart_tags_constrained_filter_c1",
+      "profile": "smart_tags_filter_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "smart_tags_constrained_summary_c1",
+      "profile": "smart_tags_summary_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 60,
+      "concurrency": 1
+    },
+    {
+      "label": "smart_tags_constrained_mixed_c12",
+      "profile": "smart_tags_mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 120,
+      "concurrency": 12
+    },
+    {
+      "label": "smart_tags_constrained_idle",
+      "profile": "idle",
+      "environment_profile": "antiproton_like",
+      "cache_state": "idle",
+      "duration_seconds": 60,
+      "concurrency": 0
+    }
+  ],
+  "staircase": {
+    "profile": "smart_tags_mixed",
+    "environment_profile": "antiproton_like",
+    "cache_state": "warm",
+    "steps": [1, 2, 4, 6, 8, 12],
+    "duration_seconds_per_step": 30,
+    "recovery_seconds": 10,
+    "continue_through_slo_fail": true
+  }
+}

@@ -1150,15 +1150,19 @@ def search_systems(
         placeholders = ",".join("?" for _ in tag_filters["any"])
         filter_terms.append(
             "EXISTS (SELECT 1 FROM smart_tags.system_tag_membership stm "
-            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))"
+            "JOIN smart_tags.tag_definitions std USING(tag_id) "
+            "WHERE stm.system_id=systems.system_id "
+            f"AND std.tag_key IN ({placeholders}))"
         )
         params.extend(tag_filters["any"])
     if tag_filters["all"]:
         placeholders = ",".join("?" for _ in tag_filters["all"])
         filter_terms.append(
-            "(SELECT count(DISTINCT stm.tag_key) "
+            "(SELECT count(DISTINCT stm.tag_id) "
             "FROM smart_tags.system_tag_membership stm "
-            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))=?"
+            "JOIN smart_tags.tag_definitions std USING(tag_id) "
+            "WHERE stm.system_id=systems.system_id "
+            f"AND std.tag_key IN ({placeholders}))=?"
         )
         params.extend(tag_filters["all"])
         params.append(len(tag_filters["all"]))
@@ -1166,7 +1170,9 @@ def search_systems(
         placeholders = ",".join("?" for _ in tag_filters["exclude"])
         filter_terms.append(
             "NOT EXISTS (SELECT 1 FROM smart_tags.system_tag_membership stm "
-            f"WHERE stm.system_id=systems.system_id AND stm.tag_key IN ({placeholders}))"
+            "JOIN smart_tags.tag_definitions std USING(tag_id) "
+            "WHERE stm.system_id=systems.system_id "
+            f"AND std.tag_key IN ({placeholders}))"
         )
         params.extend(tag_filters["exclude"])
     if candidate_system_ids is not None:

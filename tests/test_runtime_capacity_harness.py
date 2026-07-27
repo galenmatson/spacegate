@@ -94,6 +94,13 @@ def test_resolve_artifacts_allows_only_registered_build_derived_files(
     public_read.write_bytes(b"sqlite")
     unrelated = derived / "unrelated.sqlite"
     unrelated.write_bytes(b"unrelated")
+    smart_tag_version = state / "derived/smart_tags/build-1/registry-hash"
+    smart_tag_version.mkdir(parents=True)
+    smart_tag_database = smart_tag_version / "smart_tags.sqlite"
+    smart_tag_database.write_bytes(b"tags")
+    (smart_tag_version / "assignments.parquet").write_bytes(b"assignments")
+    (smart_tag_version / "source_contributions.parquet").write_bytes(b"sources")
+    (smart_tag_version.parent / "current").symlink_to(smart_tag_version.name)
 
     resolved = HARNESS.resolve_artifacts(
         state,
@@ -101,6 +108,7 @@ def test_resolve_artifacts_allows_only_registered_build_derived_files(
             "build_id": "build-1",
             "artifacts": [
                 "derived/public_read/build-1/public_read.sqlite",
+                "derived/smart_tags/build-1/current/smart_tags.sqlite",
             ],
         },
     )
@@ -108,7 +116,11 @@ def test_resolve_artifacts_allows_only_registered_build_derived_files(
         (
             "derived/public_read/build-1/public_read.sqlite",
             public_read.resolve(),
-        )
+        ),
+        (
+            "derived/smart_tags/build-1/current/smart_tags.sqlite",
+            smart_tag_database.resolve(),
+        ),
     ]
 
     with pytest.raises(ValueError, match="outside the active build artifact set"):

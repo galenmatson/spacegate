@@ -17,7 +17,7 @@ usage() {
 Usage:
   scripts/push_public_edge_release.sh --manifest PATH [options]
 
-Transfer and stage a verified three-artifact public edge release without
+Transfer and stage a verified four-artifact public edge release without
 activating it. The scientific archive is extracted and removed before the
 public-read projection is transferred, bounding peak disk occupancy.
 
@@ -104,6 +104,7 @@ main() {
   sync_one "$MANIFEST" "$remote_manifest"
 
   local core_source core_name public_source public_name scene_source scene_name
+  local tags_source tags_name
   local required_free available_free
   required_free="$(manifest_value transfer.minimum_start_free_bytes)"
   available_free="$(ssh_run "df -B1 --output=avail '$REMOTE_STATE_DIR' | tail -1 | tr -d '[:space:]'")"
@@ -123,6 +124,8 @@ main() {
   public_name="$(manifest_value artifacts.public_read.transfer_filename)"
   scene_source="$(manifest_value artifacts.simulation_scenes.source_path)"
   scene_name="$(manifest_value artifacts.simulation_scenes.transfer_filename)"
+  tags_source="$(manifest_value artifacts.smart_tags.source_path)"
+  tags_name="$(manifest_value artifacts.smart_tags.transfer_filename)"
 
   echo "Transferring and staging scientific build..."
   sync_one "$core_source" "$incoming/$core_name"
@@ -140,6 +143,12 @@ main() {
   sync_one "$scene_source" "$incoming/$scene_name"
   if [[ "$DRY_RUN" != "1" ]]; then
     ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-scenes --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming'"
+  fi
+
+  echo "Transferring and staging Smart Tags..."
+  sync_one "$tags_source" "$incoming/$tags_name"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-smart-tags --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming'"
     ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py verify-installed --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR'"
   fi
   echo "Release staged but not activated: $build_id"

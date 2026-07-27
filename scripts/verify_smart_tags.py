@@ -7,11 +7,15 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+import pyarrow.parquet as pq
+
 from compile_smart_tags import (
     ASSIGNMENT_SCHEMA,
+    COMPILER_VERSION,
     MANIFEST_SCHEMA,
     SCHEMA_VERSION,
     SOURCE_SUMMARY_SCHEMA,
+    SOURCE_CONTRIBUTION_SCHEMA,
     sha256_file,
 )
 
@@ -24,6 +28,8 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
         raise ValueError("unsupported smart-tag manifest schema")
     if manifest.get("status") != "pass":
         raise ValueError("smart-tag manifest did not pass")
+    if manifest.get("compiler_version") != COMPILER_VERSION:
+        raise ValueError("smart-tag compiler version mismatch")
     if expected_build_id and manifest.get("build_id") != expected_build_id:
         raise ValueError("smart-tag build identity mismatch")
     for name, spec in manifest["artifacts"].items():
@@ -42,8 +48,10 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
             "schema_version": SCHEMA_VERSION,
             "assignment_schema_version": ASSIGNMENT_SCHEMA,
             "source_summary_schema_version": SOURCE_SUMMARY_SCHEMA,
+            "source_contribution_schema_version": SOURCE_CONTRIBUTION_SCHEMA,
             "build_id": manifest["build_id"],
             "registry_hash": manifest["registry_hash"],
+            "compiler_version": COMPILER_VERSION,
         }
         for key, expected in expected_metadata.items():
             if metadata.get(key) != expected:
@@ -52,40 +60,53 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
             raise ValueError("smart-tag SQLite quick_check failed")
         missing_definitions = con.execute(
             """
-            SELECT count(*) FROM tag_assignments a
-            LEFT JOIN tag_definitions d USING(tag_key)
-            WHERE d.tag_key IS NULL
+            SELECT count(*) FROM system_tag_membership m
+            LEFT JOIN tag_definitions d USING(tag_id)
+            WHERE d.tag_id IS NULL
             """
         ).fetchone()[0]
         if missing_definitions:
-            raise ValueError("smart-tag assignments reference missing definitions")
-        missing_rollups = con.execute(
-            """
-            SELECT count(*) FROM tag_assignments a
-            JOIN tag_definitions d USING(tag_key)
-            LEFT JOIN system_tag_membership m
-              ON m.system_id=a.system_id AND m.tag_key=a.tag_key
-            WHERE d.rollup IN ('direct','member_to_system')
-              AND m.tag_key IS NULL
-            """
+            raise ValueError("smart-tag memberships reference missing definitions")
+        zero_status = con.execute(
+            "SELECT count(*) FROM system_tag_membership "
+            "WHERE evidence_status_mask=0"
         ).fetchone()[0]
-        if missing_rollups:
-            raise ValueError("smart-tag assignments are missing system rollups")
-        counts = {
+        if zero_status:
+            raise ValueError(
+                "smart-tag membership has an unrepresented evidence status"
+            )
+        hot_counts = {
             table: con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
             for table in (
                 "tag_definitions",
-                "tag_assignments",
                 "system_tag_membership",
                 "source_definitions",
                 "system_sources",
                 "quarantine",
             )
         }
-        if counts != manifest["counts"]:
-            raise ValueError("smart-tag manifest counts do not match SQLite")
+        for key, value in hot_counts.items():
+            if value != manifest["counts"][key]:
+                raise ValueError(
+                    f"smart-tag manifest count does not match SQLite: {key}"
+                )
     finally:
         con.close()
+    assignments = root / manifest["artifacts"]["assignments"]["path"]
+    assignment_count = pq.ParquetFile(assignments).metadata.num_rows
+    if assignment_count != manifest["counts"]["tag_assignments"]:
+        raise ValueError("smart-tag assignment count does not match Parquet")
+    contributions = root / manifest["artifacts"]["source_contributions"]["path"]
+    contribution_count = pq.ParquetFile(contributions).metadata.num_rows
+    if contribution_count != manifest["counts"]["source_contributions"]:
+        raise ValueError(
+            "smart-tag source-contribution count does not match Parquet"
+        )
+    counts = {
+        **hot_counts,
+        "tag_assignments": assignment_count,
+        "source_contributions": contribution_count,
+    }
     return {
         "status": "pass",
         "build_id": manifest["build_id"],

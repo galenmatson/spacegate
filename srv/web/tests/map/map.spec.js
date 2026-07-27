@@ -435,7 +435,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-detail-name-line .id-chip", { hasText: "Unknown" })).toHaveCount(0);
     await expect(page.locator(".system-detail-hero-copy > .system-detail-ids")).toHaveCount(0);
     await expect(page.locator(".system-detail-class-tags .stellar-class-chip").first()).toBeVisible();
-    await expect(page.locator(".system-detail-class-tags .result-tag").first()).toBeVisible();
+    await expect(page.locator(".system-detail-class-tags .smart-tag-trigger").first()).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
@@ -444,11 +444,17 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").count())
       .toBeGreaterThanOrEqual(4);
+    // Let the initial name-style/detail refresh settle before testing pinned
+    // simulator state, because continuous scene telemetry keeps networkidle open.
+    await page.waitForTimeout(1200);
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-object-list']")).toContainText(/Planet/i);
-    await page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").first().click();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await page.locator("[data-testid='system-preview-object-list'] .system-preview-object-select").first().click();
     const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
     await expect(pinnedReadout).toBeVisible();
     const readoutTitle = pinnedReadout.locator(".system-preview-pinned-title");
+    await expect(readoutTitle).toBeVisible();
     const beforeDragBox = await pinnedReadout.boundingBox();
     const titleBox = await readoutTitle.boundingBox();
     expect(beforeDragBox, "pinned readout before drag box").toBeTruthy();
@@ -482,7 +488,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-glance-strip")).toContainText(/Distance from Sol/i);
     await expect(page.locator(".hierarchy-panel h3")).toHaveText("Stars and Hierarchy");
     await expect(page.locator(".hierarchy-fact-chip").first()).toHaveAttribute("title", /Spectral class|Effective temperature|Mass|Radius|Luminosity|Visual magnitude|Distance|Separation/i);
-    await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
+    await expect(page.locator(".concept-panel .concept-card[href='/concepts/habitable-zone']")).toContainText(/Habitable/i);
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");
     const technicalDisclosure = page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" });
@@ -593,7 +599,10 @@ test.describe("public 3D map beta", () => {
       await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
       await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
       await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
-      await expect(page.locator(".concept-panel")).toContainText(/Spectral class/i);
+      const conceptPanel = page.locator(".concept-panel");
+      await expect(conceptPanel).toContainText(/Reading This System/i);
+      await expect(conceptPanel.locator(".concept-card").first()).toBeVisible();
+      await expect(conceptPanel.locator(".concept-card").first()).toHaveAttribute("href", /\/concepts\//);
       await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" })).toBeVisible();
     }
   });
@@ -1174,7 +1183,7 @@ test.describe("public 3D map beta", () => {
     await vitalPills.first().focus();
     await expect(vitalPills.first().locator("[role='tooltip']")).toBeVisible();
 
-    const firstExploreObject = exploreObjectList.locator(".system-preview-object-chip").first();
+    const firstExploreObject = exploreObjectList.locator(".system-preview-object-select").first();
     await firstExploreObject.click();
     const explorePinnedReadout = drill.locator("[data-testid='system-preview-pinned']");
     await expect(explorePinnedReadout).toBeVisible();
@@ -1862,13 +1871,13 @@ test.describe("public 3D map beta", () => {
     await expect(renderPolicy).toContainText(/persisted|No assumptions/i);
     await expect(renderPolicy).toContainText(/Live 3d|Live 3D/i);
     await expect(renderPolicy).toContainText(/Deterministic Snapshot/i);
-    const readoutEvidencePill = page.locator(".system-preview-evidence .evidence-pill").first();
-    await readoutEvidencePill.focus();
-    const readoutEvidencePopover = page.locator(".system-preview-evidence .evidence-popover").first();
+    const readoutEvidenceTag = page.locator(".system-preview-evidence .evidence-smart-tag .smart-tag-trigger").first();
+    await readoutEvidenceTag.focus();
+    const readoutEvidencePopover = page.locator(".system-preview-evidence .smart-tag-popover").first();
     await expect(readoutEvidencePopover).toBeVisible();
-    await expect(readoutEvidencePopover).toContainText(/Basis:/i);
-    await expect(readoutEvidencePopover).toContainText(/Confidence:/i);
-    await expect(readoutEvidencePopover).toContainText(/Generator:/i);
+    await expect(readoutEvidencePopover).toContainText(/Basis/i);
+    await expect(readoutEvidencePopover).toContainText(/Confidence/i);
+    await expect(readoutEvidencePopover).toContainText(/Generator/i);
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
     await page.getByRole("button", { name: /pause/i }).click();
     await expect(page.getByRole("button", { name: /start/i })).toBeVisible();
@@ -1944,10 +1953,10 @@ test.describe("public 3D map beta", () => {
     await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
     await expect(page.locator("[data-testid='system-preview-id-copy']")).toHaveCount(0);
     await expect(pinnedReadout.locator(".system-preview-pinned-title")).not.toHaveText("");
-    await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
+    await expect(pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first()).toBeVisible();
     await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
-    await pinnedReadout.locator(".evidence-pill").first().focus();
-    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-popover").first()).toBeVisible();
+    await pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first().focus();
+    await expect(page.locator("[data-testid='system-preview-pinned'] .smart-tag-popover").first()).toBeVisible();
   });
 
   test("system preview falls back to deterministic snapshot when WebGL is unavailable", async ({ page }, testInfo) => {
@@ -2057,7 +2066,7 @@ test.describe("public 3D map beta", () => {
     await previewFrame.scrollIntoViewIfNeeded();
     const previewBox = await previewFrame.boundingBox();
     expect(previewBox, "mobile system preview canvas box").toBeTruthy();
-    const objectChip = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").first();
+    const objectChip = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-select").first();
     await objectChip.scrollIntoViewIfNeeded();
     await expect(objectChip).toBeVisible();
     await objectChip.tap();
@@ -2065,7 +2074,7 @@ test.describe("public 3D map beta", () => {
     await expect(pinnedReadout).toBeVisible();
     await expect(pinnedReadout).toContainText(/star|brown dwarf|planet|orbit/i);
     await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
-    await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
+    await expect(pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first()).toBeVisible();
     const idCopy = pinnedReadout.locator("[data-testid='system-preview-id-copy']");
     await expect(idCopy).toHaveCount(0);
     await expect(pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i })).toBeVisible();
@@ -2429,7 +2438,10 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(45);
-    await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i }).first().click();
+    await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i })
+      .first()
+      .locator(".system-preview-object-select")
+      .click();
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
       { timeout: 3000 }
@@ -2603,12 +2615,13 @@ test.describe("public 3D map beta", () => {
     for (const name of ["V1054 Oph", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
       await expect(objectList.getByText(name, { exact: true })).toBeVisible();
     }
-    await expect(
-      objectList.getByRole("button", { name: /V1054 Oph AC - VB 8.*Group/i })
-    ).toBeVisible();
-    await expect(
-      objectList.getByRole("button", { name: /V1054 Oph - V1054 Oph B.*Group/i })
-    ).toBeVisible();
+    for (const groupName of ["V1054 Oph AC - VB 8", "V1054 Oph - V1054 Oph B"]) {
+      const groupRow = objectList.locator(".system-preview-object-chip", { hasText: groupName });
+      await expect(groupRow).toBeVisible();
+      await expect(groupRow.locator(".system-preview-object-select")).toBeVisible();
+      await expect(groupRow.locator(".system-preview-object-select")).toHaveAttribute("aria-label", /^Inspect /);
+      await expect(groupRow.locator(".system-preview-object-kind")).toHaveText("Group");
+    }
     await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);
   });
 

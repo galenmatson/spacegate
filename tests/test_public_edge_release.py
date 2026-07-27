@@ -85,6 +85,51 @@ def make_scenes(path: Path, build_id: str) -> dict[str, object]:
     }
 
 
+def make_smart_tags(path: Path, build_id: str) -> tuple[dict[str, object], Path]:
+    root = path.parent / "smart-tags"
+    root.mkdir()
+    artifact_names = {
+        "database": "smart_tags.sqlite",
+        "assignments": "assignments.parquet",
+        "source_contributions": "source_contributions.parquet",
+        "registry": "registry.json",
+        "coverage": "coverage.json",
+        "quarantine": "quarantine.json",
+        "proposal_accounting": "proposal_accounting.json",
+        "source_accounting": "source_accounting.json",
+        "timings": "timings.json",
+    }
+    artifacts = {}
+    for key, filename in artifact_names.items():
+        target = root / filename
+        target.write_text(f"{key}:{build_id}\n", encoding="utf-8")
+        artifacts[key] = {
+            "path": filename,
+            "bytes": target.stat().st_size,
+            "sha256": sha256(target),
+        }
+    manifest = {
+        "schema_version": "spacegate.smart_tags_manifest.v2",
+        "tag_schema_version": "spacegate.smart_tags.v2",
+        "assignment_schema_version": "spacegate.smart_tag_assignments.v2",
+        "source_summary_schema_version": "spacegate.smart_tag_source_summary.v2",
+        "source_contribution_schema_version": "spacegate.smart_tag_source_contributions.v1",
+        "compiler_version": "spacegate.smart_tags_compiler.v2.2",
+        "status": "pass",
+        "build_id": build_id,
+        "registry_hash": hashlib.sha256(b"registry").hexdigest(),
+        "sample_limit": None,
+        "counts": {"tag_assignments": 3},
+        "artifacts": artifacts,
+    }
+    manifest_path = root / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with tarfile.open(path, "w:gz") as archive:
+        for member in sorted(root.iterdir()):
+            archive.add(member, arcname=member.name)
+    return manifest, manifest_path
+
+
 def make_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
     if shutil.which("7z") is None:
         pytest.skip("7z is required")
@@ -116,6 +161,10 @@ def make_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
     scene_manifest = make_scenes(scenes, build_id)
     scene_manifest_path = source / "scene-manifest.json"
     scene_manifest_path.write_text(json.dumps(scene_manifest), encoding="utf-8")
+    smart_tags = source / "smart_tags.tar.gz"
+    smart_tag_manifest, smart_tag_manifest_path = make_smart_tags(
+        smart_tags, build_id
+    )
     manifest = source / "release.json"
     args = type(
         "Args",
@@ -128,6 +177,8 @@ def make_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
             "public_read_manifest": public_manifest_path,
             "simulation_scenes": scenes,
             "simulation_scene_manifest": scene_manifest_path,
+            "smart_tags": smart_tags,
+            "smart_tag_manifest": smart_tag_manifest_path,
             "output": manifest,
         },
     )()
@@ -163,6 +214,7 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     release.command_stage_scientific(args)
     release.command_stage_public_read(args)
     release.command_stage_scenes(args)
+    release.command_stage_smart_tags(args)
     verified = release.command_verify_installed(args)
     assert verified["status"] == "pass"
     assert verified["scene_count"] == 1
@@ -170,18 +222,29 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     assert scene_cache.stat().st_mode & 0o777 == 0o755
     assert (scene_cache / "manifest.json").stat().st_mode & 0o777 == 0o644
     assert (scene_cache / "system_7.json.gz").stat().st_mode & 0o777 == 0o644
+    smart_tag_target = (
+        state
+        / "derived"
+        / "smart_tags"
+        / build_id
+        / value["smart_tag_manifest"]["registry_hash"]
+    )
+    assert (smart_tag_target / "smart_tags.sqlite").is_file()
+    assert not (smart_tag_target.parent / "current").exists()
 
     activated = release.command_activate(
         type("Args", (), {"manifest": manifest, "state_dir": state})()
     )
     assert activated["previous_target"] == str(previous.resolve())
     assert (state / "served" / "current").resolve().name == build_id
+    assert (smart_tag_target.parent / "current").resolve() == smart_tag_target
 
     rolled_back = release.command_rollback(
         type("Args", (), {"build_id": build_id, "state_dir": state})()
     )
     assert rolled_back["status"] == "pass"
     assert (state / "served" / "current").resolve() == previous.resolve()
+    assert not (smart_tag_target.parent / "current").exists()
 
 
 def test_release_rejects_path_escape(tmp_path: Path) -> None:
@@ -231,6 +294,7 @@ def test_runtime_env_configuration_is_bounded_and_verifiable(
     assert configured["status"] == "pass"
     assert "SPACEGATE_SESSION_SECRET=preserved" in env.read_text()
     assert "SPACEGATE_API_DUCKDB_THREADS=1" in env.read_text()
+    assert "SPACEGATE_SMART_TAGS_REQUIRED=1" in env.read_text()
     verified = release.command_verify_runtime_env(
         type("Args", (), {"manifest": manifest, "env_file": [env]})()
     )
@@ -250,6 +314,7 @@ def test_verify_rejects_runtime_inaccessible_scene_cache(tmp_path: Path) -> None
     release.command_stage_scientific(args)
     release.command_stage_public_read(args)
     release.command_stage_scenes(args)
+    release.command_stage_smart_tags(args)
     scene_cache = state / "cache" / "simulation_scenes" / build_id
     scene_cache.chmod(0o700)
 

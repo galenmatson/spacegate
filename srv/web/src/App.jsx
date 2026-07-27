@@ -16,7 +16,7 @@ import { isLightweightPreviewSystem, LightweightSystemPreview } from "./Lightwei
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
-import { SmartTagList, SmartTagRegistryProvider } from "./SmartTag.jsx";
+import { SmartTagList, SmartTagRegistryProvider, SourceTagList } from "./SmartTag.jsx";
 import {
   StellarClassChips,
   stellarClassTokensFromRecord,
@@ -1532,54 +1532,6 @@ function formatEvidenceSummary(tokens) {
   return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
 }
 
-function buildSearchResultTags(system, { limit = 6 } = {}) {
-  const tags = [];
-  const addTag = (label, title = "") => {
-    const cleanLabel = String(label || "").trim();
-    if (!cleanLabel || tags.some((tag) => tag.label === cleanLabel)) {
-      return;
-    }
-    tags.push({ label: cleanLabel, title });
-  };
-  const distanceLy = Number(system?.dist_ly);
-  const starCount = Number(system?.star_count || 0);
-  const planetCount = Number(system?.planet_count || 0);
-  const coolness = Number(system?.coolness_score);
-  const nicePlanetCount = Number(system?.coolness_nice_planet_count || 0);
-  const spectralClasses = Array.isArray(system?.spectral_classes)
-    ? system.spectral_classes.map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)
-    : [];
-  if (Number.isFinite(distanceLy) && distanceLy <= 25) {
-    addTag("Nearby", "Within 25 light-years of Sol.");
-  } else if (Number.isFinite(distanceLy) && distanceLy <= 100) {
-    addTag("Local neighborhood", "Within 100 light-years of Sol.");
-  }
-  if (planetCount >= 2) {
-    addTag("Multi-planet", "More than one confirmed planet is linked to this system.");
-  } else if (planetCount === 1) {
-    addTag("Exoplanet", "One confirmed planet is linked to this system.");
-  }
-  if (nicePlanetCount > 0 || system?.has_habitable_candidate) {
-    addTag("HZ planet", "Broad habitable-zone-style planet screening signal; not a habitability claim.");
-  }
-  if (starCount >= 2) {
-    addTag("Multistar", "Multiple stellar members are grouped in this system record.");
-  }
-  if (spectralClasses.some((token) => token === "D")) {
-    addTag("White dwarf", "A compact stellar remnant class appears in the spectral summary.");
-  }
-  if (spectralClasses.some((token) => ["L", "T", "Y"].includes(token))) {
-    addTag("Ultracool", "Includes an L, T, or Y ultracool spectral class.");
-  }
-  if (Number.isFinite(coolness) && coolness >= 20) {
-    addTag("High coolness", "Ranks strongly on the active Coolstars discovery profile.");
-  }
-  collectSystemEvidenceCatalogs(system).slice(0, 2).forEach((token) => {
-    addTag(evidenceLabel(token), "Catalog evidence contributing to this system grouping.");
-  });
-  return tags.slice(0, limit);
-}
-
 function formatArmEvidenceDetails(armEvidence) {
   if (!armEvidence || typeof armEvidence !== "object") {
     return "";
@@ -2416,21 +2368,22 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
       <div className="hierarchy-node-card">
-        <button
-          type="button"
+        <div
           className={`hierarchy-node-head ${children.length ? "is-clickable" : "is-static"}`}
           onClick={() => {
             if (children.length) {
               setExpanded((value) => !value);
             }
           }}
-          disabled={!children.length}
-          aria-expanded={children.length ? expanded : undefined}
         >
           <div className="hierarchy-node-title-wrap">
             <div className="hierarchy-node-title-row">
               {showStellarClass ? (
-                <StellarClassChips tokens={stellarClassTokensFromRecord(node)} size="compact" />
+                <StellarClassChips
+                  tokens={stellarClassTokensFromRecord(node)}
+                  record={node}
+                  size="compact"
+                />
               ) : null}
               <strong>{displayName}</strong>
               <span className="hierarchy-node-kind">{hierarchyTypeLabel(displayType)}</span>
@@ -2460,11 +2413,20 @@ function HierarchyNodeCard({ node, depth = 0 }) {
             ) : null}
           </div>
           {children.length ? (
-            <span className="hierarchy-toggle" aria-hidden="true">
+            <button
+              type="button"
+              className="hierarchy-toggle"
+              aria-expanded={expanded}
+              aria-label={`${expanded ? "Collapse" : "Expand"} ${displayName}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setExpanded((value) => !value);
+              }}
+            >
               {expanded ? "Collapse" : "Expand"}
-            </span>
+            </button>
           ) : null}
-        </button>
+        </div>
         {children.length > 0 && expanded ? (
           <div className="hierarchy-children">
             {children.map((child) => (
@@ -4014,6 +3976,7 @@ function SearchPage({ buildId = "" }) {
                             className="result-tags"
                             label={`${displayName} smart tags`}
                           />
+                          <SourceTagList sources={item.source_summary} limit={2} />
                           <SystemObjectBadges system={item} className="result-stellar-tags" />
                         </div>
                         <div className="distance" title="Coolness rank">
@@ -4292,7 +4255,22 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
             {infraredNarrative?.body_text || infraredNarrative?.body_markdown || "WISE/AllWISE observational infrared cutout from IRSA. This is survey imagery, not an artist impression."}
           </p>
         </div>
-        <span className="source-pill">IRSA WISE</span>
+        <SourceTagList
+          limit={1}
+          className="infrared-source-tags"
+          sources={[{
+            key: "source:infrared.allwise_targeted",
+            source_id: "infrared.allwise_targeted",
+            release_id: "AllWISE image service",
+            public_name: "WISE / AllWISE",
+            publisher: "NASA/IPAC Infrared Science Archive",
+            description: "The Infrared Sky View displays WISE/AllWISE observational image products served by NASA/IPAC IRSA.",
+            mission_instrument: "NASA Wide-field Infrared Survey Explorer all-sky infrared imaging",
+            citation_url: "https://wise2.ipac.caltech.edu/docs/release/allwise/",
+            contribution_kind: "displayed_image_product",
+            member_count: 1,
+          }]}
+        />
       </div>
       {status === "idle" && (
         <div className="infrared-sky-placeholder">Infrared image products load when this panel enters view.</div>
@@ -4632,6 +4610,11 @@ function SystemDetailPage({ buildId = "" }) {
                 limit={12}
                 className="result-tags system-detail-tags"
                 label={`${currentSystemDisplayName} smart tags`}
+              />
+              <SourceTagList
+                sources={system?.source_summary}
+                limit={4}
+                className="system-detail-source-tags"
               />
             </div>
           </div>

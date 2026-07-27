@@ -309,6 +309,7 @@ export function StellarClassChips({
   includeUnknown = true,
   className = "",
   size = "normal",
+  evidenceStatus = null,
 }) {
   const tokenList = tokens instanceof Set
     ? Array.from(tokens)
@@ -318,6 +319,12 @@ export function StellarClassChips({
   if (!displayTokens.length) {
     return null;
   }
+  const resolvedEvidenceStatus = evidenceStatus
+    || record?.classification_status
+    || record?.stellar_leaf_classification?.classification_status
+    || record?.quick_facts?.stellar_leaf_display_class_status
+    || record?.quick_facts?.visual_stellar_class_status
+    || null;
   return (
     <span className={`stellar-class-chips stellar-class-chips-${size} ${className}`.trim()} aria-label="Stellar class tags">
       {displayTokens.map((token) => {
@@ -330,6 +337,7 @@ export function StellarClassChips({
             label={tag.label}
             tooltip={tag.text}
             variant="stellar"
+            evidenceStatuses={resolvedEvidenceStatus}
           />
         );
       })}

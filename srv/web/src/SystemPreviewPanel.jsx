@@ -4,6 +4,7 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
+import { SmartTag, SmartTagList, SourceTagList } from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
@@ -1399,52 +1400,42 @@ function currentSimulationDays(ref) {
 }
 
 function EvidencePill({ field, fallbackStatus = "missing" }) {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const status = field?.status || fallbackStatus;
+  const rawStatus = String(field?.status || fallbackStatus || "missing").toLowerCase();
+  const status = ["source", "derived", "assumed", "missing", "ambiguous", "quarantined"].includes(rawStatus)
+    ? rawStatus
+    : (rawStatus.includes("source") ? "source" : rawStatus.includes("deriv") ? "derived" : rawStatus);
   const confidenceText = formatConfidence(field?.confidence);
-  const copyPayload = useCallback(() => {
-    if (!field) {
-      return;
-    }
-    copyTextToClipboard(JSON.stringify(field, null, 2)).then((ok) => {
-      if (!ok) {
-        return;
-      }
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
-    }).catch(() => {});
-  }, [field]);
-
   return (
-    <span
-      className={`evidence-pill ${status}`}
-      tabIndex={0}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-      onClick={copyPayload}
-      role="button"
-      aria-label={`${statusLabel(status)} provenance${field?.label ? ` for ${field.label}` : ""}`}
-    >
-      {copied ? "COPIED" : statusLabel(status)}
-      {open && (
-        <span className="evidence-popover" role="tooltip">
-          <strong>{field?.label || "Field provenance"}</strong>
-          <span>{formatFieldValue(field)}</span>
-          <span>Layer: {field?.layer || "unknown"}</span>
-          <span>Basis: {field?.basis || "not specified"}</span>
-          {field?.source_catalog && <span>Source: {field.source_catalog}</span>}
-          {field?.source_reference && <span>Reference: {field.source_reference}</span>}
-          {confidenceText && <span>Confidence: {confidenceText}</span>}
-          {field?.notes && <span>Notes: {field.notes}</span>}
-          {field?.seed && <span>Seed: {field.seed}</span>}
-          {field?.generator_version && <span>Generator: {field.generator_version}</span>}
-          {field?.replacement_target && <span>Replace with: {field.replacement_target}</span>}
-        </span>
-      )}
-    </span>
+    <SmartTag
+      tagKey={`evidence:status.${status}`}
+      variant="evidence"
+      className="evidence-smart-tag"
+      definition={{
+        key: `evidence:status.${status}`,
+        label: statusLabel(status),
+        name: `${statusLabel(status)} field provenance`,
+        category: "evidence_status",
+        kind: "field_status",
+        layer: field?.layer || "unknown",
+        visual_token: `evidence_${status}`,
+        tooltip: `This status describes how the displayed field was obtained. It is not an intrinsic classification of the astronomical object.`,
+        short_tooltip: "How this displayed field was obtained.",
+        concept_slug: "astronomical-evidence",
+        source_policy: field?.basis || "field provenance",
+        filterable: false,
+      }}
+      details={[
+        { label: "Field", value: field?.label || "Field provenance" },
+        { label: "Value", value: formatFieldValue(field) },
+        { label: "Source", value: field?.source_catalog },
+        { label: "Reference", value: field?.source_reference },
+        { label: "Confidence", value: confidenceText },
+        { label: "Notes", value: field?.notes },
+        { label: "Generator", value: field?.generator_version },
+        { label: "Replace with", value: field?.replacement_target },
+      ]}
+      copyValue={field || { status }}
+    />
   );
 }
 
@@ -4705,13 +4696,23 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           ) : null}
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
+          <SmartTagList
+            tags={scene?.smart_tags}
+            sources={scene?.source_summary}
+            limit={compactPresentation ? 4 : 8}
+            className="system-preview-smart-tags"
+          />
+          <SourceTagList
+            sources={scene?.source_summary}
+            limit={compactPresentation ? 2 : 3}
+            className="system-preview-source-tags"
+          />
           {showObjectList ? (
             <div className="system-preview-object-list" data-testid="system-preview-object-list">
               <span className="system-preview-object-list-title">Objects</span>
               {objectItems.length > 0 ? objectItems.map((item) => (
-                <button
+                <div
                   key={item.key}
-                  type="button"
                   className="system-preview-object-chip"
                   style={{ "--object-depth": item.depth }}
                   onClick={() => setPinnedObject(item.payload)}
@@ -4720,14 +4721,26 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   title={`Inspect ${item.name}`}
                 >
                   {item.recordKind === "star" && item.record
-                    ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" />
+                    ? (
+                      <StellarClassChips
+                        tokens={stellarClassTokensFromRecord(item.record)}
+                        record={item.record}
+                        size="compact"
+                      />
+                    )
                     : <span className="system-preview-object-spacer" />}
-                  <span className="system-preview-object-name">{item.name}</span>
-                  <span className="system-preview-object-kind">{item.label}</span>
-                  {compactObjectVitals(item).map((vital) => (
-                    <span key={vital} className="system-preview-object-vital">{vital}</span>
-                  ))}
-                </button>
+                  <button
+                    type="button"
+                    className="system-preview-object-select"
+                    aria-label={`Inspect ${item.name}`}
+                  >
+                    <span className="system-preview-object-name">{item.name}</span>
+                    <span className="system-preview-object-kind">{item.label}</span>
+                    {compactObjectVitals(item).map((vital) => (
+                      <span key={vital} className="system-preview-object-vital">{vital}</span>
+                    ))}
+                  </button>
+                </div>
               )) : (
                 <span className="system-preview-object-empty">No rendered objects</span>
               )}

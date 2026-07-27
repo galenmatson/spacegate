@@ -7,3 +7,13 @@ Being in this range is not proof of habitability. Planet mass, atmosphere, press
 Spacegate therefore labels this result **HZ Screen**. It is an invitation to inspect a system, not a verdict about life.
 
 [Explore habitable-zone screening signals](/search?tags_all=science%3Aplanet.habitable_zone_screen)
+
+## Systems to inspect
+
+[TRAPPIST-1](/search?q=TRAPPIST-1) demonstrates how several small planets can
+receive very different irradiation around one dim star.
+[Proxima Centauri](/search?q=Proxima%20Centauri) illustrates why a planet's
+orbit alone cannot settle atmospheric or surface conditions.
+
+Related: [exoplanets](/concepts/exoplanet) ·
+[astronomical evidence](/concepts/astronomical-evidence)

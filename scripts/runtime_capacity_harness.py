@@ -464,6 +464,21 @@ def resolve_artifacts(
             / "derived/simulation_scenes"
             / build_id
             / "simulation_scenes.tar.gz",
+            state_dir
+            / "derived/smart_tags"
+            / build_id
+            / "current"
+            / "smart_tags.sqlite",
+            state_dir
+            / "derived/smart_tags"
+            / build_id
+            / "current"
+            / "assignments.parquet",
+            state_dir
+            / "derived/smart_tags"
+            / build_id
+            / "current"
+            / "source_contributions.parquet",
         ):
             if candidate.is_file():
                 allowed_derived.add(candidate.resolve(strict=True))

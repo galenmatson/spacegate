@@ -1,0 +1,163 @@
+import { expect, test } from "@playwright/test";
+
+
+async function resolveSystem(page, query) {
+  const response = await page.request.get("/api/v1/systems/search", {
+    params: { q: query, limit: "1", sort: "match" },
+  });
+  expect(response.ok(), `${query} search response`).toBeTruthy();
+  const payload = await response.json();
+  return payload.items?.[0] || null;
+}
+
+
+test.describe("Smart Tags and concepts", () => {
+  test("registry, filters, source context, and bounded evidence agree", async ({ page }) => {
+    const registryResponse = await page.request.get("/api/v1/tags");
+    expect(registryResponse.ok()).toBeTruthy();
+    const registry = await registryResponse.json();
+    expect(registry.definitions.length).toBeGreaterThanOrEqual(30);
+
+    const filteredResponse = await page.request.get("/api/v1/systems/search", {
+      params: {
+        tags_all: "science:system.multiple",
+        tags_exclude: "science:system.one_known_star",
+        limit: "5",
+        sort: "name",
+      },
+    });
+    expect(filteredResponse.ok()).toBeTruthy();
+    const filtered = await filteredResponse.json();
+    expect(filtered.items.length).toBeGreaterThan(0);
+    for (const item of filtered.items) {
+      expect(item.star_count).toBeGreaterThanOrEqual(3);
+      expect(item.smart_tags.map((tag) => tag.key)).toContain("science:system.multiple");
+    }
+
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    const tagResponse = await page.request.get(`/api/v1/systems/${castor.system_id}/tags`);
+    expect(tagResponse.ok()).toBeTruthy();
+    const tagPayload = await tagResponse.json();
+    expect(tagPayload.smart_tags.length).toBeGreaterThan(0);
+    expect(tagPayload.source_summary.length).toBeGreaterThan(0);
+    const sourceKey = tagPayload.source_summary[0].key;
+    const sourceResponse = await page.request.get(
+      `/api/v1/tag-sources/${encodeURIComponent(sourceKey)}`,
+    );
+    expect(sourceResponse.ok()).toBeTruthy();
+    const sourcePayload = await sourceResponse.json();
+    expect(sourcePayload.source.citation_url).toMatch(/^https?:\/\//);
+
+    const assignmentResponse = await page.request.get(
+      `/api/v1/systems/${castor.system_id}/tag-assignments`,
+      { params: { limit: "3", offset: "0" } },
+    );
+    expect(assignmentResponse.ok()).toBeTruthy();
+    const assignments = await assignmentResponse.json();
+    expect(assignments.assignments.length).toBeLessThanOrEqual(3);
+    expect(assignments.total).toBeGreaterThan(0);
+    expect(assignments.registry_hash).toBe(registry.registry_hash);
+  });
+
+  test("shared tag shell supports keyboard, pinning, copy, and concept navigation", async ({ page }, testInfo) => {
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
+    await expect(
+      page.locator("button button, button a, a button, [role='button'] button, [role='button'] a"),
+    ).toHaveCount(0);
+
+    const trigger = page.locator(".system-detail-tags .smart-tag-trigger").first();
+    await expect(trigger).toBeVisible();
+    await trigger.focus();
+    const root = trigger.locator("..");
+    const popover = root.locator(".smart-tag-popover");
+    await expect(popover).toBeVisible();
+    await expect(popover).toContainText(/Basis|Evidence state|Scope/);
+    await page.keyboard.press("Escape");
+    await expect(popover).not.toBeVisible();
+
+    await trigger.click();
+    await expect(popover).toBeVisible();
+    await expect(popover.getByRole("button", { name: /Copy/ }).first()).toBeVisible();
+    const learn = popover.getByRole("link", { name: "Learn" });
+    if (await learn.count()) {
+      const href = await learn.getAttribute("href");
+      expect(href).toMatch(/^\/concepts\//);
+    }
+    await page.mouse.click(4, 4);
+    await expect(popover).not.toBeVisible();
+
+    await page.screenshot({
+      path: testInfo.outputPath(`smart-tags-${testInfo.project.name}.png`),
+      fullPage: true,
+    });
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4),
+    ).toBeTruthy();
+  });
+
+  test("all reviewed concept routes render representative and related navigation", async ({ page }) => {
+    const slugs = [
+      "spectral-class",
+      "white-dwarf",
+      "brown-dwarf",
+      "binary-and-multiple-stars",
+      "exoplanet",
+      "habitable-zone",
+      "orbital-period",
+      "astronomical-evidence",
+    ];
+    for (const slug of slugs) {
+      await page.goto(`/concepts/${slug}`, { waitUntil: "domcontentloaded" });
+      const article = page.locator(".concept-article");
+      await expect(article.getByRole("heading", { level: 2 })).toBeVisible();
+      await expect(article).toContainText("Systems to inspect");
+      await expect(article).toContainText("Related:");
+    }
+  });
+
+  test("4K tags remain bounded and accessible in light and dark themes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "One 4K desktop pass is sufficient");
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.setViewportSize({ width: 3840, height: 2160 });
+
+    for (const theme of ["simple_dark", "simple_light"]) {
+      await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+      await page.evaluate((value) => window.localStorage.setItem("spacegate.theme", value), theme);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect.poll(
+        () => page.evaluate(() => document.documentElement.dataset.theme || ""),
+      ).toBe(theme);
+
+      const trigger = page.locator(".system-detail-tags .smart-tag-trigger").first();
+      await expect(trigger).toBeVisible();
+      await expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+      expect((await trigger.getAttribute("aria-label"))?.trim().length).toBeGreaterThan(0);
+      await trigger.focus();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      const dialog = page.getByRole("dialog", { name: /details$/ }).first();
+      await expect(dialog).toBeVisible();
+      const bounds = await dialog.boundingBox();
+      expect(bounds).toBeTruthy();
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(3840);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(2160);
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+
+      await page.screenshot({
+        path: testInfo.outputPath(`smart-tags-4k-${theme}.png`),
+        fullPage: false,
+      });
+      await expect.poll(
+        () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4),
+      ).toBeTruthy();
+    }
+  });
+});

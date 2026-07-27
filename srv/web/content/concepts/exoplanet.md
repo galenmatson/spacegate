@@ -9,3 +9,12 @@ Different methods constrain different quantities. A transit commonly supplies ra
 The six map categories combine a broad size-or-mass proxy with hot, temperate, or cold irradiation. “Jupiter” is a readable map label for gas-giant-like objects, not a claim that each resembles Jupiter in composition. “Terrestrial” describes scale, not an Earth-like surface.
 
 [Explore planet hosts](/search?tags_all=science%3Asystem.planet_host)
+
+## Systems to inspect
+
+[TRAPPIST-1](/search?q=TRAPPIST-1) contains seven known transiting planets.
+[HD 110067](/search?q=HD%20110067) is a compact multi-planet system whose
+period pattern makes it useful for studying orbital architecture.
+
+Related: [habitable zones](/concepts/habitable-zone) ·
+[orbital period](/concepts/orbital-period)

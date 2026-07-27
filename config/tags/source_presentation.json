@@ -1,0 +1,161 @@
+{
+  "schema_version": "spacegate.smart_tag_source_presentation.v1",
+  "sources": [
+    {
+      "source_id": "gaia.dr3.gaia_source",
+      "public_name": "Gaia DR3",
+      "description": "Gaia Data Release 3 contributes precise source identity, astrometry, photometry, and motion measurements for the selected nearby-space inventory.",
+      "mission_instrument": "ESA Gaia spacecraft astrometry and photometry"
+    },
+    {
+      "source_id": "distance.gaia_edr3_bailer_jones",
+      "public_name": "Bailer-Jones Gaia EDR3 Distances",
+      "description": "This catalog contributes Bayesian geometric and photogeometric distance estimates derived from Gaia EDR3 astrometry with an explicit Galactic prior.",
+      "mission_instrument": "Statistical distance inference from ESA Gaia EDR3 astrometry and photometry"
+    },
+    {
+      "source_id": "gaia.dr3.non_single_star",
+      "public_name": "Gaia DR3 Non-Single Star",
+      "description": "Gaia DR3 orbital and acceleration solutions for sources whose astrometry or spectra indicate that one-star motion is not an adequate model.",
+      "mission_instrument": "ESA Gaia spacecraft astrometry and radial-velocity spectroscopy"
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "public_name": "NASA Exoplanet Archive",
+      "description": "NASA's curated archive contributes confirmed-planet identity, discovery context, and reference-specific and composite planet parameters.",
+      "mission_instrument": "Multi-mission exoplanet literature and archive compilation"
+    },
+    {
+      "source_id": "tess.identity_and_candidate_evidence",
+      "public_name": "TESS Objects of Interest",
+      "description": "The official TOI/TIC evidence connects TESS targets and planet candidates to their host systems while preserving candidate, confirmed, false-positive, and false-alarm dispositions.",
+      "mission_instrument": "NASA TESS transit photometry and Exoplanet Follow-up Observing Program"
+    },
+    {
+      "source_id": "exoplanet_lifecycle.hwc",
+      "public_name": "Habitable Worlds Catalog",
+      "description": "The Planetary Habitability Laboratory catalog contributes a published external assessment of potentially habitable worlds. It remains source evidence, not a Spacegate habitability verdict.",
+      "mission_instrument": "Literature compilation and published habitability metrics"
+    },
+    {
+      "source_id": "tess.villanova_eb",
+      "public_name": "TESS Eclipsing Binary Catalog",
+      "description": "The Villanova catalog identifies and characterizes eclipsing binaries found in TESS photometry.",
+      "mission_instrument": "NASA TESS full-frame and short-cadence photometry"
+    },
+    {
+      "source_id": "multiplicity.wds",
+      "public_name": "Washington Double Star Catalog",
+      "description": "The US Naval Observatory catalog preserves measured double-star pairs, component labels, relative positions, and observation history.",
+      "mission_instrument": "Published visual, speckle, interferometric, and other double-star observations"
+    },
+    {
+      "source_id": "multiplicity.msc",
+      "public_name": "Multiple Star Catalog",
+      "description": "The Multiple Star Catalog contributes reviewed hierarchical component relationships and source-native orbit context for complex stellar systems.",
+      "mission_instrument": "Literature compilation maintained by Andrei Tokovinin"
+    },
+    {
+      "source_id": "multiplicity.orb6",
+      "public_name": "Sixth Catalog of Orbits of Visual Binary Stars",
+      "description": "ORB6 contributes published coherent visual-binary orbit solutions with their reference, grade, epoch, frame, and uncertainties.",
+      "mission_instrument": "US Naval Observatory compilation of resolved visual-binary astrometry"
+    },
+    {
+      "source_id": "multiplicity.sb9",
+      "public_name": "SB9 Spectroscopic Binary Orbits",
+      "description": "SB9 contributes published spectroscopic-binary orbit solutions, component spectra, aliases, and bibliography.",
+      "mission_instrument": "Literature compilation of radial-velocity spectroscopy"
+    },
+    {
+      "source_id": "multiplicity.sbx",
+      "public_name": "SBX",
+      "description": "SBX contributes cross-catalog spectroscopic-system identity, hierarchy, component classifications, and orbit evidence.",
+      "mission_instrument": "Université libre de Bruxelles spectroscopic-binary database"
+    },
+    {
+      "source_id": "multiplicity.debcat",
+      "public_name": "DEBCat",
+      "description": "DEBCat contributes high-quality physical measurements for well-studied detached eclipsing binary components.",
+      "mission_instrument": "Reviewed literature compilation of detached eclipsing binaries"
+    },
+    {
+      "source_id": "identity.simbad",
+      "public_name": "SIMBAD",
+      "description": "SIMBAD contributes literature-linked object names, identifiers, object types, and selected bibliographic classifications.",
+      "mission_instrument": "CDS literature and catalog database"
+    },
+    {
+      "source_id": "naming.iau_wgsn",
+      "public_name": "IAU Working Group on Star Names",
+      "description": "The IAU WGSN catalog contributes internationally standardized proper star names and their cultural and bibliographic attribution.",
+      "mission_instrument": "International Astronomical Union nomenclature standard"
+    },
+    {
+      "source_id": "compact.atnf",
+      "public_name": "ATNF Pulsar Catalogue",
+      "description": "The ATNF catalog contributes published pulsar identity, timing, spin, distance, and binary context.",
+      "mission_instrument": "Multi-observatory pulsar timing and literature compilation"
+    },
+    {
+      "source_id": "compact.mcgill_magnetar",
+      "public_name": "McGill Magnetar Catalog",
+      "description": "The McGill catalog contributes reviewed magnetar identity, spin, activity, and observational context.",
+      "mission_instrument": "Multi-mission high-energy magnetar observations"
+    },
+    {
+      "source_id": "compact.gaia_edr3_white_dwarf",
+      "public_name": "Gaia EDR3 White Dwarf Catalogue",
+      "description": "This catalog contributes white-dwarf candidates and fitted physical parameters tied to Gaia astrometry and photometry.",
+      "mission_instrument": "ESA Gaia EDR3 astrometry and photometry"
+    },
+    {
+      "source_id": "ultracool.ultracoolsheet",
+      "public_name": "UltracoolSheet",
+      "description": "UltracoolSheet contributes literature-linked optical and infrared classifications for ultracool dwarfs.",
+      "mission_instrument": "Community literature compilation of ultracool-object observations"
+    },
+    {
+      "source_id": "spectroscopy.apogee_dr17",
+      "public_name": "APOGEE DR17",
+      "description": "APOGEE DR17 contributes high-resolution near-infrared stellar spectra, atmospheric parameters, radial velocities, and chemical abundances.",
+      "mission_instrument": "Sloan Digital Sky Survey APOGEE near-infrared spectrographs"
+    },
+    {
+      "source_id": "extended.openngc_and_nebulae",
+      "public_name": "OpenNGC and Nebula Catalogs",
+      "description": "The extended-object compilation contributes identities, positions, types, dimensions, and aliases for clusters, nebulae, galaxies, and related deep-sky structures.",
+      "mission_instrument": "Open catalog compilation from published deep-sky observations"
+    },
+    {
+      "source_id": "clusters.cantat_gaudin_2020",
+      "public_name": "Cantat-Gaudin Gaia Open Clusters",
+      "description": "This catalog contributes probability-bearing Gaia membership and physical context for Galactic open clusters.",
+      "mission_instrument": "ESA Gaia DR2 astrometry analyzed for co-moving stellar populations"
+    },
+    {
+      "source_id": "infrared.catwise2020_targeted",
+      "public_name": "CatWISE2020",
+      "description": "Targeted CatWISE2020 records contribute all-sky infrared positions, motions, and photometry for matched cool and high-proper-motion objects.",
+      "mission_instrument": "NASA WISE and NEOWISE multi-epoch infrared imaging"
+    },
+    {
+      "source_id": "infrared.allwise_targeted",
+      "public_name": "WISE / AllWISE",
+      "description": "NASA/IPAC IRSA serves the WISE and AllWISE infrared image products used by Spacegate's Infrared Sky View and targeted counterpart evidence.",
+      "mission_instrument": "NASA Wide-field Infrared Survey Explorer all-sky imaging in the W1-W4 bands"
+    },
+    {
+      "source_id": "solar_system.jpl_horizons_authority",
+      "public_name": "JPL Horizons",
+      "description": "JPL Horizons contributes pinned state vectors and osculating orbital elements for Solar System bodies under a documented frame, epoch, center, and query.",
+      "mission_instrument": "NASA JPL numerical ephemerides and observation-based orbit solutions"
+    },
+    {
+      "source_id": "transitional.athyg",
+      "public_name": "AT-HYG",
+      "description": "AT-HYG contributes historical catalog cross-identifiers and bright-star compatibility evidence retained for public search and identity reconciliation.",
+      "mission_instrument": "Compilation of Hipparcos, Yale Bright Star, Gliese, and related catalogs"
+    }
+  ]
+}

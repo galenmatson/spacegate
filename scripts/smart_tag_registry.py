@@ -18,7 +18,7 @@ KNOWN_EVALUATORS = {
     "system_count_v1",
     "system_numeric_v1",
     "system_range_v1",
-    "hierarchy_nested_v1",
+    "hierarchy_nested_v2",
     "planet_numeric_v1",
     "planet_category_v1",
     "habitable_zone_screen_v1",
@@ -36,6 +36,8 @@ class LoadedRegistry:
     registry: dict[str, Any]
     definitions: tuple[dict[str, Any], ...]
     proposal_inventory: dict[str, Any] | None
+    legacy_token_inventory: dict[str, Any] | None
+    source_presentation: dict[str, Any] | None
     registry_hash: str
     source_files: tuple[Path, ...]
 
@@ -51,6 +53,8 @@ class LoadedRegistry:
             ],
             "definitions": list(self.definitions),
             "proposal_inventory": self.proposal_inventory,
+            "legacy_token_inventory": self.legacy_token_inventory,
+            "source_presentation": self.source_presentation,
         }
 
 
@@ -173,16 +177,76 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
     proposal_path = registry_path.parent / "proposal_inventory.json"
     proposal_inventory = load_json(proposal_path) if proposal_path.is_file() else None
     if proposal_inventory is not None:
+        allowed = {"enabled", "deferred", "retired", "rejected", "compatibility-only"}
+        proposals = proposal_inventory.get("proposals")
+        if not isinstance(proposals, list) or not proposals:
+            raise TagRegistryError("proposal inventory requires proposal rows")
+        for row in proposals:
+            if (
+                not isinstance(row, dict)
+                or not str(row.get("proposal") or "").strip()
+                or row.get("status") not in allowed
+                or not str(row.get("reason") or "").strip()
+            ):
+                raise TagRegistryError("invalid proposal inventory row")
         files.append(proposal_path.resolve())
+    legacy_token_inventory = None
+    legacy_relative = registry.get("legacy_token_inventory")
+    if legacy_relative:
+        repo_root = registry_path.parents[2]
+        legacy_path = (repo_root / str(legacy_relative)).resolve(strict=True)
+        if repo_root not in legacy_path.parents:
+            raise TagRegistryError("legacy token inventory path escapes repository root")
+        legacy_token_inventory = load_json(legacy_path)
+        if (
+            not isinstance(legacy_token_inventory, dict)
+            or legacy_token_inventory.get("schema_version")
+            != "spacegate.smart_tag_legacy_token_inventory.v1"
+        ):
+            raise TagRegistryError("unsupported legacy token inventory schema")
+        surfaces = legacy_token_inventory.get("surfaces")
+        if not isinstance(surfaces, list) or not surfaces:
+            raise TagRegistryError("legacy token inventory requires surface rows")
+        for row in surfaces:
+            if (
+                not isinstance(row, dict)
+                or not str(row.get("surface") or "").strip()
+                or row.get("status")
+                not in {"enabled", "deferred", "retired", "rejected", "compatibility-only"}
+                or not str(row.get("reason") or "").strip()
+            ):
+                raise TagRegistryError("invalid legacy token inventory row")
+        files.append(legacy_path)
+    source_presentation = None
+    source_presentation_relative = registry.get("source_presentation")
+    if source_presentation_relative:
+        repo_root = registry_path.parents[2]
+        source_presentation_path = (
+            repo_root / str(source_presentation_relative)
+        ).resolve(strict=True)
+        if repo_root not in source_presentation_path.parents:
+            raise TagRegistryError("source presentation path escapes repository root")
+        source_presentation = load_json(source_presentation_path)
+        if (
+            not isinstance(source_presentation, dict)
+            or source_presentation.get("schema_version")
+            != "spacegate.smart_tag_source_presentation.v1"
+        ):
+            raise TagRegistryError("unsupported source presentation schema")
+        files.append(source_presentation_path)
     normalized = {
         "registry": registry,
         "definitions": sorted(definitions, key=lambda row: row["key"]),
         "proposal_inventory": proposal_inventory,
+        "legacy_token_inventory": legacy_token_inventory,
+        "source_presentation": source_presentation,
     }
     return LoadedRegistry(
         registry=registry,
         definitions=tuple(normalized["definitions"]),
         proposal_inventory=proposal_inventory,
+        legacy_token_inventory=legacy_token_inventory,
+        source_presentation=source_presentation,
         registry_hash=sha256_bytes(canonical_json(normalized)),
         source_files=tuple(files),
     )

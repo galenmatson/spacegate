@@ -9,3 +9,12 @@ White dwarfs do not all look alike. Their atmospheric composition, temperature, 
 White dwarfs can retain planets and stellar companions. In a multiple system, the remnant records a different evolutionary history from unevolved companions and can constrain the system's age.
 
 [Explore white-dwarf systems](/search?tags_all=science%3Astellar.white_dwarf)
+
+## Systems to inspect
+
+[Sirius](/search?q=Sirius) and [Procyon](/search?q=Procyon) each pair a
+luminous ordinary star with a white-dwarf companion, making the remnant easier
+to compare with its system context.
+
+Related: [spectral class](/concepts/spectral-class) ·
+[astronomical evidence](/concepts/astronomical-evidence)

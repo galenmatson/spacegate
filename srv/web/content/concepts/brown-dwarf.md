@@ -7,3 +7,12 @@ The **L, T, and Y** spectral sequence follows increasingly cool atmospheres. Con
 Spacegate does not call an object a rogue planet merely because no orbit is recorded. Formation history and gravitational binding require evidence of their own.
 
 [Explore L-type systems](/search?tags_all=science%3Astellar.l) · [Explore Y-type systems](/search?tags_all=science%3Astellar.y)
+
+## Systems to inspect
+
+[Luhman 16](/search?q=Luhman%2016) is a nearby pair of brown dwarfs.
+[WISE J085510.83-071442.5](/search?q=WISE%20J085510.83-071442.5) is an
+exceptionally cold nearby Y dwarf.
+
+Related: [spectral class](/concepts/spectral-class) ·
+[astronomical evidence](/concepts/astronomical-evidence)

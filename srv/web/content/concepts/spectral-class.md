@@ -9,3 +9,12 @@ Class is not destiny. An M-class spectrum can belong to a small main-sequence re
 Spacegate uses a selected stellar classification when acceptable source evidence exists. A badge marked as derived or assumed is a presentation aid, not a replacement for a measured spectrum. The tag's evidence link identifies the policy and selected fact behind it.
 
 [Find O-type systems](/search?tags_all=science%3Astellar.o) · [Find white-dwarf systems](/search?tags_all=science%3Astellar.white_dwarf)
+
+## Systems to inspect
+
+[Nu Scorpii](/search?q=Nu%20Scorpii) contains an unusual concentration of hot
+B-type members. [Sirius](/search?q=Sirius) contrasts an A-type star with a
+white-dwarf companion.
+
+Related: [brown dwarfs](/concepts/brown-dwarf) ·
+[white dwarfs](/concepts/white-dwarf)

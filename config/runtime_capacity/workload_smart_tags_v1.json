@@ -1,0 +1,183 @@
+{
+  "schema_version": "spacegate.runtime_capacity_workload.v1",
+  "workload_id": "e7_24cb15211f430a37_smart_tags_v1",
+  "build_id": "e7_24cb15211f430a37f199f462_full_public",
+  "random_seed": 831362,
+  "notes": [
+    "This workload extends the accepted M8.3e Public Read capacity contract with Smart Tag registry, filter, system, source, and bounded assignment reads.",
+    "Photon CPU quotas model resource quantity, not exact OVH core speed.",
+    "The Smart Tag artifact is required in the isolated capacity stack."
+  ],
+  "artifacts": [
+    "derived/public_read/e7_24cb15211f430a37f199f462_full_public/public_read.sqlite",
+    "derived/smart_tags/e7_24cb15211f430a37f199f462_full_public/current/smart_tags.sqlite",
+    "derived/smart_tags/e7_24cb15211f430a37f199f462_full_public/current/assignments.parquet",
+    "derived/smart_tags/e7_24cb15211f430a37f199f462_full_public/current/source_contributions.parquet"
+  ],
+  "endpoints": {
+    "health": {
+      "category": "health",
+      "path": "/api/v1/health",
+      "expected_status": [200]
+    },
+    "tic_exact": {
+      "category": "search_exact",
+      "path": "/api/v1/systems/search?q=TIC%20307210830&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "name_exact": {
+      "category": "search_exact",
+      "path": "/api/v1/systems/search?q=Castor&sort=match&limit=5",
+      "expected_status": [200]
+    },
+    "tag_registry": {
+      "category": "tag_registry",
+      "path": "/api/v1/tags",
+      "expected_status": [200]
+    },
+    "tag_definition": {
+      "category": "tag_definition",
+      "path": "/api/v1/tags/science:system.multiple",
+      "expected_status": [200]
+    },
+    "source_definition": {
+      "category": "source_definition",
+      "path": "/api/v1/tag-sources/source:multiplicity.sb9",
+      "expected_status": [200]
+    },
+    "tag_filter_any": {
+      "category": "search_tag_filter",
+      "path": "/api/v1/systems/search?tags_any=science:stellar.white_dwarf,science:stellar.neutron_star&sort=coolness&limit=50",
+      "expected_status": [200]
+    },
+    "tag_filter_all_exclude": {
+      "category": "search_tag_filter",
+      "path": "/api/v1/systems/search?tags_all=science:system.multiple&tags_exclude=science:system.one_known_star&sort=name&limit=50",
+      "expected_status": [200]
+    },
+    "tag_filter_combined": {
+      "category": "search_tag_filter_combined",
+      "path": "/api/v1/systems/search?tags_all=science:system.planet_host&max_dist_ly=1000&spectral_class=M&min_planet_count=1&min_coolness_score=0&sort=coolness&limit=50",
+      "expected_status": [200]
+    },
+    "system_summary": {
+      "category": "system_summary",
+      "path": "/api/v1/systems/17784468/summary",
+      "expected_status": [200]
+    },
+    "system_tags": {
+      "category": "system_tags",
+      "path": "/api/v1/systems/17784468/tags",
+      "expected_status": [200]
+    },
+    "assignment_evidence": {
+      "category": "tag_assignment_evidence",
+      "path": "/api/v1/systems/17784468/tag-assignments?offset=0&limit=25",
+      "expected_status": [200]
+    }
+  },
+  "profiles": {
+    "idle": {
+      "duration_seconds": 60,
+      "concurrency": 0,
+      "acceptance": {
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_oom": true
+      },
+      "entries": []
+    },
+    "smart_tags_mixed": {
+      "duration_seconds": 120,
+      "concurrency": 12,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 3000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["health", 2],
+        ["tic_exact", 3],
+        ["name_exact", 3],
+        ["tag_registry", 1],
+        ["tag_definition", 2],
+        ["source_definition", 2],
+        ["tag_filter_any", 3],
+        ["tag_filter_all_exclude", 3],
+        ["tag_filter_combined", 3],
+        ["system_summary", 3],
+        ["system_tags", 3],
+        ["assignment_evidence", 1]
+      ]
+    },
+    "smart_tags_cold_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 3000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tag_registry", 2],
+        ["tag_filter_all_exclude", 2],
+        ["system_summary", 2],
+        ["system_tags", 2],
+        ["assignment_evidence", 1]
+      ]
+    },
+    "smart_tags_exact_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 150,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tic_exact", 1],
+        ["name_exact", 1]
+      ]
+    },
+    "smart_tags_filter_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tag_filter_any", 2],
+        ["tag_filter_all_exclude", 2],
+        ["tag_filter_combined", 2]
+      ]
+    },
+    "smart_tags_summary_c1": {
+      "duration_seconds": 60,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["tag_registry", 1],
+        ["tag_definition", 1],
+        ["source_definition", 1],
+        ["system_summary", 2],
+        ["system_tags", 2],
+        ["assignment_evidence", 1]
+      ]
+    }
+  }
+}

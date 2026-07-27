@@ -357,7 +357,7 @@
       "tooltip": "The accepted hierarchy organizes three or more stellar members into nested groups. The tag describes structure and does not by itself certify long-term dynamical stability.",
       "short_tooltip": "Stellar members are organized into nested groups.",
       "source_policy": "accepted_hierarchy_projection",
-      "evaluator": {"id": "hierarchy_nested_v1", "version": 1, "params": {}},
+      "evaluator": {"id": "hierarchy_nested_v2", "version": 2, "params": {}},
       "filterable": true,
       "rollup": "direct"
     },

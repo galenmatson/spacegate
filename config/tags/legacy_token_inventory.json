@@ -1,0 +1,31 @@
+{
+  "schema_version": "spacegate.smart_tag_legacy_token_inventory.v1",
+  "status_vocabulary": ["enabled", "deferred", "retired", "rejected", "compatibility-only"],
+  "surfaces": [
+    {"surface": "Search Results scientific tags", "implementation": "SmartTagList", "status": "enabled", "reason": "Compiled science and presentation vocabulary with bounded normal priority."},
+    {"surface": "System Page scientific tags", "implementation": "SmartTagList", "status": "enabled", "reason": "Compiled science and presentation vocabulary with bounded expanded priority."},
+    {"surface": "Peek and Explorer scientific tags", "implementation": "SmartTagList", "status": "enabled", "reason": "Scene-attached compiled vocabulary using the shared interaction shell."},
+    {"surface": "System and search source tokens", "implementation": "SourceTagList", "status": "enabled", "reason": "Exact contribution summaries use the shared source-reference shell."},
+    {"surface": "SOURCE DERIVED ASSUMED MISSING ambiguous quarantined tokens", "implementation": "SmartTag evidence namespace", "status": "enabled", "reason": "Field-level evidence status, not intrinsic object taxonomy."},
+    {"surface": "Stellar-class chips", "implementation": "StellarClassChips over SmartTag", "status": "enabled", "reason": "Object-scoped selected class with shared interaction and concept navigation."},
+    {"surface": "Planet object glyphs", "implementation": "SystemObjectBadges", "status": "rejected", "reason": "Compact object identity glyphs are not taxonomy tags; categories also exist as compiled Smart Tags."},
+    {"surface": "3D map stellar and planet label glyphs", "implementation": "canvas label badges", "status": "rejected", "reason": "Lightweight map identity glyphs remain explicit non-tag controls; general tags do not crowd world labels."},
+    {"surface": "Map LY STARS PLANETS COOL RANK pills", "implementation": "map-system-vital-pill", "status": "rejected", "reason": "Interactive metric summaries and explanatory controls, not object taxonomy."},
+    {"surface": "Map Recents and Cool Stars Nearby pills", "implementation": "map-search-recent-pill", "status": "rejected", "reason": "Navigation controls, not scientific claims."},
+    {"surface": "Map preview state chip", "implementation": "map-search-card-preview-chip", "status": "rejected", "reason": "Runtime loading state, not scientific vocabulary."},
+    {"surface": "Catalog identifier chips", "implementation": "CatalogIdChip", "status": "rejected", "reason": "Copyable identity fields remain structured identifiers, not tags."},
+    {"surface": "System metric chips", "implementation": "MetricChip", "status": "rejected", "reason": "Scalar values and their evidence tooltips remain metrics, not taxonomy tags."},
+    {"surface": "System overview fact pills", "implementation": "SystemFactPill", "status": "rejected", "reason": "Compact scalar/count summaries remain facts, not taxonomy tags."},
+    {"surface": "Hierarchy object-kind pills", "implementation": "hierarchy-object-pill", "status": "rejected", "reason": "Structural node roles such as barycenter and subsystem remain hierarchy controls."},
+    {"surface": "Hierarchy orbit chips", "implementation": "hierarchy-orbit-chip", "status": "rejected", "reason": "Orbital scalar summaries remain inspectable parameters, not tags."},
+    {"surface": "Hierarchy quick-fact chips", "implementation": "hierarchy-fact-chip", "status": "compatibility-only", "reason": "Fact containers remain during the v1 window; their evidence status migrates to the shared evidence shell."},
+    {"surface": "Infrared Sky IRSA WISE source pill", "implementation": "SourceTagList", "status": "retired", "reason": "The legacy pill was replaced by the shared source-reference shell with exact imagery context."},
+    {"surface": "Low-confidence warning chips", "implementation": "warning-chip", "status": "rejected", "reason": "Local warning state remains a warning and must not become intrinsic taxonomy."},
+    {"surface": "Restricted admin warning chip", "implementation": "warning-chip", "status": "rejected", "reason": "Authorization state is an admin control, not public science vocabulary."},
+    {"surface": "Admin job and status badges", "implementation": "admin UI badges", "status": "rejected", "reason": "Operational state remains outside the public tag vocabulary."},
+    {"surface": "Legacy buildSearchResultTags", "implementation": "removed frontend helper", "status": "retired", "reason": "Replaced by compiler-backed SmartTagList after parity coverage."},
+    {"surface": "Legacy evidence-pill component", "implementation": "removed JSX path", "status": "retired", "reason": "Replaced by evidence namespace SmartTag; stale CSS is removed after browser parity."},
+    {"surface": "Future RIM tag tokens", "implementation": "rim namespace reservation", "status": "deferred", "reason": "Requires owner, pack, visibility, review state, and separate assignment storage."},
+    {"surface": "Visible-now circumpolar camera-nearby tokens", "implementation": "context evaluator reservation", "status": "deferred", "reason": "Observer, time, or session dependent and never persisted as intrinsic tags."}
+  ]
+}

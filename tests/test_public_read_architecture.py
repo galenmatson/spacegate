@@ -198,6 +198,78 @@ def search(con: sqlite3.Connection, query: str, **overrides):
     return public_read.search_systems(con, **values)
 
 
+def attach_tag_fixture(con: sqlite3.Connection) -> None:
+    first = dict(con.execute("SELECT * FROM systems WHERE system_id=1").fetchone())
+    first.update(
+        {
+            "system_id": 2,
+            "stable_object_key": "canon:system:beta",
+            "system_name": "Beta Test",
+            "system_name_norm": "beta test",
+            "dist_ly": 30.0,
+            "coolness_rank": 20,
+        }
+    )
+    columns = list(first)
+    con.execute(
+        f"INSERT INTO systems({','.join(columns)}) VALUES ("
+        + ",".join("?" for _ in columns)
+        + ")",
+        [first[column] for column in columns],
+    )
+    con.execute("ATTACH DATABASE ':memory:' AS smart_tags")
+    con.executescript(
+        """
+        CREATE TABLE smart_tags.tag_definitions(
+          tag_id INTEGER PRIMARY KEY,
+          tag_key TEXT UNIQUE,
+          label TEXT,name TEXT,category TEXT,kind TEXT,layer TEXT,
+          target_types_json TEXT,visual_token TEXT,
+          compact_priority INTEGER,normal_priority INTEGER,
+          expanded_priority INTEGER,concept_slug TEXT,tooltip TEXT,
+          short_tooltip TEXT,source_policy TEXT,evaluator_id TEXT,
+          evaluator_version INTEGER,evaluator_params_json TEXT,
+          filterable INTEGER,rollup TEXT
+        );
+        CREATE TABLE smart_tags.system_tag_membership(
+          system_id INTEGER,
+          tag_id INTEGER,
+          member_count INTEGER,
+          scope_code INTEGER,
+          basis_code INTEGER,
+          evidence_status_mask INTEGER,
+          min_confidence REAL,
+          max_confidence REAL,
+          PRIMARY KEY(system_id,tag_id)
+        );
+        CREATE TABLE smart_tags.source_definitions(
+          source_num INTEGER PRIMARY KEY,source_key TEXT,source_id TEXT,
+          release_id TEXT,public_name TEXT,publisher TEXT,description TEXT,
+          mission_instrument TEXT,citation_url TEXT,license_name TEXT,
+          license_url TEXT,authority_roles_json TEXT
+        );
+        CREATE TABLE smart_tags.system_sources(
+          system_id INTEGER,source_num INTEGER,contribution_kind TEXT,
+          member_count INTEGER
+        );
+        INSERT INTO smart_tags.tag_definitions VALUES
+          (1,'science:test.alpha','Alpha','Alpha','test','concept','disc',
+           '["system"]','test',1,1,1,NULL,'Alpha','Alpha','test',
+           'system_count_v1',1,'{}',1,'direct'),
+          (2,'science:test.beta','Beta','Beta','test','concept','disc',
+           '["system"]','test',1,1,1,NULL,'Beta','Beta','test',
+           'system_count_v1',1,'{}',1,'direct'),
+          (3,'evidence:test.nonfilterable','Evidence','Evidence','evidence',
+           'status','arm','["system"]','evidence',1,1,1,NULL,'Evidence',
+           'Evidence','status','system_count_v1',1,'{}',0,'none');
+        INSERT INTO smart_tags.system_tag_membership VALUES
+          (1,1,1,0,0,1,1.0,1.0),
+          (1,2,1,0,0,2,0.9,0.9),
+          (2,1,1,0,0,1,1.0,1.0);
+        """
+    )
+
+
 def test_search_v2_exact_prefix_substring_and_bounded_typo(tmp_path: Path) -> None:
     con = make_projection(tmp_path / "read.sqlite")
     assert search(con, "alpha test")[0][0]["match_resolution"] == "exact"
@@ -218,6 +290,74 @@ def test_search_v2_catalog_like_names_do_not_fall_through_to_fuzzy(tmp_path: Pat
     assert rows == []
     assert count == 0
     con.close()
+
+
+def test_search_v2_tag_any_all_exclude_and_filter_combinations(
+    tmp_path: Path,
+) -> None:
+    con = make_projection(tmp_path / "read.sqlite")
+    attach_tag_fixture(con)
+    rows, _, _ = search(
+        con,
+        "",
+        tags_any=["science:test.beta"],
+        max_dist_ly=20,
+        sort="name",
+    )
+    assert [row["system_id"] for row in rows] == [1]
+    rows, _, _ = search(
+        con,
+        "",
+        tags_all=["science:test.alpha", "science:test.beta"],
+        sort="name",
+    )
+    assert [row["system_id"] for row in rows] == [1]
+    rows, _, _ = search(
+        con,
+        "",
+        tags_exclude=["science:test.beta"],
+        sort="name",
+    )
+    assert [row["system_id"] for row in rows] == [2]
+    first_page, _, _ = search(
+        con,
+        "",
+        tags_any=["science:test.alpha"],
+        sort="name",
+        limit=1,
+    )
+    assert [row["system_id"] for row in first_page] == [1]
+    second_page, _, _ = search(
+        con,
+        "",
+        tags_any=["science:test.alpha"],
+        sort="name",
+        limit=1,
+        cursor_values={"name": "alpha test", "id": 1},
+    )
+    assert [row["system_id"] for row in second_page] == [2]
+    with pytest.raises(ValueError, match="unknown or non-filterable"):
+        search(
+            con,
+            "",
+            tags_any=["evidence:test.nonfilterable"],
+            sort="name",
+        )
+    con.close()
+
+
+def test_tag_filter_parser_is_bounded_normalized_and_fail_closed() -> None:
+    assert api_main._parse_tag_filter(
+        "Science:System.Binary, science:system.binary"
+    ) == ["science:system.binary"]
+    with pytest.raises(api_main.HTTPException) as malformed:
+        api_main._parse_tag_filter("science:system.binary;drop")
+    assert malformed.value.status_code == 400
+    with pytest.raises(api_main.HTTPException) as excessive:
+        api_main._parse_tag_filter(
+            ",".join(f"science:test.{index}" for index in range(33))
+        )
+    assert excessive.value.status_code == 400
 
 
 def test_root_naming_uses_system_alias_scope_not_member_proper_name(tmp_path: Path) -> None:

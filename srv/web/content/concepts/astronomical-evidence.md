@@ -16,3 +16,12 @@ A source value is not the same thing as a derivation, and a derivation is not th
 Tag assignments are compiled from an immutable Public Read build and a reviewed, versioned registry. Rebuilding the same inputs produces the same logical assignment hashes. Context-dependent ideas such as “visible now” require an observer and time, so they are evaluated live and are not stored as intrinsic facts about the star.
 
 [Browse nearby systems](/search?tags_all=presentation%3Adistance.nearby)
+
+## Systems to inspect
+
+[Castor](/search?q=Castor) shows how multiple catalogs can contribute to one
+hierarchy without being merged into one source claim. [HD 110067](/search?q=HD%20110067)
+combines stellar, multiplicity, and exoplanet evidence.
+
+Related: [spectral class](/concepts/spectral-class) ·
+[binary and multiple stars](/concepts/binary-and-multiple-stars)

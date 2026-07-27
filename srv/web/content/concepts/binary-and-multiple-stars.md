@@ -9,3 +9,12 @@ Hierarchy matters because there may be no useful single orbit that places every 
 Spacegate's **Binary** and **Multiple** tags count accepted stellar members. **Hierarchical** requires nested structure in the accepted public hierarchy. These tags do not claim that every orbital element is known or that a proposed configuration has been proven stable over its entire lifetime.
 
 [Explore binaries](/search?tags_all=science%3Asystem.binary) · [Explore multiple systems](/search?tags_all=science%3Asystem.multiple)
+
+## Systems to inspect
+
+[Castor](/search?q=Castor) is a six-star hierarchy of three close pairs.
+[Nu Scorpii](/search?q=Nu%20Scorpii) shows why component identity and nested
+orbits must be kept explicit in a very complex young system.
+
+Related: [orbital period](/concepts/orbital-period) ·
+[astronomical evidence](/concepts/astronomical-evidence)

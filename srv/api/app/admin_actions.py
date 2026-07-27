@@ -1151,7 +1151,7 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "purpose": "Compiles reviewed Smart Tag definitions into an immutable build-keyed public projection.",
         "prerequisites": "The target build must have a verified Public Read v2 projection and the repository tag registry must validate.",
         "writes_to": "$SPACEGATE_STATE_DIR/derived/smart_tags/<build_id>/<registry_hash>/ and its atomic current pointer.",
-        "outputs": ["smart_tags.sqlite", "assignments.parquet", "registry snapshot", "coverage, quarantine, timing, and determinism reports"],
+        "outputs": ["compact smart_tags.sqlite hot projection", "portable assignments.parquet evidence", "portable source_contributions.parquet evidence", "registry snapshot", "coverage, quarantine, source-accounting, timing, and determinism reports"],
         "expected_duration": "medium",
         "success_next_actions": ["Verify tag search, system summaries, concept links, and source popovers before deployment promotion."],
         "failure_next_actions": ["Inspect registry validation, evaluator quarantine, Public Read identity, and free disk space."],
@@ -3032,6 +3032,8 @@ def _job_artifact_hints(job: Dict[str, Any]) -> List[Dict[str, Any]]:
                 _path_hint(kind="tag_projection", label="Smart Tags", path=tag_root / "current", description="Current immutable registry-hash artifact for this build."),
                 _path_hint(kind="manifest", label="Smart Tag manifest", path=tag_root / "current" / "manifest.json", description="Build identity, logical hashes, timing, counts, and artifact checksums."),
                 _path_hint(kind="report", label="Smart Tag coverage", path=tag_root / "current" / "coverage.json", description="Per-tag assignment coverage and proposal accounting."),
+                _path_hint(kind="parquet", label="Smart Tag assignments", path=tag_root / "current" / "assignments.parquet", description="Portable object-level assignment evidence kept out of the hot serving database."),
+                _path_hint(kind="parquet", label="Smart Tag source contributions", path=tag_root / "current" / "source_contributions.parquet", description="Exact source-to-system contribution evidence behind bounded source summaries."),
             ]
         )
     elif action in {"save_coolness_profile", "apply_coolness_profile"}:

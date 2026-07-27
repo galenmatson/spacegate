@@ -19,30 +19,13 @@ import pyarrow.parquet as pq
 from smart_tag_registry import LoadedRegistry, canonical_json, load_registry
 
 
-SCHEMA_VERSION = "spacegate.smart_tags.v1"
-MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v1"
-ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v1"
-SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v1"
-CLASS_TO_TAG = {
-    "O": "science:stellar.o",
-    "B": "science:stellar.b",
-    "A": "science:stellar.a",
-    "F": "science:stellar.f",
-    "G": "science:stellar.g",
-    "K": "science:stellar.k",
-    "M": "science:stellar.m",
-    "L": "science:stellar.l",
-    "T": "science:stellar.t",
-    "Y": "science:stellar.y",
-    "WR": "science:stellar.wolf_rayet",
-    "WD": "science:stellar.white_dwarf",
-    "D": "science:stellar.white_dwarf",
-    "NS": "science:stellar.neutron_star",
-    "PULSAR": "science:stellar.pulsar",
-    "MAGNETAR": "science:stellar.magnetar",
-    "BH": "science:stellar.black_hole",
-    "BLACK HOLE": "science:stellar.black_hole",
-}
+SCHEMA_VERSION = "spacegate.smart_tags.v2"
+MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
+ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
+SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v2"
+SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.2"
+HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
 PLANET_CATEGORY_TO_TAG = {
     ("jupiter", "hot"): "science:planet.hot_gas_giant",
     ("jupiter", "temperate"): "science:planet.temperate_gas_giant",
@@ -50,6 +33,18 @@ PLANET_CATEGORY_TO_TAG = {
     ("terrestrial", "hot"): "science:planet.hot_terrestrial",
     ("terrestrial", "temperate"): "science:planet.temperate_terrestrial",
     ("terrestrial", "cold"): "science:planet.cold_terrestrial",
+}
+EVIDENCE_STATUS_BITS = {
+    "source": 1,
+    "accepted": 1,
+    "derived": 2,
+    "assumed": 4,
+    "screen": 8,
+    "candidate": 16,
+    "ambiguous": 32,
+    "quarantined": 64,
+    "missing": 128,
+    "source_model": 256,
 }
 
 
@@ -83,7 +78,7 @@ def public_build_id(path: Path) -> str:
         con.close()
 
 
-def create_schema(con: sqlite3.Connection) -> None:
+def create_work_schema(con: sqlite3.Connection) -> None:
     con.executescript(
         """
         PRAGMA journal_mode=DELETE;
@@ -125,9 +120,8 @@ def create_schema(con: sqlite3.Connection) -> None:
           evidence_status TEXT NOT NULL,
           confidence REAL,
           evaluator_id TEXT NOT NULL,
-          evaluator_version INTEGER NOT NULL,
-          PRIMARY KEY(target_type,stable_object_key,tag_key)
-        ) WITHOUT ROWID;
+          evaluator_version INTEGER NOT NULL
+        );
         CREATE TABLE system_tag_membership(
           system_id INTEGER NOT NULL,
           tag_key TEXT NOT NULL,
@@ -135,6 +129,9 @@ def create_schema(con: sqlite3.Connection) -> None:
           primary_target_type TEXT NOT NULL,
           primary_target_key TEXT NOT NULL,
           basis_kind TEXT NOT NULL,
+          evidence_status_mask INTEGER NOT NULL,
+          min_confidence REAL,
+          max_confidence REAL,
           PRIMARY KEY(system_id,tag_key)
         ) WITHOUT ROWID;
         CREATE TABLE source_definitions(
@@ -154,6 +151,12 @@ def create_schema(con: sqlite3.Connection) -> None:
           member_count INTEGER NOT NULL,
           PRIMARY KEY(system_id,source_key,contribution_kind)
         ) WITHOUT ROWID;
+        CREATE TABLE source_contributions(
+          system_id INTEGER NOT NULL,
+          source_key TEXT NOT NULL,
+          contribution_kind TEXT NOT NULL,
+          target_key TEXT NOT NULL
+        );
         CREATE TABLE quarantine(
           target_type TEXT,
           stable_object_key TEXT,
@@ -161,6 +164,86 @@ def create_schema(con: sqlite3.Connection) -> None:
           reason_code TEXT NOT NULL,
           detail_json TEXT NOT NULL
         );
+        """
+    )
+
+
+def create_hot_schema(con: sqlite3.Connection) -> None:
+    con.executescript(
+        """
+        PRAGMA journal_mode=DELETE;
+        PRAGMA synchronous=FULL;
+        PRAGMA temp_store=FILE;
+        CREATE TABLE metadata(
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        ) WITHOUT ROWID;
+        CREATE TABLE tag_definitions(
+          tag_id INTEGER PRIMARY KEY,
+          tag_key TEXT NOT NULL UNIQUE,
+          label TEXT NOT NULL,
+          name TEXT NOT NULL,
+          category TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          layer TEXT NOT NULL,
+          target_types_json TEXT NOT NULL,
+          visual_token TEXT NOT NULL,
+          compact_priority INTEGER NOT NULL,
+          normal_priority INTEGER NOT NULL,
+          expanded_priority INTEGER NOT NULL,
+          concept_slug TEXT,
+          tooltip TEXT NOT NULL,
+          short_tooltip TEXT NOT NULL,
+          source_policy TEXT NOT NULL,
+          evaluator_id TEXT NOT NULL,
+          evaluator_version INTEGER NOT NULL,
+          evaluator_params_json TEXT NOT NULL,
+          filterable INTEGER NOT NULL,
+          rollup TEXT NOT NULL
+        );
+        CREATE TABLE system_tag_membership(
+          system_id INTEGER NOT NULL,
+          tag_id INTEGER NOT NULL,
+          member_count INTEGER NOT NULL,
+          scope_code INTEGER NOT NULL,
+          basis_code INTEGER NOT NULL,
+          evidence_status_mask INTEGER NOT NULL,
+          min_confidence REAL,
+          max_confidence REAL,
+          PRIMARY KEY(system_id,tag_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE source_definitions(
+          source_num INTEGER PRIMARY KEY,
+          source_key TEXT NOT NULL UNIQUE,
+          source_id TEXT NOT NULL,
+          release_id TEXT,
+          public_name TEXT NOT NULL,
+          publisher TEXT,
+          description TEXT NOT NULL,
+          mission_instrument TEXT,
+          citation_url TEXT,
+          license_name TEXT,
+          license_url TEXT,
+          authority_roles_json TEXT NOT NULL
+        );
+        CREATE TABLE system_sources(
+          system_id INTEGER NOT NULL,
+          source_num INTEGER NOT NULL,
+          contribution_kind TEXT NOT NULL,
+          member_count INTEGER NOT NULL,
+          PRIMARY KEY(system_id,source_num,contribution_kind)
+        ) WITHOUT ROWID;
+        CREATE TABLE quarantine(
+          target_type TEXT,
+          stable_object_key TEXT,
+          evaluator_id TEXT,
+          reason_code TEXT NOT NULL,
+          detail_json TEXT NOT NULL
+        );
+        CREATE INDEX idx_system_tag_membership_tag
+          ON system_tag_membership(tag_id,system_id);
+        CREATE INDEX idx_system_sources_source
+          ON system_sources(source_num,system_id);
         """
     )
 
@@ -206,7 +289,7 @@ def insert_source_definitions(
     for source in payload.get("sources") or []:
         source_id = str(source["source_id"])
         source_key = "source:" + source_id.lower().replace("/", ".").replace(" ", "_")
-        mapping[source_id] = source_key
+        mapping[source_id.lower()] = source_key
         license_value = source.get("license") or {}
         rows.append(
             (
@@ -228,6 +311,17 @@ def insert_source_definitions(
     return mapping
 
 
+def load_source_presentation(path: Path | None) -> dict[str, dict[str, str]]:
+    if path is None or not path.is_file():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        str(row["source_id"]): row
+        for row in payload.get("sources") or []
+        if isinstance(row, dict) and row.get("source_id")
+    }
+
+
 def definition_by_evaluator(
     registry: LoadedRegistry, evaluator_id: str
 ) -> Iterable[dict[str, Any]]:
@@ -243,10 +337,44 @@ def _attach_public(con: sqlite3.Connection, public_read: Path) -> None:
     con.execute(f"ATTACH DATABASE 'file:{escaped}?mode=ro&immutable=1' AS public")
 
 
+def prepare_sample_scope(
+    con: sqlite3.Connection, sample_limit: int | None
+) -> int | None:
+    if sample_limit is None:
+        return None
+    if sample_limit < 1:
+        raise ValueError("sample_limit must be positive")
+    con.execute(
+        "CREATE TEMP TABLE compiler_system_scope(system_id INTEGER PRIMARY KEY)"
+    )
+    con.execute(
+        """
+        INSERT INTO compiler_system_scope
+        SELECT system_id
+        FROM public.systems
+        ORDER BY system_id
+        LIMIT ?
+        """,
+        (sample_limit,),
+    )
+    return int(
+        con.execute("SELECT count(*) FROM compiler_system_scope").fetchone()[0]
+    )
+
+
+def _scope_join(alias: str, sample_limit: int | None) -> str:
+    if sample_limit is None:
+        return ""
+    return (
+        f" JOIN compiler_system_scope compiler_scope"
+        f" ON compiler_scope.system_id={alias}.system_id"
+    )
+
+
 def insert_system_assignments(
     con: sqlite3.Connection, registry: LoadedRegistry, sample_limit: int | None
 ) -> None:
-    limit = f" AND s.system_id <= {int(sample_limit)}" if sample_limit else ""
+    scope_join = _scope_join("s", sample_limit)
     for definition in definition_by_evaluator(registry, "system_count_v1"):
         params = definition["evaluator"]["params"]
         field = params["field"]
@@ -268,7 +396,8 @@ def insert_system_assignments(
                    'selected_public_fact',?,'accepted',1.0,
                    'system_count_v1',1
             FROM public.systems s
-            WHERE {where}{limit}
+            {scope_join}
+            WHERE {where}
             """,
             values,
         )
@@ -283,7 +412,8 @@ def insert_system_assignments(
                    'selected_public_fact','dist_ly','accepted',1.0,
                    'system_numeric_v1',1
             FROM public.systems s
-            WHERE s.dist_ly IS NOT NULL AND s.dist_ly <= ?{limit}
+            {scope_join}
+            WHERE s.dist_ly IS NOT NULL AND s.dist_ly <= ?
             """,
             (definition["key"], params["maximum"]),
         )
@@ -298,7 +428,8 @@ def insert_system_assignments(
                    'selected_public_fact','dist_ly','accepted',1.0,
                    'system_range_v1',1
             FROM public.systems s
-            WHERE s.dist_ly > ? AND s.dist_ly <= ?{limit}
+            {scope_join}
+            WHERE s.dist_ly > ? AND s.dist_ly <= ?
             """,
             (
                 definition["key"],
@@ -311,21 +442,17 @@ def insert_system_assignments(
 def insert_star_assignments(
     con: sqlite3.Connection, registry: LoadedRegistry, sample_limit: int | None
 ) -> None:
-    allowed = {
-        definition["key"]
-        for definition in definition_by_evaluator(registry, "stellar_class_v1")
-    }
-    rows = [
-        (stellar_class, tag_key)
-        for stellar_class, tag_key in CLASS_TO_TAG.items()
-        if tag_key in allowed
-    ]
+    rows = []
+    for definition in definition_by_evaluator(registry, "stellar_class_v1"):
+        for stellar_class in definition["evaluator"]["params"].get("classes") or []:
+            rows.append((str(stellar_class).upper(), definition["key"]))
     con.execute(
-        "CREATE TEMP TABLE class_tag_map(classification TEXT PRIMARY KEY,tag_key TEXT)"
+        "CREATE TEMP TABLE class_tag_map("
+        "classification TEXT,tag_key TEXT,"
+        "PRIMARY KEY(classification,tag_key))"
     )
     con.executemany("INSERT INTO class_tag_map VALUES (?,?)", rows)
-    limit = "WHERE s.system_id <= ?" if sample_limit else ""
-    params: tuple[Any, ...] = (sample_limit,) if sample_limit else ()
+    scope_join = _scope_join("s", sample_limit)
     con.execute(
         f"""
         INSERT INTO tag_assignments
@@ -337,11 +464,10 @@ def insert_star_assignments(
                s.classification_confidence,
                'stellar_class_v1',1
         FROM public.stars s
+        {scope_join}
         JOIN class_tag_map m
           ON m.classification=upper(trim(s.selected_classification))
-        {limit}
-        """,
-        params,
+        """
     )
 
 
@@ -361,8 +487,7 @@ def insert_planet_assignments(
             if tag in allowed
         ],
     )
-    limit = "AND p.system_id <= ?" if sample_limit else ""
-    params: tuple[Any, ...] = (sample_limit,) if sample_limit else ()
+    scope_join = _scope_join("p", sample_limit)
     con.execute(
         f"""
         INSERT INTO tag_assignments
@@ -370,21 +495,19 @@ def insert_planet_assignments(
                'versioned_derivation',p.classifier_version,'derived',1.0,
                'planet_category_v1',1
         FROM public.planets p
+        {scope_join}
         JOIN planet_tag_map m
           ON m.size_class=p.size_mass_class
          AND m.insolation_class=p.insolation_class
         WHERE lower(coalesce(p.planet_status,'confirmed')) IN
-              ('confirmed','known','published'){limit}
-        """,
-        params,
+              ('confirmed','known','published')
+        """
     )
     usp = next(
         definition
         for definition in definition_by_evaluator(registry, "planet_numeric_v1")
     )
     values: list[Any] = [usp["key"], usp["evaluator"]["params"]["less_than"]]
-    if sample_limit:
-        values.append(sample_limit)
     con.execute(
         f"""
         INSERT INTO tag_assignments
@@ -394,10 +517,11 @@ def insert_planet_assignments(
                             '$.orbital_period_days.fact_id'),
                'accepted',1.0,'planet_numeric_v1',1
         FROM public.planets p
+        {scope_join}
         WHERE p.orbital_period_days IS NOT NULL
           AND p.orbital_period_days < ?
           AND lower(coalesce(p.planet_status,'confirmed')) IN
-              ('confirmed','known','published'){limit}
+              ('confirmed','known','published')
         """,
         values,
     )
@@ -408,8 +532,6 @@ def insert_planet_assignments(
         )
     )
     values = [hz["key"]]
-    if sample_limit:
-        values.append(sample_limit)
     con.execute(
         f"""
         INSERT INTO tag_assignments
@@ -417,9 +539,10 @@ def insert_planet_assignments(
                'versioned_derivation',p.classifier_version,'screen',1.0,
                'habitable_zone_screen_v1',1
         FROM public.planets p
+        {scope_join}
         WHERE p.insolation_class='temperate'
           AND lower(coalesce(p.planet_status,'confirmed')) IN
-              ('confirmed','known','published'){limit}
+              ('confirmed','known','published')
         """,
         values,
     )
@@ -430,6 +553,10 @@ def _contains_nested_group(node: Any, depth: int = 0) -> bool:
         return False
     family = str(node.get("component_family") or "").lower()
     kind = str(node.get("node_kind") or "").lower()
+    child_count = int(node.get("child_count") or len(node.get("children") or []))
+    total_star_count = int(node.get("total_star_count") or 0)
+    if depth > 0 and child_count > 0 and total_star_count >= 2:
+        return True
     if depth > 0 and (family in {"group", "subsystem"} or "group" in kind):
         return True
     return any(_contains_nested_group(child, depth + 1) for child in node.get("children") or [])
@@ -440,20 +567,17 @@ def insert_hierarchy_assignments(
 ) -> None:
     definition = next(
         definition
-        for definition in definition_by_evaluator(registry, "hierarchy_nested_v1")
+        for definition in definition_by_evaluator(registry, "hierarchy_nested_v2")
     )
     sql = (
         "SELECT h.system_id,s.stable_object_key,h.payload_gzip,h.payload_sha256 "
         "FROM public.hierarchy_bundles h JOIN public.systems s USING(system_id) "
+        f"{_scope_join('h', sample_limit)} "
         "WHERE s.star_count>=3"
     )
-    params: tuple[Any, ...] = ()
-    if sample_limit:
-        sql += " AND h.system_id<=?"
-        params = (sample_limit,)
     assignments = []
     quarantine = []
-    for row in con.execute(sql, params):
+    for row in con.execute(sql):
         try:
             payload = json.loads(gzip.decompress(row[2]))
             root = (payload.get("hierarchy") or {}).get("root")
@@ -468,16 +592,16 @@ def insert_hierarchy_assignments(
                         row[3],
                         "accepted",
                         1.0,
-                        "hierarchy_nested_v1",
-                        1,
+                        "hierarchy_nested_v2",
+                        2,
                     )
                 )
-        except (OSError, json.JSONDecodeError, TypeError) as exc:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             quarantine.append(
                 (
                     "system",
                     row[1],
-                    "hierarchy_nested_v1",
+                    "hierarchy_nested_v2",
                     "invalid_hierarchy_bundle",
                     json.dumps({"error": str(exc)}, sort_keys=True),
                 )
@@ -493,7 +617,20 @@ def build_rollups(con: sqlite3.Connection) -> None:
         SELECT a.system_id,a.tag_key,count(*),
                min(a.target_type),min(a.stable_object_key),
                CASE WHEN min(a.target_type)='system'
-                    THEN 'direct' ELSE 'member_rollup' END
+                    THEN 'direct' ELSE 'member_rollup' END,
+               sum(DISTINCT CASE lower(a.evidence_status)
+                 WHEN 'source' THEN 1
+                 WHEN 'accepted' THEN 1
+                 WHEN 'derived' THEN 2
+                 WHEN 'assumed' THEN 4
+                 WHEN 'screen' THEN 8
+                 WHEN 'candidate' THEN 16
+                 WHEN 'ambiguous' THEN 32
+                 WHEN 'quarantined' THEN 64
+                 WHEN 'missing' THEN 128
+                 WHEN 'source_model' THEN 256
+                 ELSE 0 END),
+               min(a.confidence),max(a.confidence)
         FROM tag_assignments a
         JOIN tag_definitions d USING(tag_key)
         WHERE d.rollup IN ('direct','member_to_system')
@@ -502,50 +639,371 @@ def build_rollups(con: sqlite3.Connection) -> None:
     )
 
 
-def build_sources(con: sqlite3.Connection, sample_limit: int | None) -> None:
-    limit = f" AND s.system_id <= {int(sample_limit)}" if sample_limit else ""
-    source_rules = [
-        (
-            "source:gaia.dr3.non_single_star",
-            "multiplicity",
-            "s.has_gaia_nss_evidence=1",
-        ),
-        ("source:multiplicity.msc", "multiplicity", "s.has_msc_evidence=1"),
-        ("source:multiplicity.sb9", "multiplicity", "s.has_sbx_evidence=1"),
-        ("source:multiplicity.wds", "multiplicity", "s.has_wds_evidence=1"),
-        ("source:multiplicity.orb6", "orbit", "s.has_orb6_evidence=1"),
-    ]
-    known = {
-        row[0] for row in con.execute("SELECT source_key FROM source_definitions")
-    }
-    for source_key, contribution, predicate in source_rules:
-        if source_key not in known:
-            continue
-        con.execute(
-            f"""
-            INSERT INTO system_sources
-            SELECT s.system_id,?,'{contribution}',1
-            FROM public.systems s WHERE {predicate}{limit}
-            """,
-            (source_key,),
+def reject_duplicate_assignments(con: sqlite3.Connection) -> None:
+    duplicate = con.execute(
+        """
+        SELECT target_type,stable_object_key,system_id,tag_key,count(*) AS n
+        FROM tag_assignments
+        GROUP BY target_type,stable_object_key,system_id,tag_key
+        HAVING count(*)>1
+        ORDER BY n DESC,target_type,stable_object_key,tag_key
+        LIMIT 1
+        """
+    ).fetchone()
+    if duplicate is not None:
+        raise ValueError(
+            "duplicate smart-tag assignment: "
+            f"{tuple(duplicate)}"
         )
 
 
-def create_indexes(con: sqlite3.Connection) -> None:
-    con.executescript(
+def reject_unknown_evidence_statuses(con: sqlite3.Connection) -> None:
+    unknown = [
+        str(row[0])
+        for row in con.execute(
+            "SELECT DISTINCT lower(evidence_status) FROM tag_assignments"
+        )
+        if str(row[0]) not in EVIDENCE_STATUS_BITS
+    ]
+    if unknown:
+        raise ValueError(
+            "unknown smart-tag evidence status: " + ", ".join(sorted(unknown))
+        )
+
+
+SOURCE_ID_ALIASES = {
+    "athyg_crosswalk": "transitional.athyg",
+    "gaia_dr3": "gaia.dr3.gaia_source",
+    "msc": "multiplicity.msc",
+    "mast_tic": "tess.identity_and_candidate_evidence",
+    "nasa_exoplanet_archive": "nasa_exoplanet_archive.planetary_systems",
+    "sb9": "multiplicity.sb9",
+    "sbx": "multiplicity.sbx",
+    "wds": "multiplicity.wds",
+    "orb6": "multiplicity.orb6",
+    "gaia_nss": "gaia.dr3.non_single_star",
+    "gaia_nss_two_body": "gaia.dr3.non_single_star",
+}
+
+
+def _normalize_source_id(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    return SOURCE_ID_ALIASES.get(normalized, normalized)
+
+
+def _source_contribution_kind(
+    path: tuple[str, ...], record: dict[str, Any] | None = None
+) -> str:
+    context = list(path)
+    if record:
+        context.extend(
+            str(record.get(key) or "")
+            for key in (
+                "node_kind",
+                "component_family",
+                "object_type",
+                "field_key",
+                "kind",
+            )
+        )
+    lowered = "/".join(context).lower()
+    if "orbit" in lowered:
+        return "orbit"
+    if "classification" in lowered or "spectral" in lowered:
+        return "classification"
+    if "eclipsing" in lowered or "observation" in lowered:
+        return "observation"
+    if "planet" in lowered:
+        return "planet"
+    if "hierarchy" in lowered or "relation" in lowered:
+        return "multiplicity"
+    return "displayed_evidence"
+
+
+def _walk_source_contributions(
+    value: Any,
+    known_source_ids: set[str],
+    path: tuple[str, ...] = (),
+) -> set[tuple[str, str, str]]:
+    found: set[tuple[str, str, str]] = set()
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            found.update(
+                _walk_source_contributions(
+                    item, known_source_ids, (*path, str(index))
+                )
+            )
+        return found
+    if not isinstance(value, dict):
+        return found
+    source_id = _normalize_source_id(value.get("source_catalog"))
+    if source_id in known_source_ids:
+        target_key = str(
+            value.get("stable_object_key")
+            or value.get("stable_component_key")
+            or value.get("selected_fact_id")
+            or value.get("evidence_id")
+            or value.get("source_pk")
+            or "/".join(path)
+        )
+        found.add(
+            (
+                source_id,
+                _source_contribution_kind(path, value),
+                target_key,
+            )
+        )
+    provenance = value.get("provenance")
+    if isinstance(provenance, dict):
+        provenance_source = _normalize_source_id(
+            provenance.get("source_catalog")
+        )
+        if provenance_source in known_source_ids:
+            target_key = str(
+                value.get("stable_object_key")
+                or provenance.get("source_row_id")
+                or provenance.get("source_pk")
+                or "/".join(path)
+            )
+            found.add(
+                (
+                    provenance_source,
+                    _source_contribution_kind(path, value),
+                    target_key,
+                )
+            )
+    for key, item in value.items():
+        if key != "provenance":
+            found.update(
+                _walk_source_contributions(
+                    item, known_source_ids, (*path, str(key))
+                )
+            )
+    return found
+
+
+def build_sources(
+    con: sqlite3.Connection,
+    sample_limit: int | None,
+    source_mapping: dict[str, str],
+) -> dict[str, int]:
+    sql = (
+        "SELECT h.system_id,h.payload_gzip "
+        "FROM public.hierarchy_bundles h"
+        f"{_scope_join('h', sample_limit)}"
+    )
+    accounting = {
+        "bundles_checked": 0,
+        "bundles_invalid": 0,
+        "exact_contributions": 0,
+    }
+    contribution_rows: list[tuple[int, str, str, str]] = []
+    for system_id, payload_gzip in con.execute(sql):
+        accounting["bundles_checked"] += 1
+        try:
+            payload = json.loads(gzip.decompress(payload_gzip))
+        except (OSError, json.JSONDecodeError, TypeError):
+            accounting["bundles_invalid"] += 1
+            continue
+        contributions = _walk_source_contributions(
+            payload, set(source_mapping)
+        )
+        for source_id, kind, target_key in contributions:
+            contribution_rows.append(
+                (
+                    int(system_id),
+                    source_mapping[source_id],
+                    kind,
+                    target_key,
+                )
+            )
+        accounting["exact_contributions"] += len(contributions)
+    con.executemany(
+        "INSERT INTO source_contributions VALUES (?,?,?,?)",
+        sorted(contribution_rows),
+    )
+    con.execute(
         """
-        CREATE INDEX idx_tag_assignments_system
-          ON tag_assignments(system_id,target_type,tag_key);
-        CREATE INDEX idx_tag_assignments_tag
-          ON tag_assignments(tag_key,system_id);
-        CREATE INDEX idx_system_tag_membership_tag
-          ON system_tag_membership(tag_key,system_id);
-        CREATE INDEX idx_system_sources_system
-          ON system_sources(system_id,source_key);
-        CREATE INDEX idx_system_sources_source
-          ON system_sources(source_key,system_id);
+        INSERT INTO system_sources
+        SELECT system_id,source_key,contribution_kind,count(*)
+        FROM source_contributions
+        GROUP BY system_id,source_key,contribution_kind
         """
     )
+    accounting["system_source_rows"] = int(
+        con.execute("SELECT count(*) FROM system_sources").fetchone()[0]
+    )
+    return accounting
+
+
+def create_indexes(con: sqlite3.Connection) -> None:
+    # The work database is a disposable compiler spool. Persistent indexes live
+    # only in the normalized hot projection.
+    return None
+
+
+def build_hot_database(
+    work: sqlite3.Connection,
+    database: Path,
+    *,
+    source_registry_path: Path,
+    source_presentation_path: Path | None,
+) -> dict[str, int]:
+    hot = sqlite3.connect(database)
+    try:
+        create_hot_schema(hot)
+        metadata = list(work.execute("SELECT key,value FROM metadata ORDER BY key"))
+        hot.executemany("INSERT INTO metadata VALUES (?,?)", metadata)
+        definitions = list(
+            work.execute("SELECT * FROM tag_definitions ORDER BY tag_key")
+        )
+        tag_ids = {
+            str(row[0]): index
+            for index, row in enumerate(definitions, start=1)
+        }
+        hot.executemany(
+            "INSERT INTO tag_definitions VALUES ("
+            + ",".join("?" * 21)
+            + ")",
+            [
+                (tag_ids[str(row[0])], *tuple(row))
+                for row in definitions
+            ],
+        )
+        membership_rows = []
+        for row in work.execute(
+            """
+            SELECT system_id,tag_key,member_count,primary_target_type,basis_kind,
+                   evidence_status_mask,min_confidence,max_confidence
+            FROM system_tag_membership
+            ORDER BY system_id,tag_key
+            """
+        ):
+            membership_rows.append(
+                (
+                    int(row[0]),
+                    tag_ids[str(row[1])],
+                    int(row[2]),
+                    0 if row[3] == "system" else 1,
+                    0 if row[4] == "direct" else 1,
+                    int(row[5]),
+                    row[6],
+                    row[7],
+                )
+            )
+            if len(membership_rows) >= 100_000:
+                hot.executemany(
+                    "INSERT INTO system_tag_membership VALUES (?,?,?,?,?,?,?,?)",
+                    membership_rows,
+                )
+                membership_rows.clear()
+        if membership_rows:
+            hot.executemany(
+                "INSERT INTO system_tag_membership VALUES (?,?,?,?,?,?,?,?)",
+                membership_rows,
+            )
+
+        source_payload = json.loads(
+            source_registry_path.read_text(encoding="utf-8")
+        )
+        presentation = load_source_presentation(source_presentation_path)
+        source_rows = []
+        source_nums: dict[str, int] = {}
+        for source_num, source in enumerate(
+            sorted(
+                source_payload.get("sources") or [],
+                key=lambda row: str(row["source_id"]),
+            ),
+            start=1,
+        ):
+            source_id = str(source["source_id"])
+            source_key = (
+                "source:"
+                + source_id.lower().replace("/", ".").replace(" ", "_")
+            )
+            source_nums[source_key] = source_num
+            display = presentation.get(source_id, {})
+            license_value = source.get("license") or {}
+            public_name = str(
+                display.get("public_name")
+                or source.get("publisher")
+                or source_id
+            )
+            roles = source.get("authority_roles") or {}
+            role_text = ", ".join(
+                key.replace("_", " ") for key in sorted(roles)
+            )
+            description = str(
+                display.get("description")
+                or f"{public_name} contributes reviewed {role_text or 'catalog'} evidence."
+            )
+            source_rows.append(
+                (
+                    source_num,
+                    source_key,
+                    source_id,
+                    source.get("release_id"),
+                    public_name,
+                    source.get("publisher"),
+                    description,
+                    display.get("mission_instrument"),
+                    source.get("citation_url"),
+                    license_value.get("name"),
+                    license_value.get("url"),
+                    json.dumps(roles, sort_keys=True, separators=(",", ":")),
+                )
+            )
+        hot.executemany(
+            "INSERT INTO source_definitions VALUES ("
+            + ",".join("?" * 12)
+            + ")",
+            source_rows,
+        )
+        source_rows_hot = []
+        for row in work.execute(
+            """
+            SELECT system_id,source_key,contribution_kind,member_count
+            FROM system_sources ORDER BY system_id,source_key,contribution_kind
+            """
+        ):
+            source_num = source_nums.get(str(row[1]))
+            if source_num is not None:
+                source_rows_hot.append(
+                    (int(row[0]), source_num, str(row[2]), int(row[3]))
+                )
+        hot.executemany(
+            "INSERT INTO system_sources VALUES (?,?,?,?)",
+            source_rows_hot,
+        )
+        hot.executemany(
+            "INSERT INTO quarantine VALUES (?,?,?,?,?)",
+            work.execute(
+                """
+                SELECT target_type,stable_object_key,evaluator_id,reason_code,
+                       detail_json
+                FROM quarantine
+                ORDER BY target_type,stable_object_key,evaluator_id,reason_code
+                """
+            ),
+        )
+        hot.commit()
+        hot.execute("VACUUM")
+        hot.commit()
+        return {
+            "tag_definitions": len(definitions),
+            "system_tag_membership": int(
+                hot.execute(
+                    "SELECT count(*) FROM system_tag_membership"
+                ).fetchone()[0]
+            ),
+            "source_definitions": len(source_rows),
+            "system_sources": len(source_rows_hot),
+            "quarantine": int(
+                hot.execute("SELECT count(*) FROM quarantine").fetchone()[0]
+            ),
+        }
+    finally:
+        hot.close()
 
 
 def logical_table_hash(con: sqlite3.Connection, table: str, columns: list[str]) -> str:
@@ -563,7 +1021,7 @@ def export_assignments(con: sqlite3.Connection, output: Path) -> int:
         SELECT target_type,stable_object_key,system_id,tag_key,basis_kind,
                basis_ref,evidence_status,confidence,evaluator_id,evaluator_version
         FROM tag_assignments
-        ORDER BY target_type,stable_object_key,tag_key
+        ORDER BY system_id,target_type,stable_object_key,tag_key
         """
     )
     schema = pa.schema(
@@ -596,6 +1054,43 @@ def export_assignments(con: sqlite3.Connection, output: Path) -> int:
     return count
 
 
+def export_source_contributions(
+    con: sqlite3.Connection, output: Path
+) -> int:
+    cursor = con.execute(
+        """
+        SELECT system_id,source_key,contribution_kind,target_key
+        FROM source_contributions
+        ORDER BY system_id,source_key,contribution_kind,target_key
+        """
+    )
+    schema = pa.schema(
+        [
+            ("system_id", pa.int64()),
+            ("source_key", pa.string()),
+            ("contribution_kind", pa.string()),
+            ("target_key", pa.string()),
+        ]
+    )
+    writer = pq.ParquetWriter(output, schema, compression="zstd")
+    count = 0
+    try:
+        while rows := cursor.fetchmany(100_000):
+            columns = list(zip(*rows))
+            table = pa.Table.from_arrays(
+                [
+                    pa.array(column, type=field.type)
+                    for column, field in zip(columns, schema)
+                ],
+                schema=schema,
+            )
+            writer.write_table(table)
+            count += len(rows)
+    finally:
+        writer.close()
+    return count
+
+
 def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
     registry = load_registry(args.registry)
@@ -603,11 +1098,30 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
     build_id = public_build_id(public_read)
     output_root = args.output_root.resolve()
     final_dir = output_root / build_id / registry.registry_hash
+    compiler_sources = (
+        Path(__file__).resolve(),
+        (args.repo_root / "scripts/smart_tag_registry.py").resolve(strict=True),
+    )
+    compiler_inputs = {
+        str(path.relative_to(args.repo_root)): {
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in compiler_sources
+    }
     if final_dir.exists() and not args.force:
         manifest = json.loads((final_dir / "manifest.json").read_text(encoding="utf-8"))
-        if manifest.get("status") == "pass":
+        if (
+            manifest.get("status") == "pass"
+            and manifest.get("compiler_version") == COMPILER_VERSION
+            and (manifest.get("input_lineage") or {}).get("compiler_files")
+            == compiler_inputs
+        ):
             return manifest
-        raise ValueError(f"incomplete smart-tag output exists: {final_dir}")
+        raise ValueError(
+            f"stale or incomplete smart-tag output exists: {final_dir}; "
+            "use --force only after retaining the previous artifact"
+        )
     output_root.mkdir(parents=True, exist_ok=True)
     staging = Path(
         tempfile.mkdtemp(
@@ -617,28 +1131,35 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
     )
     timings: dict[str, float] = {}
     try:
+        work_database = staging / "working.sqlite"
         database = staging / "smart_tags.sqlite"
-        con = sqlite3.connect(database)
+        con = sqlite3.connect(work_database)
         con.row_factory = sqlite3.Row
         try:
             phase = time.perf_counter()
-            create_schema(con)
+            create_work_schema(con)
             insert_definitions(con, registry)
             source_registry_path = (
                 args.repo_root / registry.registry["source_registry"]
             ).resolve(strict=True)
-            insert_source_definitions(con, source_registry_path)
+            source_mapping = insert_source_definitions(con, source_registry_path)
             _attach_public(con, public_read)
+            sampled_system_count = prepare_sample_scope(con, args.sample_limit)
             con.executemany(
                 "INSERT INTO metadata VALUES (?,?)",
                 [
                     ("schema_version", SCHEMA_VERSION),
                     ("assignment_schema_version", ASSIGNMENT_SCHEMA),
                     ("source_summary_schema_version", SOURCE_SUMMARY_SCHEMA),
+                    (
+                        "source_contribution_schema_version",
+                        SOURCE_CONTRIBUTION_SCHEMA,
+                    ),
                     ("build_id", build_id),
                     ("registry_id", registry.registry["registry_id"]),
                     ("registry_version", registry.registry["registry_version"]),
                     ("registry_hash", registry.registry_hash),
+                    ("compiler_version", COMPILER_VERSION),
                     (
                         "sample_limit",
                         "" if args.sample_limit is None else str(args.sample_limit),
@@ -659,8 +1180,12 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                 con.commit()
                 timings[f"{name}_seconds"] = time.perf_counter() - phase
             phase = time.perf_counter()
+            reject_duplicate_assignments(con)
+            reject_unknown_evidence_statuses(con)
             build_rollups(con)
-            build_sources(con, args.sample_limit)
+            source_accounting = build_sources(
+                con, args.sample_limit, source_mapping
+            )
             create_indexes(con)
             con.commit()
             timings["rollup_and_indexes_seconds"] = time.perf_counter() - phase
@@ -673,9 +1198,19 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     "system_tag_membership",
                     "source_definitions",
                     "system_sources",
+                    "source_contributions",
                     "quarantine",
                 )
             }
+            counts["sampled_systems"] = (
+                sampled_system_count
+                if sampled_system_count is not None
+                else int(
+                    con.execute(
+                        "SELECT count(*) FROM public.systems"
+                    ).fetchone()[0]
+                )
+            )
             hashes = {
                 "tag_definitions": logical_table_hash(
                     con,
@@ -729,6 +1264,9 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                         "primary_target_type",
                         "primary_target_key",
                         "basis_kind",
+                        "evidence_status_mask",
+                        "min_confidence",
+                        "max_confidence",
                     ],
                 ),
                 "system_sources": logical_table_hash(
@@ -741,9 +1279,24 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                         "member_count",
                     ],
                 ),
+                "source_contributions": logical_table_hash(
+                    con,
+                    "source_contributions",
+                    [
+                        "system_id",
+                        "source_key",
+                        "contribution_kind",
+                        "target_key",
+                    ],
+                ),
+            }
+            assignment_counts_by_tag = {
+                row[0]: row[1]
+                for row in con.execute(
+                    "SELECT tag_key,count(*) FROM tag_assignments GROUP BY tag_key"
+                )
             }
             con.execute("DETACH DATABASE public")
-            con.execute("VACUUM")
             integrity = con.execute("PRAGMA quick_check").fetchone()[0]
             if integrity != "ok":
                 raise ValueError(f"smart-tag SQLite quick_check failed: {integrity}")
@@ -752,10 +1305,65 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             timings["parquet_seconds"] = time.perf_counter() - phase
             if parquet_count != counts["tag_assignments"]:
                 raise ValueError("Parquet assignment count does not match SQLite")
+            phase = time.perf_counter()
+            source_contribution_count = export_source_contributions(
+                con, staging / "source_contributions.parquet"
+            )
+            timings["source_contributions_parquet_seconds"] = time.perf_counter() - phase
+            if source_contribution_count != counts["source_contributions"]:
+                raise ValueError(
+                    "Parquet source-contribution count does not match SQLite"
+                )
+            phase = time.perf_counter()
+            build_hot_database(
+                con,
+                database,
+                source_registry_path=source_registry_path,
+                source_presentation_path=(
+                    args.repo_root
+                    / registry.registry.get(
+                        "source_presentation",
+                        "config/tags/source_presentation.json",
+                    )
+                ),
+            )
+            timings["hot_projection_seconds"] = time.perf_counter() - phase
         finally:
             con.close()
+        work_database.unlink(missing_ok=True)
+        if database.stat().st_size > HOT_ARTIFACT_MAX_BYTES:
+            raise ValueError(
+                "smart-tag hot artifact exceeds 1.5 GiB budget: "
+                f"{database.stat().st_size}"
+            )
 
         atomic_json(staging / "registry.json", registry.snapshot())
+        proposal_accounting = {
+            "schema_version": "spacegate.smart_tag_proposal_accounting.v1",
+            "status": "pass",
+            "build_id": build_id,
+            "registry_hash": registry.registry_hash,
+            "compiler_version": COMPILER_VERSION,
+            "proposal_inventory": registry.proposal_inventory,
+            "legacy_token_inventory": registry.legacy_token_inventory,
+        }
+        atomic_json(
+            staging / "proposal_accounting.json", proposal_accounting
+        )
+        atomic_json(
+            staging / "source_accounting.json",
+            {
+                "schema_version": "spacegate.smart_tag_source_accounting.v1",
+                "status": (
+                    "pass"
+                    if source_accounting["bundles_invalid"] == 0
+                    else "review"
+                ),
+                "build_id": build_id,
+                "registry_hash": registry.registry_hash,
+                **source_accounting,
+            },
+        )
         coverage = {
             "schema_version": "spacegate.smart_tag_coverage.v1",
             "status": "pass",
@@ -763,19 +1371,11 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             "registry_hash": registry.registry_hash,
             "sample_limit": args.sample_limit,
             "counts": counts,
-            "assignment_counts_by_tag": {},
+            "assignment_counts_by_tag": assignment_counts_by_tag,
             "proposal_inventory": registry.proposal_inventory,
+            "legacy_token_inventory": registry.legacy_token_inventory,
+            "source_accounting": source_accounting,
         }
-        read = sqlite3.connect(f"file:{database}?mode=ro&immutable=1", uri=True)
-        try:
-            coverage["assignment_counts_by_tag"] = {
-                row[0]: row[1]
-                for row in read.execute(
-                    "SELECT tag_key,count(*) FROM tag_assignments GROUP BY tag_key"
-                )
-            }
-        finally:
-            read.close()
         atomic_json(staging / "coverage.json", coverage)
         atomic_json(
             staging / "quarantine.json",
@@ -786,6 +1386,44 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             },
         )
         timings["total_seconds"] = time.perf_counter() - started
+        atomic_json(
+            staging / "timings.json",
+            {
+                "schema_version": "spacegate.smart_tag_timings.v1",
+                "status": "pass",
+                "build_id": build_id,
+                "registry_hash": registry.registry_hash,
+                "timings": timings,
+            },
+        )
+        report_artifacts = {}
+        for name in (
+            "registry.json",
+            "coverage.json",
+            "quarantine.json",
+            "proposal_accounting.json",
+            "source_accounting.json",
+            "timings.json",
+        ):
+            path = staging / name
+            report_artifacts[name.removesuffix(".json")] = {
+                "path": name,
+                "bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+            }
+        registry_inputs = {
+            str(path.relative_to(args.repo_root)): {
+                "bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+            }
+            for path in registry.source_files
+        }
+        registry_inputs[
+            str(source_registry_path.relative_to(args.repo_root))
+        ] = {
+            "bytes": source_registry_path.stat().st_size,
+            "sha256": sha256_file(source_registry_path),
+        }
         manifest = {
             "schema_version": MANIFEST_SCHEMA,
             "status": "pass",
@@ -793,14 +1431,21 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             "registry_id": registry.registry["registry_id"],
             "registry_version": registry.registry["registry_version"],
             "registry_hash": registry.registry_hash,
+            "compiler_version": COMPILER_VERSION,
             "tag_schema_version": SCHEMA_VERSION,
             "assignment_schema_version": ASSIGNMENT_SCHEMA,
             "source_summary_schema_version": SOURCE_SUMMARY_SCHEMA,
+            "source_contribution_schema_version": SOURCE_CONTRIBUTION_SCHEMA,
             "sample_limit": args.sample_limit,
             "public_read": {
                 "path": str(public_read),
                 "bytes": public_read.stat().st_size,
                 "sha256": sha256_file(public_read) if args.hash_input else None,
+            },
+            "input_lineage": {
+                "compiler_files": compiler_inputs,
+                "registry_files": registry_inputs,
+                "public_read_hash_recorded": bool(args.hash_input),
             },
             "artifacts": {
                 "database": {
@@ -813,15 +1458,26 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     "bytes": (staging / "assignments.parquet").stat().st_size,
                     "sha256": sha256_file(staging / "assignments.parquet"),
                 },
-                "registry": {
-                    "path": "registry.json",
-                    "bytes": (staging / "registry.json").stat().st_size,
-                    "sha256": sha256_file(staging / "registry.json"),
+                "source_contributions": {
+                    "path": "source_contributions.parquet",
+                    "bytes": (
+                        staging / "source_contributions.parquet"
+                    ).stat().st_size,
+                    "sha256": sha256_file(
+                        staging / "source_contributions.parquet"
+                    ),
                 },
+                **report_artifacts,
             },
             "counts": counts,
             "logical_hashes": hashes,
             "timings": timings,
+            "budgets": {
+                "hot_artifact_max_bytes": HOT_ARTIFACT_MAX_BYTES,
+                "hot_artifact_bytes": database.stat().st_size,
+                "hot_artifact_status": "pass",
+            },
+            "source_accounting": source_accounting,
         }
         atomic_json(staging / "manifest.json", manifest)
         if final_dir.exists():

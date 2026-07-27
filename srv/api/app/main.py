@@ -6346,6 +6346,7 @@ def health():
         "build_id": db.build_id(),
         "database_runtime": db.runtime_stats(),
         "public_read_runtime": public_read.runtime_stats(),
+        "smart_tag_runtime": smart_tags.runtime_stats(),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
 
@@ -6520,6 +6521,38 @@ def smart_tag_definition(tag_key: str):
     return {"status": "ok", "build_id": build_id, "tag": definition}
 
 
+@app.get("/api/v1/tag-sources/{source_key:path}")
+def smart_tag_source(source_key: str):
+    build_id = db.build_id()
+    if not build_id:
+        raise HTTPException(status_code=503, detail="Active build unavailable")
+    try:
+        con = smart_tags.connect(build_id)
+    except smart_tags.SmartTagsUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    try:
+        source = smart_tags.source_payload(con, source_key.strip().lower())
+    finally:
+        con.close()
+    if source is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "tag_source_not_found",
+                "message": "Smart-tag source not found",
+                "details": {"source_key": source_key},
+            },
+        )
+    return {"status": "ok", "build_id": build_id, "source": source}
+
+
 @app.get("/api/v1/systems/{system_id}/tags")
 def system_smart_tags(system_id: int):
     try:
@@ -6561,6 +6594,59 @@ def system_smart_tags(system_id: int):
         return {"status": "ok", "build_id": db.build_id(), **payload}
     finally:
         con.close()
+
+
+@app.get("/api/v1/systems/{system_id}/tag-assignments")
+def system_smart_tag_assignments(
+    system_id: int,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
+):
+    build_id = db.build_id()
+    if not build_id:
+        raise HTTPException(status_code=503, detail="Active build unavailable")
+    try:
+        con = public_read.connect()
+    except public_read.PublicReadUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
+    try:
+        exists = con.execute(
+            "SELECT 1 FROM systems WHERE system_id=?", (system_id,)
+        ).fetchone()
+    finally:
+        con.close()
+    if exists is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "system_not_found",
+                "message": "System not found",
+                "details": {"system_id": system_id},
+            },
+        )
+    try:
+        return {
+            "status": "ok",
+            **smart_tags.assignments_payload(
+                build_id, system_id, offset=offset, limit=limit
+            ),
+        }
+    except smart_tags.SmartTagsUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "smart_tags_unavailable",
+                "message": str(exc),
+                "details": {},
+            },
+        ) from exc
 
 
 @app.get("/api/v1/systems/search")

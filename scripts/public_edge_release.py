@@ -18,12 +18,29 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-SCHEMA_VERSION = "spacegate.public_edge_release.v1"
+SCHEMA_VERSION = "spacegate.public_edge_release.v2"
 INSTALL_MARKER_SCHEMA = "spacegate.public_edge_install_marker.v1"
-ACTIVATION_SCHEMA = "spacegate.public_edge_activation.v1"
+ACTIVATION_SCHEMA = "spacegate.public_edge_activation.v2"
 BUILD_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,159}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 MINIMUM_FREE_BYTES = 15 * 1024**3
+ARTIFACT_ROLES = (
+    "scientific_build",
+    "public_read",
+    "simulation_scenes",
+    "smart_tags",
+)
+SMART_TAG_REQUIRED_FILES = (
+    "smart_tags.sqlite",
+    "assignments.parquet",
+    "source_contributions.parquet",
+    "registry.json",
+    "coverage.json",
+    "quarantine.json",
+    "proposal_accounting.json",
+    "source_accounting.json",
+    "timings.json",
+)
 
 
 def utc_now() -> str:
@@ -120,7 +137,7 @@ def validate_release(value: dict[str, Any]) -> dict[str, Any]:
     artifacts = value.get("artifacts")
     if not isinstance(artifacts, dict):
         raise ValueError("release artifacts must be an object")
-    for role in ("scientific_build", "public_read", "simulation_scenes"):
+    for role in ARTIFACT_ROLES:
         artifact = artifacts.get(role)
         if not isinstance(artifact, dict):
             raise ValueError(f"release is missing artifact role: {role}")
@@ -163,6 +180,34 @@ def validate_release(value: dict[str, Any]) -> dict[str, Any]:
         != artifacts["simulation_scenes"]["sha256"]
     ):
         raise ValueError("scene artifact and embedded manifest disagree")
+    smart_tags = value.get("smart_tag_manifest")
+    if (
+        not isinstance(smart_tags, dict)
+        or smart_tags.get("schema_version")
+        != "spacegate.smart_tags_manifest.v2"
+        or smart_tags.get("tag_schema_version") != "spacegate.smart_tags.v2"
+        or smart_tags.get("assignment_schema_version")
+        != "spacegate.smart_tag_assignments.v2"
+        or smart_tags.get("source_contribution_schema_version")
+        != "spacegate.smart_tag_source_contributions.v1"
+        or smart_tags.get("compiler_version")
+        != "spacegate.smart_tags_compiler.v2.2"
+        or smart_tags.get("build_id") != build_id
+        or smart_tags.get("status") != "pass"
+        or smart_tags.get("sample_limit") is not None
+    ):
+        raise ValueError("smart-tag manifest is incompatible with release")
+    validate_sha256(smart_tags.get("registry_hash"), "smart_tags:registry_hash")
+    smart_artifacts = smart_tags.get("artifacts") or {}
+    for key in ("database", "assignments", "source_contributions"):
+        spec = smart_artifacts.get(key)
+        if (
+            not isinstance(spec, dict)
+            or not isinstance(spec.get("bytes"), int)
+            or spec["bytes"] < 1
+        ):
+            raise ValueError(f"smart-tag manifest omits required artifact: {key}")
+        validate_sha256(spec.get("sha256"), f"smart_tags:{key}")
     scientific = value.get("scientific_build") or {}
     required_files = scientific.get("required_files")
     if not isinstance(required_files, dict) or not required_files:
@@ -188,19 +233,37 @@ def command_create(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("scientific build directory does not match build id")
     public_manifest = load_json(args.public_read_manifest.resolve(strict=True))
     scene_manifest = load_json(args.simulation_scene_manifest.resolve(strict=True))
+    smart_tag_manifest = load_json(args.smart_tag_manifest.resolve(strict=True))
     scientific = artifact_ref(
         args.scientific_archive, f"{build_id}.scientific.7z"
     )
     public_read = artifact_ref(args.public_read, "public_read.sqlite")
     scenes = artifact_ref(args.simulation_scenes, "simulation_scenes.tar.gz")
+    smart_tags = artifact_ref(args.smart_tags, "smart_tags.tar.gz")
     scientific_apparent_bytes = apparent_size(build_dir)
     scene_payload_bytes = int(scene_manifest.get("total_scene_bytes") or 0)
+    smart_tag_payload_bytes = sum(
+        int((smart_tag_manifest.get("artifacts") or {}).get(key, {}).get("bytes") or 0)
+        for key in (
+            "database",
+            "assignments",
+            "source_contributions",
+            "registry",
+            "coverage",
+            "quarantine",
+            "proposal_accounting",
+            "source_accounting",
+            "timings",
+        )
+    )
     minimum_start_free_bytes = max(
         scientific["bytes"] + scientific_apparent_bytes + MINIMUM_FREE_BYTES,
         scientific_apparent_bytes
         + public_read["bytes"]
         + scenes["bytes"]
         + scene_payload_bytes
+        + smart_tags["bytes"]
+        + smart_tag_payload_bytes
         + MINIMUM_FREE_BYTES,
     )
     required_paths = (
@@ -218,6 +281,7 @@ def command_create(args: argparse.Namespace) -> dict[str, Any]:
             "scientific_build": scientific,
             "public_read": public_read,
             "simulation_scenes": scenes,
+            "smart_tags": smart_tags,
         },
         "scientific_build": {
             "apparent_bytes": scientific_apparent_bytes,
@@ -228,12 +292,14 @@ def command_create(args: argparse.Namespace) -> dict[str, Any]:
         },
         "public_read_manifest": public_manifest,
         "simulation_scene_manifest": scene_manifest,
+        "smart_tag_manifest": smart_tag_manifest,
         "runtime_contract": {
             "duckdb_memory_limit": "5GB",
             "duckdb_threads": 1,
             "db_pool_size": 6,
             "db_acquire_timeout_seconds": 30,
             "public_read_compatibility_fallback": False,
+            "smart_tags_required": True,
         },
         "transfer": {
             "sequence": [
@@ -241,9 +307,11 @@ def command_create(args: argparse.Namespace) -> dict[str, Any]:
                 "remove_scientific_transfer_file",
                 "public_read",
                 "simulation_scenes",
+                "smart_tags",
             ],
             "total_bytes": sum(
-                row["bytes"] for row in (scientific, public_read, scenes)
+                row["bytes"]
+                for row in (scientific, public_read, scenes, smart_tags)
             ),
             "minimum_free_bytes_after_stage": MINIMUM_FREE_BYTES,
             "minimum_start_free_bytes": minimum_start_free_bytes,
@@ -567,6 +635,132 @@ def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def safe_smart_tag_member(
+    member: tarfile.TarInfo, expected_paths: set[str]
+) -> PurePosixPath:
+    path = PurePosixPath(member.name)
+    if path.is_absolute() or ".." in path.parts or len(path.parts) != 1:
+        raise ValueError(f"unsafe smart-tag archive member: {member.name!r}")
+    if not member.isfile() or path.as_posix() not in expected_paths:
+        raise ValueError(f"unexpected smart-tag archive member: {member.name!r}")
+    return path
+
+
+def smart_tag_target(release: dict[str, Any], state: Path) -> Path:
+    return (
+        state
+        / "derived"
+        / "smart_tags"
+        / release["build_id"]
+        / str(release["smart_tag_manifest"]["registry_hash"])
+    )
+
+
+def verify_smart_tag_install(
+    release: dict[str, Any], target: Path
+) -> dict[str, Any]:
+    manifest = load_json(target / "manifest.json")
+    if canonical_json(manifest) != canonical_json(release["smart_tag_manifest"]):
+        raise ValueError("installed smart-tag manifest mismatch")
+    artifacts = manifest.get("artifacts") or {}
+    for key, spec in artifacts.items():
+        relative = PurePosixPath(str(spec.get("path") or ""))
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or len(relative.parts) != 1
+        ):
+            raise ValueError(f"unsafe smart-tag artifact path: {relative}")
+        verify_artifact(target / relative.name, spec, f"smart_tags:{key}")
+    for filename in SMART_TAG_REQUIRED_FILES:
+        if not (target / filename).is_file():
+            raise ValueError(f"installed smart-tag artifact is missing {filename}")
+    if target.stat().st_mode & 0o005 != 0o005:
+        raise ValueError("installed smart-tag directory is not runtime-traversable")
+    for path in target.iterdir():
+        if path.is_file() and path.stat().st_mode & 0o004 != 0o004:
+            raise ValueError(
+                f"installed smart-tag artifact is not runtime-readable: {path.name}"
+            )
+    return {
+        "registry_hash": manifest["registry_hash"],
+        "assignment_count": int(
+            (manifest.get("counts") or {}).get("tag_assignments") or 0
+        ),
+    }
+
+
+def command_stage_smart_tags(args: argparse.Namespace) -> dict[str, Any]:
+    release = validate_release(load_json(args.manifest.resolve(strict=True)))
+    state = args.state_dir.resolve(strict=True)
+    incoming = incoming_path(
+        release, "smart_tags", args.incoming_dir.resolve(strict=True)
+    )
+    verify_artifact(incoming, release["artifacts"]["smart_tags"], "smart_tags")
+    target = smart_tag_target(release, state)
+    tag_root = target.parent
+    tag_root.mkdir(parents=True, exist_ok=True)
+    reused = target.exists()
+    if reused:
+        verify_smart_tag_install(release, target)
+    else:
+        staging = Path(tempfile.mkdtemp(prefix=".smart-tags.", dir=tag_root))
+        try:
+            expected = {
+                "manifest.json",
+                *(
+                    str(spec.get("path") or "")
+                    for spec in (
+                        release["smart_tag_manifest"].get("artifacts") or {}
+                    ).values()
+                ),
+            }
+            with tarfile.open(incoming, mode="r:gz") as archive:
+                members = archive.getmembers()
+                member_paths = [
+                    safe_smart_tag_member(member, expected).as_posix()
+                    for member in members
+                ]
+                if len(member_paths) != len(set(member_paths)):
+                    raise ValueError("smart-tag archive contains duplicate members")
+                if set(member_paths) != expected:
+                    raise ValueError("smart-tag archive membership mismatch")
+                for member in members:
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise ValueError(
+                            f"unable to read smart-tag member: {member.name}"
+                        )
+                    (staging / member.name).write_bytes(source.read())
+            staging.chmod(0o755)
+            for path in staging.iterdir():
+                path.chmod(0o644)
+            verify_smart_tag_install(release, staging)
+            os.replace(staging, target)
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+    archive_dir = tag_root / "archives"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archive_target = archive_dir / (
+        f"{release['smart_tag_manifest']['registry_hash']}.tar.gz"
+    )
+    if archive_target.is_file():
+        verify_artifact(
+            archive_target, release["artifacts"]["smart_tags"], "smart_tags"
+        )
+        incoming.unlink(missing_ok=True)
+    else:
+        os.replace(incoming, archive_target)
+    require_reserve(state)
+    verified = verify_smart_tag_install(release, target)
+    return {
+        "status": "pass",
+        "stage": "smart_tags",
+        "reused": reused,
+        **verified,
+    }
+
+
 def verify_installed(release: dict[str, Any], state: Path) -> dict[str, Any]:
     build_id = release["build_id"]
     build = state / "out" / build_id
@@ -619,10 +813,21 @@ def verify_installed(release: dict[str, Any], state: Path) -> dict[str, Any]:
         or extra_count != 0
     ):
         raise ValueError("installed simulation scene cache mismatch")
+    tag_target = smart_tag_target(release, state)
+    smart_tag_result = verify_smart_tag_install(release, tag_target)
+    smart_tag_archive = (
+        tag_target.parent
+        / "archives"
+        / f"{release['smart_tag_manifest']['registry_hash']}.tar.gz"
+    )
+    verify_artifact(
+        smart_tag_archive, release["artifacts"]["smart_tags"], "smart_tags"
+    )
     return {
         "status": "pass",
         "build_id": build_id,
         "scene_count": count,
+        **smart_tag_result,
         "free_bytes": free_bytes(state),
     }
 
@@ -648,6 +853,15 @@ def command_activate(args: argparse.Namespace) -> dict[str, Any]:
     link = state / "served" / "current"
     previous = str(link.resolve(strict=True)) if link.exists() else None
     target = state / "out" / release["build_id"]
+    smart_tag_link = (
+        state / "derived" / "smart_tags" / release["build_id"] / "current"
+    )
+    previous_smart_tag_target = (
+        str(smart_tag_link.resolve(strict=True))
+        if smart_tag_link.exists()
+        else None
+    )
+    atomic_symlink(smart_tag_link, smart_tag_target(release, state))
     atomic_symlink(link, target)
     activation = {
         "schema_version": ACTIVATION_SCHEMA,
@@ -655,6 +869,8 @@ def command_activate(args: argparse.Namespace) -> dict[str, Any]:
         "build_id": release["build_id"],
         "target": str(target),
         "previous_target": previous,
+        "previous_smart_tag_target": previous_smart_tag_target,
+        "smart_tag_target": str(smart_tag_target(release, state)),
         "release_manifest_sha256": sha256_file(args.manifest.resolve(strict=True)),
     }
     atomic_json(
@@ -676,6 +892,17 @@ def command_rollback(args: argparse.Namespace) -> dict[str, Any]:
     if not (previous / "core.duckdb").is_file():
         raise ValueError("rollback target is not a usable build")
     atomic_symlink(state / "served" / "current", previous)
+    smart_tag_link = state / "derived" / "smart_tags" / build_id / "current"
+    previous_smart_tag_raw = activation.get("previous_smart_tag_target")
+    if previous_smart_tag_raw:
+        previous_smart_tag = bounded_path(
+            state / "derived" / "smart_tags" / build_id,
+            Path(str(previous_smart_tag_raw)),
+            must_exist=True,
+        )
+        atomic_symlink(smart_tag_link, previous_smart_tag)
+    else:
+        smart_tag_link.unlink(missing_ok=True)
     rollback = {
         "schema_version": "spacegate.public_edge_rollback.v1",
         "rolled_back_at_utc": utc_now(),
@@ -710,6 +937,9 @@ def expected_runtime_env(release: dict[str, Any]) -> dict[str, str]:
         "SPACEGATE_API_DB_POOL_SIZE": str(runtime["db_pool_size"]),
         "SPACEGATE_API_DB_ACQUIRE_TIMEOUT_SECONDS": str(
             runtime["db_acquire_timeout_seconds"]
+        ),
+        "SPACEGATE_SMART_TAGS_REQUIRED": (
+            "1" if runtime.get("smart_tags_required") else "0"
         ),
     }
 
@@ -784,6 +1014,8 @@ def parse_args() -> argparse.Namespace:
     create.add_argument("--public-read-manifest", required=True, type=Path)
     create.add_argument("--simulation-scenes", required=True, type=Path)
     create.add_argument("--simulation-scene-manifest", required=True, type=Path)
+    create.add_argument("--smart-tags", required=True, type=Path)
+    create.add_argument("--smart-tag-manifest", required=True, type=Path)
     create.add_argument("--output", required=True, type=Path)
     create.set_defaults(handler=command_create)
 
@@ -795,6 +1027,7 @@ def parse_args() -> argparse.Namespace:
         ("stage-scientific", command_stage_scientific),
         ("stage-public-read", command_stage_public_read),
         ("stage-scenes", command_stage_scenes),
+        ("stage-smart-tags", command_stage_smart_tags),
     ):
         stage = sub.add_parser(command)
         stage.add_argument("--manifest", required=True, type=Path)
