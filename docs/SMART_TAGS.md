@@ -56,6 +56,12 @@ public pills, chips, badges, source tokens, evidence states, and controls. Both
 use `enabled`, `deferred`, `retired`, `rejected`, or `compatibility-only`.
 Deferred proposals remain design input, not silently active assignments.
 
+Source presentation v2 records both a full `public_name` and a reviewed
+`short_name`. Compact source tokens use established forms such as `MSC`, `SB9`,
+`WDS`, `ORB6`, `Gaia NSS`, and `TOI`; dialogs, accessible names, citations, and
+copied details retain the full catalog or mission name. No frontend acronym
+heuristic invents abbreviations.
+
 ## Intrinsic and Contextual Tags
 
 Intrinsic tags describe an object or accepted system using the build's
@@ -169,6 +175,15 @@ Search results and system summaries include `smart_tags` and
 `source_summary`. Any/all/exclude use indexed `EXISTS`/bounded-count queries;
 they never run fuzzy matching over tag definitions.
 
+Source-summary v3 adds the reviewed `short_name` alongside `public_name`.
+Consumers use the short form only for the visible token and retain the full
+name everywhere explanatory context is needed.
+
+The v2.3 compiler reproduced source-summary v3 from clean output roots in
+230.4 and 228.6 seconds with identical logical hashes and byte-identical
+SQLite/Parquet artifacts. The machine comparison is retained at
+`reports/smart_tags/<build_id>/smart_tag_source_summary_v3_determinism_report.json`.
+
 During the one-release compatibility window, a genuinely absent artifact
 leaves ordinary reads untagged. A present but mismatched, sampled, corrupt, or
 schema-incompatible artifact fails visibly. Set
@@ -187,6 +202,12 @@ The shared component supports hover and keyboard focus, click/touch pinning,
 Escape/outside close, concept and filtered-search links, copied links,
 source-policy display, and bounded source summaries. Text and accessible
 labels carry meaning in addition to color.
+
+Where a surface already renders per-object stellar or compact-class badges,
+the parallel system-rollup taxonomy token is suppressed as duplicate
+presentation. The assignment remains available to search and the API. Each
+object badge carries the full registry explanation, member scope, evidence
+state, evaluator basis, and bounded system source context.
 
 Non-source evidence states use visible letter markers and border patterns:
 `D` derived, `A` assumed, `E` source model estimate, `S` screen, `C`

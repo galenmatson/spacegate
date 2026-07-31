@@ -166,6 +166,44 @@ test.describe("Smart Tags and concepts", () => {
     });
   });
 
+  test("source tags use reviewed abbreviations without losing full catalog names", async ({ page }) => {
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+
+    const sourceTags = page.locator(".system-detail-source-tags .smart-tag-trigger");
+    await expect(sourceTags.filter({ hasText: /^MSC$/ })).toHaveCount(1);
+    await expect(sourceTags.filter({ hasText: /^SB9$/ })).toHaveCount(1);
+    await expect(sourceTags.filter({ hasText: "Multiple Star Catalog" })).toHaveCount(0);
+    await expect(sourceTags.filter({ hasText: "Spectroscopic Binary Orbits" })).toHaveCount(0);
+
+    const msc = sourceTags.filter({ hasText: /^MSC$/ });
+    await expect(msc).toHaveAttribute("aria-label", "Multiple Star Catalog");
+    await msc.hover();
+    await expect(page.getByRole("dialog", { name: "Multiple Star Catalog details" })).toBeVisible();
+  });
+
+  test("object badges absorb stellar taxonomy details without duplicate hero tags", async ({ page }) => {
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.locator(".system-detail-tags [data-tag-category='stellar_class']")).toHaveCount(0);
+    await expect(page.locator(".system-detail-tags [data-tag-category='compact_object']")).toHaveCount(0);
+
+    const aStar = page.locator(
+      ".system-detail-stellar-tags .smart-tag-trigger[data-stellar-token='a']",
+    ).first();
+    await expect(aStar).toBeVisible();
+    await aStar.hover();
+    const detail = page.getByRole("dialog", { name: "A-Type Star details" }).first();
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText("strong hydrogen absorption lines");
+    await expect(detail).toContainText(/Object|Stellar member/);
+    await expect(detail).toContainText("Sources in this system");
+    await expect(detail).toContainText("Basis");
+  });
+
   test("stellar class badges reuse the Search icon contract", async ({ page }) => {
     const tauCeti = await resolveSystem(page, "Tau Ceti");
     expect(tauCeti).toBeTruthy();

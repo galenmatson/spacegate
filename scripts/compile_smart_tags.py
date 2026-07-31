@@ -22,9 +22,9 @@ from smart_tag_registry import LoadedRegistry, canonical_json, load_registry
 SCHEMA_VERSION = "spacegate.smart_tags.v2"
 MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
 ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
-SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v2"
+SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.2"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.3"
 HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
 PLANET_CATEGORY_TO_TAG = {
     ("jupiter", "hot"): "science:planet.hot_gas_giant",
@@ -218,6 +218,7 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
           source_id TEXT NOT NULL,
           release_id TEXT,
           public_name TEXT NOT NULL,
+          short_name TEXT NOT NULL,
           publisher TEXT,
           description TEXT NOT NULL,
           mission_instrument TEXT,
@@ -929,6 +930,7 @@ def build_hot_database(
                 or source.get("publisher")
                 or source_id
             )
+            short_name = str(display.get("short_name") or public_name)
             roles = source.get("authority_roles") or {}
             role_text = ", ".join(
                 key.replace("_", " ") for key in sorted(roles)
@@ -944,6 +946,7 @@ def build_hot_database(
                     source_id,
                     source.get("release_id"),
                     public_name,
+                    short_name,
                     source.get("publisher"),
                     description,
                     display.get("mission_instrument"),
@@ -955,7 +958,7 @@ def build_hot_database(
             )
         hot.executemany(
             "INSERT INTO source_definitions VALUES ("
-            + ",".join("?" * 12)
+            + ",".join("?" * 13)
             + ")",
             source_rows,
         )

@@ -4442,6 +4442,27 @@ Representative commits:
   The interaction repair removes invalid nested buttons by keeping class/source
   tags and explicit object-selection controls as sibling interactive elements.
 
+### 167) Source Labels Become Compact Without Losing Provenance
+
+- On July 31, 2026, the reviewed source-presentation registry moved to v2 and
+  added explicit `short_name` values rather than deriving acronyms in the
+  browser. Established tokens include `MSC`, `SB9`, `WDS`, `ORB6`, `Gaia NSS`,
+  `TOI`, and `TESS EB`; the full source name remains authoritative in dialogs,
+  citations, accessibility text, and copied payloads.
+- Smart Tag compiler v2.3 and source-summary v3 rebuilt the same 407,265,280-byte
+  hot SQLite for Public Read build `e7_24cb15211f430a37f199f462_full_public` at
+  registry hash `06003700fa80ed3593c144665dc50bd533b37419d50391bc5ecad06c3edcd7c2`.
+  Clean builds completed in 230.4 and 228.6 seconds with identical logical
+  hashes and byte-identical SQLite and Parquet artifacts; the machine
+  determinism report is retained under the build's Smart Tag report root.
+  Verification accounts 11,418,384 assignments, 11,417,955 system memberships,
+  37,472 exact system/source summaries, 90,613 source contributions, and zero
+  quarantines; CORE, ARM, DISC, RIM, and Public Read were unchanged.
+- Public surfaces with per-object stellar/compact badges now omit the redundant
+  system-rollup class token. The searchable assignment remains intact, while
+  the badge inherits the registry explanation and adds object scope, evidence
+  state, evaluator basis, and bounded source context.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

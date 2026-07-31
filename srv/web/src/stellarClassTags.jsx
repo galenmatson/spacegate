@@ -310,6 +310,8 @@ export function StellarClassChips({
   className = "",
   size = "normal",
   evidenceStatus = null,
+  sources = [],
+  details = [],
 }) {
   const tokenList = tokens instanceof Set
     ? Array.from(tokens)
@@ -338,6 +340,8 @@ export function StellarClassChips({
             tooltip={tag.text}
             variant="stellar"
             evidenceStatuses={resolvedEvidenceStatus}
+            sources={sources}
+            details={details}
           />
         );
       })}

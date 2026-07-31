@@ -16,7 +16,12 @@ import { isLightweightPreviewSystem, LightweightSystemPreview } from "./Lightwei
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
-import { SmartTagList, SmartTagRegistryProvider, SourceTagList } from "./SmartTag.jsx";
+import {
+  OBJECT_BADGE_TAG_CATEGORIES,
+  SmartTagList,
+  SmartTagRegistryProvider,
+  SourceTagList,
+} from "./SmartTag.jsx";
 import {
   StellarClassChips,
   stellarClassTokensFromRecord,
@@ -3973,6 +3978,7 @@ function SearchPage({ buildId = "" }) {
                             tags={item.smart_tags}
                             sources={item.source_summary}
                             limit={6}
+                            excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
                             className="result-tags"
                             label={`${displayName} smart tags`}
                           />
@@ -4608,6 +4614,7 @@ function SystemDetailPage({ buildId = "" }) {
                 tags={systemTags}
                 sources={system?.source_summary}
                 limit={12}
+                excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
                 className="result-tags system-detail-tags"
                 label={`${currentSystemDisplayName} smart tags`}
               />

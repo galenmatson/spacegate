@@ -230,9 +230,18 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
         if (
             not isinstance(source_presentation, dict)
             or source_presentation.get("schema_version")
-            != "spacegate.smart_tag_source_presentation.v1"
+            != "spacegate.smart_tag_source_presentation.v2"
         ):
             raise TagRegistryError("unsupported source presentation schema")
+        for row in source_presentation.get("sources") or []:
+            if (
+                not isinstance(row, dict)
+                or not str(row.get("source_id") or "").strip()
+                or not str(row.get("public_name") or "").strip()
+                or not str(row.get("short_name") or "").strip()
+                or len(str(row.get("short_name") or "")) > 20
+            ):
+                raise TagRegistryError("invalid source presentation row")
         files.append(source_presentation_path)
     normalized = {
         "registry": registry,

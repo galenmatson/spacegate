@@ -1629,3 +1629,12 @@ tables. Smart Tags are derived public artifacts relative to Public Read and are
 part of the public release contract once
 `SPACEGATE_SMART_TAGS_REQUIRED=1`. They must not be moved to Proton or an NFS
 runtime path.
+
+The July 31, 2026 source-summary v3 generation for Public Read build
+`e7_24cb15211f430a37f199f462_full_public` has registry hash
+`06003700fa80ed3593c144665dc50bd533b37419d50391bc5ecad06c3edcd7c2`.
+It adds reviewed compact source labels and is the local `current` generation.
+Retain the preceding verified v2 hash
+`80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec`
+as immediate rollback until a later public release and rollback drill accept
+the v3 artifact.

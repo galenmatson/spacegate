@@ -4,7 +4,12 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
-import { SmartTag, SmartTagList, SourceTagList } from "./SmartTag.jsx";
+import {
+  OBJECT_BADGE_TAG_CATEGORIES,
+  SmartTag,
+  SmartTagList,
+  SourceTagList,
+} from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
@@ -4700,6 +4705,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             tags={scene?.smart_tags}
             sources={scene?.source_summary}
             limit={compactPresentation ? 4 : 8}
+            excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
             className="system-preview-smart-tags"
           />
           <SourceTagList

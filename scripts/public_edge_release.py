@@ -188,10 +188,12 @@ def validate_release(value: dict[str, Any]) -> dict[str, Any]:
         or smart_tags.get("tag_schema_version") != "spacegate.smart_tags.v2"
         or smart_tags.get("assignment_schema_version")
         != "spacegate.smart_tag_assignments.v2"
+        or smart_tags.get("source_summary_schema_version")
+        != "spacegate.smart_tag_source_summary.v3"
         or smart_tags.get("source_contribution_schema_version")
         != "spacegate.smart_tag_source_contributions.v1"
         or smart_tags.get("compiler_version")
-        != "spacegate.smart_tags_compiler.v2.2"
+        != "spacegate.smart_tags_compiler.v2.3"
         or smart_tags.get("build_id") != build_id
         or smart_tags.get("status") != "pass"
         or smart_tags.get("sample_limit") is not None

@@ -112,9 +112,9 @@ def make_smart_tags(path: Path, build_id: str) -> tuple[dict[str, object], Path]
         "schema_version": "spacegate.smart_tags_manifest.v2",
         "tag_schema_version": "spacegate.smart_tags.v2",
         "assignment_schema_version": "spacegate.smart_tag_assignments.v2",
-        "source_summary_schema_version": "spacegate.smart_tag_source_summary.v2",
+        "source_summary_schema_version": "spacegate.smart_tag_source_summary.v3",
         "source_contribution_schema_version": "spacegate.smart_tag_source_contributions.v1",
-        "compiler_version": "spacegate.smart_tags_compiler.v2.2",
+        "compiler_version": "spacegate.smart_tags_compiler.v2.3",
         "status": "pass",
         "build_id": build_id,
         "registry_hash": hashlib.sha256(b"registry").hexdigest(),
@@ -252,6 +252,16 @@ def test_release_rejects_path_escape(tmp_path: Path) -> None:
     value = release.load_json(manifest)
     value["artifacts"]["public_read"]["transfer_filename"] = "../escape.sqlite"
     with pytest.raises(ValueError, match="unsafe transfer filename"):
+        release.validate_release(value)
+
+
+def test_release_rejects_old_smart_tag_source_summary_schema(tmp_path: Path) -> None:
+    manifest, _, _ = make_fixture(tmp_path)
+    value = release.load_json(manifest)
+    value["smart_tag_manifest"]["source_summary_schema_version"] = (
+        "spacegate.smart_tag_source_summary.v2"
+    )
+    with pytest.raises(ValueError, match="smart-tag manifest is incompatible"):
         release.validate_release(value)
 
 

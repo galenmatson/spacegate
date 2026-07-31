@@ -3031,7 +3031,7 @@ Delivered:
   legacy accounting separately classifies 25 public pill/chip/badge/control
   surfaces. Unsettled science and observer-time context remain explicitly
   deferred, and missing orbit data cannot produce a `rogue` tag.
-- compiler v2.2 writes a 407,265,280-byte normalized hot SQLite, a
+- compiler v2.3 writes a 407,265,280-byte normalized hot SQLite, a
   294,656,487-byte complete assignment Parquet, and a 756,799-byte exact source
   contribution Parquet. It accounts 11,418,384 assignments over 5,869,091
   systems without mutating Public Read or a science layer.
@@ -3048,6 +3048,10 @@ Delivered:
   evidence/source tokens, stellar-class chips, and relevant sidebars consume
   the shared contract. The legacy `buildSearchResultTags` selector is retired;
   non-taxonomy controls remain explicitly outside Smart Tags.
+- source-summary v3 carries reviewed compact source names without discarding
+  full catalog names. Object-badge surfaces suppress duplicate stellar/compact
+  rollup tags and move their explanation, evidence state, evaluator basis, and
+  bounded source context onto the per-object badge.
 - one accessible shell provides hover/focus, keyboard, touch pinning,
   Escape/outside close, copy, Learn, Find More, bounded overflow, mobile-sheet,
   source, and evidence-state behavior without relying on color alone.

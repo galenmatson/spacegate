@@ -941,6 +941,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Search, Peek, Explorer, hierarchy, and simulation popovers clear panel/canvas
   stacking contexts while retaining hover, focus, touch pinning, and mobile-sheet
   behavior
+- [x] Add reviewed compact source names (`MSC`, `SB9`, `WDS`, `ORB6`, and peers)
+  to the immutable source-summary contract while retaining full catalog names
+  in dialogs, citations, accessible labels, and copied details
+- [x] Suppress duplicate stellar/compact rollup tags on object-badge surfaces
+  and move the richer registry explanation and evidence context onto each
+  stellar badge
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

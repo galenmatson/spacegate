@@ -129,6 +129,18 @@ Simulation canvas, proves the hero dialog and canvas overlap, and verifies by
 hit testing that the dialog remains topmost; its screenshot is retained with
 the Playwright report.
 
+Source tokens use reviewed compact labels while preserving full names in their
+dialogs and accessible labels. Stellar and compact-class Smart Tags are not
+repeated beside an existing object-badge inventory; their richer explanation,
+scope, evidence state, evaluator basis, and bounded source context attach to
+the object badge instead. The focused desktop/mobile run
+`smart-tag-compact-source-object-badges-20260731` verifies `MSC`/`SB9`, full
+catalog-name recovery, duplicate suppression, expanded A-star content, and
+unchanged Search-icon geometry with seven passes and one intentional
+desktop-only stacking skip on mobile. The complete follow-up
+`smart-tag-compact-labels-final-20260731` suite passes all 14 applicable
+desktop/mobile checks with two intentional profile skips.
+
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend
 label patch.

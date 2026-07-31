@@ -331,6 +331,8 @@ def test_registry_definition_and_source_api_endpoints(
     assert definition["tag"]["key"] == "science:system.multiple"
     source = api_main.smart_tag_source("source:multiplicity.msc")
     assert source["source"]["source_id"] == "multiplicity.msc"
+    assert source["source"]["public_name"] == "Multiple Star Catalog"
+    assert source["source"]["short_name"] == "MSC"
     with pytest.raises(api_main.HTTPException) as missing:
         api_main.smart_tag_definition("science:no.such.tag")
     assert missing.value.status_code == 404

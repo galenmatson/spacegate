@@ -244,7 +244,7 @@ def attach_tag_fixture(con: sqlite3.Connection) -> None:
         );
         CREATE TABLE smart_tags.source_definitions(
           source_num INTEGER PRIMARY KEY,source_key TEXT,source_id TEXT,
-          release_id TEXT,public_name TEXT,publisher TEXT,description TEXT,
+          release_id TEXT,public_name TEXT,short_name TEXT,publisher TEXT,description TEXT,
           mission_instrument TEXT,citation_url TEXT,license_name TEXT,
           license_url TEXT,authority_roles_json TEXT
         );

@@ -48,13 +48,18 @@ export function SystemObjectBadges({
         <span
           className="system-object-badge system-object-badge-star"
           key={star.hierarchy_node_key || star.leaf_component_key || star.stable_object_key || star.fallback_key || `star-${index}`}
-          title={star.display_name || `Stellar member ${index + 1}`}
         >
           <StellarClassChips
             tokens={[star.classification_value || "UNKNOWN"]}
             record={star}
             evidenceStatus={star.classification_status}
             size={size}
+            sources={system?.source_summary}
+            details={[
+              { label: "Object", value: star.display_name || `Stellar member ${index + 1}` },
+              { label: "Scope", value: "stellar member" },
+              { label: "Classification", value: star.classification_value || "unknown" },
+            ]}
           />
         </span>
       ))}

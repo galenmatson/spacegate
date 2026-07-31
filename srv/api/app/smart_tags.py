@@ -14,9 +14,9 @@ from typing import Any, Iterable
 EXPECTED_MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
 EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v2"
 EXPECTED_ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
-EXPECTED_SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v2"
+EXPECTED_SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 EXPECTED_SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.2"
+EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.3"
 EVIDENCE_STATUS_BITS = (
     ("source", 1),
     ("derived", 2),
@@ -331,6 +331,7 @@ def _source_payload(row: sqlite3.Row) -> dict[str, Any]:
         "source_id": row["source_id"],
         "release_id": row["release_id"],
         "public_name": row["public_name"],
+        "short_name": row["short_name"],
         "publisher": row["publisher"],
         "description": row["description"],
         "mission_instrument": row["mission_instrument"],

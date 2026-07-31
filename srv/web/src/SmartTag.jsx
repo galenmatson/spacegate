@@ -18,6 +18,11 @@ const SmartTagRegistryContext = createContext({
   status: "idle",
 });
 
+export const OBJECT_BADGE_TAG_CATEGORIES = Object.freeze([
+  "stellar_class",
+  "compact_object",
+]);
+
 export function SmartTagRegistryProvider({ children }) {
   const [state, setState] = useState({
     definitions: new Map(),
@@ -377,8 +382,8 @@ export function SmartTag({
         aria-haspopup="dialog"
         aria-controls={open ? popoverId : undefined}
         aria-label={evidenceState
-          ? `${resolved.label || label || tagKey}, ${evidenceState.label}`
-          : (resolved.label || label || tagKey)}
+          ? `${resolved.name || resolved.label || label || tagKey}, ${evidenceState.label}`
+          : (resolved.name || resolved.label || label || tagKey)}
         onClick={() => {
           setDismissed(false);
           setPinned((value) => !value);
@@ -524,7 +529,7 @@ export function SourceTagList({
           variant="source"
           definition={{
             key: source.key,
-            label: source.public_name || source.publisher || source.source_id,
+            label: source.short_name || source.public_name || source.publisher || source.source_id,
             name: source.public_name || source.publisher || source.source_id,
             category: "source_reference",
             kind: "source",
@@ -557,19 +562,21 @@ export function SmartTagList({
   mode = "normal",
   className = "",
   label = "Smart tags",
+  excludeCategories = [],
 }) {
   const budget = Number.isFinite(Number(limit))
     ? Number(limit)
     : ({ compact: 4, normal: 8, expanded: 16 }[mode] || 8);
   const ordered = useMemo(
     () => (Array.isArray(tags) ? tags : [])
+      .filter((tag) => !excludeCategories.includes(String(tag?.category || "")))
       .slice()
       .sort((left, right) => (
         Number(right?.priority?.[mode] || right?.priority?.normal || 0)
           - Number(left?.priority?.[mode] || left?.priority?.normal || 0)
         || String(left?.name || left?.key).localeCompare(String(right?.name || right?.key))
       )),
-    [mode, tags],
+    [excludeCategories, mode, tags],
   );
   const visible = ordered.slice(0, budget);
   const overflow = Math.max(0, ordered.length - visible.length);

@@ -2020,7 +2020,8 @@ Response 200: same as `/systems/{system_id}`.
 
 `GET /tag-sources/{source_key}` returns one registered source/release
 presentation definition, including publisher, mission/instrument context,
-citation URL, license, and authority roles.
+citation URL, license, authority roles, full `public_name`, and reviewed compact
+`short_name`.
 
 `GET /systems/{system_id}/tags` returns system discovery membership, including
 direct versus member-rollup scope and bounded source references.
@@ -2064,6 +2065,8 @@ payloads expose:
     {
       "key": "source:multiplicity.wds",
       "source_id": "multiplicity.wds",
+      "public_name": "Washington Double Star Catalog",
+      "short_name": "WDS",
       "publisher": "USNO",
       "release_id": "current",
       "description": "Accepted visual double-star evidence.",
