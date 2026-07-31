@@ -937,6 +937,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   exact source lineage, indexed API/search filters, shared accessible token
   shell, eight reviewed concept routes, public consumer migration, constrained
   capacity gates, and local four-artifact release rehearsal
+- [x] Render shared Smart Tag dialogs through a viewport-level overlay so hero,
+  Search, Peek, Explorer, hierarchy, and simulation popovers clear panel/canvas
+  stacking contexts while retaining hover, focus, touch pinning, and mobile-sheet
+  behavior
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

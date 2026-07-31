@@ -1873,7 +1873,7 @@ test.describe("public 3D map beta", () => {
     await expect(renderPolicy).toContainText(/Deterministic Snapshot/i);
     const readoutEvidenceTag = page.locator(".system-preview-evidence .evidence-smart-tag .smart-tag-trigger").first();
     await readoutEvidenceTag.focus();
-    const readoutEvidencePopover = page.locator(".system-preview-evidence .smart-tag-popover").first();
+    const readoutEvidencePopover = page.locator(`[id="${await readoutEvidenceTag.getAttribute("aria-controls")}"]`);
     await expect(readoutEvidencePopover).toBeVisible();
     await expect(readoutEvidencePopover).toContainText(/Basis/i);
     await expect(readoutEvidencePopover).toContainText(/Confidence/i);
@@ -1955,8 +1955,9 @@ test.describe("public 3D map beta", () => {
     await expect(pinnedReadout.locator(".system-preview-pinned-title")).not.toHaveText("");
     await expect(pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first()).toBeVisible();
     await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
-    await pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first().focus();
-    await expect(page.locator("[data-testid='system-preview-pinned'] .smart-tag-popover").first()).toBeVisible();
+    const pinnedEvidenceTag = pinnedReadout.locator(".evidence-smart-tag .smart-tag-trigger").first();
+    await pinnedEvidenceTag.focus();
+    await expect(page.locator(`[id="${await pinnedEvidenceTag.getAttribute("aria-controls")}"]`)).toBeVisible();
   });
 
   test("system preview falls back to deterministic snapshot when WebGL is unavailable", async ({ page }, testInfo) => {

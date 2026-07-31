@@ -1,4 +1,13 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
 import { fetchSmartTagRegistry } from "./api.js";
@@ -51,6 +60,12 @@ export function useSmartTagDefinition(tagKey) {
 
 function stopCardNavigation(event) {
   event.stopPropagation();
+}
+
+function popoverFocusableElements(popover) {
+  return Array.from(popover?.querySelectorAll(
+    "a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])",
+  ) || []);
 }
 
 const EVIDENCE_STATUS_MARKERS = {
@@ -131,9 +146,14 @@ export function SmartTag({
   const [pinned, setPinned] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState(null);
   const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
+  const hoverCloseTimerRef = useRef(null);
   const suppressFocusOpenRef = useRef(false);
   const open = !dismissed && (pinned || hovered || focused);
+  const popoverId = React.useId();
   const resolvedEvidenceStatuses = normalizedEvidenceStatuses(
     evidenceStatuses ?? resolved.assignment?.evidence_statuses,
   );
@@ -173,12 +193,85 @@ export function SmartTag({
     ? `/search?tags_all=${encodeURIComponent(resolved.key)}`
     : "";
 
+  const cancelHoverClose = () => {
+    if (hoverCloseTimerRef.current !== null) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  };
+  const scheduleHoverClose = () => {
+    cancelHoverClose();
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      setHovered(false);
+      hoverCloseTimerRef.current = null;
+    }, 120);
+  };
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current || !popoverRef.current) {
+      setPopoverPosition(null);
+      return undefined;
+    }
+
+    const positionPopover = () => {
+      const triggerBounds = triggerRef.current?.getBoundingClientRect();
+      const popoverBounds = popoverRef.current?.getBoundingClientRect();
+      if (!triggerBounds || !popoverBounds) {
+        return;
+      }
+      const edge = 12;
+      const gap = 7;
+      const maxLeft = Math.max(edge, window.innerWidth - popoverBounds.width - edge);
+      const left = Math.min(Math.max(triggerBounds.left, edge), maxLeft);
+      const roomBelow = window.innerHeight - triggerBounds.bottom - edge;
+      const roomAbove = triggerBounds.top - edge;
+      const placeAbove = roomBelow < popoverBounds.height + gap && roomAbove > roomBelow;
+      const desiredTop = placeAbove
+        ? triggerBounds.top - popoverBounds.height - gap
+        : triggerBounds.bottom + gap;
+      const maxTop = Math.max(edge, window.innerHeight - popoverBounds.height - edge);
+      const top = Math.min(Math.max(desiredTop, edge), maxTop);
+      const next = {
+        left: Math.round(left),
+        top: Math.round(top),
+        placement: placeAbove ? "above" : "below",
+      };
+      setPopoverPosition((current) => (
+        current
+          && current.left === next.left
+          && current.top === next.top
+          && current.placement === next.placement
+          ? current
+          : next
+      ));
+    };
+
+    positionPopover();
+    window.addEventListener("resize", positionPopover);
+    window.addEventListener("scroll", positionPopover, true);
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(positionPopover);
+    observer?.observe(triggerRef.current);
+    observer?.observe(popoverRef.current);
+    return () => {
+      window.removeEventListener("resize", positionPopover);
+      window.removeEventListener("scroll", positionPopover, true);
+      observer?.disconnect();
+    };
+  }, [open]);
+
+  useEffect(() => () => cancelHoverClose(), []);
+
   useEffect(() => {
     if (!pinned) {
       return undefined;
     }
     const closeOutside = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
+      if (
+        !rootRef.current?.contains(event.target)
+        && !popoverRef.current?.contains(event.target)
+      ) {
         setPinned(false);
         setDismissed(false);
       }
@@ -230,10 +323,11 @@ export function SmartTag({
       data-tag-layer={resolved.layer}
       data-evidence-state={evidenceState?.key || "accepted"}
       onMouseEnter={() => {
+        cancelHoverClose();
         setDismissed(false);
         setHovered(true);
       }}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={scheduleHoverClose}
       onFocusCapture={() => {
         if (suppressFocusOpenRef.current) {
           suppressFocusOpenRef.current = false;
@@ -243,7 +337,10 @@ export function SmartTag({
         setFocused(true);
       }}
       onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
+        if (
+          !event.currentTarget.contains(event.relatedTarget)
+          && !popoverRef.current?.contains(event.relatedTarget)
+        ) {
           setFocused(false);
           setDismissed(false);
         }
@@ -253,11 +350,24 @@ export function SmartTag({
           event.stopPropagation();
           setPinned(false);
           setDismissed(true);
+        } else if (
+          event.key === "Tab"
+          && !event.shiftKey
+          && open
+          && !event.defaultPrevented
+          && document.activeElement === triggerRef.current
+        ) {
+          const firstPopoverControl = popoverFocusableElements(popoverRef.current)[0];
+          if (firstPopoverControl) {
+            event.preventDefault();
+            firstPopoverControl.focus();
+          }
         }
       }}
       onClick={stopCardNavigation}
     >
       <button
+        ref={triggerRef}
         type="button"
         className={variant === "stellar" ? "stellar-class-chip smart-tag-trigger" : "smart-tag-trigger"}
         data-stellar-token={variant === "stellar"
@@ -265,6 +375,7 @@ export function SmartTag({
           : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-controls={open ? popoverId : undefined}
         aria-label={evidenceState
           ? `${resolved.label || label || tagKey}, ${evidenceState.label}`
           : (resolved.label || label || tagKey)}
@@ -284,61 +395,111 @@ export function SmartTag({
           </span>
         ) : null}
       </button>
-      {open ? (
-        <span className="smart-tag-popover" role="dialog" aria-label={`${resolved.name} details`}>
-          <span className="smart-tag-popover-heading">
-            <strong>{resolved.name}</strong>
-            <span>{resolved.layer}</span>
-          </span>
-          <span className="smart-tag-popover-copy">{resolved.tooltip || resolved.short_tooltip}</span>
-          {resolvedDetails.some((row) => row?.value) ? (
-            <span className="smart-tag-details">
-              {resolvedDetails.filter((row) => row?.value).map((row) => (
-                <span key={`${row.label}-${row.value}`}>
-                  <strong>{row.label}</strong>
-                  <span>{row.value}</span>
-                </span>
-              ))}
+      {open && typeof document !== "undefined" ? createPortal(
+        <span
+          className={`smart-tag-portal smart-tag-root smart-tag-${variant}`}
+          data-tag-category={resolved.category}
+          data-tag-visual={resolved.visual_token}
+          data-tag-kind={resolved.kind}
+          data-tag-layer={resolved.layer}
+          data-evidence-state={evidenceState?.key || "accepted"}
+          onMouseEnter={() => {
+            cancelHoverClose();
+            setHovered(true);
+          }}
+          onMouseLeave={scheduleHoverClose}
+          onFocusCapture={() => setFocused(true)}
+          onBlurCapture={(event) => {
+            if (
+              !event.currentTarget.contains(event.relatedTarget)
+              && !rootRef.current?.contains(event.relatedTarget)
+            ) {
+              setFocused(false);
+              setDismissed(false);
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Tab") {
+              return;
+            }
+            const focusable = popoverFocusableElements(popoverRef.current);
+            if (
+              (event.shiftKey && event.target === focusable[0])
+              || (!event.shiftKey && event.target === focusable.at(-1))
+            ) {
+              event.preventDefault();
+              triggerRef.current?.focus();
+            }
+          }}
+          onClick={stopCardNavigation}
+        >
+          <span
+            ref={popoverRef}
+            id={popoverId}
+            className="smart-tag-popover"
+            role="dialog"
+            aria-label={`${resolved.name} details`}
+            data-placement={popoverPosition?.placement || "below"}
+            style={{
+              "--smart-tag-popover-left": `${popoverPosition?.left ?? 12}px`,
+              "--smart-tag-popover-top": `${popoverPosition?.top ?? 12}px`,
+            }}
+          >
+            <span className="smart-tag-popover-heading">
+              <strong>{resolved.name}</strong>
+              <span>{resolved.layer}</span>
             </span>
-          ) : null}
-          {resolved.source_policy ? (
-            <span className="smart-tag-policy">
-              <strong>Basis</strong>
-              <span>{String(resolved.source_policy).replaceAll("_", " ")}</span>
-            </span>
-          ) : null}
-          {sources.length ? (
-            <span className="smart-tag-sources">
-              <strong>Sources in this system</strong>
-              {sources.slice(0, 4).map((source) => (
-                source.citation_url ? (
-                  <a
-                    key={`${source.key}-${source.contribution_kind}`}
-                    href={source.citation_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {source.public_name || source.publisher || source.source_id}
-                  </a>
-                ) : (
-                  <span key={`${source.key}-${source.contribution_kind}`}>
-                    {source.public_name || source.publisher || source.source_id}
+            <span className="smart-tag-popover-copy">{resolved.tooltip || resolved.short_tooltip}</span>
+            {resolvedDetails.some((row) => row?.value) ? (
+              <span className="smart-tag-details">
+                {resolvedDetails.filter((row) => row?.value).map((row) => (
+                  <span key={`${row.label}-${row.value}`}>
+                    <strong>{row.label}</strong>
+                    <span>{row.value}</span>
                   </span>
-                )
-              ))}
+                ))}
+              </span>
+            ) : null}
+            {resolved.source_policy ? (
+              <span className="smart-tag-policy">
+                <strong>Basis</strong>
+                <span>{String(resolved.source_policy).replaceAll("_", " ")}</span>
+              </span>
+            ) : null}
+            {sources.length ? (
+              <span className="smart-tag-sources">
+                <strong>Sources in this system</strong>
+                {sources.slice(0, 4).map((source) => (
+                  source.citation_url ? (
+                    <a
+                      key={`${source.key}-${source.contribution_kind}`}
+                      href={source.citation_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {source.public_name || source.publisher || source.source_id}
+                    </a>
+                  ) : (
+                    <span key={`${source.key}-${source.contribution_kind}`}>
+                      {source.public_name || source.publisher || source.source_id}
+                    </span>
+                  )
+                ))}
+              </span>
+            ) : null}
+            <span className="smart-tag-actions">
+              {conceptPath ? <Link to={conceptPath}>Learn</Link> : null}
+              {filterPath ? <Link to={filterPath}>Find more</Link> : null}
+              {conceptPath || filterPath ? (
+                <button type="button" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>
+              ) : null}
+              {copyValue !== null && copyValue !== undefined ? (
+                <button type="button" onClick={copyDetails}>{copied ? "Copied" : "Copy details"}</button>
+              ) : null}
             </span>
-          ) : null}
-          <span className="smart-tag-actions">
-            {conceptPath ? <Link to={conceptPath}>Learn</Link> : null}
-            {filterPath ? <Link to={filterPath}>Find more</Link> : null}
-            {conceptPath || filterPath ? (
-              <button type="button" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>
-            ) : null}
-            {copyValue !== null && copyValue !== undefined ? (
-              <button type="button" onClick={copyDetails}>{copied ? "Copied" : "Copy details"}</button>
-            ) : null}
           </span>
-        </span>
+        </span>,
+        document.body,
       ) : null}
     </span>
   );

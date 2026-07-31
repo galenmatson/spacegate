@@ -90,8 +90,7 @@ test.describe("Smart Tags and concepts", () => {
     const trigger = page.locator(".system-detail-tags .smart-tag-trigger").first();
     await expect(trigger).toBeVisible();
     await trigger.focus();
-    const root = trigger.locator("..");
-    const popover = root.locator(".smart-tag-popover");
+    const popover = page.locator(`[id="${await trigger.getAttribute("aria-controls")}"]`);
     await expect(popover).toBeVisible();
     await expect(popover).toContainText(/Basis|Evidence state|Scope/);
     await page.keyboard.press("Escape");
@@ -105,6 +104,10 @@ test.describe("Smart Tags and concepts", () => {
       const href = await learn.getAttribute("href");
       expect(href).toMatch(/^\/concepts\//);
     }
+    await page.keyboard.press("Tab");
+    await expect(popover.locator("a, button").first()).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(trigger).toBeFocused();
     await page.mouse.click(4, 4);
     await expect(popover).not.toBeVisible();
 
@@ -115,6 +118,52 @@ test.describe("Smart Tags and concepts", () => {
     await expect.poll(
       () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4),
     ).toBeTruthy();
+  });
+
+  test("System Page hero tag popovers clear the simulation stacking context", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "Desktop hero and simulation stacking check");
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-preview-panel")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+
+    const trigger = page.locator(".system-detail-tags .smart-tag-trigger").first();
+    await trigger.hover();
+    const popover = page.getByRole("dialog", { name: /details$/ }).first();
+    await expect(popover).toBeVisible();
+    await expect(popover.locator("..")).toHaveClass(/smart-tag-portal/);
+
+    const overlap = await page.evaluate(() => {
+      const dialog = document.querySelector(".smart-tag-portal .smart-tag-popover");
+      const simulation = document.querySelector(".system-preview-panel");
+      if (!dialog || !simulation) {
+        return null;
+      }
+      const dialogBounds = dialog.getBoundingClientRect();
+      const simulationBounds = simulation.getBoundingClientRect();
+      const left = Math.max(dialogBounds.left, simulationBounds.left);
+      const right = Math.min(dialogBounds.right, simulationBounds.right);
+      const top = Math.max(dialogBounds.top, simulationBounds.top);
+      const bottom = Math.min(dialogBounds.bottom, simulationBounds.bottom);
+      if (right <= left || bottom <= top) {
+        return { width: 0, height: 0, popoverIsTopmost: false };
+      }
+      const target = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+      return {
+        width: right - left,
+        height: bottom - top,
+        popoverIsTopmost: Boolean(target?.closest(".smart-tag-popover")),
+      };
+    });
+    expect(overlap).toBeTruthy();
+    expect(overlap.width).toBeGreaterThan(8);
+    expect(overlap.height).toBeGreaterThan(8);
+    expect(overlap.popoverIsTopmost).toBeTruthy();
+    await page.screenshot({
+      path: testInfo.outputPath("system-hero-tag-overlay.png"),
+      fullPage: false,
+    });
   });
 
   test("stellar class badges reuse the Search icon contract", async ({ page }) => {

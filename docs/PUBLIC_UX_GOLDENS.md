@@ -120,6 +120,15 @@ across those shared consumers. The final Smart Tag UI run
 intentional mobile skip for the desktop-only 4K profile, and the existing
 Peek-to-Explorer workflow passes separately.
 
+Smart Tag dialogs render in a shared viewport overlay rather than inside panel
+stacking contexts. The `smart-tag-overlay-final-full-20260731` desktop/mobile suite
+passes all ten applicable registry, interaction, concept, badge, theme, and
+layout checks with two intentional profile skips. The focused
+`smart-tag-overlay-visual-r2-20260731` regression waits for the live System
+Simulation canvas, proves the hero dialog and canvas overlap, and verifies by
+hit testing that the dialog remains topmost; its screenshot is retained with
+the Playwright report.
+
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend
 label patch.

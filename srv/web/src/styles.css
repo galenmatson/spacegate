@@ -8049,10 +8049,9 @@ main {
 }
 
 .smart-tag-popover {
-  position: absolute;
-  z-index: 120;
-  top: calc(100% + 7px);
-  left: 0;
+  position: fixed;
+  top: var(--smart-tag-popover-top, 12px);
+  left: var(--smart-tag-popover-left, 12px);
   display: grid;
   width: min(320px, calc(100vw - 32px));
   gap: 9px;
@@ -8069,6 +8068,20 @@ main {
   text-align: left;
   text-transform: none;
   white-space: normal;
+}
+
+.smart-tag-portal {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+
+.smart-tag-portal .smart-tag-popover {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .smart-tag-popover-heading,
@@ -8151,7 +8164,6 @@ main {
 
 @media (max-width: 640px) {
   .smart-tag-popover {
-    position: fixed;
     inset: auto 12px 12px;
     width: auto;
     max-height: min(72vh, 520px);
