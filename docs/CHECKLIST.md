@@ -947,6 +947,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Suppress duplicate stellar/compact rollup tags on object-badge surfaces
   and move the richer registry explanation and evidence context onto each
   stellar badge
+- [x] Repair case-significant MSC component classification binding through the
+  existing release-scoped orbit endpoint bridge: require one accepted physical
+  leaf, preserve exact lineage, keep group endpoints and ambiguous tails
+  deferred, and pass full inventory/scientific A/B and clean reproduction gates
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

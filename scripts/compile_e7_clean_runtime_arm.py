@@ -981,6 +981,31 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             AND nullif(trim(wds_id_raw),'') IS NOT NULL
             AND nullif(trim(component_label_normalized),'') IS NOT NULL
           GROUP BY 1,2
+        ), identity_bridge_groups AS (
+          SELECT trim(wds_id_raw) AS wds_id,
+            lower(trim(component_label_normalized)) AS casefold_label,
+            count(*) FILTER (
+              WHERE binding_status='accepted' AND endpoint_kind='leaf'
+            )::BIGINT AS accepted_leaf_candidate_count
+          FROM stellar_orbit_endpoint_bindings
+          WHERE nullif(trim(wds_id_raw),'') IS NOT NULL
+            AND nullif(trim(component_label_normalized),'') IS NOT NULL
+          GROUP BY 1,2
+        ), unique_identity_bridge_leaves AS (
+          SELECT endpoint.component_entity_id,endpoint.endpoint_binding_id,
+            endpoint.build_id AS identity_bridge_build_id,
+            endpoint.policy_version AS identity_bridge_policy_version,
+            endpoint.hierarchy_node_key,endpoint.runtime_component_key,
+            endpoint.canonical_system_stable_object_key,
+            endpoint.runtime_candidate_count,
+            groups.accepted_leaf_candidate_count
+          FROM stellar_orbit_endpoint_bindings endpoint
+          JOIN identity_bridge_groups groups
+            ON groups.wds_id=trim(endpoint.wds_id_raw)
+           AND groups.casefold_label=lower(trim(endpoint.component_label_normalized))
+          WHERE endpoint.binding_status='accepted'
+            AND endpoint.endpoint_kind='leaf'
+            AND groups.accepted_leaf_candidate_count=1
         ), direct_runtime_groups AS (
           SELECT hierarchy_node_key,
             count(*)::BIGINT AS runtime_candidate_count,
@@ -1008,22 +1033,46 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
           ce.canonical_system_stable_object_key AS source_system_stable_object_key,
           ce.binding_status AS source_binding_status,ce.binding_method,ce.binding_reason,
           coalesce(s.source_candidate_count,0)::BIGINT AS source_candidate_count,
-          coalesce(d.runtime_candidate_count,r.runtime_candidate_count,0)::BIGINT
+          CASE WHEN s.source_candidate_count>1 AND bridge.component_entity_id IS NOT NULL
+            THEN bridge.runtime_candidate_count
+            ELSE coalesce(d.runtime_candidate_count,r.runtime_candidate_count,0)
+          END::BIGINT
             AS runtime_candidate_count,
-          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
-                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
-                THEN coalesce(d.hierarchy_node_key,r.hierarchy_node_key) END
+          CASE
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count>1
+              AND bridge.component_entity_id IS NOT NULL
+              AND bridge.runtime_candidate_count=1
+                THEN bridge.hierarchy_node_key
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+              AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+                THEN coalesce(d.hierarchy_node_key,r.hierarchy_node_key)
+          END
             AS hierarchy_node_key,
-          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
-                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
-                THEN coalesce(d.runtime_component_key,r.runtime_component_key) END
+          CASE
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count>1
+              AND bridge.component_entity_id IS NOT NULL
+              AND bridge.runtime_candidate_count=1
+                THEN bridge.runtime_component_key
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+              AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+                THEN coalesce(d.runtime_component_key,r.runtime_component_key)
+          END
             AS runtime_component_key,
-          CASE WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
-                 AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
+          CASE
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count>1
+              AND bridge.component_entity_id IS NOT NULL
+              AND bridge.runtime_candidate_count=1
+                THEN bridge.canonical_system_stable_object_key
+            WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
+              AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
                 THEN coalesce(d.runtime_system_stable_object_key,
-                  r.runtime_system_stable_object_key) END
+                  r.runtime_system_stable_object_key)
+          END
             AS runtime_system_stable_object_key,
           CASE WHEN ce.binding_status<>'accepted' THEN ce.binding_status
+               WHEN s.source_candidate_count>1
+                 AND bridge.component_entity_id IS NOT NULL
+                 AND bridge.runtime_candidate_count=1 THEN 'accepted'
                WHEN s.source_candidate_count>1 THEN 'ambiguous'
                WHEN coalesce(d.runtime_candidate_count,r.runtime_candidate_count) IS NULL
                  THEN 'missing'
@@ -1031,18 +1080,28 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
                  THEN 'ambiguous'
                ELSE 'accepted' END::VARCHAR AS runtime_binding_status,
           CASE WHEN ce.binding_status<>'accepted' THEN 'source_component_not_accepted'
+               WHEN s.source_candidate_count>1
+                 AND bridge.component_entity_id IS NOT NULL
+                 AND bridge.runtime_candidate_count=1
+                 THEN 'exact_release_scoped_leaf_identity_bridge'
                WHEN s.source_candidate_count>1 THEN 'case_significant_source_collision'
                WHEN d.runtime_candidate_count=1 THEN 'exact_msc_hierarchy_leaf_key'
                WHEN r.runtime_candidate_count IS NULL THEN 'runtime_leaf_missing'
                WHEN r.runtime_candidate_count>1 THEN 'runtime_leaf_collision'
                ELSE 'exact_wds_unique_casefold_component' END::VARCHAR
             AS runtime_binding_reason,
+          bridge.endpoint_binding_id AS runtime_identity_bridge_id,
+          bridge.identity_bridge_build_id AS runtime_identity_bridge_build_id,
+          bridge.identity_bridge_policy_version AS runtime_identity_bridge_policy_version,
           false::BOOLEAN AS canonical_containment,
-          'e7_msc_runtime_leaf_binding_v1'::VARCHAR AS policy_version
+          'e7_msc_runtime_leaf_binding_v2'::VARCHAR AS policy_version
         FROM science.evidence_component_msc_component_entities ce
         LEFT JOIN source_groups s
           ON s.wds_id=trim(ce.wds_id_raw)
          AND s.casefold_label=lower(trim(ce.component_label_normalized))
+        LEFT JOIN unique_identity_bridge_leaves bridge
+          ON bridge.component_entity_id=ce.component_entity_id
+         AND s.source_candidate_count>1
         LEFT JOIN direct_runtime_groups d
           ON d.hierarchy_node_key=('canon:leaf:msc:' || lower(trim(ce.wds_id_raw)) ||
             ':' || lower(trim(ce.component_label_normalized)))
@@ -1259,6 +1318,18 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         "msc_runtime_containment_promotions": scalar(
             "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE canonical_containment"
         ),
+        "accepted_collision_binding_without_identity_bridge": scalar(
+            "SELECT count(*) FROM msc_runtime_leaf_bindings "
+            "WHERE runtime_binding_reason='exact_release_scoped_leaf_identity_bridge' "
+            "AND (runtime_binding_status<>'accepted' OR runtime_identity_bridge_id IS NULL "
+            "OR runtime_identity_bridge_build_id IS NULL "
+            "OR runtime_identity_bridge_policy_version IS NULL)"
+        ),
+        "multiple_accepted_casefold_collision_bindings": scalar(
+            "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) "
+            "FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 "
+            "AND runtime_binding_status='accepted' GROUP BY 1,2 HAVING count(*)<>1)"
+        ),
         "selected_stellar_inventory_delta": abs(
             counts["selected_stellar_parameters"] - scalar("SELECT count(*) FROM core.stars")
         ),
@@ -1377,6 +1448,19 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "canonical_planets_without_selected_parameters": scalar(
                 "SELECT count(*) FROM core.planets p LEFT JOIN selected_planet_parameters s USING(planet_id) "
                 "WHERE s.planet_id IS NULL"
+            ),
+            "casefold_collision_groups": scalar(
+                "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) "
+                "FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 GROUP BY 1,2)"
+            ),
+            "identity_bridge_recovered_collision_groups": scalar(
+                "SELECT count(*) FROM msc_runtime_leaf_bindings "
+                "WHERE runtime_binding_reason='exact_release_scoped_leaf_identity_bridge'"
+            ),
+            "deferred_casefold_collision_groups": scalar(
+                "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) "
+                "FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 GROUP BY 1,2 "
+                "HAVING count(*) FILTER (WHERE runtime_binding_status='accepted')=0)"
             )
         },
         "runtime_graph_status": policy["runtime_graph_status"],

@@ -2445,6 +2445,18 @@ corrected runtime A/B reports exactly those 192 deferrals, zero remaining
 UltracoolSheet tail, zero reference-only leaves, and zero unaccounted or Gaia
 white-dwarf regressions.
 
+The later stellar-orbit endpoint bridge supplies an independent,
+release-scoped identity result for many of those collision rows. Runtime ARM
+policy v12 therefore permits a narrower recovery without weakening v9: only an
+exact source component with one accepted physical `leaf` endpoint may bind.
+Composite group endpoints cannot supply a leaf classification, and zero or
+multiple accepted leaf candidates remain deferred. Full A/B over the current
+runtime inventory recovers 168 bindings and 158 UNKNOWN classifications while
+70 collision groups remain unresolved; it changes no known class, leaf,
+hierarchy edge, orbit, or containment claim. This bridge resolves component
+scope only. Scientific value selection remains in the existing quantity policy,
+including explicit `SOURCE` versus `ASSUMED` status.
+
 The modular artifact also exposes build architecture debt. Its scientific query
 takes about ten seconds while byte-verifying the 179.4-GB Gaia input takes about
 157 seconds; downstream assemblers then recopy unchanged multi-million-row

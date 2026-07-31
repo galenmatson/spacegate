@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_arm_policy.v6",
-  "policy_version": "2026-07-24.e7-clean-runtime-arm.11",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v7",
+  "policy_version": "2026-07-31.e7-clean-runtime-arm.12",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v8",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,
@@ -101,7 +101,7 @@
   ],
   "runtime_graph_status": {
     "component_containment": "implemented_from_canonical_hierarchy",
-    "stellar_leaf_classification": "implemented_from_selected_science_and_release_scoped_component_evidence",
+    "stellar_leaf_classification": "implemented_from_selected_science_and_exact_release_scoped_component_identity_bridge",
     "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_or_source_relation periods_and_exact_leaf_or_group_endpoint_bridge",
     "solar_minor_body_projection": "implemented_from_permanent_solar_identity_and_selected_runtime_evidence",
     "tess_candidate_compatibility": "implemented_from_clean_key_rebound_selected_tess_evidence"

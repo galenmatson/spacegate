@@ -2111,10 +2111,10 @@ test.describe("public 3D map beta", () => {
 
     const cases = [
       { label: "HD 110067", expected: ["K", "K", "M", "M"] },
-      { label: "HD 79107", expected: ["F", "K", "M", "UNKNOWN"] },
+      { label: "HD 79107", expected: ["F", "K", "M", "M"] },
       { label: "Gl 161.1", expected: ["F", "G", "M", "M", "UNKNOWN"] },
       { label: "HD 18134", expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
-      { label: "Castor", expected: ["A", "A", "L", "M", "M", "M", "UNKNOWN"] },
+      { label: "Castor", expected: ["A", "A", "L", "M", "M", "M", "M"] },
       { label: "HD 57041", expected: ["K", "WD"] },
     ];
     const sorted = (values) => [...values].sort();
@@ -2184,12 +2184,12 @@ test.describe("public 3D map beta", () => {
     const castorStars = scenePayload.render_scene?.bodies?.stars || [];
     expect(castorStars).toHaveLength(7);
     expect(castorStars.map((star) => star.spectral_class || "UNKNOWN").sort()).toEqual(
-      ["A", "A", "L", "M", "M", "M", "UNKNOWN"]
+      ["A", "A", "L", "M", "M", "M", "M"]
     );
     const sourceClassifiedStars = castorStars.filter(
       (item) => item.fields?.stellar_leaf_display_class?.status === "source"
     );
-    expect(sourceClassifiedStars).toHaveLength(5);
+    expect(sourceClassifiedStars).toHaveLength(6);
     expect(sourceClassifiedStars.map((star) => star.spectral_class)).toEqual(
       expect.arrayContaining(["A", "M"])
     );
@@ -2266,10 +2266,10 @@ test.describe("public 3D map beta", () => {
     ).toBe(1);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='a']")).toHaveCount(2);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(3);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(4);
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='l']")).toHaveCount(1);
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='wd']")).toHaveCount(0);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(1);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(0);
   });
 
   test("source compact evidence outranks visual mass fallbacks", async ({ page }, testInfo) => {

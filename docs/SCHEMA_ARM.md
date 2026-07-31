@@ -915,6 +915,30 @@ or `evidence_component_key`, but ambiguous aliases must fail closed. When this
 projection is available, raw ARM component endpoints absent from it are
 evidence, not additional rendered stellar members.
 
+### Release-scoped MSC leaf binding
+
+Runtime table `msc_runtime_leaf_bindings` records the auditable bridge between
+source-native MSC component identities and canonical hierarchy leaves. Component
+label case is identity-significant: a composite `AB` subsystem and an `Ab` leaf
+must not be treated as the same endpoint merely because their labels casefold to
+the same string.
+
+Ordinary exact hierarchy-leaf matches remain accepted directly. When a
+source-release/system label group contains a casefold collision, a row may be
+accepted only when `stellar_orbit_endpoint_bindings` supplies exactly one
+accepted physical `leaf` endpoint for that exact source component. The runtime
+row records `runtime_identity_bridge_id`, bridge build ID, and bridge policy
+version. Zero or multiple accepted leaf candidates remain
+`case_significant_source_collision`; group endpoints never become leaf
+classifications through this policy.
+
+The bridge does not create canonical containment, merge identities, or select a
+scientific value. It only establishes component scope so the existing
+quantity-specific classification precedence can consume already-selected
+evidence. Verification rejects accepted collision bindings without bridge
+lineage, more than one accepted binding per collision group, and any containment
+promotion.
+
 ## `msc_component_details`
 
 MSC component/context rows for subsystem narration and photometry support.

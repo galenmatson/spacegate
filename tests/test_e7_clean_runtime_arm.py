@@ -180,6 +180,13 @@ def test_component_graph_projects_each_node_kind_without_cross_product_joins() -
           target_key VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
           classification_normalized VARCHAR,evidence_id VARCHAR
         );
+        CREATE TABLE stellar_orbit_endpoint_bindings(
+          endpoint_binding_id VARCHAR,component_entity_id VARCHAR,build_id VARCHAR,
+          policy_version VARCHAR,hierarchy_node_key VARCHAR,runtime_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR,runtime_candidate_count BIGINT,
+          wds_id_raw VARCHAR,component_label_normalized VARCHAR,
+          binding_status VARCHAR,endpoint_kind VARCHAR
+        );
         INSERT INTO science.evidence_component_msc_component_entities VALUES
           ('msc-b','multiplicity.msc','newmsc-test','e5-test','12345+6789:B',
            '12345+6789','B','B','system-binding','canon:system:wds:12345+6789',
@@ -199,6 +206,152 @@ def test_component_graph_projects_each_node_kind_without_cross_product_joins() -
         "SELECT runtime_binding_status,runtime_binding_reason,canonical_containment "
         "FROM msc_runtime_leaf_bindings WHERE component_entity_id='msc-b'"
     ).fetchone() == ("accepted", "exact_msc_hierarchy_leaf_key", False)
+
+
+def _case_distinct_component_connection(
+    *, duplicate_leaf_bridge: bool = False
+) -> duckdb.DuckDBPyConnection:
+    con = duckdb.connect(":memory:")
+    con.execute("ATTACH ':memory:' AS core")
+    con.execute("ATTACH ':memory:' AS hierarchy")
+    con.execute("ATTACH ':memory:' AS science")
+    con.execute(
+        """
+        CREATE TABLE core.systems(
+          system_id HUGEINT,stable_object_key VARCHAR,wds_id VARCHAR,
+          ra_deg DOUBLE,dec_deg DOUBLE,dist_ly DOUBLE
+        );
+        CREATE TABLE core.stars(
+          star_id HUGEINT,system_id HUGEINT,stable_object_key VARCHAR,
+          ra_deg DOUBLE,dec_deg DOUBLE,dist_ly DOUBLE,component VARCHAR
+        );
+        CREATE TABLE core.planets(
+          planet_id HUGEINT,system_id HUGEINT,stable_object_key VARCHAR
+        );
+        INSERT INTO core.systems VALUES
+          (1,'canon:system:wds:00001+0001','00001+0001',10,20,32.6156);
+
+        CREATE TABLE hierarchy.hierarchy_nodes(
+          hierarchy_node_key VARCHAR,node_kind VARCHAR,component_family VARCHAR,
+          component_type VARCHAR,canonical_key VARCHAR,display_name VARCHAR,
+          wds_id VARCHAR,member_role VARCHAR,source_basis VARCHAR
+        );
+        CREATE TABLE hierarchy.hierarchy_edges(
+          hierarchy_edge_id BIGINT,source_hierarchy_edge_id BIGINT,
+          parent_node_key VARCHAR,child_node_key VARCHAR,edge_kind VARCHAR,
+          member_role VARCHAR,source_basis VARCHAR,confidence_score DOUBLE,
+          supporting_edge_count BIGINT
+        );
+        INSERT INTO hierarchy.hierarchy_nodes VALUES
+          ('canon:system:wds:00001+0001','system','system','system',
+           'canon:system:wds:00001+0001','Collision','00001+0001',NULL,'canonical_system'),
+          ('canon:leaf:msc:00001+0001:ab','inferred_star_leaf','star','star',
+           NULL,'Collision Ab','00001+0001','a','msc_inferred_leaf');
+        INSERT INTO hierarchy.hierarchy_edges VALUES
+          (1,1,'canon:system:wds:00001+0001','canon:leaf:msc:00001+0001:ab',
+           'contains','star','msc_role_leaf',0.9,1);
+
+        CREATE TABLE selected_stellar_display_classifications(
+          selected_display_classification_id BIGINT,build_id VARCHAR,star_id HUGEINT,
+          system_id HUGEINT,stable_object_key VARCHAR,classification_value VARCHAR,
+          classification_status VARCHAR,evidence_basis VARCHAR,selected_fact_id VARCHAR,
+          source_value VARCHAR,confidence_score DOUBLE,lineage_kind VARCHAR,lineage_id VARCHAR,
+          distinct_candidate_class_count INTEGER,candidate_classes_json VARCHAR,
+          distinct_direct_class_count INTEGER,direct_classes_json VARCHAR,
+          has_classification_conflict BOOLEAN,has_alternative_disagreement BOOLEAN,
+          projection_version VARCHAR
+        );
+        CREATE TABLE science.evidence_component_msc_component_entities(
+          component_entity_id VARCHAR,source_id VARCHAR,release_id VARCHAR,
+          evidence_build_id VARCHAR,source_component_raw VARCHAR,wds_id_raw VARCHAR,
+          component_label_raw VARCHAR,component_label_normalized VARCHAR,
+          system_binding_id VARCHAR,canonical_system_stable_object_key VARCHAR,
+          source_component_key VARCHAR,binding_status VARCHAR,binding_method VARCHAR,
+          binding_reason VARCHAR,scope_semantics VARCHAR,policy_version VARCHAR
+        );
+        INSERT INTO science.evidence_component_msc_component_entities VALUES
+          ('group-ab','multiplicity.msc','msc-v1','e5','00001+0001:AB','00001+0001',
+           'AB','AB','system','canon:system:wds:00001+0001',
+           'comp:msc:msc-v1:00001+0001:AB','accepted','system','accepted','group','v1'),
+          ('leaf-ab','multiplicity.msc','msc-v1','e5','00001+0001:Ab','00001+0001',
+           'Ab','Ab','system','canon:system:wds:00001+0001',
+           'comp:msc:msc-v1:00001+0001:Ab','accepted','system','accepted','leaf','v1');
+        CREATE TABLE science.evidence_component_msc_classification_projection(
+          component_entity_id VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
+          classification_normalized VARCHAR,evidence_id VARCHAR
+        );
+        CREATE TABLE science.evidence_component_msc_stellar_parameter_projection(
+          component_entity_id VARCHAR,projection_status VARCHAR,quantity_key VARCHAR,
+          normalized_value DOUBLE,evidence_id VARCHAR,value_raw VARCHAR
+        );
+        CREATE TABLE science.evidence_component_sb9_classification_projection(
+          target_key VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
+          classification_normalized VARCHAR,evidence_id VARCHAR
+        );
+        INSERT INTO science.evidence_component_sb9_classification_projection VALUES
+          ('comp:msc:msc-v1:00001+0001:Ab','eligible_for_quantity_selection',
+           'dM1e',NULL,'sb9-ab');
+        CREATE TABLE science.evidence_component_debcat_classification_projection(
+          target_key VARCHAR,projection_status VARCHAR,classification_raw VARCHAR,
+          classification_normalized VARCHAR,evidence_id VARCHAR
+        );
+        CREATE TABLE stellar_orbit_endpoint_bindings(
+          endpoint_binding_id VARCHAR,component_entity_id VARCHAR,build_id VARCHAR,
+          policy_version VARCHAR,hierarchy_node_key VARCHAR,runtime_component_key VARCHAR,
+          canonical_system_stable_object_key VARCHAR,runtime_candidate_count BIGINT,
+          wds_id_raw VARCHAR,component_label_normalized VARCHAR,
+          binding_status VARCHAR,endpoint_kind VARCHAR
+        );
+        INSERT INTO stellar_orbit_endpoint_bindings VALUES
+          ('bridge-group','group-ab','bridge-v1','policy-v1',NULL,
+           'comp:msc_group:wds:00001+0001:AB','canon:system:wds:00001+0001',1,
+           '00001+0001','AB','accepted','group'),
+          ('bridge-leaf','leaf-ab','bridge-v1','policy-v1',
+           'canon:leaf:msc:00001+0001:ab','comp:msc:wds:00001+0001:ab',
+           'canon:system:wds:00001+0001',1,'00001+0001','Ab','accepted','leaf');
+        """
+    )
+    if duplicate_leaf_bridge:
+        con.execute(
+            "UPDATE stellar_orbit_endpoint_bindings SET endpoint_kind='leaf', "
+            "hierarchy_node_key='canon:leaf:msc:00001+0001:ab', "
+            "runtime_component_key='comp:msc:wds:00001+0001:ab' "
+            "WHERE component_entity_id='group-ab'"
+        )
+    COMPILER.create_component_graph(con, "test-build")
+    COMPILER.create_leaf_classifications(con, "test-build")
+    return con
+
+
+def test_case_distinct_component_uses_unique_release_scoped_leaf_bridge() -> None:
+    con = _case_distinct_component_connection()
+
+    assert con.execute(
+        "SELECT classification_value,classification_status,evidence_basis,source_value "
+        "FROM stellar_leaf_display_classifications"
+    ).fetchone() == ("M", "source", "selected_sb9_component_spectral_type", "dM1e")
+    assert con.execute(
+        "SELECT runtime_binding_status,runtime_binding_reason,runtime_identity_bridge_id "
+        "FROM msc_runtime_leaf_bindings WHERE component_entity_id='leaf-ab'"
+    ).fetchone() == (
+        "accepted", "exact_release_scoped_leaf_identity_bridge", "bridge-leaf"
+    )
+    assert con.execute(
+        "SELECT runtime_binding_status,runtime_binding_reason,hierarchy_node_key "
+        "FROM msc_runtime_leaf_bindings WHERE component_entity_id='group-ab'"
+    ).fetchone() == ("ambiguous", "case_significant_source_collision", None)
+
+
+def test_case_distinct_components_remain_ambiguous_with_two_leaf_bridges() -> None:
+    con = _case_distinct_component_connection(duplicate_leaf_bridge=True)
+    assert con.execute(
+        "SELECT runtime_binding_status,count(*) FROM msc_runtime_leaf_bindings "
+        "GROUP BY 1"
+    ).fetchall() == [("ambiguous", 2)]
+    assert con.execute(
+        "SELECT classification_value,classification_status,evidence_basis "
+        "FROM stellar_leaf_display_classifications"
+    ).fetchone() == ("UNKNOWN", "missing", "no_selected_leaf_classification")
 
 
 def test_solar_runtime_projection_preserves_compatibility_and_hyperbolic_null_period() -> None:

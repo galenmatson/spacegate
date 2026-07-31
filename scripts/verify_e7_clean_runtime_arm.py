@@ -89,6 +89,8 @@ REQUIRED_COLUMNS = {
         "wds_id_raw", "component_label_raw", "source_candidate_count",
         "runtime_candidate_count", "hierarchy_node_key", "runtime_component_key",
         "runtime_binding_status", "runtime_binding_reason", "canonical_containment",
+        "runtime_identity_bridge_id", "runtime_identity_bridge_build_id",
+        "runtime_identity_bridge_policy_version",
     },
     "component_entities": {
         "component_entity_id", "stable_component_key", "component_type",
@@ -236,6 +238,8 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "accepted_msc_runtime_bindings_without_leaf": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_status='accepted' AND (hierarchy_node_key IS NULL OR runtime_component_key IS NULL OR runtime_system_stable_object_key IS NULL)"),
                 "unaccepted_msc_runtime_bindings_with_leaf": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_status<>'accepted' AND (hierarchy_node_key IS NOT NULL OR runtime_component_key IS NOT NULL)"),
                 "msc_runtime_containment_promotions": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE canonical_containment"),
+                "accepted_collision_binding_without_identity_bridge": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_reason='exact_release_scoped_leaf_identity_bridge' AND (runtime_binding_status<>'accepted' OR runtime_identity_bridge_id IS NULL OR runtime_identity_bridge_build_id IS NULL OR runtime_identity_bridge_policy_version IS NULL)"),
+                "multiple_accepted_casefold_collision_bindings": scalar(con, "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 AND runtime_binding_status='accepted' GROUP BY 1,2 HAVING count(*)<>1)"),
                 "orphan_hierarchy_parents": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.parent_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_hierarchy_children": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.child_component_key WHERE c.component_entity_id IS NULL"),
                 "source_claim_containment_edges": scalar(con, "SELECT count(*) FROM system_hierarchy_edges WHERE source_catalog<>'canonical_hierarchy' AND edge_kind='contains'"),

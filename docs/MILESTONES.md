@@ -3052,6 +3052,15 @@ Delivered:
   full catalog names. Object-badge surfaces suppress duplicate stellar/compact
   rollup tags and move their explanation, evidence state, evaluator basis, and
   bounded source context onto the per-object badge.
+- the general MSC component identity repair reuses the exact release-scoped
+  stellar-orbit endpoint bridge for case-significant source collisions such as
+  composite `AB` versus leaf `Ab`. Full A/B verification recovers 168 unique
+  leaf bindings and 158 UNKNOWN classifications while leaving 70 collision
+  groups deferred; no class, inventory, hierarchy, orbit, or containment
+  regression is permitted. Candidate public build
+  `e7_b026ce2ed4d0c65dd9b9efc9_full_public` passes strict build, map, Public
+  Read, Smart Tag, API, and focused browser verification and is promoted only
+  on Photon with its predecessor retained for rollback.
 - one accessible shell provides hover/focus, keyboard, touch pinning,
   Escape/outside close, copy, Learn, Find More, bounded overflow, mobile-sheet,
   source, and evidence-state behavior without relying on color alone.

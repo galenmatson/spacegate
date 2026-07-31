@@ -4463,6 +4463,57 @@ Representative commits:
   the badge inherits the registry explanation and adds object scope, evidence
   state, evaluator basis, and bounded source context.
 
+### 168) Case-Significant Component Collisions Reuse Exact Identity Evidence
+
+- The MSC runtime leaf binder previously casefolded component labels before
+  joining them to canonical leaves. This correctly detected ambiguity but could
+  not distinguish a composite `AB` subsystem from a physical `Ab` leaf, even
+  when the separately compiled stellar-orbit endpoint bridge had already
+  resolved both source identities exactly.
+- Runtime policy v12 now consults that pinned, release-scoped bridge only inside
+  pre-existing source collision groups. A binding is recovered only when the
+  exact source component has one accepted `leaf` endpoint; group endpoints,
+  missing endpoints, and multiple accepted leaf candidates remain deferred.
+  The accepted row carries the bridge binding, build, and policy lineage and
+  never promotes canonical containment.
+- Full candidate ARM `b6c7f52a7744d8c458dba00e` contains the same 11,764,570
+  component entities, 5,887,004 hierarchy edges, 9,845 orbit edges, 23,116
+  orbital solutions, 32,790 MSC binding rows, and 5,879,943 classified leaf
+  rows as the served reference. Of 238 collision groups, 168 have one accepted
+  leaf bridge and 70 remain deferred.
+- Independent scientific A/B finds exactly 168 ambiguous-to-accepted binding
+  changes and 158 UNKNOWN-to-known classifications. Every classification delta
+  is attached to an exact recovered bridge row; known-to-UNKNOWN,
+  known-to-different, added/removed leaves, unrelated binding changes,
+  containment promotions, and multiple accepted collision bindings are all
+  zero. Source spectra remain `SOURCE`; mass-based main-sequence priors remain
+  visibly `ASSUMED`.
+- Castor Ab is one consequence, not a production special case: its selected SB9
+  `dM1e` evidence now binds to the exact `Ab` leaf and displays as source-backed
+  M, while the `AB` group remains a group. No named system or identifier occurs
+  in the compiler or audit policy.
+- A second clean compile reproduces the build ID, every logical table schema,
+  row count, hash, and verification section with no differing tables, then
+  removes its scratch tree. The first compile took 170.8 seconds and peaked at
+  48,344,688 KiB RSS; reproduction took 156.6 seconds end to end.
+- Downstream candidate `e7_b026ce2ed4d0c65dd9b9efc9_full_public` preserves
+  exact public membership for 5,869,091 systems, 5,874,636 stars, and 6,311
+  planets. Four-radius map verification, all 14,145 hierarchy bundles, 7,724
+  scene-priority targets, 5,861,345 singleton seeds, Smart Tag compilation,
+  strict build verification, and the focused cross-surface API/browser checks
+  pass. Exact contribution records increase by 158, matching the recovered
+  classification rows rather than an unrelated source fanout; 34 selected
+  classes are `SOURCE` and 124 remain explicit `ASSUMED` mass priors.
+- Photon locally promotes the verified candidate with the prior served build
+  retained as rollback. The 168 affected systems have build-keyed prebuilt
+  scenes for review; the full policy scene set has not been warmed for a public
+  release, and antiproton was not changed.
+- The Public Read hierarchy materializer took about 56 minutes across an
+  interrupted 12-worker run and a supported 16-worker resume, substantially
+  slower than the earlier reference campaign. It completed deterministically
+  with zero failed bundles, but remains a downstream build-performance item;
+  it is not evidence against the runtime identity policy or served read path.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
