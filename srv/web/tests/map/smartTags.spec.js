@@ -11,6 +11,24 @@ async function resolveSystem(page, query) {
 }
 
 
+async function stellarBadgeMetrics(locator) {
+  await expect(locator).toBeVisible();
+  return locator.evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    const core = window.getComputedStyle(node, "::before");
+    const bounds = node.getBoundingClientRect();
+    return {
+      color: style.color,
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      width: Math.round(bounds.width),
+      height: Math.round(bounds.height),
+      coreBackground: core.backgroundImage,
+    };
+  });
+}
+
+
 test.describe("Smart Tags and concepts", () => {
   test("registry, filters, source context, and bounded evidence agree", async ({ page }) => {
     const registryResponse = await page.request.get("/api/v1/tags");
@@ -97,6 +115,35 @@ test.describe("Smart Tags and concepts", () => {
     await expect.poll(
       () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4),
     ).toBeTruthy();
+  });
+
+  test("stellar class badges reuse the Search icon contract", async ({ page }) => {
+    const tauCeti = await resolveSystem(page, "Tau Ceti");
+    expect(tauCeti).toBeTruthy();
+
+    await page.goto("/search", { waitUntil: "domcontentloaded" });
+    const searchBadge = page.locator(".map-search-spectral.spectral-g").first();
+    const searchMetrics = await stellarBadgeMetrics(searchBadge);
+    expect(searchMetrics).toMatchObject({
+      color: "rgb(7, 17, 31)",
+      fontWeight: "800",
+      width: 24,
+      height: 24,
+    });
+
+    await page.goto(`/systems/${tauCeti.system_id}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
+    await page.waitForTimeout(1200);
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
+    const surfaces = [
+      page.locator(".system-detail-stellar-tags .stellar-class-chip[data-stellar-token='g']").first(),
+      page.locator("[data-testid='system-preview-object-list'] .stellar-class-chip[data-stellar-token='g']").first(),
+      page.locator(".hierarchy-panel .stellar-class-chip[data-stellar-token='g']").first(),
+    ];
+    for (const badge of surfaces) {
+      const metrics = await stellarBadgeMetrics(badge);
+      expect(metrics).toEqual(searchMetrics);
+    }
   });
 
   test("all reviewed concept routes render representative and related navigation", async ({ page }) => {

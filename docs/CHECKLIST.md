@@ -974,6 +974,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   leaves retain their ARM type
 - [x] Add scalable map label stellar-class badge modes (`Off`, `Primary`,
   `All`) backed by packed tile-v3 repeated-class data
+- [x] Standardize interactive stellar-class badges in Search, Peek, Explorer,
+  System Detail, hierarchy, and simulation object lists on the Search icon's
+  24-pixel geometry, spectral palette, and dark high-contrast label treatment
 - [x] Replace surface-specific stellar badge assembly with one deterministic
   ARM hierarchy-leaf projection; preserve repeated and unknown leaves, exclude
   aggregates/nonstellar endpoints, and verify HD 110067, HD 79107, Gl 161.1,

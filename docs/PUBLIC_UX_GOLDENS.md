@@ -111,6 +111,15 @@ dedicated Smart Tag coverage contributed seven passes and one intentional
 mobile skip for the desktop-only 4K case. Machine screenshots, traces, and the
 JSON/HTML reports remain under the normal Playwright artifact root.
 
+Stellar-class badges use the same legible icon contract in the Search spectral
+bar, Peek, Explorer, System Detail, hierarchy, and simulation object lists.
+The focused desktop/mobile run `stellar-badge-unification-r2-20260731`
+compares computed ink, font, 24-pixel geometry, and stellar-core rendering
+across those shared consumers. The final Smart Tag UI run
+`stellar-badge-ui-final-20260731` passes nine applicable checks with one
+intentional mobile skip for the desktop-only 4K profile, and the existing
+Peek-to-Explorer workflow passes separately.
+
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend
 label patch.
