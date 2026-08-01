@@ -18,6 +18,22 @@ async function fetchJson(context, path) {
   return response.json();
 }
 
+export function validateMapPreflight(health, index) {
+  if (health.status !== "ok" || !health.build_id) {
+    throw new Error("Map test preflight API health has no active build identity");
+  }
+  if (!index.build_id || index.build_id !== health.build_id) {
+    throw new Error(
+      `Map test preflight build mismatch: API=${health.build_id || "missing"} tiles=${index.build_id || "missing"}`,
+    );
+  }
+  for (const radius of [100, 250, 500, 1000]) {
+    if (!index.manifests?.[String(radius)]) {
+      throw new Error(`Map test preflight index is missing the ${radius}-ly manifest`);
+    }
+  }
+}
+
 export default async function globalSetup() {
   const context = await request.newContext({
     baseURL: baseUrl(),
@@ -28,19 +44,7 @@ export default async function globalSetup() {
       fetchJson(context, "/api/v1/health"),
       fetchJson(context, "/map-tiles/index.json"),
     ]);
-    if (health.status !== "ok" || !health.build_id) {
-      throw new Error("Map test preflight API health has no active build identity");
-    }
-    if (!index.build_id || index.build_id !== health.build_id) {
-      throw new Error(
-        `Map test preflight build mismatch: API=${health.build_id || "missing"} tiles=${index.build_id || "missing"}`,
-      );
-    }
-    for (const radius of [100, 250, 500, 1000]) {
-      if (!index.manifests?.[String(radius)]) {
-        throw new Error(`Map test preflight index is missing the ${radius}-ly manifest`);
-      }
-    }
+    validateMapPreflight(health, index);
   } finally {
     await context.dispose();
   }

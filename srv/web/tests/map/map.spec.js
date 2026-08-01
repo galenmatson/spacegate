@@ -1102,7 +1102,10 @@ test.describe("public 3D map beta", () => {
     expect(selectionRequests.filter((path) => path === "/api/v1/systems/search")).toHaveLength(0);
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
-    await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
+    await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveText("1.9 years/s (1,000x)");
+    await expect(drill.locator(".system-preview-speed select option[value='5000']")).toHaveText("9.6 years/s (5,000x)");
+    await expect(drill.locator(".system-preview-speed select option[value='10000']")).toHaveText("19.2 years/s (10,000x)");
+    await expect(drill.locator(".system-preview-speed select")).toHaveAttribute("title", /static presentation positions/i);
     await expect(drill.locator(".map-title-stellar-classes .stellar-class-chip").first()).toBeVisible();
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     await page.locator("[data-testid='map-minimal-toggle']").click();

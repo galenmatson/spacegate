@@ -9702,7 +9702,8 @@ main {
 }
 
 .system-preview-speed select {
-  min-width: 72px;
+  width: min(184px, 48vw);
+  min-width: 132px;
   color: var(--ink);
 }
 

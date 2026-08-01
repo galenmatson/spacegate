@@ -14,15 +14,7 @@ import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFrom
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const SIM_DAYS_PER_SECOND = 0.7;
-const SIM_SPEED_OPTIONS = [
-  ["0.25", "0.25x"],
-  ["1", "1x"],
-  ["5", "5x"],
-  ["20", "20x"],
-  ["100", "100x"],
-  ["500", "500x"],
-  ["1000", "1000x"],
-];
+const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SCALE_MODE_OPTIONS = [
   { value: "structure", label: "Structured", detail: "Best for understanding system structure. It preserves hierarchy readability and prevents common overlaps, but body sizes and orbit spacing are presentation-scaled." },
   { value: "true_orbits", label: "Orbit", detail: "Best for comparing orbital distances. It preserves linear semi-major-axis ratios where practical, while shrinking bodies toward readable markers so inner orbits are not swallowed." },
@@ -137,6 +129,25 @@ function formatNumber(value, digits = 1) {
     return "Unknown";
   }
   return numeric.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+function simulatedTimeRate(multiplier) {
+  const daysPerSecond = SIM_DAYS_PER_SECOND * Number(multiplier || 1);
+  if (daysPerSecond < 0.5) {
+    return `${formatNumber(daysPerSecond * 24, 1)} hours/s`;
+  }
+  if (daysPerSecond < 365.25) {
+    return `${formatNumber(daysPerSecond, daysPerSecond >= 10 ? 0 : 1)} days/s`;
+  }
+  return `${formatNumber(daysPerSecond / 365.25, 1)} years/s`;
+}
+
+function simulationSpeedLabel(multiplier) {
+  return `${simulatedTimeRate(multiplier)} (${formatNumber(multiplier, 2)}x)`;
+}
+
+function simulationSpeedTooltip(multiplier) {
+  return `Simulation rate: ${simulatedTimeRate(multiplier)} of simulated time per real second. Speed affects only objects with animated orbit models. Hierarchy members without an orbit solution remain in static presentation positions.`;
 }
 
 function starColor(teffK) {
@@ -4528,14 +4539,18 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       >
         {running ? "Pause" : "Start"}
       </button>
-      <label className="system-preview-speed">
+      <label className="system-preview-speed" title={simulationSpeedTooltip(speedMultiplier)}>
         <span>Speed</span>
         <select
           value={String(speedMultiplier)}
           onChange={(event) => setSpeedMultiplier(Number(event.target.value) || 1)}
           disabled={status !== "ready" || webglReady === false}
+          aria-label="Simulation rate"
+          title={simulationSpeedTooltip(speedMultiplier)}
         >
-          {SIM_SPEED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          {SIM_SPEED_OPTIONS.map((value) => (
+            <option key={value} value={String(value)}>{simulationSpeedLabel(value)}</option>
+          ))}
         </select>
       </label>
       <label className="system-preview-scale">
