@@ -3081,6 +3081,74 @@ Delivered:
 See `docs/SMART_TAGS.md` and
 `docs/SMART_TAGS_VERIFICATION_2026-07-27.md`.
 
+### M8.3e.3. Public UI and Simulation Coherence
+
+Goal:
+
+- make the existing Catalog, Map, Peek, Explorer, System Page, and infrared
+  imagery workflows behave as one legible public application before adding
+  another major presentation surface.
+
+Status: accepted and queued. This is a bounded presentation milestone after
+M8.3e.1a Simple Light repair; it does not change selected science or reopen the
+renderer, Public Read, or Smart Tag architectures.
+
+Accepted decisions:
+
+- raise the System Page outer content maximum from 1,200 px to 1,600 px for
+  initial review, while keeping narrative prose and concept articles in
+  readable columns and verifying all themes at desktop, 4K, and ultrawide
+  sizes;
+- add explicit Map/Catalog peer navigation: a compact segmented control on
+  desktop and icon actions with tooltips on narrow screens. Preserve selected-
+  system `Explore`; make the brand/title return to the clean Catalog surface on
+  System Pages, and retain an explicit `Back to Map` action when map-entry
+  context exists;
+- when Search opens Peek, hide rather than cover the results pane, preserve the
+  exact query/filter/order/scroll/result state, and restore it when Peek closes;
+- carry presentation controls such as scale, lines, labels, and speed through a
+  same-system Peek/Explorer/Detail flow using session state. A different system
+  resets to saved global defaults. Simulation epoch/elapsed time does not carry
+  between surfaces or reloads;
+- keep the global speed default at `1x`. A burger-menu default-speed selector is
+  an optional bounded preference, not a system-dependent heuristic and not an
+  acceptance dependency;
+- prefetch WISE metadata after page idle and request the preview within roughly
+  one to two viewports, with cancellation/abandonment accounting. Do not issue
+  an unconditional IRSA image request for every opened System Page.
+
+Imagery cache gate:
+
+- retain the current 4-GiB WISE edge-cache cap until measured traffic justifies
+  changing it. The August 1, 2026 read-only antiproton inventory found 26 GiB
+  free on the 96-GiB filesystem, against a mandatory 15-GiB operational floor;
+  only 99,399 logical bytes of WISE cache content existed (21 metadata records
+  and one 57,518-byte preview). Capacity is therefore not the current readiness
+  bottleneck;
+- add same-key request coalescing, bounded negative caching, retry/backoff and
+  provider-friendly rate controls before earlier prefetch can increase remote
+  traffic;
+- make immutable or validator-backed browser caching, server cache hits/misses,
+  remote latency, bytes, failures, and abandoned requests measurable;
+- define a provider-neutral survey-image cache contract with a shared hard cap,
+  per-provider quotas, attribution/license metadata, priority or pinning, and
+  oldest-first eviction before integrating additional astronomical imagery
+  sources. New providers must not each claim an independent large disk budget.
+
+Success criteria:
+
+- the 1,600-px System Page review passes all public themes without unreadable
+  prose, incoherent whitespace, or broken responsive layouts;
+- Map, Catalog, Peek, Explorer, Detail, and browser Back transitions preserve
+  the intended context on desktop and mobile;
+- same-system simulation presentation choices persist exactly as specified,
+  while new systems retain a predictable `1x` default and fresh simulation
+  epoch;
+- WISE imagery is normally ready before its section becomes visible, without
+  materially increasing abandoned IRSA work or violating the edge disk floor;
+- cache and prefetch tests cover hit, miss, unavailable, negative-cache,
+  coalesced, throttled, evicted, and stale/revalidated behavior.
+
 ### M8.3f. Public Evidence Inspector (Later)
 
 Goal:

@@ -951,6 +951,23 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   existing release-scoped orbit endpoint bridge: require one accepted physical
   leaf, preserve exact lineage, keep group endpoints and ambiguous tails
   deferred, and pass full inventory/scientific A/B and clean reproduction gates
+- [ ] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
+  review a 1,600-px System Page maximum across all themes while retaining
+  readable narrative columns
+- [ ] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
+  and a context-preserving `Back to Map` action without replacing selected-
+  system `Explore`
+- [ ] Hide Search Results while Peek is active and restore the exact query,
+  filters, order, scroll position, and result set on close across desktop/mobile
+- [ ] Preserve same-system simulation scale, lines, labels, and speed through
+  Peek/Explorer/Detail session navigation; reset new systems to global defaults,
+  keep `1x` as the default speed, and do not carry simulation epoch/elapsed time
+- [ ] Move WISE loading to idle metadata plus one-to-two-viewport preview
+  prefetch, with same-key coalescing, negative caching, retry/backoff, provider-
+  friendly bounds, browser validators, and hit/miss/latency/abandonment metrics
+- [ ] Define a shared capped survey-image cache contract before adding more
+  System Page imagery providers; retain the 4-GiB WISE cap and 15-GiB edge free-
+  space floor until measured demand supports a reviewed change
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science
