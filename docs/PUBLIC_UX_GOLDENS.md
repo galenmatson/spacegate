@@ -87,6 +87,16 @@ The Playwright map suite imports
   assembly; multistar, planet-host, compact/exotic, and high-interest systems
   must retain the full scene contract, nested orbits, planets, HZ inputs,
   classifications, and diagnostics.
+- Simulation-rate parity verifies physical labels such as simulated days or
+  years per real second, retains the multiplier secondarily, exposes manual
+  5,000x and 10,000x rates without overflowing desktop/mobile controls, and
+  explains that static hierarchy placements without orbit solutions cannot be
+  animated by increasing time.
+- Future M8.3g Wavelength View goldens must cover aligned visible/infrared
+  fields for high-proper-motion, saturated, crowded, ordinary, ultracool,
+  compact, and extended targets; discrete wavelength stops, missing coverage,
+  survey epoch, false-color semantics, source attribution, and provider outage
+  behavior remain explicit.
 - Desktop and constrained-mobile browser runs must prove a nonblank map and
   simulator canvas, stable selection and object focus, usable results scrolling,
   and no incoherent overlap after the projection migration.

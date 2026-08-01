@@ -1593,6 +1593,17 @@ requested. It removes oldest cached files first. Cache metadata must retain IRSA
 source URLs, retrieval timestamp, bands, cutout size, and attribution so lost
 previews can be regenerated or marked stale.
 
+M8.3g Wavelength View will supersede the WISE-only cache policy with one shared
+provider-aware survey-preview budget. Until that contract is implemented and
+measured, keep the public edge at the existing 4-GiB aggregate preview ceiling.
+Additional visible, ultraviolet, X-ray, gamma-ray, radio, or deeper infrared
+providers must not each receive an additive multi-gigabyte allowance. The
+shared contract must retain provider/release/band/render identity, attribution,
+license and citation metadata, cache validators, negative-result expiry,
+request-coalescing state, and sufficient metrics to audit upstream traffic.
+Bulk raw FITS or survey mirrors remain observation products, not public runtime
+cache entries, unless a later reviewed storage class explicitly permits them.
+
 ## Smart Tag Artifacts
 
 Smart Tag output lives under:

@@ -873,8 +873,9 @@ Representative commits:
   method, assumptions, uncertainty, coherent parameter sets, alternatives, and
   conflicts instead of treating every catalog scalar as direct ground truth.
 - Public evidence inspection and interactive image/spectrum/light-curve tools
-  are recorded as later M8.3f/M8.3g objectives. They depend on stable evidence
-  and observation-product contracts and do not expand the foundation rebuild.
+  are recorded as later M8.3f/M8.3h objectives, with the source-governed M8.3g
+  Wavelength View foundation between them. They depend on stable evidence and
+  observation-product contracts and do not expand the foundation rebuild.
 - E0 completed on July 18 with a 32-source registry, exact accounting for all 48
   current manifest entries, a pinned schema baseline covering 1,795 enumerated
   fields, and fail-closed full-refresh preflight. Documented source formats not

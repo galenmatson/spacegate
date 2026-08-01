@@ -3110,9 +3110,16 @@ Accepted decisions:
   same-system Peek/Explorer/Detail flow using session state. A different system
   resets to saved global defaults. Simulation epoch/elapsed time does not carry
   between surfaces or reloads;
-- keep the global speed default at `1x`. A burger-menu default-speed selector is
-  an optional bounded preference, not a system-dependent heuristic and not an
-  acceptance dependency;
+- do not add a global burger-menu speed preference until user demand justifies
+  it. Keep speed local to the simulator, enumerate it primarily as simulated
+  time per real second with the legacy multiplier secondarily, add `5000x` and
+  `10000x`, and explain that static hierarchy placements cannot be animated by
+  increasing the rate;
+- evaluate a scene-aware initial-rate policy from accepted renderable periods,
+  never from missing or assumed fallback periods. Candidate behavior targets a
+  roughly five-second orbit for the fastest accepted planet when planets are
+  present; stellar-only multiples require visual review of shortest-versus-top-
+  level orbit targeting before the automatic policy is accepted;
 - prefetch WISE metadata after page idle and request the preview within roughly
   one to two viewports, with cancellation/abandonment accounting. Do not issue
   an unconditional IRSA image request for every opened System Page.
@@ -3181,7 +3188,86 @@ Success criteria:
 - evidence display never implies that a selected model estimate is a direct
   measurement or that a conflict has disappeared
 
-### M8.3g. Interactive Observation Labs (Later)
+### M8.3g. Wavelength View and Survey Imagery Foundation
+
+Goal:
+
+- replace the one-off WISE panel with a scientifically explicit, source-
+  responsible Wavelength View that lets visitors compare the same sky field
+  across curated observing bands without implying that background emission is
+  a detection of the selected object.
+
+Status: accepted as a major main-quest presentation milestone. Source research,
+provider capacity, licensing, and cache policy precede implementation.
+
+Architecture and source-evaluation contract: `docs/WAVELENGTH_VIEW.md`.
+
+Deliverables:
+
+- begin with aligned `Visible` and `Infrared` views sharing center, orientation,
+  target marker, angular scale, source attribution, survey/release, observation
+  epoch, band mapping, and natural-versus-false-color explanation;
+- implement the hybrid delivery architecture: cached static preview for fast
+  first display, interactive Aladin Lite/HiPS inspection only on activation,
+  and raw FITS or other scientific products only through later explicit
+  analysis workflows;
+- evaluate all-sky visible and infrared baselines including CDS DSS2 color,
+  CDS/IRSA AllWISE color, and 2MASS color, plus deeper regional surveys through
+  an applicability policy rather than an undocumented best-image substitution;
+- define a logarithmic wavelength rail from radio through gamma with discrete,
+  labeled survey/band stops. A slider may crossfade neighboring presentation
+  layers, but it must expose gaps and must not suggest continuous observations,
+  matched angular resolution, shared epoch, or measured intermediate bands;
+- make field of view wavelength-aware. High-energy all-sky products may need
+  degree-scale context while optical/infrared stellar fields can use arcminute
+  scales;
+- propagate the target marker to the survey epoch where proper-motion evidence
+  supports it, while retaining the canonical coordinate and transformation
+  lineage;
+- distinguish image coverage, field context, catalog/source association, and
+  object detection. Blank or diffuse UV/X-ray/gamma imagery is not positive or
+  negative evidence about an ordinary star without a reviewed association;
+- produce a provider matrix covering scientific role, wavelength/bands,
+  coverage, angular resolution, epoch, API/HiPS/cutout contract, product sizes,
+  rate or fair-use guidance, attribution, citation, license, cacheability,
+  availability, and failure behavior;
+- add one shared survey-image cache with a hard aggregate budget, provider soft
+  quotas, immutable release/render keys, same-key coalescing, bounded negative
+  caching, concurrency/rate controls, retry/backoff, circuit breaking,
+  validators, stale-if-error behavior, oldest-first eviction, and optional
+  curated warming. Do not give every provider an independent large cache;
+- document the traffic threshold at which Spacegate must contact a provider,
+  arrange accommodation, mirror allowed products, adopt an object store/CDN,
+  or disable automatic prefetch. Photon and Proton must not become required
+  public runtime dependencies.
+
+Initial operational policy:
+
+- retain a 4-GiB aggregate preview-cache budget on the current edge until
+  measured demand and release staging headroom support a reviewed change;
+- cache transformed previews and metadata, not bulk raw survey archives, on
+  antiproton by default;
+- prefetch only bounded static products; interactive tiles load after explicit
+  visitor activation and obey provider-specific limits;
+- never depend on an external archive for primary page rendering or silently
+  proxy unbounded public exploration through a scientific service.
+
+Success criteria:
+
+- representative high-proper-motion, bright/saturated, crowded, ordinary,
+  ultracool, compact, and extended-object fields remain centered, attributed,
+  and honestly described across available bands;
+- visible and infrared comparisons are fast on cold and warm paths, while
+  provider requests, coalescing, cache occupancy, failures, and abandoned work
+  are measurable;
+- the wavelength rail is accessible by keyboard and touch and never represents
+  missing survey intervals as observed spectral continuity;
+- simulated provider slowdown/outage leaves the System Page usable, respects
+  backoff, and serves valid cached imagery where policy permits;
+- source-efficiency and edge-capacity reports demonstrate that expected public
+  traffic remains within reviewed local and upstream budgets.
+
+### M8.3h. Interactive Observation Labs (Later)
 
 Goal:
 
@@ -3193,6 +3279,7 @@ Dependencies:
 
 - M8.3c observation-product indexes, calibration metadata, and lineage
 - M8.3f public provenance patterns
+- M8.3g Wavelength View product, cache, and attribution contracts
 - Concept Tag and explanatory presentation foundations
 
 Deliverables:

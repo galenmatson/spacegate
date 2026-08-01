@@ -563,6 +563,16 @@ Success criteria:
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, orbit/zoom/pan the preview camera, reset the view, hover
   bodies/orbits, and pin a copyable object/orbit readout
+- the local speed selector describes simulated time per real second and retains
+  the legacy multiplier secondarily. The base rate is 0.7 simulated days per
+  real second; manual options extend through 5,000x and 10,000x for very long
+  accepted orbits. Its tooltip states that changing speed affects only animated
+  orbit models and cannot move static hierarchy placements with no orbit
+  solution. No global burger-menu speed preference is currently retained
+- a scene-aware initial-rate policy remains pending measured period-distribution
+  and visual review. It may use accepted renderable planet or stellar periods,
+  but never an assumed fallback or missing period; nested systems require an
+  explicit choice of planet, inner-pair, or top-level structural timescale
 - the compact render-policy summary covers local beta time, active scale mode,
   assumption persistence, and deterministic snapshot fallback; the standalone
   local-days readout pill was removed as redundant with that Time field

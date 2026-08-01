@@ -299,6 +299,17 @@ Implementation note:
   classes are labeled explicitly rather than guessed. This is presentation
   structure over existing `core`/`arm`/`disc` contracts; it does not promote
   visual assumptions into catalog facts.
+- Wavelength View is the accepted successor to the one-off WISE System Page
+  panel. It will begin with aligned visible and infrared survey fields, then use
+  an explicitly discrete wavelength rail for curated radio-through-gamma
+  products. Static cached previews provide the fast default; opt-in Aladin
+  Lite/HiPS supplies interactive inspection; raw products remain on-demand for
+  later analysis tools. Survey coverage is not object detection, false color is
+  always explained, high-proper-motion targets are marked at survey epoch where
+  possible, and every provider is governed by a source/attribution/license/
+  capacity contract. The public edge uses one bounded provider-aware image
+  cache and may not make Photon, Proton, or an unbounded scientific archive a
+  hidden runtime dependency.
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
@@ -886,6 +897,8 @@ Operational status:
 - `docs/EVIDENCE_LAKE_V2.md`: active source-lake, evidence, selection, and
   canonical shadow-build plan
 - `docs/PUBLIC_DEPLOYMENT.md`: Photon-to-antiproton public deployment runbook
+- `docs/WAVELENGTH_VIEW.md`: multi-wavelength survey imagery, provider, cache,
+  and presentation contract
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/TESS_INTEGRATION.md`: bounded TIC/TOI identity, inventory recovery,
   candidate evidence, and observation-product plan
@@ -1007,16 +1020,17 @@ Notes:
    scene-hit telemetry before accepting the soak.
 2. Reconcile the public-edge scene-permission hotfix into active feature work
    and preserve the deployment reports.
-3. Build the Concept Tag Foundation now that the selected-fact and public-read
-   contracts are stable so public tags are driven by selected,
-   provenance-bearing facts.
-4. Implement one secure AAA evidence-portfolio vertical slice with source-text
+3. Complete Simple Light repair and the bounded M8.3e.3 public UI/simulation
+   coherence pass now that Smart Tags and the selected-fact contracts are
+   stable.
+4. Implement the collapsed Public Evidence Inspector, then complete the M8.3g
+   Wavelength View provider/capacity research and visible/infrared foundation.
+5. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-5. Later, expose the selected and competing evidence through a collapsed System
-   Page inspector, then build interactive source-attributed spectrum, light-
-   curve, image, and atmosphere-analysis labs with scientifically safe
-   gamification.
+6. Build interactive source-attributed spectrum, light-curve, image, and
+   atmosphere-analysis labs with scientifically safe gamification after the
+   evidence and Wavelength View contracts are stable.
 
 ## Layered Restabilization Status (March 6, 2026)
 

@@ -962,6 +962,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Preserve same-system simulation scale, lines, labels, and speed through
   Peek/Explorer/Detail session navigation; reset new systems to global defaults,
   keep `1x` as the default speed, and do not carry simulation epoch/elapsed time
+- [x] Keep simulator rate out of the global burger menu, enumerate local speed
+  as simulated time per real second with its multiplier, explain static no-orbit
+  placement, and add `5000x` / `10000x` manual rates
+- [ ] Measure accepted planet and stellar period distributions and visually
+  compare scene-aware initial-rate policies: fastest accepted planet near five
+  seconds when present, and shortest versus top-level accepted stellar orbit for
+  stellar-only multiples; never auto-tune from assumed/missing periods
 - [ ] Move WISE loading to idle metadata plus one-to-two-viewport preview
   prefetch, with same-key coalescing, negative caching, retry/backoff, provider-
   friendly bounds, browser validators, and hit/miss/latency/abandonment metrics
@@ -2093,6 +2100,20 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   show the selected value and reason first, then expandable competing values,
   uncertainty, limits, conflicts, source/model/reference, component scope, and
   lineage through a bounded/paginated API
+- [ ] Complete M8.3g Wavelength View source research and provider matrix across
+  visible, infrared, ultraviolet, X-ray, gamma-ray, and radio candidates,
+  including coverage, resolution, epoch, API/HiPS efficiency, fair-use/rate
+  guidance, attribution, licensing, cacheability, and failure behavior
+- [ ] Replace the one-off WISE panel with aligned Visible/Infrared static
+  previews and opt-in interactive HiPS inspection, preserving target-epoch
+  markers, angular scale, band mapping, attribution, and honest detection state
+- [ ] Prototype an accessible logarithmic wavelength rail with discrete survey
+  stops and explicit gaps; do not imply continuous spectral observations or
+  comparable resolution/epoch between bands
+- [ ] Implement a shared 4-GiB initial survey-preview cache with provider quotas,
+  immutable release/render keys, coalescing, negative caching, rate/backoff and
+  outage controls, validators, eviction, metrics, and a provider-contact or
+  replication threshold
 - [ ] Build a reusable source-attributed observation-product viewer contract
   for images, spectra, exoplanet atmosphere spectra, and light curves without
   placing bulk products in hot served databases
