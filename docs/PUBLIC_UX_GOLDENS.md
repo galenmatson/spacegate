@@ -92,6 +92,11 @@ The Playwright map suite imports
   5,000x and 10,000x rates without overflowing desktop/mobile controls, and
   explains that static hierarchy placements without orbit solutions cannot be
   animated by increasing time.
+- Fresh Star Map sessions expose the deterministic device-default tier in
+  runtime diagnostics. Explicit radius URLs and saved density/star-style
+  preferences take precedence; enhanced desktop, standard desktop, enhanced
+  touch, and constrained profiles select their documented bounded
+  radius/density/style defaults without rendering a screen-space grid.
 - Future M8.3g Wavelength View goldens must cover aligned visible/infrared
   fields for high-proper-motion, saturated, crowded, ordinary, ultracool,
   compact, and extended targets; discrete wavelength stops, missing coverage,
@@ -100,6 +105,9 @@ The Playwright map suite imports
 - Desktop and constrained-mobile browser runs must prove a nonblank map and
   simulator canvas, stable selection and object focus, usable results scrolling,
   and no incoherent overlap after the projection migration.
+- Real-device M8.3e.4 mobile goldens include repeated Android
+  Peek/Explorer-to-Detail navigation and dense-field label taps proving that a
+  touched visible label outranks unrelated background points.
 - Smart Tag parity verifies registry identity, exact source context, bounded
   assignment evidence, any/all/exclude filters, Search/System/Peek/Explorer
   presentation, keyboard and touch pinning, Escape/outside close, copy, Learn,

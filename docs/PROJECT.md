@@ -661,9 +661,9 @@ Current contract:
 
 - public route: `/map`
 - tiled artifact contract: `docs/TILED_MAP.md`
-- public slice: selectable Sol-centered 100 and 250-ly radii through immutable
-  octree tiles; `GET /api/v1/map/systems` remains a temporary 100-ly diagnostic
-  comparator
+- public slice: selectable Sol-centered 100, 250, 500, and 1,000-ly radii
+  through immutable octree tiles; `GET /api/v1/map/systems` remains a temporary
+  100-ly diagnostic comparator
 - rendering stack: React 19 + Three.js through React Three Fiber
 - controls: selectable `WASD`, `ESDF`, or `8456` flight layouts plus permanent
   arrow-key flight, mouse look, Shift boost, and stabilized vertical by
@@ -680,9 +680,11 @@ Current contract:
   camera-centered detail bubble; Balanced, Performance, and Exact density modes
   preserve stable identity and bounded labels while machine-readable Photon
   browser reports define acceptance
-- presentation profile: Discovery remains the default; Bright increases star
-  visibility on large/high-resolution displays, and bounded labels can carry
-  one toggleable deterministic representative system-class badge
+- presentation profile: fresh-device defaults are capability-tiered without
+  overriding explicit URLs or saved visitor choices. Strong accelerated
+  desktops start at 1,000 ly/Exact/Bright, ordinary accelerated desktops at
+  500 ly/Balanced/Bright, and constrained/touch clients at smaller profiles;
+  bounded labels can carry toggleable deterministic system-class badges
 - map overlay themes are handled in the Star Map layer: Enterprise/LCARS uses
   black nontransparent map cards with bright yellow borders and no glow, while
   Simple Light and Geocities use more opaque map overlays; embedded System

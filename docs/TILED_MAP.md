@@ -368,5 +368,14 @@ window rendered more than 100,000 points near the 1,000-ly boundary. The same
 session otherwise remained responsive, and a later parked observation held
 approximately 100,000 points across 487 tiles. This remains an open browser
 runtime investigation rather than evidence of an API or tile-delivery failure.
-The screen-space theme grid is cosmetic, not octree geometry; it is controlled
-by the persistent `Grid overlay` map-menu toggle for every theme.
+The former screen-space theme grid was cosmetic, not octree geometry. It and
+its map-menu preference were retired on August 2, 2026 so no public theme
+places a fixed two-dimensional grid over the three-dimensional star field.
+
+Fresh sessions choose a conservative initial radius and presentation profile
+from coarse browser capabilities. Explicit URL parameters and saved visitor
+preferences take precedence. Strong accelerated desktop signals may start at
+1,000 ly with Exact/Bright presentation; ordinary accelerated desktops start
+at 500 ly with Balanced/Bright presentation; touch, low-memory, low-core-count,
+and software-rendered clients start at bounded lower profiles. These are
+initial defaults, not scientific or permanent device classifications.

@@ -36,8 +36,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Optional WDS-Gaia bridge wired and default-off
 - [x] Physical consistency gating on WDS bridge grouping
 - [x] Proximity grouping remains nondefault for conservative production builds
-- [x] Make the map's cosmetic grid overlay independently toggleable across all
-  themes and persist the preference locally
+- [x] Retire the map's cosmetic screen-grid overlay and its obsolete persisted
+  preference from every theme
 - [x] Remove redundant detail and search work from map Peek startup: reuse the
   simulation-scene payload for star/planet source tooltips and defer the
   coolness-component search until the COOL tooltip is actually inspected
@@ -965,6 +965,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Keep simulator rate out of the global burger menu, enumerate local speed
   as simulated time per real second with its multiplier, explain static no-orbit
   placement, and add `5000x` / `10000x` manual rates
+- [x] Retire the cosmetic two-dimensional Star Map grid, theme variants,
+  preference, and menu control
+- [x] Add deterministic first-visit map capability tiers: accelerated desktop
+  defaults of 500 ly/Balanced/Bright or 1,000 ly/Exact/Bright where strong
+  signals support it, bounded touch/constrained defaults, explicit URL and
+  saved-preference precedence, tests, and inspectable runtime tier identity
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for
@@ -975,6 +981,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Define a shared capped survey-image cache contract before adding more
   System Page imagery providers; retain the 4-GiB WISE cap and 15-GiB edge free-
   space floor until measured demand supports a reviewed change
+- [ ] Complete M8.3e.4 real-device mobile UI and touch reliability pass:
+  reproduce the Pixel Android Detail-navigation failure, prevent menu/overlay
+  obstruction, prefer touched visible labels over background Gaia points, and
+  verify portrait/landscape navigation on physical and emulated devices
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

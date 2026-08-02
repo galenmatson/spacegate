@@ -3095,6 +3095,15 @@ renderer, Public Read, or Smart Tag architectures.
 
 Accepted decisions:
 
+- retire the fixed two-dimensional screen grid and its preference from every
+  Star Map theme;
+- use a deterministic, inspectable first-visit capability policy without
+  overriding explicit radius URLs or saved density/style choices. Strong
+  WebGL2 desktop signals start at 1,000 ly/Exact/Bright, ordinary accelerated
+  desktops at 500 ly/Balanced/Bright, enhanced touch devices at
+  500 ly/Balanced/Bright, and constrained clients at bounded smaller profiles.
+  Browser hints are coarse and must not be presented as a measured hardware
+  benchmark;
 - raise the System Page outer content maximum from 1,200 px to 1,600 px for
   initial review, while keeping narrative prose and concept articles in
   readable columns and verifying all themes at desktop, 4K, and ultrawide
@@ -3155,6 +3164,50 @@ Success criteria:
   materially increasing abandoned IRSA work or violating the edge disk floor;
 - cache and prefetch tests cover hit, miss, unavailable, negative-cache,
   coalesced, throttled, evicted, and stale/revalidated behavior.
+
+### M8.3e.4. Mobile Public UI and Touch Reliability
+
+Goal:
+
+- make the real-device Android and mobile-browser experience as navigable and
+  deterministic as the desktop application rather than relying on responsive
+  developer-tools emulation as proof.
+
+Status: queued after the bounded M8.3e.3 coherence work. Pixel 9 Pro XL field
+reports identify failures that are not reproduced by desktop Chromium device
+emulation.
+
+Deliverables:
+
+- reproduce and repair the Android `Detail` navigation failure from Peek and
+  Explorer, including touch event ordering, history state, route transition,
+  scroll locking, and WebGL/context teardown diagnostics;
+- redesign mobile menu, search, Peek, and detail overlays so primary content
+  and close/navigation actions remain reachable without panels covering the
+  entire workflow;
+- make direct touch picking prioritize the visible labeled system associated
+  with the touched label before nearby background Gaia points, while retaining
+  the reticle as a precise alternative and stable system identity as the
+  selection key;
+- establish explicit label hit targets, screen-space candidate ranking, depth
+  and distance tie-breaking, tap-versus-drag thresholds, and ambiguity
+  diagnostics rather than enlarging every Three.js point;
+- add real Android-browser remote-debug traces and repeatable physical-device
+  acceptance alongside Playwright phone/tablet coverage;
+- evaluate touch-device capability defaults from measured frame time, memory,
+  thermal behavior, and network cost before promoting modern phones beyond the
+  conservative enhanced-touch profile.
+
+Success criteria:
+
+- Detail navigation works repeatedly on the reported Pixel device and the
+  emulated mobile suite without blank pages or stranded overlays;
+- tapping a visible system label selects that labeled system across sparse and
+  dense representative fields, with background points unable to steal the tap;
+- menus, search, Peek, Explorer, browser Back, and system Detail remain usable
+  in portrait and landscape with no incoherent overlap;
+- constrained and modern-device profiles remain responsive and visitor
+  preferences are never silently overwritten by capability reclassification.
 
 ### M8.3f. Public Evidence Inspector (Later)
 
