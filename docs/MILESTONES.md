@@ -3103,7 +3103,10 @@ Accepted decisions:
   desktops at 500 ly/Balanced/Bright, enhanced touch devices at
   500 ly/Balanced/Bright, and constrained clients at bounded smaller profiles.
   Browser hints are coarse and must not be presented as a measured hardware
-  benchmark;
+  benchmark. Runtime diagnostics expose the selected default tier, CSS
+  viewport/DPR, reported CPU threads and device memory, WebGL renderer and
+  acceleration state, maximum texture size, and the exact failed Enhanced
+  gates locally without sending hardware fingerprint details to the server;
 - raise the System Page outer content maximum from 1,200 px to 1,600 px for
   initial review, while keeping narrative prose and concept articles in
   readable columns and verifying all themes at desktop, 4K, and ultrawide

@@ -971,6 +971,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   defaults of 500 ly/Balanced/Bright or 1,000 ly/Exact/Bright where strong
   signals support it, bounded touch/constrained defaults, explicit URL and
   saved-preference precedence, tests, and inspectable runtime tier identity
+- [x] Expose the selected default tier, browser capability signals, and exact
+  Enhanced-gate blockers in the opt-in Runtime diagnostics overlay without
+  transmitting hardware fingerprint details to the server
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for

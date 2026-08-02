@@ -18,6 +18,7 @@ import {
   radialDensitySeamRatio,
 } from "./mapLod.js";
 import {
+  enhancedDesktopQualification,
   mapDeviceDefaultsFor,
   readMapDeviceProfile,
 } from "./mapDeviceDefaults.js";
@@ -565,6 +566,13 @@ function shortDisplayName(value) {
     return `${text.slice(0, 16)}…${text.slice(-7)}`;
   }
   return text;
+}
+
+function compactRuntimeRenderer(value) {
+  const text = String(value || "unavailable")
+    .replace(/^ANGLE\s*\(/i, "")
+    .replace(/\)$/, "");
+  return text.length > 42 ? `${text.slice(0, 39)}...` : text;
 }
 
 function shouldTruncateName(value) {
@@ -3095,6 +3103,10 @@ export default function StarMapPage({
     contextLossRecoveries,
     deviceProfile: deviceRuntimeProfile,
   }), [activeWebGLSurfaceCount, contextLossRecoveries, deviceRuntimeProfile]);
+  const enhancedDesktopReport = useMemo(
+    () => enhancedDesktopQualification(deviceRuntimeProfile),
+    [deviceRuntimeProfile],
+  );
   const previewRecoveryBudget = contextLossRecoveries >= 6
     ? SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET
     : runtimeQuality.cardBudget;
@@ -3121,6 +3133,8 @@ export default function StarMapPage({
     mapRadiusLy,
     densityMode: mapDensityMode,
     deviceDefaultTier: initialMapDefaults.tier,
+    deviceProfile: deviceRuntimeProfile,
+    enhancedDesktopBlockers: enhancedDesktopReport.blockers,
     radialSeamRatio,
     supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
     tileStats,
@@ -4816,6 +4830,17 @@ export default function StarMapPage({
           data-preview-pool-active={runtimeDiagnostics.activePreviews}
           data-preview-pool-budget={runtimeDiagnostics.previewBudget}
           data-context-recoveries={runtimeDiagnostics.contextLossRecoveries}
+          data-device-default-tier={runtimeDiagnostics.deviceDefaultTier}
+          data-device-viewport={`${runtimeDiagnostics.deviceProfile.width}x${runtimeDiagnostics.deviceProfile.height}`}
+          data-device-dpr={runtimeDiagnostics.deviceProfile.dpr}
+          data-device-touch={runtimeDiagnostics.deviceProfile.touch ? "true" : "false"}
+          data-device-cores={runtimeDiagnostics.deviceProfile.cores ?? "hidden"}
+          data-device-memory-gib={runtimeDiagnostics.deviceProfile.memoryGiB ?? "hidden"}
+          data-device-webgl2={runtimeDiagnostics.deviceProfile.webgl2 ? "true" : "false"}
+          data-device-hardware-accelerated={runtimeDiagnostics.deviceProfile.hardwareAccelerated ? "true" : "false"}
+          data-device-max-texture-size={runtimeDiagnostics.deviceProfile.maxTextureSize}
+          data-device-renderer={runtimeDiagnostics.deviceProfile.renderer}
+          data-enhanced-desktop-blockers={runtimeDiagnostics.enhancedDesktopBlockers.join("|")}
         >
           <div>
             <strong>{fpsSample > 0 ? fpsSample : "--"}</strong>
@@ -4840,6 +4865,38 @@ export default function StarMapPage({
           <div>
             <strong>{tileStats?.loaded_tiles ?? 0}/{tileStats?.queued_tiles ?? 0}</strong>
             <span>Tiles</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.deviceDefaultTier}</strong>
+            <span>Default tier</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.deviceProfile.width}x{runtimeDiagnostics.deviceProfile.height} @{formatNumber(runtimeDiagnostics.deviceProfile.dpr, 2)}</strong>
+            <span>Viewport</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.deviceProfile.cores ?? "hidden"}</strong>
+            <span>CPU threads</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.deviceProfile.memoryGiB == null
+              ? "hidden"
+              : `${runtimeDiagnostics.deviceProfile.memoryGiB} GiB`}</strong>
+            <span>Device memory</span>
+          </div>
+          <div className="map-fps-wide">
+            <strong>{compactRuntimeRenderer(runtimeDiagnostics.deviceProfile.renderer)}</strong>
+            <span>{runtimeDiagnostics.deviceProfile.hardwareAccelerated ? "Hardware WebGL2" : "Software/masked WebGL"}</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.deviceProfile.maxTextureSize || "--"}</strong>
+            <span>Max texture</span>
+          </div>
+          <div className="map-fps-wide map-fps-gate">
+            <strong>{runtimeDiagnostics.enhancedDesktopBlockers.length
+              ? runtimeDiagnostics.enhancedDesktopBlockers.join(", ")
+              : "eligible"}</strong>
+            <span>Enhanced gate</span>
           </div>
         </div>
       )}

@@ -178,6 +178,17 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/WebGL/i);
     await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Previews/i);
     await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Quality/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Default tier/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Viewport/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Enhanced gate/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toHaveAttribute(
+      "data-device-default-tier",
+      /desktop|touch/,
+    );
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toHaveAttribute(
+      "data-enhanced-desktop-blockers",
+      /.*/,
+    );
     await page.locator("[data-testid='map-fps-toggle']").uncheck();
     await expect(page.locator("[data-testid='map-fps-overlay']")).toHaveCount(0);
     await page.locator(".map-search-spectral", { hasText: "G" }).click();

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mapDeviceDefaultsFor } from "../src/mapDeviceDefaults.js";
+import {
+  enhancedDesktopQualification,
+  mapDeviceDefaultsFor,
+} from "../src/mapDeviceDefaults.js";
 
 const accelerated = {
   webgl2: true,
@@ -76,4 +79,26 @@ test("software-rendered or low-memory devices use constrained defaults", () => {
     cores: 4,
     memoryGiB: 4,
   }).radiusLy, 100);
+});
+
+test("enhanced qualification explains masked browser capabilities", () => {
+  const qualification = enhancedDesktopQualification({
+    ...accelerated,
+    width: 1365,
+    touch: false,
+    cores: 8,
+    memoryGiB: null,
+  });
+  assert.equal(qualification.eligible, false);
+  assert.deepEqual(qualification.blockers, ["device memory hidden"]);
+  assert.equal(
+    enhancedDesktopQualification({
+      ...accelerated,
+      width: 1600,
+      touch: false,
+      cores: 16,
+      memoryGiB: 8,
+    }).eligible,
+    true,
+  );
 });

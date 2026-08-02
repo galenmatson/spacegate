@@ -379,3 +379,7 @@ preferences take precedence. Strong accelerated desktop signals may start at
 at 500 ly with Balanced/Bright presentation; touch, low-memory, low-core-count,
 and software-rendered clients start at bounded lower profiles. These are
 initial defaults, not scientific or permanent device classifications.
+The opt-in Runtime diagnostics overlay displays the selected tier, relevant
+reported capabilities, and failed Enhanced gates. These details remain in the
+browser and are not sent to the Spacegate API as hardware fingerprint
+telemetry.
