@@ -17,6 +17,10 @@ import {
   normalizeMapDensityMode,
   radialDensitySeamRatio,
 } from "./mapLod.js";
+import {
+  mapDeviceDefaultsFor,
+  readMapDeviceProfile,
+} from "./mapDeviceDefaults.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
 import {
   STELLAR_CLASS_TAGS,
@@ -27,7 +31,8 @@ import {
 } from "./stellarClassTags.jsx";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 
-const DEFAULT_MAP_RADIUS_LY = 100;
+const DEFAULT_MAP_RADIUS_LY = 500;
+const MONOLITHIC_DIAGNOSTIC_RADIUS_LY = 100;
 const LIGHT_YEAR_KM = 9_460_730_472_580.8;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
@@ -77,7 +82,6 @@ const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
-const MAP_GRID_OVERLAY_STORAGE_KEY = "spacegate.map.gridOverlay";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
 const MAP_DENSITY_MODE_STORAGE_KEY = "spacegate.map.densityMode";
@@ -437,15 +441,6 @@ function readStoredDirectionLabelsEnabled() {
   }
 }
 
-function readStoredGridOverlayEnabled() {
-  if (typeof window === "undefined") return true;
-  try {
-    return window.localStorage.getItem(MAP_GRID_OVERLAY_STORAGE_KEY) !== "false";
-  } catch {
-    return true;
-  }
-}
-
 function normalizeClassBadgeMode(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "false" || normalized === "off") return "off";
@@ -478,42 +473,30 @@ function normalizeStarRenderMode(value) {
   return STAR_RENDER_MODES[raw] ? raw : STAR_RENDER_DEFAULT_MODE;
 }
 
-function readStoredStarRenderMode() {
+function readStoredStarRenderMode(defaultMode = STAR_RENDER_DEFAULT_MODE) {
   if (typeof window === "undefined") {
-    return STAR_RENDER_DEFAULT_MODE;
+    return normalizeStarRenderMode(defaultMode);
   }
   try {
-    return normalizeStarRenderMode(window.localStorage.getItem(MAP_STAR_RENDER_MODE_STORAGE_KEY));
+    const stored = window.localStorage.getItem(MAP_STAR_RENDER_MODE_STORAGE_KEY);
+    return normalizeStarRenderMode(stored || defaultMode);
   } catch {
-    return STAR_RENDER_DEFAULT_MODE;
+    return normalizeStarRenderMode(defaultMode);
   }
 }
 
-function readStoredMapDensityMode() {
-  if (typeof window === "undefined") return "balanced";
+function readStoredMapDensityMode(defaultMode = "balanced") {
+  if (typeof window === "undefined") return normalizeMapDensityMode(defaultMode);
   try {
     const stored = window.localStorage.getItem(MAP_DENSITY_MODE_STORAGE_KEY);
     if (stored) return normalizeMapDensityMode(stored);
-    const profile = readDeviceRuntimeProfile();
-    return profile.touch || profile.width < 760 ? "performance" : "balanced";
+    return normalizeMapDensityMode(defaultMode);
   } catch {
-    return "balanced";
+    return normalizeMapDensityMode(defaultMode);
   }
 }
 
-function readDeviceRuntimeProfile() {
-  if (typeof window === "undefined") {
-    return { width: 1440, height: 900, dpr: 1, touch: false };
-  }
-  return {
-    width: window.innerWidth || 1440,
-    height: window.innerHeight || 900,
-    dpr: window.devicePixelRatio || 1,
-    touch: Boolean(window.matchMedia?.("(pointer: coarse)")?.matches),
-  };
-}
-
-function runtimeQualityFor({ activeSurfaces = 1, contextLossRecoveries = 0, deviceProfile = readDeviceRuntimeProfile() } = {}) {
+function runtimeQualityFor({ activeSurfaces = 1, contextLossRecoveries = 0, deviceProfile = readMapDeviceProfile() } = {}) {
   const mobileSized = Number(deviceProfile.width || 0) < 760 || Boolean(deviceProfile.touch);
   const highDpr = Number(deviceProfile.dpr || 1) > 1.75;
   if (contextLossRecoveries >= 2 || activeSurfaces >= WEBGL_CONTEXT_BUDGET || (mobileSized && activeSurfaces >= 3)) {
@@ -2316,6 +2299,7 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.mapTileRenderedSystems = String(runtimeDiagnostics?.tileStats?.rendered_systems ?? 0);
     target.dataset.mapTileLodMode = runtimeDiagnostics?.tileStats?.lod_mode || "exact";
     target.dataset.mapDensityMode = runtimeDiagnostics?.densityMode || "balanced";
+    target.dataset.mapDeviceDefaultTier = runtimeDiagnostics?.deviceDefaultTier || "unknown";
     target.dataset.mapDetailCenterLy = (runtimeDiagnostics?.tileStats?.detail_center_ly || []).join(",");
     target.dataset.mapDetailRadiusLy = String(runtimeDiagnostics?.tileStats?.detail_radius_ly ?? 0);
     target.dataset.mapDetailSystems = String(runtimeDiagnostics?.tileStats?.detail_rendered_systems ?? 0);
@@ -2986,9 +2970,12 @@ export default function StarMapPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const restoreStateRef = useRef(readStoredMapReturnState(searchParams.get("restore")));
   const restoredMapState = restoreStateRef.current;
+  const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readMapDeviceProfile);
+  const initialMapDefaultsRef = useRef(mapDeviceDefaultsFor(deviceRuntimeProfile));
+  const initialMapDefaults = initialMapDefaultsRef.current;
   const [mapRadiusLy, setMapRadiusLy] = useState(() => {
     const requestedRadius = Number(searchParams.get("radius"));
-    return MAP_RADIUS_OPTIONS_LY.includes(requestedRadius) ? requestedRadius : DEFAULT_MAP_RADIUS_LY;
+    return MAP_RADIUS_OPTIONS_LY.includes(requestedRadius) ? requestedRadius : initialMapDefaults.radiusLy;
   });
   const monolithicDiagnosticMode = searchParams.get("map_transport") === "monolithic";
   const pixelProbeEnabled = searchParams.get("pixel_probe") === "1";
@@ -3041,18 +3028,16 @@ export default function StarMapPage({
   const [mapFrame, setMapFrame] = useState(() => (
     MAP_FRAME_OPTIONS[restoredMapState?.mapFrame] ? restoredMapState.mapFrame : readStoredMapFrame()
   ));
-  const [starRenderMode, setStarRenderMode] = useState(readStoredStarRenderMode);
-  const [mapDensityMode, setMapDensityMode] = useState(readStoredMapDensityMode);
+  const [starRenderMode, setStarRenderMode] = useState(() => readStoredStarRenderMode(initialMapDefaults.starRenderMode));
+  const [mapDensityMode, setMapDensityMode] = useState(() => readStoredMapDensityMode(initialMapDefaults.densityMode));
   const [showDirectionLabels, setShowDirectionLabels] = useState(() => (
     typeof restoredMapState?.showDirectionLabels === "boolean"
       ? restoredMapState.showDirectionLabels
       : readStoredDirectionLabelsEnabled()
   ));
-  const [showGridOverlay, setShowGridOverlay] = useState(readStoredGridOverlayEnabled);
   const [classBadgeMode, setClassBadgeMode] = useState(readStoredClassBadgeMode);
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
-  const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
   const [contextLossRecoveries, setContextLossRecoveries] = useState(0);
   const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
   const [previewCooldownActive, setPreviewCooldownActive] = useState(false);
@@ -3135,6 +3120,7 @@ export default function StarMapPage({
     qualityTier: runtimeQuality.tier,
     mapRadiusLy,
     densityMode: mapDensityMode,
+    deviceDefaultTier: initialMapDefaults.tier,
     radialSeamRatio,
     supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
     tileStats,
@@ -3341,14 +3327,6 @@ export default function StarMapPage({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(MAP_GRID_OVERLAY_STORAGE_KEY, showGridOverlay ? "true" : "false");
-    } catch {
-      // Grid-overlay preference persistence is optional.
-    }
-  }, [showGridOverlay]);
-
-  useEffect(() => {
-    try {
       window.localStorage.setItem(MAP_CLASS_BADGES_STORAGE_KEY, classBadgeMode);
     } catch {
       // Label badge preference persistence is optional.
@@ -3357,7 +3335,7 @@ export default function StarMapPage({
 
   useEffect(() => {
     const updateProfile = () => {
-      const next = readDeviceRuntimeProfile();
+      const next = readMapDeviceProfile();
       setDeviceRuntimeProfile((current) => (
         current.width === next.width
         && current.height === next.height
@@ -3802,7 +3780,7 @@ export default function StarMapPage({
     };
     if (monolithicDiagnosticMode) {
       fetchMapSystems({
-        max_dist_ly: String(DEFAULT_MAP_RADIUS_LY),
+        max_dist_ly: String(MONOLITHIC_DIAGNOSTIC_RADIUS_LY),
         limit: "20000",
         compact: "true",
         name_style: normalizeNameStyle(nameStyle),
@@ -4374,7 +4352,7 @@ export default function StarMapPage({
       if (effectiveSort && effectiveSort !== (mapSearchQuery.trim() ? "match" : "distance")) {
         nextParams.sort = effectiveSort;
       }
-      if (mapRadiusLy !== DEFAULT_MAP_RADIUS_LY) nextParams.radius = String(mapRadiusLy);
+      nextParams.radius = String(mapRadiusLy);
       if (monolithicDiagnosticMode) nextParams.map_transport = "monolithic";
       setSearchParams(nextParams, { replace: false });
     }
@@ -4498,9 +4476,6 @@ export default function StarMapPage({
       data-map-drill-mode={drillMode}
       data-map-minimal-mode={minimalMode ? "true" : "false"}
     >
-      {showGridOverlay && (
-        <div className="map-background-grid" aria-hidden="true" data-testid="map-grid-overlay" />
-      )}
       {systems.length > 0 && (
         <StarMapScene
           key={mapContextEpoch}
@@ -4719,11 +4694,10 @@ export default function StarMapPage({
                       const requestedRadius = Number(event.target.value);
                       const nextRadius = MAP_RADIUS_OPTIONS_LY.includes(requestedRadius)
                         ? requestedRadius
-                        : DEFAULT_MAP_RADIUS_LY;
+                        : initialMapDefaults.radiusLy;
                       setMapRadiusLy(nextRadius);
                       const nextParams = new URLSearchParams(searchParams);
-                      if (nextRadius === DEFAULT_MAP_RADIUS_LY) nextParams.delete("radius");
-                      else nextParams.set("radius", String(nextRadius));
+                      nextParams.set("radius", String(nextRadius));
                       setSearchParams(nextParams, { replace: true });
                     }}
                     data-testid="map-radius-select"
@@ -4814,15 +4788,6 @@ export default function StarMapPage({
                     data-testid="map-direction-labels-toggle"
                   />
                   <span>Direction labels</span>
-                </label>
-                <label className="map-menu-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showGridOverlay}
-                    onChange={(event) => setShowGridOverlay(event.target.checked)}
-                    data-testid="map-grid-overlay-toggle"
-                  />
-                  <span>Grid overlay</span>
                 </label>
                 <label className="map-menu-toggle">
                   <input

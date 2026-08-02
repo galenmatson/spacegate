@@ -78,19 +78,6 @@
   text-decoration: none;
 }
 
-.map-background-grid {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.28;
-  background:
-    linear-gradient(rgba(160, 210, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(160, 210, 255, 0.08) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(circle at center, black 0%, black 42%, transparent 78%);
-}
-
 .map-canvas {
   position: absolute !important;
   inset: 0;
@@ -2756,16 +2743,6 @@
     linear-gradient(180deg, #050014 0%, #0a041b 48%, #06000f 100%);
 }
 
-:root[data-theme="cyberpunk"] .map-background-grid {
-  opacity: 0.58;
-  background:
-    linear-gradient(rgba(0, 245, 255, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 0, 204, 0.1) 1px, transparent 1px),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5px);
-  background-size: 54px 54px, 54px 54px, 100% 5px;
-  mask-image: radial-gradient(circle at center, black 0%, black 58%, transparent 88%);
-}
-
 :root[data-theme="cyberpunk"] .map-hud,
 :root[data-theme="cyberpunk"] .map-system-drill,
 :root[data-theme="cyberpunk"] .map-header-menu-panel,
@@ -2937,17 +2914,6 @@
   background:
     linear-gradient(112deg, rgba(65, 255, 210, 0.12) 0%, transparent 28%, rgba(130, 118, 255, 0.13) 54%, transparent 74%, rgba(255, 99, 220, 0.12) 100%),
     linear-gradient(180deg, #030816 0%, #06102b 48%, #030712 100%);
-}
-
-:root[data-theme="aurora"] .map-background-grid {
-  opacity: 0.52;
-  background:
-    repeating-linear-gradient(116deg, rgba(65, 255, 210, 0.13) 0 1px, transparent 1px 36px),
-    repeating-linear-gradient(66deg, rgba(255, 99, 220, 0.09) 0 1px, transparent 1px 54px),
-    linear-gradient(180deg, rgba(130, 118, 255, 0.12), transparent 58%);
-  background-size: 140% 140%, 160% 160%, 100% 100%;
-  mask-image: radial-gradient(ellipse at center, black 0%, black 62%, transparent 92%);
-  animation: aurora-ribbon-flow 18s ease-in-out infinite alternate;
 }
 
 :root[data-theme="aurora"] .map-hud,
@@ -3378,16 +3344,6 @@
     repeating-linear-gradient(-45deg, rgba(128, 0, 128, 0.2) 0 2px, transparent 2px 22px),
     #000000;
   font-family: "Verdana", "Tahoma", "Arial", sans-serif;
-}
-
-:root[data-theme="retro_90s"] .map-background-grid {
-  opacity: 0.34;
-  background:
-    radial-gradient(circle, rgba(255, 255, 0, 0.92) 0 1px, transparent 1.5px),
-    repeating-linear-gradient(90deg, rgba(0, 255, 255, 0.12) 0 1px, transparent 1px 16px),
-    repeating-linear-gradient(0deg, rgba(255, 0, 255, 0.1) 0 1px, transparent 1px 16px);
-  background-size: 34px 34px, 16px 16px, 16px 16px;
-  mask-image: none;
 }
 
 :root[data-theme="retro_90s"] .map-system-drill,

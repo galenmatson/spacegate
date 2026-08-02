@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { PUBLIC_EXPERIENCE_GOLDENS, TECHNICAL_SYSTEM_GOLDENS } from "../fixtures/publicExperienceGoldens.mjs";
 
-async function openMap(page) {
-  await page.goto("/map", { waitUntil: "networkidle" });
+async function openMap(page, path = "/map") {
+  await page.goto(path, { waitUntil: "networkidle" });
   await page.locator(".map-canvas canvas").waitFor();
   await page.waitForTimeout(1200);
 }
@@ -807,9 +807,40 @@ test.describe("public 3D map beta", () => {
     ).toBeLessThan(0.25);
   });
 
+  test("fresh map defaults follow the detected capability tier without a screen grid", async ({ page }) => {
+    await openMap(page);
+    const canvas = page.locator(".map-canvas canvas");
+    const tier = await canvas.getAttribute("data-map-device-default-tier");
+    const expected = {
+      enhanced_desktop: { radius: "1000", density: "exact", stars: "bright" },
+      standard_desktop: { radius: "500", density: "balanced", stars: "bright" },
+      constrained_desktop: { radius: "250", density: "performance", stars: "discovery" },
+      enhanced_touch: { radius: "500", density: "balanced", stars: "bright" },
+      standard_touch: { radius: "250", density: "performance", stars: "discovery" },
+      constrained_touch: { radius: "100", density: "performance", stars: "discovery" },
+    }[tier];
+    expect(expected, `unexpected device-default tier: ${tier}`).toBeTruthy();
+    await expect(canvas).toHaveAttribute("data-map-radius-ly", expected.radius);
+    await expect(canvas).toHaveAttribute("data-map-density-mode", expected.density);
+    await expect(canvas).toHaveAttribute("data-map-star-render-mode", expected.stars);
+    await expect(page.locator("[data-testid='map-grid-overlay']")).toHaveCount(0);
+  });
+
+  test("explicit radius and saved appearance choices override capability defaults", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("spacegate.map.densityMode", "exact");
+      window.localStorage.setItem("spacegate.map.starRenderMode", "realistic");
+    });
+    await openMap(page, "/map?radius=100");
+    const canvas = page.locator(".map-canvas canvas");
+    await expect(canvas).toHaveAttribute("data-map-radius-ly", "100");
+    await expect(canvas).toHaveAttribute("data-map-density-mode", "exact");
+    await expect(canvas).toHaveAttribute("data-map-star-render-mode", "realistic");
+  });
+
   test("header menu controls theme and map keybind scheme", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header menu and keyboard smoke");
-    await openMap(page);
+    await openMap(page, "/map?radius=100");
     const menu = page.locator(".map-header-menu");
     const canvas = page.locator(".map-canvas canvas");
     await expect(menu).toBeVisible();
@@ -832,7 +863,6 @@ test.describe("public 3D map beta", () => {
     const starRenderSelect = menu.locator("[data-testid='map-star-render-mode-select']");
     const classBadgesSelect = menu.locator("[data-testid='map-class-badges-select']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
-    const gridToggle = menu.locator("[data-testid='map-grid-overlay-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
@@ -841,14 +871,8 @@ test.describe("public 3D map beta", () => {
     await expect(starRenderSelect).toBeVisible();
     await expect(classBadgesSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
-    await expect(gridToggle).toBeVisible();
-
-    await expect(page.locator("[data-testid='map-grid-overlay']")).toBeVisible();
-    await gridToggle.uncheck();
+    await expect(menu.locator("[data-testid='map-grid-overlay-toggle']")).toHaveCount(0);
     await expect(page.locator("[data-testid='map-grid-overlay']")).toHaveCount(0);
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.gridOverlay"))).toBe("false");
-    await gridToggle.check();
-    await expect(page.locator("[data-testid='map-grid-overlay']")).toBeVisible();
 
     await themeSelect.selectOption("aurora");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
