@@ -13,6 +13,7 @@ import {
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
+const SYSTEM_LABEL_FONT_URL = "/fonts/Antonio-Variable.ttf";
 const SIM_DAYS_PER_SECOND = 0.7;
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SCALE_MODE_OPTIONS = [
@@ -1488,6 +1489,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     <group ref={groupRef} position={position} renderOrder={30}>
       <Text
         ref={textRef}
+        font={SYSTEM_LABEL_FONT_URL}
         color={color}
         fontSize={0.12}
         maxWidth={2.8}

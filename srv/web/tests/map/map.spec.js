@@ -1323,6 +1323,23 @@ test.describe("public 3D map beta", () => {
     ).toBe("flight");
   });
 
+  test("system simulations do not depend on Troika's third-party font CDN", async ({ page }) => {
+    let troikaCdnRequests = 0;
+    await page.route("https://cdn.jsdelivr.net/**", async (route) => {
+      troikaCdnRequests += 1;
+      await route.abort();
+    });
+
+    const system = await resolveGoldenSystem(page, { query: "Tau Ceti" });
+    expect(system?.system_id, "Tau Ceti should resolve for the simulator font check").toBeTruthy();
+    await page.goto(`/systems/${system.system_id}`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.getByText("Loading System Simulation...", { exact: true })).toHaveCount(0);
+    expect(troikaCdnRequests, "simulation labels should use the self-hosted font").toBe(0);
+  });
+
   test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop menu click regression uses native select controls");
     await openMap(page);
