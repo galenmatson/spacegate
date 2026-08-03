@@ -901,6 +901,8 @@ Operational status:
 - `docs/PUBLIC_DEPLOYMENT.md`: Photon-to-antiproton public deployment runbook
 - `docs/WAVELENGTH_VIEW.md`: multi-wavelength survey imagery, provider, cache,
   and presentation contract
+- `docs/COMFYUI_PROTON.md`: LAN-only generated-asset worker, safety, provenance,
+  and promotion contract
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/TESS_INTEGRATION.md`: bounded TIC/TOI identity, inventory recovery,
   candidate evidence, and observation-product plan
