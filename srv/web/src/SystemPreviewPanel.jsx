@@ -12,6 +12,12 @@ import {
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
+const DEFAULT_SCENE_LABEL_TYPOGRAPHY = {
+  family: '"Space Grotesk", system-ui, sans-serif',
+  primary: "Space Grotesk",
+  revision: 0,
+};
+const SceneLabelTypographyContext = React.createContext(DEFAULT_SCENE_LABEL_TYPOGRAPHY);
 const SIM_DAYS_PER_SECOND = 0.7;
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SCALE_MODE_OPTIONS = [
@@ -1459,6 +1465,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
   const materialRef = React.useRef(null);
   const worldPositionRef = React.useRef(new THREE.Vector3());
   const { camera, size } = useThree();
+  const typography = React.useContext(SceneLabelTypographyContext);
   const label = compactIdentifier(text, 24);
   const texturePayload = useMemo(() => {
     if (!label || typeof document === "undefined") {
@@ -1472,11 +1479,11 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     if (!context) {
       return null;
     }
-    context.font = `600 ${fontSize}px "Antonio", "Arial Narrow", sans-serif`;
+    context.font = `600 ${fontSize}px ${typography.family}`;
     const metrics = context.measureText(label);
     canvas.width = Math.max(64, Math.ceil(metrics.width + paddingX * 2));
     canvas.height = fontSize + paddingY * 2;
-    context.font = `600 ${fontSize}px "Antonio", "Arial Narrow", sans-serif`;
+    context.font = `600 ${fontSize}px ${typography.family}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.lineJoin = "round";
@@ -1491,7 +1498,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
     return { texture, aspect: canvas.width / canvas.height };
-  }, [color, label]);
+  }, [color, label, typography.family, typography.revision]);
 
   useEffect(() => () => texturePayload?.texture?.dispose(), [texturePayload]);
 
@@ -3980,7 +3987,7 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
   return null;
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
   const targetRegistryRef = React.useRef(new Map());
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
@@ -4064,28 +4071,30 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
       <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} />
       <CanvasHoverRaycaster onHover={onHover} />
-      <PreviewObjects
-        stars={stars}
-        planets={planets}
-        subsystems={subsystems}
-        renderOrbits={renderOrbits}
-        simulationTree={simulationTree}
-        hierarchy={scene?.hierarchy}
-        visualScale={visualScale}
-        scaleMode={activeScaleMode}
-        running={running}
-        speedMultiplier={speedMultiplier}
-        resetToken={resetToken}
-        showOrbits={showOrbits}
-        showHabitableZones={showHabitableZones}
-        showFormationLines={showFormationLines}
-        showLabels={showLabels}
-        selectedObjectId={selectedObjectId}
-        targetRegistryRef={targetRegistryRef}
-        onHover={onHover}
-        onSelect={onSelect}
-        onClockSample={onClockSample}
-      />
+      <SceneLabelTypographyContext.Provider value={labelTypography}>
+        <PreviewObjects
+          stars={stars}
+          planets={planets}
+          subsystems={subsystems}
+          renderOrbits={renderOrbits}
+          simulationTree={simulationTree}
+          hierarchy={scene?.hierarchy}
+          visualScale={visualScale}
+          scaleMode={activeScaleMode}
+          running={running}
+          speedMultiplier={speedMultiplier}
+          resetToken={resetToken}
+          showOrbits={showOrbits}
+          showHabitableZones={showHabitableZones}
+          showFormationLines={showFormationLines}
+          showLabels={showLabels}
+          selectedObjectId={selectedObjectId}
+          targetRegistryRef={targetRegistryRef}
+          onHover={onHover}
+          onSelect={onSelect}
+          onClockSample={onClockSample}
+        />
+      </SceneLabelTypographyContext.Provider>
     </Canvas>
   );
 }
@@ -4351,6 +4360,38 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [contextRecovering, setContextRecovering] = useState(false);
   const [contextLossCount, setContextLossCount] = useState(0);
   const [contextFailureLocked, setContextFailureLocked] = useState(false);
+  const activeTheme = typeof document !== "undefined" ? String(document.documentElement.dataset.theme || "simple_dark") : "simple_dark";
+  const labelTypographyBase = useMemo(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_SCENE_LABEL_TYPOGRAPHY;
+    }
+    const configuredFamily = window.getComputedStyle(document.documentElement).getPropertyValue("--font-display").trim();
+    const family = configuredFamily || DEFAULT_SCENE_LABEL_TYPOGRAPHY.family;
+    const primary = family.match(/^\s*["']?([^,"']+)/)?.[1]?.trim() || DEFAULT_SCENE_LABEL_TYPOGRAPHY.primary;
+    return { family, primary };
+  }, [activeTheme]);
+  const [labelFontRevision, setLabelFontRevision] = useState(0);
+  const labelTypography = useMemo(() => ({
+    ...labelTypographyBase,
+    revision: labelFontRevision,
+  }), [labelFontRevision, labelTypographyBase]);
+
+  useEffect(() => {
+    let active = true;
+    if (typeof document === "undefined" || !document.fonts?.load) {
+      return () => {
+        active = false;
+      };
+    }
+    document.fonts.load(`16px "${labelTypographyBase.primary}"`).then(() => {
+      if (active) {
+        setLabelFontRevision((value) => value + 1);
+      }
+    }).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [labelTypographyBase.primary]);
   const [running, setRunning] = useState(Boolean(autoRun));
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
@@ -4663,6 +4704,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       data-presentation-mode={normalizedPresentationMode}
       data-panel-visible={panelVisible ? "true" : "false"}
       data-simulation-running={effectiveRunning ? "true" : "false"}
+      data-scene-label-font={labelTypography.primary}
     >
       {!embeddedPresentation && (
         <div className="system-preview-header">
@@ -4696,6 +4738,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 qualityTier={qualityTier}
                 captureFrame={captureFrame}
                 onFrameCapture={onFrameCapture}
+                labelTypography={labelTypography}
                 onHover={interactiveReadouts ? handleHoverObject : null}
                 onSelect={interactiveReadouts ? setPinnedObject : null}
                 onPointerMissed={interactiveReadouts ? () => setPinnedObject(null) : null}

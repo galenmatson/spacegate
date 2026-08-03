@@ -448,6 +448,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-detail-class-tags .stellar-class-chip").first()).toBeVisible();
     await expect(page.locator(".system-detail-class-tags .smart-tag-trigger").first()).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-panel']")).toHaveAttribute("data-scene-label-font", "Space Grotesk");
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
     await expect(page.locator(".system-preview-header .system-preview-actions")).not.toContainText(/LOCAL CLARITY|render_scene/i);
@@ -1349,6 +1350,96 @@ test.describe("public 3D map beta", () => {
     expect(externalFontRequests, "Spacegate should serve its own fonts").toBe(0);
   });
 
+  test("themes use deterministic self-hosted typography", async ({ page }) => {
+    const fontRequests = [];
+    page.on("request", (request) => {
+      if (request.resourceType() === "font") {
+        fontRequests.push(request.url());
+      }
+    });
+    await openMap(page);
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    const themeSelect = menu.locator(".map-theme-select select");
+    const themes = {
+      simple_light: ["Space Grotesk", "Space Grotesk", "Spline Sans Mono"],
+      simple_dark: ["Space Grotesk", "Space Grotesk", "Spline Sans Mono"],
+      cyberpunk: ["IBM Plex Mono", "Orbitron", "IBM Plex Mono"],
+      lcars: ["Antonio", "Antonio", "Spline Sans Mono"],
+      mission_control: ["IBM Plex Mono", "IBM Plex Mono", "IBM Plex Mono"],
+      aurora: ["Exo 2", "Exo 2", "Spline Sans Mono"],
+      retro_90s: ["Tahoma", "VT323", "Courier New"],
+      deep_space_minimal: ["Space Grotesk", "Space Grotesk", "Spline Sans Mono"],
+    };
+
+    for (const [themeId, [bodyFamily, displayFamily, monoFamily]] of Object.entries(themes)) {
+      if (!(await themeSelect.isVisible())) {
+        await menu.locator("summary").click();
+      }
+      await themeSelect.selectOption(themeId);
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
+      const typography = await page.evaluate(() => {
+        const rootStyle = window.getComputedStyle(document.documentElement);
+        return {
+          body: rootStyle.getPropertyValue("--font-body").trim(),
+          display: rootStyle.getPropertyValue("--font-display").trim(),
+          mono: rootStyle.getPropertyValue("--font-mono").trim(),
+        };
+      });
+      expect(typography.body).toContain(bodyFamily);
+      expect(typography.display).toContain(displayFamily);
+      expect(typography.mono).toContain(monoFamily);
+    }
+
+    for (const family of ["Space Grotesk", "Spline Sans Mono", "Orbitron", "Antonio", "IBM Plex Mono", "Exo 2", "VT323"]) {
+      const loaded = await page.evaluate(async (fontFamily) => {
+        await document.fonts.load(`16px "${fontFamily}"`);
+        return document.fonts.check(`16px "${fontFamily}"`);
+      }, family);
+      expect(loaded, `${family} should load from Spacegate`).toBeTruthy();
+    }
+
+    expect(
+      fontRequests.filter((url) => new URL(url).origin !== new URL(page.url()).origin),
+      "theme fonts should not leave the Spacegate origin",
+    ).toEqual([]);
+  });
+
+  test("simulation labels follow active theme typography", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop theme switching keeps a live simulator open");
+    await openMap(page);
+    await openMapPeekFromRecents(page);
+
+    const preview = page.locator("[data-testid='system-preview-panel']");
+    const menu = page.locator(".map-header-menu");
+    await expect(preview).toBeVisible();
+    await expect(preview.locator(".system-preview-canvas canvas")).toBeVisible();
+
+    const themes = {
+      simple_light: "Space Grotesk",
+      simple_dark: "Space Grotesk",
+      cyberpunk: "Orbitron",
+      lcars: "Antonio",
+      mission_control: "IBM Plex Mono",
+      aurora: "Exo 2",
+      retro_90s: "VT323",
+      deep_space_minimal: "Space Grotesk",
+    };
+
+    await menu.locator("summary").click();
+    const themeSelect = menu.locator(".map-theme-select select");
+    for (const [themeId, fontFamily] of Object.entries(themes)) {
+      if (!(await themeSelect.isVisible())) {
+        await menu.locator("summary").click();
+      }
+      await themeSelect.selectOption(themeId);
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
+      await expect(preview).toHaveAttribute("data-scene-label-font", fontFamily);
+      await expect(preview.locator(".system-preview-canvas canvas")).toBeVisible();
+    }
+  });
+
   test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop menu click regression uses native select controls");
     await openMap(page);
@@ -1373,6 +1464,7 @@ test.describe("public 3D map beta", () => {
       }
       await themeSelect.selectOption(themeId);
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
+      await menu.locator("summary").click();
       await scaleSelect.click();
       await scaleSelect.selectOption("log");
       await expect.poll(
