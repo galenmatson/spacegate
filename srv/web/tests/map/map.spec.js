@@ -1323,10 +1323,10 @@ test.describe("public 3D map beta", () => {
     ).toBe("flight");
   });
 
-  test("system simulations do not depend on Troika's third-party font CDN", async ({ page }) => {
-    let troikaCdnRequests = 0;
-    await page.route("https://cdn.jsdelivr.net/**", async (route) => {
-      troikaCdnRequests += 1;
+  test("system simulations and UI fonts do not depend on third-party font services", async ({ page }) => {
+    let externalFontRequests = 0;
+    await page.route(/https:\/\/(cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)\/.*/, async (route) => {
+      externalFontRequests += 1;
       await route.abort();
     });
 
@@ -1337,7 +1337,10 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.getByText("Loading System Simulation...", { exact: true })).toHaveCount(0);
-    expect(troikaCdnRequests, "simulation labels should use the self-hosted font").toBe(0);
+    await expect.poll(
+      () => page.locator(".system-preview-canvas canvas").evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
+    ).toBe("canvas_sprite_text_v1");
+    expect(externalFontRequests, "Spacegate should serve its own fonts").toBe(0);
   });
 
   test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {
@@ -1847,6 +1850,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow On" })).toHaveAttribute("aria-pressed", "true");
     await page.locator(".system-preview-toggle", { hasText: "HZ On" }).click();
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ Off" })).toHaveAttribute("aria-pressed", "false");
+    await lineMenu.locator("summary").click();
     await page.locator(".system-preview-toggle", { hasText: "Reset" }).click();
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("aria-pressed", "false");
@@ -1904,7 +1908,7 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
       { timeout: 3000 }
-    ).toBe("troika_sdf_text_v1");
+    ).toBe("canvas_sprite_text_v1");
     await page.getByRole("button", { name: /Labels On/i }).click();
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
@@ -1957,8 +1961,9 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(Number(pausedSimulationDays));
-    await expect(page.getByLabel(/speed/i)).toBeVisible();
-    await page.getByLabel(/speed/i).selectOption("5");
+    const speedSelect = page.locator(".system-preview-speed select");
+    await expect(speedSelect).toBeVisible();
+    await speedSelect.selectOption("5");
     await page.getByRole("button", { name: /reset/i }).click();
 
     await page.getByRole("button", { name: /pause/i }).click();

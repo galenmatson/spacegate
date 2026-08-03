@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
@@ -13,7 +12,6 @@ import {
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
-const SYSTEM_LABEL_FONT_URL = "/fonts/Antonio-Variable.ttf";
 const SIM_DAYS_PER_SECOND = 0.7;
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SCALE_MODE_OPTIONS = [
@@ -1457,58 +1455,78 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
 }
 
 function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true }) {
-  const groupRef = React.useRef(null);
-  const textRef = React.useRef(null);
+  const spriteRef = React.useRef(null);
+  const materialRef = React.useRef(null);
   const worldPositionRef = React.useRef(new THREE.Vector3());
   const { camera, size } = useThree();
   const label = compactIdentifier(text, 24);
+  const texturePayload = useMemo(() => {
+    if (!label || typeof document === "undefined") {
+      return null;
+    }
+    const fontSize = 52;
+    const paddingX = 16;
+    const paddingY = 12;
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return null;
+    }
+    context.font = `600 ${fontSize}px "Antonio", "Arial Narrow", sans-serif`;
+    const metrics = context.measureText(label);
+    canvas.width = Math.max(64, Math.ceil(metrics.width + paddingX * 2));
+    canvas.height = fontSize + paddingY * 2;
+    context.font = `600 ${fontSize}px "Antonio", "Arial Narrow", sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.lineJoin = "round";
+    context.lineWidth = 9;
+    context.strokeStyle = "rgba(2, 8, 14, 0.96)";
+    context.strokeText(label, canvas.width / 2, canvas.height / 2 + 1);
+    context.fillStyle = color;
+    context.fillText(label, canvas.width / 2, canvas.height / 2 + 1);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    return { texture, aspect: canvas.width / canvas.height };
+  }, [color, label]);
+
+  useEffect(() => () => texturePayload?.texture?.dispose(), [texturePayload]);
 
   useFrame(() => {
-    if (!groupRef.current || !textRef.current || !visible) {
+    if (!spriteRef.current || !materialRef.current || !texturePayload || !visible) {
       return;
     }
     const worldPosition = worldPositionRef.current;
-    groupRef.current.getWorldPosition(worldPosition);
+    spriteRef.current.getWorldPosition(worldPosition);
     const distance = Math.max(0.001, camera.position.distanceTo(worldPosition));
     const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
     const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
     const targetPixels = clampNumber(15 * scale, 11, 21);
-    const fontSize = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
+    const labelHeight = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
-    textRef.current.fontSize = fontSize;
-    textRef.current.fillOpacity = fade;
-    textRef.current.outlineOpacity = Math.min(0.96, fade + 0.18);
-    groupRef.current.quaternion.copy(camera.quaternion);
+    spriteRef.current.scale.set(labelHeight * texturePayload.aspect, labelHeight, 1);
+    materialRef.current.opacity = fade;
   });
 
-  if (!visible || !label) {
+  if (!visible || !label || !texturePayload) {
     return null;
   }
 
   return (
-    <group ref={groupRef} position={position} renderOrder={30}>
-      <Text
-        ref={textRef}
-        font={SYSTEM_LABEL_FONT_URL}
-        color={color}
-        fontSize={0.12}
-        maxWidth={2.8}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        outlineColor="#02080e"
-        outlineWidth={0.012}
-        outlineOpacity={0.92}
-        fillOpacity={0.94}
-        depthOffset={-20}
-        material-depthTest={false}
-        material-depthWrite={false}
-        material-transparent
-        raycast={() => {}}
-      >
-        {label}
-      </Text>
-    </group>
+    <sprite ref={spriteRef} position={position} renderOrder={30} raycast={() => {}}>
+      <spriteMaterial
+        ref={materialRef}
+        map={texturePayload.texture}
+        transparent
+        opacity={0.94}
+        depthTest={false}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </sprite>
   );
 }
 
@@ -3132,7 +3150,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
-    gl.domElement.dataset.sceneLabelRenderer = labelCount > 0 ? "troika_sdf_text_v1" : "none";
+    gl.domElement.dataset.sceneLabelRenderer = labelCount > 0 ? "canvas_sprite_text_v1" : "none";
     gl.domElement.dataset.spectralClassLabelCount = String(spectralLabelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
