@@ -1174,6 +1174,35 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThan(Math.round(beforeResize.height) + 20);
     const storedPeekSize = await page.evaluate(() => window.sessionStorage.getItem("spacegate.map.peekSize") || "");
     expect(storedPeekSize).toContain("width");
+    const grownResizeHandleBox = await resizeHandle.boundingBox();
+    expect(grownResizeHandleBox, "peek resize handle after growth").toBeTruthy();
+    await page.mouse.move(grownResizeHandleBox.x + grownResizeHandleBox.width / 2, grownResizeHandleBox.y + grownResizeHandleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(grownResizeHandleBox.x + 300, grownResizeHandleBox.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(
+      () => drill.boundingBox().then((box) => Math.round(box?.width || 0)),
+      { timeout: 3000 }
+    ).toBeLessThan(Math.round(beforeResize.width));
+    const resizedToolbarBounds = await drill.evaluate((node) => {
+      const drillBounds = node.getBoundingClientRect();
+      const toolbarBounds = node.querySelector(".system-preview-floating-actions")?.getBoundingClientRect();
+      const controlsBounds = node.querySelector(".system-preview-actions")?.getBoundingClientRect();
+      return {
+        overflow: node.scrollWidth - node.clientWidth,
+        drillLeft: drillBounds.left,
+        drillRight: drillBounds.right,
+        toolbarLeft: toolbarBounds?.left ?? 0,
+        toolbarRight: toolbarBounds?.right ?? 0,
+        controlsLeft: controlsBounds?.left ?? 0,
+        controlsRight: controlsBounds?.right ?? 0,
+      };
+    });
+    expect(resizedToolbarBounds.overflow, "shrunk Peek should not retain its grown intrinsic width").toBeLessThanOrEqual(1);
+    expect(resizedToolbarBounds.toolbarLeft).toBeGreaterThanOrEqual(resizedToolbarBounds.drillLeft);
+    expect(resizedToolbarBounds.toolbarRight).toBeLessThanOrEqual(resizedToolbarBounds.drillRight);
+    expect(resizedToolbarBounds.controlsLeft).toBeGreaterThanOrEqual(resizedToolbarBounds.drillLeft);
+    expect(resizedToolbarBounds.controlsRight).toBeLessThanOrEqual(resizedToolbarBounds.drillRight);
     await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
     await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(
@@ -1451,6 +1480,8 @@ test.describe("public 3D map beta", () => {
     const themeSelect = menu.locator(".map-theme-select select");
     const scaleSelect = drill.locator("[data-testid='system-preview-scale-mode']");
     const speedSelect = drill.locator(".system-preview-speed select");
+    const lineSummary = drill.locator(".system-preview-line-menu > summary");
+    const orbitToggle = drill.locator(".system-preview-toggle").filter({ hasText: /^Orbits (On|Off)$/ });
     const canvas = drill.locator(".system-preview-canvas canvas");
 
     await expect(drill).toBeVisible();
@@ -1465,6 +1496,17 @@ test.describe("public 3D map beta", () => {
       await themeSelect.selectOption(themeId);
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
       await menu.locator("summary").click();
+      const [lineStyles, orbitStyles] = await Promise.all([
+        lineSummary.evaluate((node) => {
+          const style = window.getComputedStyle(node);
+          return [style.backgroundColor, style.backgroundImage, style.borderRadius, style.borderTopColor, style.color, style.fontFamily, style.fontSize];
+        }),
+        orbitToggle.evaluate((node) => {
+          const style = window.getComputedStyle(node);
+          return [style.backgroundColor, style.backgroundImage, style.borderRadius, style.borderTopColor, style.color, style.fontFamily, style.fontSize];
+        }),
+      ]);
+      expect(lineStyles, `${themeId} Lines disclosure should use the shared simulation-control styling`).toEqual(orbitStyles);
       await scaleSelect.click();
       await scaleSelect.selectOption("log");
       await expect.poll(
