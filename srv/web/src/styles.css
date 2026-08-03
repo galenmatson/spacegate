@@ -9510,7 +9510,7 @@ main {
 }
 
 .map-system-drill-explore .system-preview-readout {
-  top: 72px;
+  top: 108px;
   right: 12px;
   bottom: 58px;
   left: auto;
@@ -10412,6 +10412,10 @@ main {
 
   .map-system-drill .system-preview-readout {
     bottom: 72px;
+  }
+
+  .map-system-drill-explore .system-preview-readout {
+    top: 174px;
   }
 }
 

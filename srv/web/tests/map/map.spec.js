@@ -1132,6 +1132,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.getByRole("button", { name: /^Close$/i })).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(drill).not.toContainText(/rendered stars|rendered planets|rendered subsystems|visual scale/i);
     await expect.poll(() => selectionRequests.filter((path) => path.endsWith("/simulation-scene")).length).toBe(1);
     expect(selectionRequests.filter((path) => /^\/api\/v1\/systems\/\d+$/.test(path))).toHaveLength(0);
     expect(selectionRequests.filter((path) => path === "/api/v1/systems/search")).toHaveLength(0);
@@ -1201,6 +1202,11 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     const exploreObjectList = drill.locator("[data-testid='system-preview-object-list']");
     await expect(exploreObjectList).toBeVisible();
+    const exploreControlsBox = await drill.locator(".system-preview-floating-actions").boundingBox();
+    const exploreObjectsBox = await exploreObjectList.boundingBox();
+    expect(exploreControlsBox, "Explore simulation controls bounds").toBeTruthy();
+    expect(exploreObjectsBox, "Explore Objects bounds").toBeTruthy();
+    expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 8);
     const vitalPills = drill.locator(".map-system-vital-pill");
     await expect(vitalPills).toHaveCount(5);
     const expectedVitalCopy = [

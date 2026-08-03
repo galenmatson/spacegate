@@ -1504,7 +1504,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     const distance = Math.max(0.001, camera.position.distanceTo(worldPosition));
     const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
     const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
-    const targetPixels = clampNumber(15 * scale, 11, 21);
+    const targetPixels = clampNumber(22.5 * scale, 16.5, 31.5);
     const labelHeight = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
     spriteRef.current.scale.set(labelHeight * texturePayload.aspect, labelHeight, 1);
@@ -4786,26 +4786,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 <span className="system-preview-object-empty">No rendered objects</span>
               )}
             </div>
-          ) : (
-            <>
-              <div>
-                <strong>{formatNumber(renderBodies.stars?.length || bodies.stars?.length, 0)}</strong>
-                <span>rendered stars</span>
-              </div>
-              <div>
-                <strong>{formatNumber(renderBodies.planets?.length || bodies.planets?.length, 0)}</strong>
-                <span>rendered planets</span>
-              </div>
-              <div>
-                <strong>{formatNumber(renderBodies.subsystems?.length || 0, 0)}</strong>
-                <span>rendered subsystems</span>
-              </div>
-              <div data-testid="system-preview-visual-scale">
-                <strong>{scaleModeLabel(activeScaleMode)}</strong>
-                <span>visual scale</span>
-              </div>
-            </>
-          )}
+          ) : null}
           {showDiagnostics && (
             <details className="system-preview-diagnostics" data-testid="system-preview-diagnostics" open={!embeddedPresentation}>
               <summary>
