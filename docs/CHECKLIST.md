@@ -25,14 +25,6 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   runtime JSON overrides, shipped-default restore, and previous-version restore
 - [x] Coolness scoring pipeline with versioned profiles
 - [x] Snapshot generation pipeline baseline
-- [x] Document the validated LAN-only Proton ComfyUI icon/surface worker,
-  RealVisXL/CPU-decode safety constraints, provenance contract, and failure
-  runbook
-- [ ] Extend `disc.generated_images` into a durable generated-asset manifest
-  before promoting ComfyUI outputs into the public application
-- [ ] Create and review the first bounded Spacegate icon context/variant set,
-  including actual-size theme, transparency, silhouette, and high-DPI tests
-
 ## B) Current Production Stability
 
 - [x] Public deployment path active and reproducible

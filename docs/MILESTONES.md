@@ -628,39 +628,6 @@ Success criteria:
 - deterministic artifact identity and reproducibility metadata
 - explicit user-visible confidence tags
 
-#### M7.1. Generated Visual Asset Foundation
-
-Status: Proton's LAN-only RealVisXL icon/surface pipelines are validated and
-documented in `docs/COMFYUI_PROTON.md`; Spacegate promotion integration is
-queued. Proton remains an offline, review-gated worker and is not a public
-runtime dependency.
-
-Deliverables:
-
-- extend `disc.generated_images` beyond its minimal v1.5 fields so durable
-  records preserve context/prompt hashes, DISC/RIM layer, assumptions,
-  citations, seed/settings, pipeline/model hashes and licenses, source/promoted
-  file hashes, dimensions, purpose/scope, review state, and supersession;
-- add a deterministic asset manifest and reviewed promotion path that remains
-  valid when PNG optimizers or CDNs strip embedded metadata;
-- create representative icon contexts from selected Spacegate facts without
-  allowing generated pixels to become CORE/ARM evidence;
-- generate and visually review draft variants through the Proton wrapper before
-  integrating any asset into the public application;
-- test compact candidates at 16/24/32/48 pixels across all themes and high-DPI
-  displays, and normalize accepted UI art into bounded sprites/assets;
-- retain Lucide for familiar controls and deterministic CSS/vector badges where
-  generated raster art would reduce clarity or scientific consistency.
-
-Success criteria:
-
-- every accepted public generated asset is reproducible and independently
-  inspectable through durable metadata even after image transformation;
-- public UI never fetches from Proton or unauthenticated ComfyUI;
-- generated imagery is visibly identified as synthetic DISC/RIM presentation;
-- rejected drafts remain outside the served asset tree and retention policy is
-  explicit.
-
 ### M8. 3D Map Runtime
 
 Goal:
