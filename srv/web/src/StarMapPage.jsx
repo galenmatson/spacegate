@@ -1130,17 +1130,122 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
   );
 }
 
+const MAP_PLANET_BADGE_PALETTE = Object.freeze({
+  ink: "#07131b",
+  light: "#eff8f5",
+  hot: "#ff6b45",
+  temperate: "#e4c66f",
+  cold: "#65c8e8",
+});
 const MAP_PLANET_CATEGORIES = [
-  { bit: 1, key: "hot_gas_giant", queryKey: "hot_jupiter", filterLabel: "Hot Jupiter", label: "HJ", color: "#b85f58", ring: "#ffb49a" },
-  { bit: 2, key: "temperate_gas_giant", queryKey: "temperate_jupiter", filterLabel: "Temperate Jupiter", label: "TJ", color: "#4f9a84", ring: "#9ff2d0" },
-  { bit: 4, key: "cold_gas_giant", queryKey: "cold_jupiter", filterLabel: "Cold Jupiter", label: "CJ", color: "#596fae", ring: "#a9c8ff" },
-  { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", color: "#954b47", ring: "#ff9e8b" },
-  { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", color: "#397764", ring: "#80d9b8" },
-  { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", color: "#455983", ring: "#8aace8" },
+  { bit: 1, key: "hot_gas_giant", queryKey: "hot_jupiter", filterLabel: "Hot Jupiter", label: "HJ", temperature: "hot", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 2, key: "temperate_gas_giant", queryKey: "temperate_jupiter", filterLabel: "Temperate Jupiter", label: "TJ", temperature: "temperate", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 4, key: "cold_gas_giant", queryKey: "cold_jupiter", filterLabel: "Cold Jupiter", label: "CJ", temperature: "cold", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", temperature: "hot", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", temperature: "temperate", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", temperature: "cold", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.cold },
 ];
 const MAP_PLANET_BADGE_STYLES = Object.fromEntries(
   MAP_PLANET_CATEGORIES.map((category) => [category.key, category]),
 );
+
+function MapPlanetCategoryIcon({ category }) {
+  const accent = category?.color || MAP_PLANET_BADGE_PALETTE.temperate;
+  const isJupiter = category?.kind === "jupiter";
+  return (
+    <svg
+      className="map-planet-category-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      data-planet-kind={isJupiter ? "jupiter" : "terrestrial"}
+      data-planet-temperature={category?.temperature || "temperate"}
+    >
+      {isJupiter && <ellipse cx="12" cy="12" rx="10.5" ry="4.2" transform="rotate(-18 12 12)" fill="none" stroke={accent} strokeWidth="2.2" />}
+      <circle cx="12" cy="12" r="6.8" fill={accent} stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.2" />
+      {isJupiter ? (
+        <>
+          <path d="M6.2 10.1h11.6M5.6 12.4h12.8M6.4 14.7h11.2" fill="none" stroke={MAP_PLANET_BADGE_PALETTE.ink} strokeWidth="1.15" strokeLinecap="round" opacity="0.78" />
+          <path d="M2.1 13.1c2.6 2.8 6 4 9.9 4s7.3-1.2 9.9-4" fill="none" stroke={accent} strokeWidth="2.2" strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <path d="M14.2 5.8a7.2 7.2 0 0 1 3.2 9.8 6.8 6.8 0 0 1-5.8 3.2c2.5-1.8 3.7-4.2 3.7-7.1 0-2.2-.4-4.1-1.1-5.9Z" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.42" />
+          <circle cx="9" cy="9.4" r="1.05" fill={MAP_PLANET_BADGE_PALETTE.light} opacity="0.88" />
+          <circle cx="8.1" cy="13.4" r="1.35" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.55" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, badgeSize) {
+  const accent = tag?.color || MAP_PLANET_BADGE_PALETTE.temperate;
+  const radius = badgeSize * 0.34;
+  ctx.save();
+  ctx.lineCap = "round";
+  if (tag?.kind === "jupiter") {
+    ctx.beginPath();
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI * 2);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2);
+  ctx.fillStyle = accent;
+  ctx.fill();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(badgeX, badgeY, radius - 0.3, 0, Math.PI * 2);
+  ctx.clip();
+  if (tag?.kind === "jupiter") {
+    ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.ink;
+    ctx.globalAlpha = 0.78;
+    ctx.lineWidth = 1.15;
+    [-0.28, 0, 0.3].forEach((offset) => {
+      ctx.beginPath();
+      ctx.moveTo(badgeX - radius, badgeY + radius * offset);
+      ctx.lineTo(badgeX + radius, badgeY + radius * offset);
+      ctx.stroke();
+    });
+  } else {
+    ctx.globalAlpha = 0.42;
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.ink;
+    ctx.beginPath();
+    ctx.arc(badgeX + radius * 0.55, badgeY + radius * 0.12, radius * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.light;
+    ctx.beginPath();
+    ctx.arc(badgeX - radius * 0.36, badgeY - radius * 0.35, radius * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.56;
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.ink;
+    ctx.beginPath();
+    ctx.arc(badgeX - radius * 0.48, badgeY + radius * 0.28, radius * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.light;
+  ctx.globalAlpha = 0.9;
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+
+  if (tag?.kind === "jupiter") {
+    ctx.beginPath();
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI);
+    ctx.strokeStyle = accent;
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 
 function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [], planetBadges = [] } = {}) {
   const pixelRatio = 2;
@@ -1219,23 +1324,7 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
   planetTags.forEach((tag, planetIndex) => {
     const badgeX = planetStartX + badgeSize / 2 + planetIndex * (badgeSize + 3);
     const badgeY = height / 2;
-    ctx.beginPath();
-    ctx.arc(badgeX, badgeY, badgeSize * 0.34, 0, Math.PI * 2);
-    ctx.fillStyle = tag.color;
-    ctx.fill();
-    ctx.strokeStyle = tag.ring;
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI * 2);
-    ctx.strokeStyle = tag.ring;
-    ctx.lineWidth = 2.8;
-    ctx.stroke();
-    ctx.fillStyle = "#f4fbff";
-    ctx.font = `900 9px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText(tag.label, badgeX, badgeY + 1);
-    ctx.textAlign = "start";
+    drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, badgeSize);
   });
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = ink;
@@ -1437,7 +1526,8 @@ function PriorityLabels({
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
     gl.domElement.dataset.mapLabelClassStrategy = "shared_leaf_mass_proxy_then_intrinsic_brightness_v3";
     gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
-    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_ringed_v2";
+    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_flat_category_v3";
+    gl.domElement.dataset.mapLabelPlanetBadgePalette = "ink_light_hot_temperate_cold_v1";
     gl.domElement.dataset.mapPinnedLabelCount = String((pinnedLabelSystems || []).length);
   }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems, pinnedLabelSystems]);
 
@@ -2829,12 +2919,12 @@ function MapStarSearchShell({
                 key={category.key}
                 type="button"
                 className={`map-search-planet-category ${active ? "active" : ""}`}
-                style={{ "--planet-category-color": category.color, "--planet-category-ring": category.ring }}
+                style={{ "--planet-category-color": category.color }}
                 onClick={() => togglePlanetCategory(category.queryKey)}
                 aria-pressed={active}
-                title={`${category.filterLabel}: confirmed planets with an unambiguous broad size or mass class and a ${category.filterLabel.split(" ")[0].toLowerCase()} temperature proxy. Selected categories match any.`}
+                title={`${category.filterLabel}: confirmed planets with an unambiguous broad size or mass class and a ${category.temperature} HZ-screen temperature proxy. Color encodes the temperature category.${category.kind === "jupiter" ? " The annulus is a category glyph, not evidence of a physical ring system." : ""} Selected categories match any.`}
               >
-                <span aria-hidden="true">{category.label}</span>
+                <MapPlanetCategoryIcon category={category} />
                 {category.filterLabel}
               </button>
             );

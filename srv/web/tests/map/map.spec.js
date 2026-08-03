@@ -146,7 +146,15 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-recents", { hasText: "Cool Stars Nearby" })).toBeVisible();
     await expect(page.locator(".map-stellar-badge-stack").first()).toBeVisible();
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
-      .toBe("right_of_name_ringed_v2");
+      .toBe("right_of_name_flat_category_v3");
+    await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePalette || ""))
+      .toBe("ink_light_hot_temperate_cold_v1");
+    const categoryIcons = page.locator(".map-search-planet-category .map-planet-category-icon");
+    await expect(categoryIcons).toHaveCount(6);
+    await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-kind", "jupiter");
+    await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-temperature", "hot");
+    await expect(categoryIcons.nth(3)).toHaveAttribute("data-planet-kind", "terrestrial");
+    await expect(categoryIcons.nth(5)).toHaveAttribute("data-planet-temperature", "cold");
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");
