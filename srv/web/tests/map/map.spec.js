@@ -149,9 +149,11 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-recents", { hasText: "Cool Stars Nearby" })).toBeVisible();
     await expect(page.locator(".map-stellar-badge-stack").first()).toBeVisible();
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
-      .toBe("right_of_name_a2_category_v4");
+      .toBe("right_of_name_a2_category_v5");
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePalette || ""))
       .toBe("a2_chromatic_bands_hot_temperate_cold_v2");
+    await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgeScale || ""))
+      .toBe("giant_body_matches_stellar_v1");
     const categoryIcons = page.locator(".map-search-planet-category .map-planet-category-icon");
     await expect(categoryIcons).toHaveCount(9);
     await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-kind", "giant");

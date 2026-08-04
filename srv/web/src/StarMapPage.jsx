@@ -1296,7 +1296,8 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
   const paddingX = 14;
   const paddingY = 8;
   const borderRadius = 7;
-  const badgeSize = 22;
+  const stellarBadgeSize = 22;
+  const planetBadgeSize = 32;
   const badgeGap = 8;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -1315,10 +1316,10 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
     .filter(Boolean);
   const stellarBadgeWidth = badgeTags.length
-    ? badgeTags.length * badgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap
+    ? badgeTags.length * stellarBadgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap
     : 0;
   const planetBadgeWidth = planetTags.length
-    ? badgeGap + planetTags.length * badgeSize + Math.max(0, planetTags.length - 1) * 3
+    ? badgeGap + planetTags.length * planetBadgeSize + Math.max(0, planetTags.length - 1) * 3
     : 0;
   const textX = paddingX + stellarBadgeWidth;
   const planetStartX = textX + metrics.width + badgeGap;
@@ -1349,10 +1350,10 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
   ctx.stroke();
   ctx.fillStyle = ink;
   badgeTags.forEach((tag, index) => {
-    const badgeX = paddingX + badgeSize / 2 + index * (badgeSize + 3);
+    const badgeX = paddingX + stellarBadgeSize / 2 + index * (stellarBadgeSize + 3);
     const badgeY = height / 2;
     ctx.beginPath();
-    ctx.arc(badgeX, badgeY, badgeSize / 2, 0, Math.PI * 2);
+    ctx.arc(badgeX, badgeY, stellarBadgeSize / 2, 0, Math.PI * 2);
     ctx.fillStyle = tag.color;
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.82)";
@@ -1365,9 +1366,9 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     ctx.textAlign = "start";
   });
   planetTags.forEach((tag, planetIndex) => {
-    const badgeX = planetStartX + badgeSize / 2 + planetIndex * (badgeSize + 3);
+    const badgeX = planetStartX + planetBadgeSize / 2 + planetIndex * (planetBadgeSize + 3);
     const badgeY = height / 2;
-    drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, badgeSize);
+    drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, planetBadgeSize);
   });
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = ink;
@@ -1569,8 +1570,9 @@ function PriorityLabels({
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
     gl.domElement.dataset.mapLabelClassStrategy = "shared_leaf_mass_proxy_then_intrinsic_brightness_v3";
     gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
-    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_a2_category_v4";
+    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_a2_category_v5";
     gl.domElement.dataset.mapLabelPlanetBadgePalette = "a2_chromatic_bands_hot_temperate_cold_v2";
+    gl.domElement.dataset.mapLabelPlanetBadgeScale = "giant_body_matches_stellar_v1";
     gl.domElement.dataset.mapPinnedLabelCount = String((pinnedLabelSystems || []).length);
   }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems, pinnedLabelSystems]);
 
