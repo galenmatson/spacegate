@@ -210,6 +210,12 @@ def copy_dir(src: Path, dst: Path, *, required: bool = True) -> dict[str, object
     return {"source": str(src), "target": str(dst), "files": files, "bytes": total}
 
 
+def should_materialize_stellar_leaf_classifications(
+    *, preserve_arm: bool, hierarchy_exists: bool
+) -> bool:
+    return hierarchy_exists and not preserve_arm
+
+
 def main() -> int:
     root = repo_root()
     state = state_dir(root)
@@ -335,7 +341,10 @@ def main() -> int:
         if not (tmp_dir / "arm.duckdb").exists():
             raise SystemExit(f"ARM rebuild did not create {tmp_dir / 'arm.duckdb'}")
 
-        if (tmp_dir / "canonical_hierarchy.duckdb").exists():
+        if should_materialize_stellar_leaf_classifications(
+            preserve_arm=args.preserve_arm,
+            hierarchy_exists=(tmp_dir / "canonical_hierarchy.duckdb").exists(),
+        ):
             subprocess.check_call(
                 [
                     sys.executable,

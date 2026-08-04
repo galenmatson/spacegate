@@ -10,10 +10,27 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from rebuild_side_artifacts import resolve_canonical_evidence_arm  # noqa: E402
+from rebuild_side_artifacts import (  # noqa: E402
+    resolve_canonical_evidence_arm,
+    should_materialize_stellar_leaf_classifications,
+)
 
 
 class RebuildSideArtifactsTest(unittest.TestCase):
+    def test_preserved_arm_keeps_existing_leaf_projection(self) -> None:
+        self.assertFalse(
+            should_materialize_stellar_leaf_classifications(
+                preserve_arm=True,
+                hierarchy_exists=True,
+            )
+        )
+        self.assertTrue(
+            should_materialize_stellar_leaf_classifications(
+                preserve_arm=False,
+                hierarchy_exists=True,
+            )
+        )
+
     def test_sliced_core_resolves_full_canonical_arm(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             state = Path(temp)
