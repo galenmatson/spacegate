@@ -306,6 +306,7 @@ export function stellarClassTokensFromSystem(system, { includeUnknown = true } =
 export function StellarClassChips({
   tokens = [],
   record = null,
+  objectName = "",
   includeUnknown = true,
   className = "",
   size = "normal",
@@ -338,6 +339,7 @@ export function StellarClassChips({
             tagKey={stellarClassTagKey(normalizedToken)}
             label={tag.label}
             tooltip={tag.text}
+            contextName={objectName}
             variant="stellar"
             evidenceStatuses={resolvedEvidenceStatus}
             sources={sources}

@@ -128,6 +128,7 @@ export function SmartTag({
   className = "",
   label = "",
   tooltip = "",
+  contextName = "",
   details = [],
   copyValue = null,
   evidenceStatuses = null,
@@ -163,6 +164,9 @@ export function SmartTag({
     evidenceStatuses ?? resolved.assignment?.evidence_statuses,
   );
   const evidenceState = evidenceStateSummary(resolvedEvidenceStatuses);
+  const resolvedDisplayName = contextName
+    ? `${contextName}: ${resolved.name || resolved.label || label || tagKey}`
+    : (resolved.name || resolved.label || label || tagKey);
   const assignmentDetails = [
     {
       label: "Evidence state",
@@ -382,8 +386,8 @@ export function SmartTag({
         aria-haspopup="dialog"
         aria-controls={open ? popoverId : undefined}
         aria-label={evidenceState
-          ? `${resolved.name || resolved.label || label || tagKey}, ${evidenceState.label}`
-          : (resolved.name || resolved.label || label || tagKey)}
+          ? `${resolvedDisplayName}, ${evidenceState.label}`
+          : resolvedDisplayName}
         onClick={() => {
           setDismissed(false);
           setPinned((value) => !value);
@@ -443,7 +447,7 @@ export function SmartTag({
             id={popoverId}
             className="smart-tag-popover"
             role="dialog"
-            aria-label={`${resolved.name} details`}
+            aria-label={`${resolvedDisplayName} details`}
             data-placement={popoverPosition?.placement || "below"}
             style={{
               "--smart-tag-popover-left": `${popoverPosition?.left ?? 12}px`,
@@ -451,7 +455,7 @@ export function SmartTag({
             }}
           >
             <span className="smart-tag-popover-heading">
-              <strong>{resolved.name}</strong>
+              <strong>{resolvedDisplayName}</strong>
               <span>{resolved.layer}</span>
             </span>
             <span className="smart-tag-popover-copy">{resolved.tooltip || resolved.short_tooltip}</span>

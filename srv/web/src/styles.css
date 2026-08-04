@@ -1815,9 +1815,11 @@
 
 .map-system-drill-title-select {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
+  overflow: hidden;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1826,6 +1828,13 @@
   line-height: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.map-title-object-badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
 }
 
 .map-system-drill-title-select:focus-visible {
@@ -1848,6 +1857,23 @@
   flex-wrap: nowrap;
   gap: 1px;
   margin-left: 4px;
+}
+
+.map-title-badge-overflow {
+  display: inline-grid;
+  width: 27px;
+  height: 23px;
+  flex: 0 0 27px;
+  place-items: center;
+  margin-left: 3px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  border-radius: 999px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--surface-muted) 36%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1;
+  cursor: help;
 }
 
 .planet-category-badge {
@@ -1886,6 +1912,9 @@
 
 .map-system-drill-title .map-name-wrap {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .map-system-drill-title .map-name-wrap.truncated {
@@ -9455,6 +9484,26 @@ main {
   padding: 0;
 }
 
+.map-system-drill-explore {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.map-system-drill-explore .map-system-drill-bar {
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  margin: 10px 10px 0;
+}
+
+.map-system-drill-explore .map-system-drill-title-group {
+  max-width: min(760px, calc(100% - 260px));
+}
+
+.map-system-drill-explore .map-system-drill-body {
+  height: auto;
+}
+
 .system-preview-floating-actions {
   display: none;
 }
@@ -9473,6 +9522,10 @@ main {
   background: color-mix(in srgb, var(--panel) 10%, transparent);
   backdrop-filter: blur(3px);
   padding: 3px;
+}
+
+.map-system-drill-explore .system-preview-panel > .system-preview-floating-actions {
+  top: 8px;
 }
 
 .map-system-drill .system-preview-actions {
@@ -9616,7 +9669,7 @@ main {
 }
 
 .map-system-drill-explore .system-preview-readout {
-  top: 108px;
+  top: 64px;
   right: 12px;
   bottom: 58px;
   left: auto;
@@ -10519,6 +10572,10 @@ main {
 }
 
 @media (max-width: 680px) {
+  .map-system-drill-explore .map-system-drill-title-group {
+    max-width: 100%;
+  }
+
   .map-system-drill .system-preview-panel > .system-preview-floating-actions {
     top: 96px;
     right: 10px;

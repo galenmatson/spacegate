@@ -261,7 +261,15 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toMatch(/high|balanced|low/);
     await page.locator(".map-search-card-actions .map-command-button.primary").first().click();
-    await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+    const solDrill = page.locator("[data-testid='map-system-drill']");
+    await expect(solDrill).toBeVisible();
+    await expect.poll(
+      () => solDrill.locator(".map-title-object-badges").getAttribute("data-hidden-badge-count"),
+      { timeout: 20000 },
+    ).toBe("9");
+    await expect(solDrill.locator(".map-title-object-badges")).toHaveAttribute("data-visible-badge-count", "5");
+    await expect(solDrill.locator(".map-title-badge-overflow")).toHaveText("+9");
+    await expect(solDrill.locator(".map-system-drill-title-select")).toContainText("Sol");
     await expect(page.locator("[data-testid='map-star-search-results']")).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
@@ -1166,8 +1174,13 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".system-preview-speed select option[value='5000']")).toHaveText("9.6 years/s (5,000x)");
     await expect(drill.locator(".system-preview-speed select option[value='10000']")).toHaveText("19.2 years/s (10,000x)");
     await expect(drill.locator(".system-preview-speed select")).toHaveAttribute("title", /static presentation positions/i);
-    await expect(drill.locator(".map-title-stellar-classes .stellar-class-chip").first()).toBeVisible();
+    const titleStarGlyph = drill.locator(".map-title-stellar-classes .stellar-class-chip").first();
+    await expect(titleStarGlyph).toBeVisible();
+    await expect(titleStarGlyph).toHaveAttribute("aria-label", /.+: .+star/i);
+    await titleStarGlyph.hover();
+    await expect(page.locator(".smart-tag-popover").filter({ hasText: /.+: .+star/i })).toBeVisible();
     await expect(drill.locator(".map-title-planet-categories .planet-category-badge").first()).toBeVisible();
+    await expect(drill.locator(".map-title-object-badges")).toHaveAttribute("data-visible-badge-count", /^[1-5]$/);
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     await page.locator("[data-testid='map-minimal-toggle']").click();
     await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
@@ -1258,8 +1271,13 @@ test.describe("public 3D map beta", () => {
     await expect(exploreObjectList).toBeVisible();
     const exploreControlsBox = await drill.locator(".system-preview-floating-actions").boundingBox();
     const exploreObjectsBox = await exploreObjectList.boundingBox();
+    const exploreHeaderBox = await drill.locator(".map-system-drill-bar").boundingBox();
+    const exploreBodyBox = await drill.locator(".map-system-drill-body").boundingBox();
     expect(exploreControlsBox, "Explore simulation controls bounds").toBeTruthy();
     expect(exploreObjectsBox, "Explore Objects bounds").toBeTruthy();
+    expect(exploreHeaderBox, "Explore header bounds").toBeTruthy();
+    expect(exploreBodyBox, "Explore simulation body bounds").toBeTruthy();
+    expect(exploreBodyBox.y).toBeGreaterThanOrEqual(exploreHeaderBox.y + exploreHeaderBox.height - 1);
     expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 8);
     const vitalPills = drill.locator(".map-system-vital-pill");
     await expect(vitalPills).toHaveCount(5);

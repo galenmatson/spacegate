@@ -3150,6 +3150,10 @@ Accepted decisions:
   titles, simulation OBJECTS, and Stars and Hierarchy. The category policy is
   compiler/API-owned; consumers render `unclassified_planet` when its inputs
   are absent rather than applying surface-specific guesses.
+- identify each Peek/Explorer stellar glyph with its rendered object name as
+  well as its shared class explanation, bound crowded title glyph runs with a
+  balanced and inspectable overflow count, and give Explorer an intrinsic
+  header row rather than overlaying the simulation surface.
 
 Imagery cache gate:
 

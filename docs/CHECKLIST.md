@@ -984,6 +984,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   v8, then render the A2 planet glyphs in System Hero/search object badges,
   Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy with a
   neutral unclassified fallback
+- [x] Add rendered star names to Peek/Explorer stellar glyph explanations,
+  bound crowded title glyph runs with an inspectable overflow count, and give
+  Explorer a structural header row so the simulation no longer underlays it
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for

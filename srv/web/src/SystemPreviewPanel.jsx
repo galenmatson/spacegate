@@ -4577,6 +4577,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       .map((star) => ({
         key: star.render_key || star.stable_object_key || star.key || star.display_name || star.name,
         name: star.display_name || star.name || "Star",
+        record: star,
         massMsun: numericField(star.fields, "mass_msun"),
         tokens: stellarClassTokensFromRecord(star),
       }))

@@ -99,11 +99,51 @@ const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
 const MAP_DENSITY_MODE_STORAGE_KEY = "spacegate.map.densityMode";
 const MAP_CLASS_BADGES_STORAGE_KEY = "spacegate.map.classBadges";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
+const PEEK_TITLE_BADGE_BUDGET = 5;
+const EXPLORE_TITLE_BADGE_BUDGET = 12;
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
   yaw: 0,
   pitch: -0.08,
 };
+
+function boundedTitleBadgeEntries(stars = [], planets = [], budget = Number.POSITIVE_INFINITY) {
+  const stellarEntries = Array.isArray(stars) ? stars : [];
+  const planetEntries = Array.isArray(planets) ? planets : [];
+  if (stellarEntries.length + planetEntries.length <= budget) {
+    return {
+      stars: stellarEntries,
+      planets: planetEntries,
+      hidden: [],
+    };
+  }
+
+  let starCount = stellarEntries.length ? 1 : 0;
+  let planetCount = planetEntries.length ? 1 : 0;
+  let remaining = Math.max(0, budget - starCount - planetCount);
+  while (remaining > 0) {
+    const unshownStars = stellarEntries.length - starCount;
+    const unshownPlanets = planetEntries.length - planetCount;
+    if (unshownStars <= 0 && unshownPlanets <= 0) break;
+    if (unshownPlanets > unshownStars && unshownPlanets > 0) {
+      planetCount += 1;
+    } else if (unshownStars > 0) {
+      starCount += 1;
+    } else {
+      planetCount += 1;
+    }
+    remaining -= 1;
+  }
+
+  return {
+    stars: stellarEntries.slice(0, starCount),
+    planets: planetEntries.slice(0, planetCount),
+    hidden: [
+      ...stellarEntries.slice(starCount).map((entry) => ({ ...entry, kind: "star" })),
+      ...planetEntries.slice(planetCount).map((entry) => ({ ...entry, kind: "planet" })),
+    ],
+  };
+}
 const DEFAULT_MOBILE_FLIGHT_STATE = {
   forward: false,
   back: false,
@@ -3187,6 +3227,11 @@ export default function StarMapPage({
   const [minimalNotice, setMinimalNotice] = useState(false);
   const [drillStellarClassEntries, setDrillStellarClassEntries] = useState([]);
   const [drillPlanetCategoryEntries, setDrillPlanetCategoryEntries] = useState([]);
+  const titleBadgeEntries = useMemo(() => boundedTitleBadgeEntries(
+    drillStellarClassEntries,
+    drillPlanetCategoryEntries,
+    drillMode === "peek" ? PEEK_TITLE_BADGE_BUDGET : EXPLORE_TITLE_BADGE_BUDGET,
+  ), [drillMode, drillPlanetCategoryEntries, drillStellarClassEntries]);
   const [focusToken, setFocusToken] = useState(0);
   const [mobileFlightIntent, setMobileFlightIntent] = useState(DEFAULT_MOBILE_FLIGHT_STATE);
   const [peekSize, setPeekSize] = useState(() => clampMapPeekSize(restoredMapState?.peekSize || readStoredMapPeekSize()));
@@ -5388,30 +5433,47 @@ export default function StarMapPage({
                   <span>System:</span>
                   <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
                 </button>
-                {drillStellarClassEntries.length > 0 && (
-                  <span className="map-title-stellar-classes" aria-label="Rendered stellar classes">
-                    {drillStellarClassEntries.map((entry, index) => (
-                      <StellarClassChips
-                        key={`${entry.key || entry.name || "star"}:${index}`}
-                        tokens={entry.tokens}
-                        size="compact"
-                        className="map-title-stellar-class"
-                      />
-                    ))}
-                  </span>
-                )}
-                {drillPlanetCategoryEntries.length > 0 && (
-                  <span className="map-title-planet-categories" aria-label="Rendered planet categories">
-                    {drillPlanetCategoryEntries.map((entry, index) => (
-                      <PlanetCategoryBadge
-                        key={`${entry.key || entry.name || "planet"}:${index}`}
-                        categoryKey={entry.categoryKey}
-                        title={`${entry.name}: ${planetCategoryForKey(entry.categoryKey).filterLabel}`}
-                        className="map-title-planet-category"
-                      />
-                    ))}
-                  </span>
-                )}
+                <span
+                  className="map-title-object-badges"
+                  data-visible-badge-count={titleBadgeEntries.stars.length + titleBadgeEntries.planets.length}
+                  data-hidden-badge-count={titleBadgeEntries.hidden.length}
+                >
+                  {titleBadgeEntries.stars.length > 0 && (
+                    <span className="map-title-stellar-classes" aria-label="Rendered stellar classes">
+                      {titleBadgeEntries.stars.map((entry, index) => (
+                        <StellarClassChips
+                          key={`${entry.key || entry.name || "star"}:${index}`}
+                          tokens={entry.tokens}
+                          record={entry.record}
+                          objectName={entry.name}
+                          size="compact"
+                          className="map-title-stellar-class"
+                        />
+                      ))}
+                    </span>
+                  )}
+                  {titleBadgeEntries.planets.length > 0 && (
+                    <span className="map-title-planet-categories" aria-label="Rendered planet categories">
+                      {titleBadgeEntries.planets.map((entry, index) => (
+                        <PlanetCategoryBadge
+                          key={`${entry.key || entry.name || "planet"}:${index}`}
+                          categoryKey={entry.categoryKey}
+                          title={`${entry.name}: ${planetCategoryForKey(entry.categoryKey).filterLabel}`}
+                          className="map-title-planet-category"
+                        />
+                      ))}
+                    </span>
+                  )}
+                  {titleBadgeEntries.hidden.length > 0 && (
+                    <span
+                      className="map-title-badge-overflow"
+                      aria-label={`${titleBadgeEntries.hidden.length} more objects: ${titleBadgeEntries.hidden.map((entry) => entry.name).join(", ")}`}
+                      title={titleBadgeEntries.hidden.map((entry) => entry.name).join("\n")}
+                    >
+                      +{titleBadgeEntries.hidden.length}
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
             <div className="map-system-drill-actions">
