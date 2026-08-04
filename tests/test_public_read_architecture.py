@@ -18,6 +18,47 @@ from app import public_read  # noqa: E402
 from app import main as api_main  # noqa: E402
 
 
+def test_hierarchy_bundle_reuse_requires_matching_verified_lineage() -> None:
+    logical = {
+        "systems": "systems-hash",
+        "stars": "stars-hash",
+        "stellar_badge_overlays": "overlays-hash",
+    }
+    current = {
+        "projection_schema_version": "spacegate.public_read.v2",
+        "logical_hashes": logical,
+        "source_artifacts": {"arm": {"sha256": "arm-hash"}},
+    }
+    source = {
+        **current,
+        "build_id": "source-build",
+        "status": "pass",
+        "artifact": {"hash_status": "verified"},
+    }
+    bundle_materializer.validate_reuse_manifests(
+        current=current,
+        source=source,
+        expected_source_build_id="source-build",
+    )
+    mismatched = {**source, "logical_hashes": {**logical, "stars": "different"}}
+    with pytest.raises(RuntimeError, match="stars"):
+        bundle_materializer.validate_reuse_manifests(
+            current=current,
+            source=mismatched,
+            expected_source_build_id="source-build",
+        )
+    arm_rewritten = {
+        **current,
+        "source_artifacts": {"arm": {"sha256": "metadata-rewritten-arm"}},
+    }
+    bundle_materializer.validate_reuse_manifests(
+        current=arm_rewritten,
+        source=source,
+        expected_source_build_id="source-build",
+        allow_arm_metadata_rewrite=True,
+    )
+
+
 def make_projection(path: Path) -> sqlite3.Connection:
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row

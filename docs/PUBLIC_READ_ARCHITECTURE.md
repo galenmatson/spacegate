@@ -293,6 +293,15 @@ compatibility window. They are never reopened as scientific authority.
 7. Freeze deployment artifacts, document warming and rollback, and retire or
    explicitly bound every remaining fallback.
 
+Presentation-only side builds may resume hierarchy materialization from the
+exact verified source build with `--reuse-bundles-from`. Reuse fails closed
+unless the side-build report proves preserved ARM and canonical-hierarchy
+lineage, the source Public Read artifact is complete and hash-verified, the
+projection schema matches, and the systems, stars, stellar-overlay, stable-key,
+and required-bundle coverage checks agree. Reused payload counts and source
+build identity are recorded in the materialization report. Changed scientific
+or hierarchy inputs require normal regeneration.
+
 `scripts/run_public_read_capacity_campaign.py` executes the checked-in campaign
 and workload manifests, writes one immutable report directory, applies the
 pinned SLO checker to every profile, and runs the configured concurrency

@@ -17,6 +17,7 @@ from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_MATERIALIZER_VERSION = "public_read_hierarchy_materializer_v1"
+REUSE_LOGICAL_HASH_KEYS = ("systems", "stars", "stellar_badge_overlays")
 _PAYLOAD_BUILDER = None
 
 
@@ -59,6 +60,97 @@ def load_manifest(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("public-read manifest is not an object")
     return value
+
+
+def validate_reuse_manifests(
+    *,
+    current: dict[str, Any],
+    source: dict[str, Any],
+    expected_source_build_id: str,
+    allow_arm_metadata_rewrite: bool = False,
+) -> None:
+    if source.get("build_id") != expected_source_build_id:
+        raise RuntimeError("reusable bundle artifact does not match side-build lineage")
+    if source.get("status") != "pass":
+        raise RuntimeError("reusable bundle artifact is not complete")
+    if (source.get("artifact") or {}).get("hash_status") != "verified":
+        raise RuntimeError("reusable bundle artifact hash is not verified")
+    if source.get("projection_schema_version") != current.get("projection_schema_version"):
+        raise RuntimeError("reusable bundle projection schema differs")
+    for key in REUSE_LOGICAL_HASH_KEYS:
+        if (source.get("logical_hashes") or {}).get(key) != (
+            current.get("logical_hashes") or {}
+        ).get(key):
+            raise RuntimeError(f"reusable bundle logical hash differs: {key}")
+    if not allow_arm_metadata_rewrite and (
+        ((source.get("source_artifacts") or {}).get("arm") or {}).get("sha256")
+        != (
+        (current.get("source_artifacts") or {}).get("arm") or {}
+        ).get("sha256")
+    ):
+        raise RuntimeError("reusable bundle ARM artifact differs")
+
+
+def reuse_verified_bundles(
+    con: sqlite3.Connection,
+    *,
+    current_manifest: dict[str, Any],
+    source_dir: Path,
+    expected_source_build_id: str,
+    allow_arm_metadata_rewrite: bool = False,
+) -> int:
+    source_manifest = load_manifest(source_dir / "manifest.json")
+    validate_reuse_manifests(
+        current=current_manifest,
+        source=source_manifest,
+        expected_source_build_id=expected_source_build_id,
+        allow_arm_metadata_rewrite=allow_arm_metadata_rewrite,
+    )
+    source_db = source_dir / "public_read.sqlite"
+    if not source_db.is_file():
+        raise RuntimeError(f"reusable public-read database is missing: {source_db}")
+    before = int(con.execute("SELECT COUNT(*) FROM hierarchy_bundles").fetchone()[0])
+    con.execute("ATTACH DATABASE ? AS reusable", [str(source_db)])
+    try:
+        mismatches = int(
+            con.execute(
+                """
+                SELECT COUNT(*)
+                FROM systems s
+                LEFT JOIN reusable.hierarchy_bundles b USING(system_id)
+                WHERE s.hierarchy_representation='bundle_required'
+                  AND (
+                    b.system_id IS NULL
+                    OR b.stable_object_key <> s.stable_object_key
+                    OR b.bundle_version <> ?
+                    OR b.payload_gzip IS NULL
+                    OR b.payload_sha256 IS NULL
+                  )
+                """,
+                [current_manifest["projection_schema_version"]],
+            ).fetchone()[0]
+        )
+        if mismatches:
+            raise RuntimeError(
+                f"reusable hierarchy bundle coverage differs for {mismatches} systems"
+            )
+        con.execute(
+            """
+            INSERT OR IGNORE INTO hierarchy_bundles
+            SELECT b.*
+            FROM reusable.hierarchy_bundles b
+            JOIN systems s USING(system_id)
+            WHERE s.hierarchy_representation='bundle_required'
+              AND b.stable_object_key=s.stable_object_key
+              AND b.bundle_version=?
+            """,
+            [current_manifest["projection_schema_version"]],
+        )
+        con.commit()
+    finally:
+        con.execute("DETACH DATABASE reusable")
+    after = int(con.execute("SELECT COUNT(*) FROM hierarchy_bundles").fetchone()[0])
+    return after - before
 
 
 def compact_singleton_seed_storage(
@@ -216,6 +308,49 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "SELECT COUNT(*) FROM systems WHERE hierarchy_representation='bundle_required'"
         ).fetchone()[0]
     )
+    existing_before = int(
+        con.execute("SELECT COUNT(*) FROM hierarchy_bundles").fetchone()[0]
+    )
+    reused = 0
+    reuse_source_build_id = None
+    if args.reuse_bundles_from:
+        side_report_path = (
+            Path(args.state_dir).resolve()
+            / "reports"
+            / build_id
+            / "side_artifact_rebuild_report.json"
+        )
+        if not side_report_path.is_file():
+            raise RuntimeError("bundle reuse requires side-build lineage report")
+        side_report = load_manifest(side_report_path)
+        reuse_source_build_id = str(side_report.get("source_build_id") or "")
+        if not reuse_source_build_id:
+            raise RuntimeError("side-build lineage report has no source build")
+        copied = side_report.get("copied_artifacts") or {}
+        source_build_dir = (
+            Path(args.state_dir).resolve() / "out" / reuse_source_build_id
+        )
+        copied_arm_source = Path(
+            str((copied.get("arm") or {}).get("source") or "")
+        ).resolve()
+        copied_hierarchy_source = Path(
+            str((copied.get("canonical_hierarchy") or {}).get("source") or "")
+        ).resolve()
+        if copied_arm_source != (source_build_dir / "arm.duckdb").resolve():
+            raise RuntimeError("side-build report does not prove preserved ARM lineage")
+        if copied_hierarchy_source != (
+            source_build_dir / "canonical_hierarchy.duckdb"
+        ).resolve():
+            raise RuntimeError(
+                "side-build report does not prove preserved hierarchy lineage"
+            )
+        reused = reuse_verified_bundles(
+            con,
+            current_manifest=manifest,
+            source_dir=Path(args.reuse_bundles_from).resolve(strict=True),
+            expected_source_build_id=reuse_source_build_id,
+            allow_arm_metadata_rewrite=True,
+        )
     existing = int(con.execute("SELECT COUNT(*) FROM hierarchy_bundles").fetchone()[0])
     sql = """
       SELECT s.system_id,s.stable_object_key,s.system_name
@@ -327,7 +462,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "build_id": build_id,
         "materializer_version": BUNDLE_MATERIALIZER_VERSION,
         "required": required,
-        "existing_before": existing,
+        "existing_before": existing_before,
+        "reused": reused,
+        "reuse_source_build_id": reuse_source_build_id,
         "selected": len(selected),
         "generated": generated,
         "final_count": final_count,
@@ -392,6 +529,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--public-read-dir")
     parser.add_argument("--report-dir")
+    parser.add_argument(
+        "--reuse-bundles-from",
+        help=(
+            "Reuse verified hierarchy bundles from the exact side-build source "
+            "when ARM and public logical hashes are unchanged."
+        ),
+    )
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--limit", type=int)
     return parser.parse_args()
