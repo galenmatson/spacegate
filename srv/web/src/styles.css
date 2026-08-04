@@ -1755,7 +1755,7 @@
 }
 
 .map-system-drill-explore {
-  inset: 76px 28px 22px;
+  inset: var(--map-search-offset-top) 28px 22px;
   padding: 0;
   border-color: color-mix(in srgb, var(--accent) 36%, transparent);
   background: color-mix(in srgb, var(--panel) 28%, transparent);

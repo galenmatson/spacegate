@@ -986,7 +986,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   neutral unclassified fallback
 - [x] Add rendered star names to Peek/Explorer stellar glyph explanations,
   bound crowded title glyph runs with an inspectable overflow count, and give
-  Explorer a structural header row so the simulation no longer underlays it
+  Explorer a structural header row and global-header-aware outer inset so
+  neither the simulation nor Explorer title underlays application chrome
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for

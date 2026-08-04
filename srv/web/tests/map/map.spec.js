@@ -1271,12 +1271,17 @@ test.describe("public 3D map beta", () => {
     await expect(exploreObjectList).toBeVisible();
     const exploreControlsBox = await drill.locator(".system-preview-floating-actions").boundingBox();
     const exploreObjectsBox = await exploreObjectList.boundingBox();
+    const coolstarsHeaderBox = await page.locator(".map-hud-top").boundingBox();
+    const exploreWindowBox = await drill.boundingBox();
     const exploreHeaderBox = await drill.locator(".map-system-drill-bar").boundingBox();
     const exploreBodyBox = await drill.locator(".map-system-drill-body").boundingBox();
     expect(exploreControlsBox, "Explore simulation controls bounds").toBeTruthy();
     expect(exploreObjectsBox, "Explore Objects bounds").toBeTruthy();
+    expect(coolstarsHeaderBox, "Coolstars header bounds").toBeTruthy();
+    expect(exploreWindowBox, "Explore window bounds").toBeTruthy();
     expect(exploreHeaderBox, "Explore header bounds").toBeTruthy();
     expect(exploreBodyBox, "Explore simulation body bounds").toBeTruthy();
+    expect(exploreWindowBox.y).toBeGreaterThanOrEqual(coolstarsHeaderBox.y + coolstarsHeaderBox.height + 8);
     expect(exploreBodyBox.y).toBeGreaterThanOrEqual(exploreHeaderBox.y + exploreHeaderBox.height - 1);
     expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 8);
     const vitalPills = drill.locator(".map-system-vital-pill");
