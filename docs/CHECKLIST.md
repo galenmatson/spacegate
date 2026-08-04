@@ -1042,6 +1042,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Present the nine planet filters as an icon-only 3x3 matrix backed by
   Smart Tag hover definitions, and add planet glyph stacks opposite stellar
   stacks in Recents and Cool Stars Nearby
+- [x] Give planet-category hover text an explicit category heading, round
+  Recents/Nearby distances to whole light-years, and anchor simulation planet
+  labels to the visible body edge instead of the invisible pick radius
 - [ ] Replace the map category environment temperature proxy with an auditable
   incident-flux-versus-host-dependent-HZ derivation, including safe single-host
   recovery and multi-star irradiation/component-binding rules

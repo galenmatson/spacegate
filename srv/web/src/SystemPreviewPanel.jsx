@@ -1460,7 +1460,7 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   );
 }
 
-function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true }) {
+function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true, anchorRadius = null, screenGapPixels = 4 }) {
   const spriteRef = React.useRef(null);
   const materialRef = React.useRef(null);
   const worldPositionRef = React.useRef(new THREE.Vector3());
@@ -1515,6 +1515,14 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     const labelHeight = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
     spriteRef.current.scale.set(labelHeight * texturePayload.aspect, labelHeight, 1);
+    const cleanAnchorRadius = Number(anchorRadius);
+    if (Number.isFinite(cleanAnchorRadius) && cleanAnchorRadius >= 0) {
+      const directionY = Number(position?.[1]) < 0 ? -1 : 1;
+      const cleanGapPixels = Math.max(0, Number(screenGapPixels) || 0);
+      spriteRef.current.position.y = directionY * (
+        cleanAnchorRadius + labelHeight / 2 + worldUnitsPerPixel * cleanGapPixels
+      );
+    }
     materialRef.current.opacity = fade;
   });
 
@@ -2898,10 +2906,12 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
       </mesh>
       <SceneLabel
         text={planet.display_name || planet.name || "Planet"}
-        position={[0, -Math.max(pickRadius + 0.08, planet.radius + 0.2), 0]}
+        position={[0, -1, 0]}
         color="#d7efff"
         scale={0.72}
         visible={showLabels}
+        anchorRadius={planet.radius}
+        screenGapPixels={3}
       />
     </group>
   );
@@ -3158,6 +3168,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.sceneLabelRenderer = labelCount > 0 ? "canvas_sprite_text_v1" : "none";
+    gl.domElement.dataset.planetLabelAnchorPolicy = planetCount > 0 ? "body_edge_screen_gap_v1" : "none";
     gl.domElement.dataset.spectralClassLabelCount = String(spectralLabelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);

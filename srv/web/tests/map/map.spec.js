@@ -150,6 +150,9 @@ test.describe("public 3D map beta", () => {
     await expect(planetStackPill.locator(":scope > .map-stellar-badge-stack")).toBeVisible();
     await expect(planetStackPill.locator(":scope > .map-search-recent-name")).toBeVisible();
     await expect(planetStackPill.locator(":scope > .map-planet-badge-stack")).toBeVisible();
+    const sidebarDistances = await page.locator(".map-search-recent-pill > :last-child").allTextContents();
+    expect(sidebarDistances.length).toBeGreaterThan(0);
+    expect(sidebarDistances.every((value) => /^\d[\d,]* ly$/.test(value.trim()))).toBe(true);
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
       .toBe("right_of_name_a2_category_v5");
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePalette || ""))
@@ -164,7 +167,7 @@ test.describe("public 3D map beta", () => {
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-kind", "terrestrial");
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-temperature", "cold");
     await expect(planetCategoryToggles.nth(3)).toHaveAttribute("data-tag-key", "science:planet.hot_neptunian");
-    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("title", /intermediate|Neptune-size/i);
+    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("title", /^Hot Neptunian Planet\n.*intermediate/i);
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");
@@ -2067,6 +2070,10 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
       { timeout: 3000 }
     ).toBe("canvas_sprite_text_v1");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.planetLabelAnchorPolicy || ""),
+      { timeout: 3000 }
+    ).toBe("body_edge_screen_gap_v1");
     await page.getByRole("button", { name: /Labels On/i }).click();
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),

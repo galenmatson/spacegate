@@ -165,8 +165,11 @@ Already in place:
   the renderer can draw the broad HZ guide, while narration should explain how
   the companion orbit changes the practical habitability story.
 - object labels are visible by default and can be toggled off. Labels are
-  renderer-only Drei/Troika SDF text billboards placed just below stars,
-  planets, and subsystem handles; HZ labels are placed on the band itself.
+  renderer-only outlined canvas-text sprites placed just below stars, planets,
+  and subsystem handles; HZ labels are placed on the band itself. Planet labels
+  anchor to the visible body edge with a screen-pixel gap rather than the
+  larger invisible pick target, so close zoom does not separate names from
+  their planets.
   They are screen-size scaled for zoom readability, carry dark outlines for
   contrast, do not participate in picking, and do not create or alter
   science-layer fields. Dense-scene label priority/collision management remains
@@ -622,9 +625,9 @@ Success criteria:
   aids. Their readouts expose luminosity, inner/outer AU bounds, planet-plane
   alignment basis, and broad-flux basis from the render-scene calculations
   while avoiding click/drag handlers that could block camera controls.
-- default object labels use SDF text billboards rather than canvas texture
-  sprites so zoomed-out system names remain sharper and browser QA can assert
-  the active `sceneLabelRenderer` diagnostic.
+- default object labels use mipmapped canvas-text sprites with dark outlines,
+  screen-size scaling, and browser-visible `sceneLabelRenderer` and
+  `planetLabelAnchorPolicy` diagnostics.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - WebGL context loss inside a simulator panel is trapped and the live canvas is

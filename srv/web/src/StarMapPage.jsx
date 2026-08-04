@@ -1229,7 +1229,7 @@ function MapPlanetCategoryFilter({ category, active, onToggle }) {
       onClick={onToggle}
       aria-pressed={active}
       aria-label={`${name} filter`}
-      title={tooltip}
+      title={`${name}\n${tooltip}`}
       data-tag-key={category.tagKey}
     >
       <MapPlanetCategoryIcon category={category} />
@@ -2870,7 +2870,7 @@ function MapPlanetBadgeStackItem({ category, index, count }) {
     <span
       className="map-planet-badge-stack-item"
       style={{ "--stack-index": index, "--stack-layer": count - index }}
-      title={`${name}: ${tooltip}`}
+      title={`${name}\n${tooltip}`}
       data-tag-key={category.tagKey || "presentation:planet.unclassified"}
       aria-hidden="true"
     >
@@ -3057,7 +3057,7 @@ function MapStarSearchShell({
                 <MapStellarBadgeStack system={system} />
                 <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
                 <MapPlanetBadgeStack system={system} />
-                <span>{formatNumber(system.dist_ly, 1)} ly</span>
+                <span>{formatNumber(system.dist_ly, 0)} ly</span>
               </button>
             ))}
           </div>
@@ -3071,7 +3071,7 @@ function MapStarSearchShell({
                   <MapStellarBadgeStack system={system} />
                   <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
                   <MapPlanetBadgeStack system={system} />
-                  <span>{formatNumber(routeDistance, 1)} ly</span>
+                  <span>{formatNumber(routeDistance, 0)} ly</span>
                 </button>
               ))}
             </div>
