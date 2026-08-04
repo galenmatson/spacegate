@@ -1581,8 +1581,12 @@ Implementation notes:
 - search result items also include ordered `stellar_object_badges`, the matching
   duplicate-preserving `stellar_class_badges` sequence, and ordered
   `planet_object_badges`. Object badge rows carry stable object/component keys,
-  JavaScript-safe text IDs where available, and display names so current cards
-  can show the complete known inventory and later become object-detail links.
+  JavaScript-safe text IDs where available, display names, and a derived
+  `planet_category_key` for planets so current cards can show the complete known
+  inventory and later become object-detail links. The category key uses the
+  same versioned radius-first, mass-fallback, equilibrium-temperature/insolation
+  policy as `planet_category` search; missing inputs produce
+  `unclassified_planet` rather than an invented category.
   Clients must not deduplicate classes or cap either list for compactness.
 - dense exact-like identifiers and variable-star names suppress fuzzy alias
   substitution when there is no exact/prefix hit. This prevents public

@@ -13,6 +13,7 @@ from typing import Any, Iterable, Sequence
 
 from . import db
 from . import smart_tags
+from .planet_categories import planet_category_key_from_values
 from .queries import choose_display_name_info, is_strict_exact_search_query
 
 
@@ -307,6 +308,14 @@ def _planet_payload(row: sqlite3.Row) -> dict[str, Any]:
     item["planet_insolation_class"] = item.pop("insolation_class", None)
     item["planet_composition_proxy_class"] = item.pop("composition_proxy_class", None)
     item["planet_classifier_version"] = item.pop("classifier_version", None)
+    item["planet_category_key"] = planet_category_key_from_values(
+        radius_earth=item.get("radius_earth"),
+        radius_jup=item.get("radius_jup"),
+        mass_earth=item.get("mass_earth"),
+        mass_jup=item.get("mass_jup"),
+        eq_temp_k=item.get("eq_temp_k"),
+        insol_earth=item.get("insol_earth"),
+    )
     encoded_lineage = item.pop("selected_fact_lineage_json", None)
     try:
         item["selected_fact_lineage"] = (
@@ -471,7 +480,8 @@ def planet_badges_for_systems(
     result: dict[int, list[dict[str, Any]]] = {}
     for row in con.execute(
         f"""
-        SELECT system_id,planet_id,stable_object_key,planet_name
+        SELECT system_id,planet_id,stable_object_key,planet_name,
+               radius_earth,radius_jup,mass_earth,mass_jup,eq_temp_k,insol_earth
         FROM planets
         WHERE system_id IN ({placeholders})
         ORDER BY system_id,lower(planet_name),planet_id
@@ -483,6 +493,14 @@ def planet_badges_for_systems(
                 "planet_id_text": str(row["planet_id"]),
                 "stable_object_key": row["stable_object_key"],
                 "display_name": row["planet_name"],
+                "planet_category_key": planet_category_key_from_values(
+                    radius_earth=row["radius_earth"],
+                    radius_jup=row["radius_jup"],
+                    mass_earth=row["mass_earth"],
+                    mass_jup=row["mass_jup"],
+                    eq_temp_k=row["eq_temp_k"],
+                    insol_earth=row["insol_earth"],
+                ),
             }
         )
     return result
@@ -740,6 +758,21 @@ def projected_system_detail(
         }
         payload["smart_tags"] = summary.get("smart_tags", [])
         payload["source_summary"] = summary.get("source_summary", [])
+        category_by_planet_key = {
+            str(row.get("stable_object_key") or ""): row.get("planet_category_key")
+            for row in summary.get("planet_object_badges", [])
+            if row.get("stable_object_key")
+        }
+        payload["planets"] = [
+            {
+                **planet,
+                "planet_category_key": category_by_planet_key.get(
+                    str(planet.get("stable_object_key") or ""),
+                    "unclassified_planet",
+                ),
+            }
+            for planet in (payload.get("planets") or [])
+        ]
         payload.setdefault("read_backend", "public_read_v2_bundle")
         return payload
     if summary.get("hierarchy_representation") != "singleton_seed":

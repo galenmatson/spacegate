@@ -3145,6 +3145,11 @@ Accepted decisions:
   unresolved hosts remain root-level rather than inheriting visual parentage
   from list order. Star Map planet glyphs use painted-extent spacing so small
   terrestrial categories do not reserve a giant-sized slot.
+- carry one shared `planet_category_key` per projected/rendered planet and use
+  the established A2 glyph in System Hero/search object badges, Peek/Explorer
+  titles, simulation OBJECTS, and Stars and Hierarchy. The category policy is
+  compiler/API-owned; consumers render `unclassified_planet` when its inputs
+  are absent rather than applying surface-specific guesses.
 
 Imagery cache gate:
 

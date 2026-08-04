@@ -1842,6 +1842,37 @@
   margin-left: 5px;
 }
 
+.map-title-planet-categories {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 1px;
+  margin-left: 4px;
+}
+
+.planet-category-badge {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.62));
+}
+
+.planet-category-badge > .map-planet-category-icon {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.map-title-planet-category {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+}
+
 .map-system-drill-title .stellar-class-chip {
   pointer-events: auto;
 }
@@ -7724,28 +7755,10 @@ main {
   white-space: nowrap;
 }
 
-.system-object-planet-icon {
-  position: relative;
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, #eafffa 0 8%, #4fb8ac 24%, #17616a 68%, #071e29 100%);
-  box-shadow: 0 0 5px rgba(85, 219, 201, 0.55);
-}
-
-.system-object-planet-icon::after {
-  content: "";
-  position: absolute;
-  left: -3px;
-  top: 5px;
-  width: 20px;
-  height: 5px;
-  border: 1.5px solid #9ff1df;
-  border-top-color: transparent;
-  border-radius: 50%;
-  transform: rotate(-16deg);
+.system-object-badge-planet > .planet-category-badge {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
 }
 
 .stellar-class-chip {
@@ -10388,6 +10401,13 @@ main {
 .system-preview-object-spacer {
   display: inline-block;
   width: 16px;
+}
+
+.system-preview-object-planet-badge,
+.hierarchy-planet-category {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
 }
 
 .map-system-drill.map-system-drill-explore .system-preview-readout > div.system-preview-object-list:not(.system-preview-evidence):not(.system-preview-policy) {

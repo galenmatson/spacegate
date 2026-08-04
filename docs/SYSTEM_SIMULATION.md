@@ -688,6 +688,12 @@ Success criteria:
   a short selection debounce prevents rapid transient selections from starting
   scene assembly. This does not replace the need for prebuilt priority scenes,
   or the Public Read v2 singleton seed contract.
+- `simulation_scene_artifact_v8` adds the shared per-planet
+  `planet_category_key` to rendered planet bodies. OBJECTS, Peek/Explorer
+  titles, System Hero badges, and Stars and Hierarchy render the same A2 glyph
+  contract used by the map and filters. Missing category inputs remain the
+  neutral `unclassified_planet` glyph. Older scene artifacts are rejected and
+  must be regenerated rather than silently mixing display classifiers.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the
@@ -706,12 +712,13 @@ Success criteria:
   timestamps are removed, gzip `mtime` is zero, and the materializer contract
   is embedded. `scripts/freeze_simulation_scenes.py` verifies exact policy
   coverage and packages the warmed set as a deterministic normalized tar/gzip
-  artifact with a manifest. Artifact v7 preserves selected hierarchy-leaf
+  artifact with a manifest. Artifact v8 preserves selected hierarchy-leaf
   component labels and applies the same selected leaf class to renderer body
   type when no higher-authority direct compact-object type conflicts. It also
   emits source-scoped subsystem handles over exact accepted descendant-leaf
   sets for presentation and orbit endpoints without promoting those source
-  groups into CORE containment. Freezing does not mutate CORE, ARM, or DISC.
+  groups into CORE containment and carries the shared planet-category key.
+  Freezing does not mutate CORE, ARM, or DISC.
 - The accepted M8.3e run generated 7,724/7,724 artifact-v7 scenes with zero
   failures in 2,812.852 seconds using 12 workers. The scenes occupy 80,415,323
   compressed bytes. Frozen-set verification inspected all payloads in 3.831

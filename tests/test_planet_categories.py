@@ -7,6 +7,8 @@ import duckdb
 from srv.api.app.planet_categories import (
     parse_planet_categories,
     planet_category_bit_sql,
+    planet_category_key_from_bit,
+    planet_category_key_from_values,
     planet_category_mask,
 )
 
@@ -64,6 +66,30 @@ class PlanetCategoryTests(unittest.TestCase):
         )
         self.assertEqual(categories, ["hot_giant", "temperate_terrestrial"])
         self.assertEqual(planet_category_mask(categories), 17)
+
+    def test_python_projection_matches_sql_policy_boundaries(self) -> None:
+        cases = [
+            ((1.5, None, 80.0, None, 350.0, None), "hot_terrestrial"),
+            ((3.0, None, 100.0, None, 350.0, None), "hot_neptune"),
+            ((8.0, None, 2.0, None, 350.0, None), "hot_giant"),
+            ((None, None, 30.0, None, 250.0, None), "temperate_neptune"),
+            ((8.0, None, None, None, None, 0.1), "cold_giant"),
+            ((3.0, None, None, None, None, None), "unclassified_planet"),
+        ]
+        for values, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(planet_category_key_from_bit(self.category_bit(values)), expected)
+                self.assertEqual(
+                    planet_category_key_from_values(
+                        radius_earth=values[0],
+                        radius_jup=values[1],
+                        mass_earth=values[2],
+                        mass_jup=values[3],
+                        eq_temp_k=values[4],
+                        insol_earth=values[5],
+                    ),
+                    expected,
+                )
 
 
 if __name__ == "__main__":

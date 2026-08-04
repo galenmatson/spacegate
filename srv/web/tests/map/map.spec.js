@@ -1167,6 +1167,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".system-preview-speed select option[value='10000']")).toHaveText("19.2 years/s (10,000x)");
     await expect(drill.locator(".system-preview-speed select")).toHaveAttribute("title", /static presentation positions/i);
     await expect(drill.locator(".map-title-stellar-classes .stellar-class-chip").first()).toBeVisible();
+    await expect(drill.locator(".map-title-planet-categories .planet-category-badge").first()).toBeVisible();
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     await page.locator("[data-testid='map-minimal-toggle']").click();
     await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
@@ -1249,7 +1250,7 @@ test.describe("public 3D map beta", () => {
 
     await openMapPeekFromRecents(page);
     await expect(drill).toBeVisible();
-    await drill.locator(".map-system-drill-title").click();
+    await drill.locator(".map-system-drill-title-select").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
@@ -2386,6 +2387,11 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${resolvedSystemIds.get("HD 110067")}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(4);
     await expect(page.locator(".system-detail-stellar-tags .system-object-badge-planet")).toHaveCount(6);
+    const heroPlanetBadges = page.locator(".system-detail-stellar-tags .system-object-badge-planet .planet-category-badge");
+    await expect(heroPlanetBadges).toHaveCount(6);
+    expect(await heroPlanetBadges.evaluateAll((badges) => badges.map((badge) => badge.dataset.planetCategory)))
+      .toEqual(["hot_neptune", "hot_neptune", "hot_neptune", "hot_terrestrial", "hot_neptune", "hot_neptune"]);
+    await expect(page.locator(".hierarchy-panel .hierarchy-planet-category")).toHaveCount(6);
   });
 
   test("OBJECTS places fallback planets directly beneath their resolved host star", async ({ page }, testInfo) => {
@@ -2426,6 +2432,7 @@ test.describe("public 3D map beta", () => {
       expect(hostItemKey, `${target.query} host display key`).toBeTruthy();
       const planetRows = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip[data-object-kind='planet']");
       await expect(planetRows).toHaveCount(target.planetCount, { timeout: 15000 });
+      await expect(planetRows.locator(".planet-category-badge")).toHaveCount(target.planetCount);
       expect(await planetRows.evaluateAll((rows) => rows.map((row) => row.dataset.objectParentKey)))
         .toEqual(Array(target.planetCount).fill(hostItemKey));
       expect(await planetRows.evaluateAll((rows) => rows.map((row) => Number(row.dataset.objectDepth))))

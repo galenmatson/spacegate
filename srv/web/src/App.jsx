@@ -16,6 +16,7 @@ import { isLightweightPreviewSystem, LightweightSystemPreview } from "./Lightwei
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
+import { PlanetCategoryBadge, planetCategoryTitle } from "./planetCategoryIcons.jsx";
 import {
   OBJECT_BADGE_TAG_CATEGORIES,
   SmartTagList,
@@ -2352,7 +2353,7 @@ function HierarchyOrbitDetails({ orbit }) {
   );
 }
 
-function HierarchyNodeCard({ node, depth = 0 }) {
+function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() }) {
   const children = Array.isArray(node?.children) ? node.children : [];
   const [expanded, setExpanded] = useState(true);
   const displayName = formatText(node?.display_name);
@@ -2369,6 +2370,13 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   ));
   const showStellarClass = displayType === "star"
     && (!hasStellarChildren || Boolean(node?.stellar_leaf_classification));
+  const planetCategoryKey = displayType === "planet"
+    ? (
+      planetCategoryByKey.get(String(node?.stable_component_key || ""))
+      || planetCategoryByKey.get(`id:${String(node?.core_object_id || "")}`)
+      || "unclassified_planet"
+    )
+    : null;
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -2388,6 +2396,13 @@ function HierarchyNodeCard({ node, depth = 0 }) {
                   tokens={stellarClassTokensFromRecord(node)}
                   record={node}
                   size="compact"
+                />
+              ) : null}
+              {planetCategoryKey ? (
+                <PlanetCategoryBadge
+                  categoryKey={planetCategoryKey}
+                  title={`${displayName}: ${planetCategoryTitle(planetCategoryKey)}`}
+                  className="hierarchy-planet-category"
                 />
               ) : null}
               <strong>{displayName}</strong>
@@ -2435,7 +2450,12 @@ function HierarchyNodeCard({ node, depth = 0 }) {
         {children.length > 0 && expanded ? (
           <div className="hierarchy-children">
             {children.map((child) => (
-              <HierarchyNodeCard key={child.stable_component_key} node={child} depth={depth + 1} />
+              <HierarchyNodeCard
+                key={child.stable_component_key}
+                node={child}
+                depth={depth + 1}
+                planetCategoryByKey={planetCategoryByKey}
+              />
             ))}
           </div>
         ) : null}
@@ -2444,9 +2464,24 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   );
 }
 
-function SystemHierarchyPanel({ hierarchy }) {
+function SystemHierarchyPanel({ hierarchy, planets = [] }) {
   const root = hierarchy?.root;
   const counts = hierarchy?.counts || {};
+  const planetCategoryByKey = useMemo(() => {
+    const out = new Map();
+    planets.forEach((planet) => {
+      const stableKey = String(planet?.stable_object_key || "");
+      const categoryKey = planet?.planet_category_key || "unclassified_planet";
+      if (stableKey) {
+        out.set(stableKey, categoryKey);
+        out.set(`comp:planet:${stableKey}`, categoryKey);
+      }
+      if (planet?.planet_id !== null && planet?.planet_id !== undefined) {
+        out.set(`id:${String(planet.planet_id)}`, categoryKey);
+      }
+    });
+    return out;
+  }, [planets]);
   if (!root) {
     return null;
   }
@@ -2462,7 +2497,7 @@ function SystemHierarchyPanel({ hierarchy }) {
         <div><strong>Top Level</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
       </div>
       <div className="hierarchy-tree">
-        <HierarchyNodeCard node={root} depth={0} />
+        <HierarchyNodeCard node={root} depth={0} planetCategoryByKey={planetCategoryByKey} />
       </div>
     </section>
   );
@@ -4645,7 +4680,7 @@ function SystemDetailPage({ buildId = "" }) {
 
         <ConceptExplainerGrid smartTags={systemTags} />
 
-        <SystemHierarchyPanel hierarchy={hierarchy} />
+        <SystemHierarchyPanel hierarchy={hierarchy} planets={planets} />
 
         <details className="panel detail-disclosure">
           <summary>

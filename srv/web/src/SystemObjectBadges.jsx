@@ -1,5 +1,6 @@
 import React from "react";
 
+import { PlanetCategoryBadge, planetCategoryTitle } from "./planetCategoryIcons.jsx";
 import { StellarClassChips, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
 
 function stellarObjectsFor(system, stellarObjects) {
@@ -65,13 +66,14 @@ export function SystemObjectBadges({
       ))}
       {planetRows.map((planet, index) => {
         const displayName = planetDisplayName(planet, index);
+        const categoryKey = planet.planet_category_key || "unclassified_planet";
         return (
           <span
             className="system-object-badge system-object-badge-planet"
             key={planet.stable_object_key || planet.planet_id_text || planet.planet_id || `planet-${index}`}
-            title={displayName}
+            title={`${displayName}: ${planetCategoryTitle(categoryKey)}`}
           >
-            <span className="system-object-planet-icon" aria-hidden="true" />
+            <PlanetCategoryBadge categoryKey={categoryKey} title={`${displayName}: ${planetCategoryTitle(categoryKey)}`} />
             <span>{displayName}</span>
           </span>
         );

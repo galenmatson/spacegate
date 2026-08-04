@@ -49,6 +49,7 @@ from .db import DatabaseUnavailable
 from .planet_categories import (
     SUPPORTED_PLANET_CATEGORIES,
     parse_planet_categories,
+    planet_category_key_from_values,
     planet_category_mask,
 )
 from .queries import (
@@ -270,7 +271,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v7"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v8"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -554,6 +555,16 @@ def _object_public_system_payload(
             wds_id=system.get("wds_id"),
             canonical_hierarchy_db_path=canonical_hierarchy_db_path,
             arm_db_path=arm_db_path,
+        )
+
+    for planet in planets:
+        planet["planet_category_key"] = planet_category_key_from_values(
+            radius_earth=_float_or_none(planet.get("radius_earth")),
+            radius_jup=_float_or_none(planet.get("radius_jup")),
+            mass_earth=_float_or_none(planet.get("mass_earth")),
+            mass_jup=_float_or_none(planet.get("mass_jup")),
+            eq_temp_k=_float_or_none(planet.get("eq_temp_k")),
+            insol_earth=_float_or_none(planet.get("insol_earth")),
         )
 
     stellar_leaf_classifications = _stellar_leaf_display_classifications_for_system(system_id)
@@ -3801,6 +3812,7 @@ def _render_scene_contract(
                 "display_name": planet.get("planet_name") or planet.get("stable_object_key"),
                 "host_star_id": planet.get("star_id"),
                 "host_body_key": host_body_key,
+                "planet_category_key": planet.get("planet_category_key") or "unclassified_planet",
                 "fields": fields,
                 "source": {
                     "layer": "core",
@@ -3952,6 +3964,7 @@ def _render_scene_contract(
                     "object_type": "planet",
                     "display_name": component.get("display_name") or planet_key,
                     "host_body_key": edge.get("primary_component_key") or edge.get("host_component_key"),
+                    "planet_category_key": "unclassified_planet",
                     "fields": fields,
                     "source": {
                         "layer": "arm",

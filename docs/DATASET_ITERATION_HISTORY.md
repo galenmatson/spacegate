@@ -4535,6 +4535,18 @@ Representative commits:
   stellar classes so system composition remains glanceable without widening
   visible text labels. CORE, ARM, DISC, RIM, and Public Read are unchanged.
 
+### 170) Per-Planet Category Projection Replaces Surface-Specific Icons
+
+- Public Read compact planet badges and full planet payloads now expose a
+  derived `planet_category_key` from the same radius-first, mass-fallback, and
+  temperature/insolation thresholds used by API filters, Smart Tags, and map
+  tiles. Missing inputs yield `unclassified_planet`; no UI consumer invents a
+  more specific category.
+- `simulation_scene_artifact_v8` carries that key on every rendered planet and
+  invalidates older scene payloads. This keeps System Hero/search badges,
+  Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy on the same
+  A2 glyph vocabulary while leaving CORE, ARM, DISC, and RIM unchanged.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

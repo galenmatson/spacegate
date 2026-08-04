@@ -980,6 +980,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Pack Star Map planet glyphs by painted category extent so terrestrial and
   Neptune-size badges shorten labels without shrinking their established A2
   visual scale or allowing giant annuli to collide
+- [x] Carry the shared per-planet category into Public Read and simulation-scene
+  v8, then render the A2 planet glyphs in System Hero/search object badges,
+  Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy with a
+  neutral unclassified fallback
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for

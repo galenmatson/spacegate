@@ -22,6 +22,10 @@ PLANET_CATEGORY_ALIASES = {
     "cold_jupiter": "cold_giant",
 }
 
+PLANET_CATEGORY_KEYS_BY_BIT = {
+    bit: key for key, bit in PLANET_CATEGORY_BITS.items()
+}
+
 SUPPORTED_PLANET_CATEGORIES = frozenset(
     (*PLANET_CATEGORY_BITS, *PLANET_CATEGORY_ALIASES)
 )
@@ -44,6 +48,56 @@ def planet_category_mask(categories: Iterable[str]) -> int:
     for category in categories:
         mask |= PLANET_CATEGORY_BITS[category]
     return mask
+
+
+def planet_category_key_from_bit(bit: int | None) -> str:
+    return PLANET_CATEGORY_KEYS_BY_BIT.get(int(bit or 0), "unclassified_planet")
+
+
+def planet_category_key_from_values(
+    *,
+    radius_earth: float | None = None,
+    radius_jup: float | None = None,
+    mass_earth: float | None = None,
+    mass_jup: float | None = None,
+    eq_temp_k: float | None = None,
+    insol_earth: float | None = None,
+) -> str:
+    composition: str | None = None
+    if radius_earth is not None:
+        composition = (
+            "terrestrial"
+            if radius_earth <= 2.0
+            else ("giant" if radius_earth >= 6.0 else "neptune")
+        )
+    elif radius_jup is not None:
+        converted_radius = radius_jup * 11.209
+        composition = (
+            "terrestrial"
+            if converted_radius <= 2.0
+            else ("giant" if converted_radius >= 6.0 else "neptune")
+        )
+    elif mass_earth is not None:
+        composition = (
+            "terrestrial"
+            if mass_earth <= 10.0
+            else ("giant" if mass_earth >= 50.0 else "neptune")
+        )
+    elif mass_jup is not None:
+        converted_mass = mass_jup * 317.83
+        composition = (
+            "terrestrial"
+            if converted_mass <= 10.0
+            else ("giant" if converted_mass >= 50.0 else "neptune")
+        )
+
+    temperature = eq_temp_k
+    if temperature is None and insol_earth is not None and insol_earth > 0:
+        temperature = 278.5 * (insol_earth ** 0.25)
+    if composition is None or temperature is None:
+        return "unclassified_planet"
+    thermal = "hot" if temperature > 320.0 else ("temperate" if temperature >= 200.0 else "cold")
+    return f"{thermal}_{composition}"
 
 
 def planet_category_eligibility_sql(alias: str = "p") -> str:

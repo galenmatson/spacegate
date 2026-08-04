@@ -516,8 +516,8 @@ def test_planet_projection_exposes_quantity_fact_lineage(tmp_path: Path) -> None
         """
         INSERT INTO planets(
           planet_id,system_id,stable_object_key,planet_name,
-          orbital_period_days,selected_fact_lineage_json
-        ) VALUES (?,?,?,?,?,?)
+          orbital_period_days,radius_earth,eq_temp_k,selected_fact_lineage_json
+        ) VALUES (?,?,?,?,?,?,?,?)
         """,
         [
             21,
@@ -525,6 +525,8 @@ def test_planet_projection_exposes_quantity_fact_lineage(tmp_path: Path) -> None
             "canon:planet:test-b",
             "Alpha Test b",
             12.5,
+            1.4,
+            410.0,
             json.dumps(
                 {
                     "lineage_version": "spacegate.planet_selected_fact_lineage.v1",
@@ -539,11 +541,14 @@ def test_planet_projection_exposes_quantity_fact_lineage(tmp_path: Path) -> None
     )
     _, planets = public_read.system_objects(con, 1)
     assert planets[0]["orbital_period_days"] == 12.5
+    assert planets[0]["planet_category_key"] == "hot_terrestrial"
     assert planets[0]["selected_fact_lineage"]["orbital_period_days"] == {
         "lower": 12.4,
         "upper": 12.6,
         "fact_id": "fact-period",
     }
+    badges = public_read.planet_badges_for_systems(con, [1])
+    assert badges[1][0]["planet_category_key"] == "hot_terrestrial"
     con.close()
 
 

@@ -10,6 +10,7 @@ import {
   SourceTagList,
 } from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
+import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const DEFAULT_SCENE_LABEL_TYPOGRAPHY = {
@@ -4369,7 +4370,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full" }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full" }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4591,10 +4592,22 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         return String(left.name).localeCompare(String(right.name));
       });
   }, [renderBodies.stars]);
+  const planetCategoryEntries = useMemo(() => {
+    const planets = Array.isArray(renderBodies.planets) ? renderBodies.planets : [];
+    return planets.map((planet) => ({
+      key: planet.render_key || planet.stable_object_key || planet.key || planet.display_name || planet.name,
+      name: planet.display_name || planet.name || "Planet",
+      categoryKey: planet.planet_category_key || "unclassified_planet",
+    }));
+  }, [renderBodies.planets]);
 
   useEffect(() => {
     onStellarClassEntries?.(stellarClassEntries);
   }, [onStellarClassEntries, stellarClassEntries]);
+
+  useEffect(() => {
+    onPlanetCategoryEntries?.(planetCategoryEntries);
+  }, [onPlanetCategoryEntries, planetCategoryEntries]);
 
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
@@ -4833,6 +4846,14 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                         size="compact"
                       />
                     )
+                    : item.recordKind === "planet" && item.record
+                      ? (
+                        <PlanetCategoryBadge
+                          categoryKey={item.record.planet_category_key}
+                          title={`${item.name}: ${planetCategoryForKey(item.record.planet_category_key).filterLabel}`}
+                          className="system-preview-object-planet-badge"
+                        />
+                      )
                     : <span className="system-preview-object-spacer" />}
                   <button
                     type="button"
