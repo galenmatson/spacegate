@@ -184,6 +184,15 @@ The v2.3 compiler reproduced source-summary v3 from clean output roots in
 SQLite/Parquet artifacts. The machine comparison is retained at
 `reports/smart_tags/<build_id>/smart_tag_source_summary_v3_determinism_report.json`.
 
+Compiler v2.4 extends the shared broad planet evaluator to the complete
+Giant/Neptunian/Terrestrial by Hot/Temperate/Cold matrix. It imports the same
+versioned category SQL used by map tiles and API filtering, materializes
+object-scoped assignments, and rolls them up for system discovery. Neptunian
+is explicitly a radius/mass proxy rather than a composition claim. The first
+full v2.4 compile completed in 231.4 seconds with 11,419,175 assignments,
+11,418,608 system memberships, 34 definitions, zero quarantines, and a
+407,285,760-byte hot artifact.
+
 During the one-release compatibility window, a genuinely absent artifact
 leaves ordinary reads untagged. A present but mismatched, sampled, corrupt, or
 schema-incompatible artifact fails visibly. Set

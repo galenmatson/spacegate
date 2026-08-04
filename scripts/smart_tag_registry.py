@@ -21,6 +21,7 @@ KNOWN_EVALUATORS = {
     "hierarchy_nested_v2",
     "planet_numeric_v1",
     "planet_category_v1",
+    "planet_category_v2",
     "habitable_zone_screen_v1",
 }
 VALID_TARGET_TYPES = {"system", "star", "planet", "extended_object"}

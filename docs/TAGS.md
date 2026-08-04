@@ -37,6 +37,34 @@ concept-page link where useful.
   from science tags so fiction and user overlays are never mistaken for
   canonical or derived astronomy.
 
+## Broad Planet Map Tags
+
+The map's glance-level planet vocabulary is a deterministic 3x3 screen for
+confirmed planets. Rows encode broad bulk scale (Giant, Neptunian,
+Terrestrial); columns encode the selected temperature proxy (Hot, Temperate,
+Cold). These are derived navigation categories, not source-supplied planet
+types and not claims about atmosphere, composition, surface conditions, or
+habitability.
+
+| | Hot | Temperate | Cold |
+|---|---|---|---|
+| Giant | `science:planet.hot_gas_giant` | `science:planet.temperate_gas_giant` | `science:planet.cold_gas_giant` |
+| Neptunian | `science:planet.hot_neptunian` | `science:planet.temperate_neptunian` | `science:planet.cold_neptunian` |
+| Terrestrial | `science:planet.hot_terrestrial` | `science:planet.temperate_terrestrial` | `science:planet.cold_terrestrial` |
+
+Bulk scale prefers selected radius: no more than 2 Earth radii is terrestrial,
+2 to 6 Earth radii is Neptunian, and at least 6 Earth radii is giant. When
+radius is absent, selected mass is used: no more than 10 Earth masses is
+terrestrial, 10 to 50 Earth masses is Neptunian, and at least 50 Earth masses
+is giant. The temperature screen uses selected equilibrium temperature, or an
+insolation-derived proxy when available: above 320 K is hot, 200 to 320 K is
+temperate, and below 200 K is cold. Boundary behavior and exact SQL are pinned
+in `srv/api/app/planet_categories.py`.
+
+The word Neptunian intentionally means the intermediate radius/mass bin. It
+does not prove an ice-giant composition. Likewise, the giant glyph's annulus
+visually distinguishes the broad category and is not evidence for rings.
+
 ## Orbital Parameter Tags
 
 ULTRASHORT PERIOD

@@ -31,6 +31,7 @@ import {
   stellarClassTooltip,
 } from "./stellarClassTags.jsx";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
+import { useSmartTagDefinition } from "./SmartTag.jsx";
 
 const DEFAULT_MAP_RADIUS_LY = 500;
 const MONOLITHIC_DIAGNOSTIC_RADIUS_LY = 100;
@@ -1143,15 +1144,15 @@ const MAP_PLANET_BAND_PALETTE = Object.freeze({
   cold: "#146f91",
 });
 const MAP_PLANET_CATEGORIES = [
-  { bit: 1, key: "hot_giant", queryKey: "hot_giant", filterLabel: "Hot Giant", label: "HG", temperature: "hot", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.hot },
-  { bit: 2, key: "temperate_giant", queryKey: "temperate_giant", filterLabel: "Temperate Giant", label: "TG", temperature: "temperate", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.temperate },
-  { bit: 4, key: "cold_giant", queryKey: "cold_giant", filterLabel: "Cold Giant", label: "CG", temperature: "cold", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.cold },
-  { bit: 64, key: "hot_neptune", queryKey: "hot_neptune", filterLabel: "Hot Neptunian", label: "HN", temperature: "hot", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.hot },
-  { bit: 128, key: "temperate_neptune", queryKey: "temperate_neptune", filterLabel: "Temperate Neptunian", label: "TN", temperature: "temperate", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.temperate },
-  { bit: 256, key: "cold_neptune", queryKey: "cold_neptune", filterLabel: "Cold Neptunian", label: "CN", temperature: "cold", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.cold },
-  { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", temperature: "hot", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.hot },
-  { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", temperature: "temperate", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.temperate },
-  { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", temperature: "cold", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 1, key: "hot_giant", queryKey: "hot_giant", tagKey: "science:planet.hot_gas_giant", filterLabel: "Hot Giant", label: "HG", temperature: "hot", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 2, key: "temperate_giant", queryKey: "temperate_giant", tagKey: "science:planet.temperate_gas_giant", filterLabel: "Temperate Giant", label: "TG", temperature: "temperate", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 4, key: "cold_giant", queryKey: "cold_giant", tagKey: "science:planet.cold_gas_giant", filterLabel: "Cold Giant", label: "CG", temperature: "cold", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 64, key: "hot_neptune", queryKey: "hot_neptune", tagKey: "science:planet.hot_neptunian", filterLabel: "Hot Neptunian", label: "HN", temperature: "hot", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 128, key: "temperate_neptune", queryKey: "temperate_neptune", tagKey: "science:planet.temperate_neptunian", filterLabel: "Temperate Neptunian", label: "TN", temperature: "temperate", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 256, key: "cold_neptune", queryKey: "cold_neptune", tagKey: "science:planet.cold_neptunian", filterLabel: "Cold Neptunian", label: "CN", temperature: "cold", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", tagKey: "science:planet.hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", temperature: "hot", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", tagKey: "science:planet.temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", temperature: "temperate", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", tagKey: "science:planet.cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", temperature: "cold", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.cold },
 ];
 const MAP_PLANET_UNKNOWN_BADGE = Object.freeze({
   bit: 512,
@@ -1205,6 +1206,34 @@ function MapPlanetCategoryIcon({ category }) {
         </>
       )}
     </svg>
+  );
+}
+
+function planetCategoryTooltipFallback(category) {
+  const bulk = category.kind === "neptune" ? "Neptune-size" : `${category.kind}-scale`;
+  const ringNote = category.kind === "giant"
+    ? " The annulus is a category glyph, not evidence of a physical ring system."
+    : "";
+  return `A confirmed planet classified by Spacegate's broad map policy as ${bulk} and ${category.temperature}, using selected size or mass and a temperature-screen proxy.${ringNote}`;
+}
+
+function MapPlanetCategoryFilter({ category, active, onToggle }) {
+  const definition = useSmartTagDefinition(category.tagKey);
+  const tooltip = definition?.tooltip || planetCategoryTooltipFallback(category);
+  const name = definition?.name || category.filterLabel;
+  return (
+    <button
+      type="button"
+      className={`map-search-planet-category ${active ? "active" : ""}`}
+      style={{ "--planet-category-color": category.color }}
+      onClick={onToggle}
+      aria-pressed={active}
+      aria-label={`${name} filter`}
+      title={tooltip}
+      data-tag-key={category.tagKey}
+    >
+      <MapPlanetCategoryIcon category={category} />
+    </button>
   );
 }
 
@@ -2820,6 +2849,57 @@ function MapStellarBadgeStack({ system }) {
   );
 }
 
+function planetCategoryTagsFromSystem(system) {
+  const explicit = (Array.isArray(system?.planet_badges) ? system.planet_badges : [])
+    .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
+    .filter(Boolean);
+  if (explicit.length) return explicit;
+  const mask = Number(system?.planet_badge_mask ?? system?.planet_category_mask ?? 0);
+  const categories = MAP_PLANET_CATEGORIES.filter((category) => mask & category.bit);
+  if (mask & MAP_PLANET_UNKNOWN_BADGE.bit) categories.push(MAP_PLANET_UNKNOWN_BADGE);
+  return categories;
+}
+
+function MapPlanetBadgeStackItem({ category, index, count }) {
+  const definition = useSmartTagDefinition(category.tagKey);
+  const name = definition?.name || category.filterLabel || "Unclassified confirmed planet";
+  const tooltip = definition?.tooltip || (category.kind === "unknown"
+    ? "A confirmed planet whose selected data cannot yet support this broad map classification."
+    : planetCategoryTooltipFallback(category));
+  return (
+    <span
+      className="map-planet-badge-stack-item"
+      style={{ "--stack-index": index, "--stack-layer": count - index }}
+      title={`${name}: ${tooltip}`}
+      data-tag-key={category.tagKey || "presentation:planet.unclassified"}
+      aria-hidden="true"
+    >
+      <MapPlanetCategoryIcon category={category} />
+    </span>
+  );
+}
+
+function MapPlanetBadgeStack({ system }) {
+  const categories = planetCategoryTagsFromSystem(system).slice(0, 10);
+  if (!categories.length) return null;
+  return (
+    <span
+      className="map-planet-badge-stack"
+      style={{ "--stack-width": `${21 + Math.max(0, categories.length - 1) * 6}px` }}
+      aria-label={`Planet categories: ${categories.map((category) => category.filterLabel || "unclassified").join(", ")}`}
+    >
+      {categories.map((category, index) => (
+        <MapPlanetBadgeStackItem
+          key={`${category.key}:${index}`}
+          category={category}
+          index={index}
+          count={categories.length}
+        />
+      ))}
+    </span>
+  );
+}
+
 function MapStarSearchShell({
   open,
   mapRadiusLy = DEFAULT_MAP_RADIUS_LY,
@@ -2960,18 +3040,12 @@ function MapStarSearchShell({
           {MAP_PLANET_CATEGORIES.map((category) => {
             const active = (filters.planetCategories || []).includes(category.queryKey);
             return (
-              <button
+              <MapPlanetCategoryFilter
                 key={category.key}
-                type="button"
-                className={`map-search-planet-category ${active ? "active" : ""}`}
-                style={{ "--planet-category-color": category.color }}
-                onClick={() => togglePlanetCategory(category.queryKey)}
-                aria-pressed={active}
-                title={`${category.filterLabel}: confirmed planets with a broad ${category.kind === "neptune" ? "Neptune-size" : category.kind} size or mass class and a ${category.temperature} HZ-screen temperature proxy. Color encodes the temperature category.${category.kind === "giant" ? " The annulus is a category glyph, not evidence of a physical ring system." : ""} Selected categories match any.`}
-              >
-                <MapPlanetCategoryIcon category={category} />
-                {category.filterLabel}
-              </button>
+                category={category}
+                active={active}
+                onToggle={() => togglePlanetCategory(category.queryKey)}
+              />
             );
           })}
         </div>
@@ -2982,6 +3056,7 @@ function MapStarSearchShell({
               <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
                 <MapStellarBadgeStack system={system} />
                 <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
+                <MapPlanetBadgeStack system={system} />
                 <span>{formatNumber(system.dist_ly, 1)} ly</span>
               </button>
             ))}
@@ -2995,6 +3070,7 @@ function MapStarSearchShell({
                 <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
                   <MapStellarBadgeStack system={system} />
                   <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
+                  <MapPlanetBadgeStack system={system} />
                   <span>{formatNumber(routeDistance, 1)} ly</span>
                 </button>
               ))}

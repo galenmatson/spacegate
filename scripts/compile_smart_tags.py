@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import sqlite3
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -18,21 +19,29 @@ import pyarrow.parquet as pq
 
 from smart_tag_registry import LoadedRegistry, canonical_json, load_registry
 
+API_ROOT = Path(__file__).resolve().parents[1] / "srv" / "api"
+if str(API_ROOT) not in sys.path:
+    sys.path.insert(0, str(API_ROOT))
+from app.planet_categories import planet_category_bit_sql  # noqa: E402
+
 
 SCHEMA_VERSION = "spacegate.smart_tags.v2"
 MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
 ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.3"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.4"
 HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
-PLANET_CATEGORY_TO_TAG = {
-    ("jupiter", "hot"): "science:planet.hot_gas_giant",
-    ("jupiter", "temperate"): "science:planet.temperate_gas_giant",
-    ("jupiter", "cold"): "science:planet.cold_gas_giant",
-    ("terrestrial", "hot"): "science:planet.hot_terrestrial",
-    ("terrestrial", "temperate"): "science:planet.temperate_terrestrial",
-    ("terrestrial", "cold"): "science:planet.cold_terrestrial",
+PLANET_CATEGORY_BIT_TO_TAG = {
+    1: "science:planet.hot_gas_giant",
+    2: "science:planet.temperate_gas_giant",
+    4: "science:planet.cold_gas_giant",
+    8: "science:planet.hot_terrestrial",
+    16: "science:planet.temperate_terrestrial",
+    32: "science:planet.cold_terrestrial",
+    64: "science:planet.hot_neptunian",
+    128: "science:planet.temperate_neptunian",
+    256: "science:planet.cold_neptunian",
 }
 EVIDENCE_STATUS_BITS = {
     "source": 1,
@@ -476,30 +485,27 @@ def insert_planet_assignments(
     con: sqlite3.Connection, registry: LoadedRegistry, sample_limit: int | None
 ) -> None:
     allowed = {definition["key"] for definition in registry.definitions}
-    con.execute(
-        "CREATE TEMP TABLE planet_tag_map(size_class TEXT,insolation_class TEXT,"
-        "tag_key TEXT,PRIMARY KEY(size_class,insolation_class))"
-    )
+    con.execute("CREATE TEMP TABLE planet_tag_map(category_bit INTEGER PRIMARY KEY,tag_key TEXT)")
     con.executemany(
-        "INSERT INTO planet_tag_map VALUES (?,?,?)",
+        "INSERT INTO planet_tag_map VALUES (?,?)",
         [
-            (size_class, insolation, tag)
-            for (size_class, insolation), tag in PLANET_CATEGORY_TO_TAG.items()
+            (category_bit, tag)
+            for category_bit, tag in PLANET_CATEGORY_BIT_TO_TAG.items()
             if tag in allowed
         ],
     )
     scope_join = _scope_join("p", sample_limit)
+    category_bit = planet_category_bit_sql("p")
     con.execute(
         f"""
         INSERT INTO tag_assignments
         SELECT 'planet',p.stable_object_key,p.system_id,m.tag_key,
-               'versioned_derivation',p.classifier_version,'derived',1.0,
-               'planet_category_v1',1
+               'versioned_derivation','spacegate.planet_category.v2','derived',1.0,
+               'planet_category_v2',2
         FROM public.planets p
         {scope_join}
         JOIN planet_tag_map m
-          ON m.size_class=p.size_mass_class
-         AND m.insolation_class=p.insolation_class
+          ON m.category_bit=({category_bit})
         WHERE lower(coalesce(p.planet_status,'confirmed')) IN
               ('confirmed','known','published')
         """

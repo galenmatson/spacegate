@@ -5,7 +5,7 @@
   "families": [
     {"family": "stellar spectral and compact classes", "status": "enabled", "reason": "Selected hierarchy-leaf classifications provide object-scoped evidence."},
     {"family": "system architecture and multiplicity", "status": "enabled", "reason": "Accepted hierarchy and member counts support bounded presentation tags."},
-    {"family": "confirmed broad planet categories", "status": "enabled", "reason": "Existing versioned six-category policy is already shared by API and map."},
+    {"family": "confirmed broad planet categories", "status": "enabled", "reason": "The versioned nine-category giant, Neptunian, and terrestrial by hot, temperate, and cold policy is shared by API, map, and Smart Tags."},
     {"family": "habitable-zone screen", "status": "enabled", "reason": "Existing selected planet environment screen is explicitly non-habitability."},
     {"family": "ultra-short-period planet", "status": "enabled", "reason": "Selected period under the conventional one-day screen is deterministic."},
     {"family": "source catalogs and publications", "status": "enabled", "reason": "Rendered as exact reference tokens from source and citation registries, not taxonomy assignments."},
@@ -161,6 +161,9 @@
     {"proposal": "Hot Gas Giant", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},
     {"proposal": "Temperate Gas Giant", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},
     {"proposal": "Cold Gas Giant", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},
+    {"proposal": "Hot Neptunian", "family": "planet category", "status": "enabled", "reason": "Confirmed planet in the shared intermediate size/mass proxy and hot temperature-screen category; the label does not assert composition."},
+    {"proposal": "Temperate Neptunian", "family": "planet category", "status": "enabled", "reason": "Confirmed planet in the shared intermediate size/mass proxy and temperate temperature-screen category; the label does not assert habitability."},
+    {"proposal": "Cold Neptunian", "family": "planet category", "status": "enabled", "reason": "Confirmed planet in the shared intermediate size/mass proxy and cold temperature-screen category; the label does not assert composition."},
     {"proposal": "Hot Terrestrial", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},
     {"proposal": "Temperate Terrestrial", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},
     {"proposal": "Cold Terrestrial", "family": "planet category", "status": "enabled", "reason": "Confirmed planet classified by the shared versioned size/mass and insolation policy."},

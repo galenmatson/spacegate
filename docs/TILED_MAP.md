@@ -152,7 +152,7 @@ color channel. The giant annulus is category iconography, not evidence for a
 physical ring system. Tile schemas v1-v4 remain decodable during immutable-
 artifact transition. The Fulton
 radius gap is evidence for two close-in small-planet populations, not a literal
-terrestrial/Jupiter boundary. A future environment revision should prefer
+terrestrial/Neptunian/giant thresholds. A future environment revision should prefer
 incident flux against a host-temperature-dependent Kopparapu habitable-zone
 model and should preserve the active classifier version and input provenance.
 Relevant primary references are Fulton et al. 2017

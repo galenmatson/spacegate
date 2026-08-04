@@ -4515,6 +4515,26 @@ Representative commits:
   with zero failed bundles, but remains a downstream build-performance item;
   it is not evidence against the runtime identity policy or served read path.
 
+### 169) Broad Planet Navigation Becomes a Shared Nine-Category Vocabulary
+
+- The A2 map presentation adds an intermediate Neptunian row between
+  terrestrial and giant planets while preserving hot, temperate, and cold
+  temperature-screen columns. The three new terms are explicit radius/mass
+  proxies and do not assert Neptune-like composition.
+- Smart Tag compiler v2.4 imports the same category SQL used by API and map
+  compilation rather than maintaining independent thresholds. It creates
+  object-scoped assignments for all nine categories and rolls them up to
+  systems for discovery and filtering.
+- Full compilation for build
+  `20260804T1130Z_68fd99b_a2_planet_badges` completes in 231.4 seconds. The
+  verified artifact contains 34 definitions, 11,419,175 assignments,
+  11,418,608 system memberships, and zero quarantines in a 407,285,760-byte hot
+  SQLite. Neptunian system memberships are 604 hot, 39 temperate, and 16 cold.
+- The map sidebar presents the vocabulary as a row-major 3x3 glyph matrix.
+  Recents and Cool Stars Nearby place stacked planet glyphs opposite stacked
+  stellar classes so system composition remains glanceable without widening
+  visible text labels. CORE, ARM, DISC, RIM, and Public Read are unchanged.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

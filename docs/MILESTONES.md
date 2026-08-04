@@ -927,9 +927,9 @@ Deliverables:
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window
-- [x] M8.1.5 replaces the map's single broad habitable-zone control with six
-  independently toggleable hot/temperate/cold Jupiter/terrestrial navigation
-  bins. Tile labels and API search share one conservative confirmed-planet
+- [x] M8.1.5 replaces the map's single broad habitable-zone control with nine
+  independently toggleable hot/temperate/cold giant/Neptunian/terrestrial
+  navigation bins. Tile labels, Smart Tags, and API search share one confirmed-planet
   policy; ambiguous planets and TESS candidate/negative evidence remain
   explicit and do not contaminate canonical counts
 
@@ -3035,6 +3035,10 @@ Delivered:
   294,656,487-byte complete assignment Parquet, and a 756,799-byte exact source
   contribution Parquet. It accounts 11,418,384 assignments over 5,869,091
   systems without mutating Public Read or a science layer.
+- compiler v2.4 shares the nine-category planet SQL with API/map compilation
+  and adds object-scoped Neptunian assignments. The verified full build finishes
+  in 231.4 seconds with 11,419,175 assignments, 11,418,608 system memberships,
+  34 definitions, zero quarantines, and a 407,285,760-byte hot artifact.
 - two clean full compilations to separate roots reproduce every logical and
   physical hash. The hot artifact is about 6.1 GB (5.7 GiB) smaller than the
   string-heavy v1 baseline and remains below the hard 1.5-GiB serving gate.

@@ -43,7 +43,9 @@ def make_public_read(path: Path) -> None:
         CREATE TABLE planets(
           stable_object_key TEXT,system_id INTEGER,planet_status TEXT,
           size_mass_class TEXT,insolation_class TEXT,classifier_version TEXT,
-          orbital_period_days REAL,selected_fact_lineage_json TEXT
+          orbital_period_days REAL,selected_fact_lineage_json TEXT,
+          radius_earth REAL,radius_jup REAL,mass_earth REAL,mass_jup REAL,
+          eq_temp_k REAL,insol_earth REAL
         );
         CREATE TABLE hierarchy_bundles(
           system_id INTEGER,payload_gzip BLOB,payload_sha256 TEXT
@@ -54,7 +56,7 @@ def make_public_read(path: Path) -> None:
         "INSERT INTO systems VALUES (?,?,?,?,?,?,?,?,?,?)",
         [
             (1, "canon:system:one", 1, 0, 10.0, 0, 0, 0, 0, 0),
-            (2, "canon:system:two", 3, 1, 50.0, 1, 1, 1, 1, 1),
+            (2, "canon:system:two", 3, 2, 50.0, 1, 1, 1, 1, 1),
         ],
     )
     con.executemany(
@@ -66,18 +68,42 @@ def make_public_read(path: Path) -> None:
             ("canon:star:two-c", 2, "WD", "source_model", "fact-wd-model", 0.8),
         ],
     )
-    con.execute(
-        "INSERT INTO planets VALUES (?,?,?,?,?,?,?,?)",
-        (
-            "canon:planet:two-b",
-            2,
-            "confirmed",
-            "terrestrial",
-            "temperate",
-            "planet-category-v1",
-            0.75,
-            json.dumps({"orbital_period_days": {"fact_id": "fact-period"}}),
-        ),
+    con.executemany(
+        "INSERT INTO planets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            (
+                "canon:planet:two-b",
+                2,
+                "confirmed",
+                "terrestrial",
+                "temperate",
+                "planet-category-v1",
+                0.75,
+                json.dumps({"orbital_period_days": {"fact_id": "fact-period"}}),
+                1.0,
+                None,
+                1.0,
+                None,
+                280.0,
+                1.0,
+            ),
+            (
+                "canon:planet:two-c",
+                2,
+                "confirmed",
+                "jupiter",
+                "hot",
+                "planet-category-v1",
+                8.0,
+                json.dumps({"orbital_period_days": {"fact_id": "fact-period-c"}}),
+                4.0,
+                None,
+                20.0,
+                None,
+                500.0,
+                12.0,
+            ),
+        ],
     )
     hierarchy = {
         "hierarchy": {
@@ -166,6 +192,22 @@ def test_registry_is_typed_namespaced_and_expression_free() -> None:
     assert len(proposals) >= 125
     assert all(row["reason"] for row in proposals)
     assert len(registry.legacy_token_inventory["surfaces"]) >= 20
+    planet_category_keys = {
+        definition["key"]
+        for definition in registry.definitions
+        if definition["evaluator"]["id"] == "planet_category_v2"
+    }
+    assert planet_category_keys == {
+        "science:planet.hot_gas_giant",
+        "science:planet.temperate_gas_giant",
+        "science:planet.cold_gas_giant",
+        "science:planet.hot_neptunian",
+        "science:planet.temperate_neptunian",
+        "science:planet.cold_neptunian",
+        "science:planet.hot_terrestrial",
+        "science:planet.temperate_terrestrial",
+        "science:planet.cold_terrestrial",
+    }
 
 
 def test_compiler_materializes_object_assignments_rollups_and_sources(
@@ -193,6 +235,7 @@ def test_compiler_materializes_object_assignments_rollups_and_sources(
         assert "science:system.hierarchical" in system_two
         assert "science:system.planet_host" in system_two
         assert "science:planet.temperate_terrestrial" in system_two
+        assert "science:planet.hot_neptunian" in system_two
         assert "science:planet.habitable_zone_screen" in system_two
         assert "science:planet.ultrashort_period" in system_two
         status_rows = {

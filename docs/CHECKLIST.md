@@ -1033,12 +1033,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   HD 18134, and Castor without system-specific build rules
 - [x] Default map stellar-class badges to `All` and remove the redundant search
   toolbar `Close Results` action while retaining the results-pane close action
-- [x] Add tile-v4 confirmed-planet category badges for hot/temperate/cold gas
-  giants and terrestrial planets, capped at one per category and omitted when
-  composition or environment evidence is ambiguous
-- [x] Replace the map's single habitable-zone toggle with six independently
+- [x] Add tile-v5 confirmed-planet category badges for hot/temperate/cold
+  giant, Neptunian, and terrestrial planets, capped at one per category and
+  explicitly marked when the broad classification is unavailable
+- [x] Replace the map's single habitable-zone toggle with nine independently
   toggleable broad confirmed-planet categories, using identical versioned
   category SQL for tile masks and API search and explicit OR semantics
+- [x] Present the nine planet filters as an icon-only 3x3 matrix backed by
+  Smart Tag hover definitions, and add planet glyph stacks opposite stellar
+  stacks in Recents and Cool Stars Nearby
 - [ ] Replace the map category environment temperature proxy with an auditable
   incident-flux-versus-host-dependent-HZ derivation, including safe single-host
   recovery and multi-star irradiation/component-binding rules

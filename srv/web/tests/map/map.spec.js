@@ -128,26 +128,28 @@ test.describe("public 3D map beta", () => {
       .toBeGreaterThanOrEqual(230);
     const planetCategoryToggles = page.locator(".map-search-planet-category");
     await expect(planetCategoryToggles).toHaveCount(9);
-    await expect(planetCategoryToggles, "planet category controls should replace the broad HZ toggle").toContainText([
-      "Hot Giant",
-      "Temperate Giant",
-      "Cold Giant",
-      "Hot Neptunian",
-      "Temperate Neptunian",
-      "Cold Neptunian",
-      "Hot Terrestrial",
-      "Temperate Terrestrial",
-      "Cold Terrestrial",
-    ]);
-    await planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" }).click();
-    await expect(planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" })).toHaveAttribute("aria-pressed", "true");
-    await planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" }).click();
-    await expect(planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" })).toHaveAttribute("aria-pressed", "false");
+    expect(await planetCategoryToggles.allTextContents()).toEqual(Array(9).fill(""));
+    const categoryGridColumns = await page.locator(".map-search-planet-categories").evaluate((node) => (
+      getComputedStyle(node).gridTemplateColumns.split(" ").filter(Boolean).length
+    ));
+    expect(categoryGridColumns).toBe(3);
+    const temperateTerrestrial = planetCategoryToggles.nth(7);
+    await expect(temperateTerrestrial).toHaveAttribute("aria-label", "Temperate Terrestrial Planet filter");
+    await temperateTerrestrial.click();
+    await expect(temperateTerrestrial).toHaveAttribute("aria-pressed", "true");
+    await temperateTerrestrial.click();
+    await expect(temperateTerrestrial).toHaveAttribute("aria-pressed", "false");
     const temperatureInputs = page.locator(".map-search-topbar .map-search-range input[type='range']");
     await expect(temperatureInputs).toHaveCount(2);
     await expect(temperatureInputs.nth(1)).toHaveValue("83000");
     await expect(page.locator(".map-search-recents", { hasText: "Cool Stars Nearby" })).toBeVisible();
     await expect(page.locator(".map-stellar-badge-stack").first()).toBeVisible();
+    const planetStack = page.locator(".map-search-recents .map-planet-badge-stack").first();
+    await expect(planetStack).toBeVisible();
+    const planetStackPill = planetStack.locator("xpath=ancestor::button");
+    await expect(planetStackPill.locator(":scope > .map-stellar-badge-stack")).toBeVisible();
+    await expect(planetStackPill.locator(":scope > .map-search-recent-name")).toBeVisible();
+    await expect(planetStackPill.locator(":scope > .map-planet-badge-stack")).toBeVisible();
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
       .toBe("right_of_name_a2_category_v5");
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePalette || ""))
@@ -161,6 +163,8 @@ test.describe("public 3D map beta", () => {
     await expect(categoryIcons.nth(3)).toHaveAttribute("data-planet-kind", "neptune");
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-kind", "terrestrial");
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-temperature", "cold");
+    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("data-tag-key", "science:planet.hot_neptunian");
+    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("title", /intermediate|Neptune-size/i);
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");
