@@ -3139,6 +3139,12 @@ Accepted decisions:
 - prefetch WISE metadata after page idle and request the preview within roughly
   one to two viewports, with cancellation/abandonment accounting. Do not issue
   an unconditional IRSA image request for every opened System Page.
+- project the simulation OBJECTS list from the same `host_body_key` contract as
+  the renderer. Planets absent from the stellar simulation tree are inserted
+  directly beneath their resolved host with inspectable parent/depth metadata;
+  unresolved hosts remain root-level rather than inheriting visual parentage
+  from list order. Star Map planet glyphs use painted-extent spacing so small
+  terrestrial categories do not reserve a giant-sized slot.
 
 Imagery cache gate:
 

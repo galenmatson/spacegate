@@ -1344,11 +1344,24 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     .slice(0, 10)
     .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
     .filter(Boolean);
+  const planetBadgeGap = 2;
+  const planetBadgeLayout = [];
+  let planetBadgePaintWidth = 0;
+  planetTags.forEach((tag, index) => {
+    const halfWidth = tag.kind === "giant"
+      ? planetBadgeSize * 0.5
+      : (tag.kind === "neptune" ? planetBadgeSize * 0.29 : planetBadgeSize * 0.23);
+    const center = index === 0
+      ? halfWidth
+      : planetBadgePaintWidth + planetBadgeGap + halfWidth;
+    planetBadgeLayout.push({ center, halfWidth });
+    planetBadgePaintWidth = center + halfWidth;
+  });
   const stellarBadgeWidth = badgeTags.length
     ? badgeTags.length * stellarBadgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap
     : 0;
   const planetBadgeWidth = planetTags.length
-    ? badgeGap + planetTags.length * planetBadgeSize + Math.max(0, planetTags.length - 1) * 3
+    ? badgeGap + planetBadgePaintWidth
     : 0;
   const textX = paddingX + stellarBadgeWidth;
   const planetStartX = textX + metrics.width + badgeGap;
@@ -1395,7 +1408,7 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     ctx.textAlign = "start";
   });
   planetTags.forEach((tag, planetIndex) => {
-    const badgeX = planetStartX + planetBadgeSize / 2 + planetIndex * (planetBadgeSize + 3);
+    const badgeX = planetStartX + planetBadgeLayout[planetIndex].center;
     const badgeY = height / 2;
     drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, planetBadgeSize);
   });
@@ -1602,6 +1615,7 @@ function PriorityLabels({
     gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_a2_category_v5";
     gl.domElement.dataset.mapLabelPlanetBadgePalette = "a2_chromatic_bands_hot_temperate_cold_v2";
     gl.domElement.dataset.mapLabelPlanetBadgeScale = "giant_body_matches_stellar_v1";
+    gl.domElement.dataset.mapLabelPlanetBadgeSpacing = "painted_extent_packed_v1";
     gl.domElement.dataset.mapPinnedLabelCount = String((pinnedLabelSystems || []).length);
   }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems, pinnedLabelSystems]);
 

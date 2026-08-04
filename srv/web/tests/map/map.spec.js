@@ -159,6 +159,8 @@ test.describe("public 3D map beta", () => {
       .toBe("a2_chromatic_bands_hot_temperate_cold_v2");
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgeScale || ""))
       .toBe("giant_body_matches_stellar_v1");
+    await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgeSpacing || ""))
+      .toBe("painted_extent_packed_v1");
     const categoryIcons = page.locator(".map-search-planet-category .map-planet-category-icon");
     await expect(categoryIcons).toHaveCount(9);
     await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-kind", "giant");
@@ -2384,6 +2386,58 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${resolvedSystemIds.get("HD 110067")}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(4);
     await expect(page.locator(".system-detail-stellar-tags .system-object-badge-planet")).toHaveCount(6);
+  });
+
+  test("OBJECTS places fallback planets directly beneath their resolved host star", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "host-aware OBJECTS hierarchy check uses desktop detail layout");
+    for (const target of [
+      { query: "HD 110067", planetCount: 6 },
+      { query: "Gl 649.1A", planetCount: 3 },
+    ]) {
+      const resolved = await resolveGoldenSystem(page, { query: target.query });
+      expect(resolved?.system_id, `${target.query} system_id`).toBeTruthy();
+      const sceneResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}/simulation-scene`);
+      expect(sceneResponse.ok(), `${target.query} simulation scene`).toBeTruthy();
+      const scene = await sceneResponse.json();
+      const stars = scene.render_scene?.bodies?.stars || [];
+      const planets = scene.render_scene?.bodies?.planets || [];
+      expect(planets, `${target.query} planet inventory`).toHaveLength(target.planetCount);
+      const hostKeys = [...new Set(planets.map((planet) => planet.host_body_key).filter(Boolean))];
+      expect(hostKeys, `${target.query} should have one resolved planet host`).toHaveLength(1);
+      const host = stars.find((star) => [
+        star.render_key,
+        star.key,
+        star.source_component_key,
+        star.stable_object_key,
+        star.source?.stable_component_key,
+        star.source?.stable_object_key,
+      ].filter(Boolean).map(String).includes(String(hostKeys[0])));
+      expect(host, `${target.query} host body should resolve to a rendered star`).toBeTruthy();
+
+      await page.goto(`/systems/${resolved.system_id}`, { waitUntil: "domcontentloaded" });
+      const objectRows = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip");
+      const resolvedHostRow = page
+        .locator("[data-testid='system-preview-object-list'] .system-preview-object-chip[data-object-kind='star']")
+        .filter({ hasText: host.display_name })
+        .first();
+      await expect(resolvedHostRow, `${target.query} host row`).toBeVisible();
+      const hostItemKey = await resolvedHostRow.getAttribute("data-object-key");
+      const hostDepth = Number(await resolvedHostRow.getAttribute("data-object-depth"));
+      expect(hostItemKey, `${target.query} host display key`).toBeTruthy();
+      const planetRows = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip[data-object-kind='planet']");
+      await expect(planetRows).toHaveCount(target.planetCount, { timeout: 15000 });
+      expect(await planetRows.evaluateAll((rows) => rows.map((row) => row.dataset.objectParentKey)))
+        .toEqual(Array(target.planetCount).fill(hostItemKey));
+      expect(await planetRows.evaluateAll((rows) => rows.map((row) => Number(row.dataset.objectDepth))))
+        .toEqual(Array(target.planetCount).fill(hostDepth + 1));
+      const rowKindsAndKeys = await objectRows.evaluateAll((rows) => rows.map((row) => ({
+        kind: row.dataset.objectKind,
+        key: row.dataset.objectKey,
+      })));
+      const hostIndex = rowKindsAndKeys.findIndex((row) => row.key === hostItemKey);
+      expect(rowKindsAndKeys.slice(hostIndex + 1, hostIndex + 1 + target.planetCount).every((row) => row.kind === "planet"))
+        .toBeTruthy();
+    }
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

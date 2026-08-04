@@ -65,6 +65,11 @@ Already in place:
 - `render_scene_v0.2` attaches core planet render bodies to rendered host stars
   with `host_body_key` when `core.planets.star_id` resolves cleanly; the
   payload records the host-resolution basis for audit/debugging
+- the browser OBJECTS projection uses that same `host_body_key` to insert any
+  planet omitted from the stellar `simulation_tree_v1` directly after and one
+  level beneath its resolved host. Rows expose their display parent and depth
+  for regression tests. An unresolved host is shown at the root level instead
+  of being appended beneath the last stellar row and implying false parentage.
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components

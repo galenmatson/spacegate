@@ -726,7 +726,7 @@ function simulationObjectList(scene) {
     };
   }
 
-  function addTreeNode(items, nodeKey, depth, seen) {
+  function addTreeNode(items, nodeKey, depth, seen, parentKey = null) {
     if (!nodeKey || seen.has(nodeKey)) {
       return;
     }
@@ -735,6 +735,7 @@ function simulationObjectList(scene) {
     if (!node) {
       return;
     }
+    let itemKey = parentKey;
     if (node.node_type !== "root") {
       let record = null;
       let label = "Group";
@@ -757,6 +758,7 @@ function simulationObjectList(scene) {
         label = node.relation_kind === "binary" ? "Binary" : "Group";
       }
       const key = `${node.node_type}:${node.body_key || node.node_key || node.display_name}`;
+      itemKey = key;
       items.push({
         key,
         name: node.display_name || record?.display_name || record?.name || "Object",
@@ -765,28 +767,35 @@ function simulationObjectList(scene) {
         payload,
         record,
         recordKind: node.node_type === "body" ? (node.body_kind === "planet" ? "planet" : "star") : "subsystem",
+        parentKey,
       });
     }
     const childDepth = node.node_type === "root" ? depth : depth + 1;
-    (Array.isArray(node.children) ? node.children : []).forEach((childKey) => addTreeNode(items, childKey, childDepth, seen));
+    (Array.isArray(node.children) ? node.children : []).forEach((childKey) => (
+      addTreeNode(items, childKey, childDepth, seen, itemKey)
+    ));
   }
 
-  if (rootNodeKey && treeNodes[rootNodeKey]) {
-    const items = [];
-    addTreeNode(items, rootNodeKey, 0, new Set());
+  function withHostAttachedPlanets(items) {
     const representedPlanetKeys = new Set(
       items
         .filter((item) => item.recordKind === "planet")
-        .flatMap((item) => [
-          item.record?.render_key,
-          item.record?.stable_object_key,
-          item.record?.key,
-          item.record?.source?.stable_object_key,
-          item.payload?.id,
-        ])
+        .flatMap((item) => Array.from(keyAliasesForBody(item.record || {})).concat(item.payload?.id || []))
         .filter(Boolean)
         .map(String),
     );
+    const stellarItems = items.filter((item) => item.recordKind === "star" && item.record);
+    const hostItemByAlias = new Map();
+    const hostItemByStarId = new Map();
+    stellarItems.forEach((item) => {
+      keyAliasesForBody(item.record).forEach((alias) => hostItemByAlias.set(String(alias), item));
+      const starId = item.record?.source?.star_id;
+      if (starId !== null && starId !== undefined && starId !== "") {
+        hostItemByStarId.set(String(starId), item);
+      }
+    });
+    const planetsByHostItemKey = new Map();
+    const unmatchedPlanets = [];
     planets
       .slice()
       .sort((a, b) => {
@@ -798,26 +807,41 @@ function simulationObjectList(scene) {
         return String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || ""));
       })
       .forEach((planet) => {
-        const keys = [
-          planet.render_key,
-          planet.stable_object_key,
-          planet.key,
-          planet.source?.stable_object_key,
-        ].filter(Boolean).map(String);
-        if (keys.some((key) => representedPlanetKeys.has(key))) {
+        const aliases = Array.from(keyAliasesForBody(planet));
+        if (aliases.some((key) => representedPlanetKeys.has(String(key)))) {
           return;
         }
-        items.push({
+        const hostKey = String(planet.host_body_key || "");
+        const hostStarId = planet.host_star_id;
+        const hostItem = (hostKey ? hostItemByAlias.get(hostKey) : null)
+          || (hostStarId !== null && hostStarId !== undefined && hostStarId !== ""
+            ? hostItemByStarId.get(String(hostStarId))
+            : null);
+        const planetItem = {
           key: `planet:${planet.render_key || planet.stable_object_key || planet.key || planet.display_name}`,
           name: planet.display_name || planet.name || "Planet",
           label: "Planet",
-          depth: 1,
+          depth: hostItem ? hostItem.depth + 1 : 0,
           payload: objectHoverPayload("planet", planet),
           record: planet,
           recordKind: "planet",
-        });
+          parentKey: hostItem?.key || null,
+        };
+        if (!hostItem) {
+          unmatchedPlanets.push(planetItem);
+          return;
+        }
+        const attached = planetsByHostItemKey.get(hostItem.key) || [];
+        attached.push(planetItem);
+        planetsByHostItemKey.set(hostItem.key, attached);
       });
-    return items.slice(0, 32);
+    return items.flatMap((item) => [item, ...(planetsByHostItemKey.get(item.key) || [])]).concat(unmatchedPlanets);
+  }
+
+  if (rootNodeKey && treeNodes[rootNodeKey]) {
+    const items = [];
+    addTreeNode(items, rootNodeKey, 0, new Set());
+    return withHostAttachedPlanets(items).slice(0, 32);
   }
 
   const items = [];
@@ -832,6 +856,7 @@ function simulationObjectList(scene) {
         depth: 0,
         payload: objectHoverPayload("subsystem", subsystem),
         recordKind: "subsystem",
+        parentKey: null,
       });
     });
   stars
@@ -846,30 +871,10 @@ function simulationObjectList(scene) {
         payload: objectHoverPayload("star", star),
         record: star,
         recordKind: "star",
+        parentKey: null,
       });
     });
-  planets
-    .slice()
-    .sort((a, b) => {
-      const aAxis = Number(fieldRecord(a.fields, "semi_major_axis_au")?.value);
-      const bAxis = Number(fieldRecord(b.fields, "semi_major_axis_au")?.value);
-      if (Number.isFinite(aAxis) && Number.isFinite(bAxis)) {
-        return aAxis - bAxis;
-      }
-      return String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || ""));
-    })
-    .forEach((planet) => {
-      items.push({
-        key: `planet:${planet.render_key || planet.stable_object_key || planet.key || planet.display_name}`,
-        name: planet.display_name || planet.name || "Planet",
-        label: "Planet",
-        depth: stars.length || subsystems.length ? 2 : 0,
-        payload: objectHoverPayload("planet", planet),
-        record: planet,
-        recordKind: "planet",
-      });
-    });
-  return items.slice(0, 32);
+  return withHostAttachedPlanets(items).slice(0, 32);
 }
 
 function compactObjectVitals(item) {
@@ -1685,6 +1690,7 @@ function keyAliasesForBody(body) {
   };
   add(body?.render_key);
   add(body?.key);
+  add(body?.source_component_key);
   add(body?.stable_object_key);
   add(body?.source?.stable_component_key);
   add(body?.source?.stable_object_key);
@@ -4810,6 +4816,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   key={item.key}
                   className="system-preview-object-chip"
                   style={{ "--object-depth": item.depth }}
+                  data-object-key={item.key}
+                  data-object-kind={item.recordKind}
+                  data-object-depth={item.depth}
+                  data-object-parent-key={item.parentKey || ""}
                   onClick={() => setPinnedObject(item.payload)}
                   onMouseEnter={() => setHoveredObject(item.payload)}
                   onMouseLeave={() => setHoveredObject(null)}

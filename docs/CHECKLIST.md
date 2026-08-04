@@ -973,6 +973,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Expose the selected default tier, browser capability signals, and exact
   Enhanced-gate blockers in the opt-in Runtime diagnostics overlay without
   transmitting hardware fingerprint details to the server
+- [x] Make the simulation OBJECTS projection insert planets beneath their
+  resolved render host, expose parent/depth metadata for browser verification,
+  and keep unresolved hosts as root-level fallbacks rather than implying the
+  final stellar row is their parent
+- [x] Pack Star Map planet glyphs by painted category extent so terrestrial and
+  Neptune-size badges shorten labels without shrinking their established A2
+  visual scale or allowing giant annuli to collide
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for
