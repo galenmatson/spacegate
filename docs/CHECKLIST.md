@@ -2138,6 +2138,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### E3. Remaining Product Roadmap
 
+- [x] Advance map planet badges to the A2 3x3 presentation contract: preserve
+  full-body hot/temperate/cold color, distinguish terrestrial-size,
+  Neptune-size, and giant classes through relative scale and surface language,
+  retain a neutral confirmed-planet fallback, and keep tile v1-v4 decoding
+  compatible with the two-byte tile v5 mask
 - [x] Refresh map/system Playwright expectations for current naming, preview,
   Explorer, and fallback policies; full local map suite passes on photon
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror

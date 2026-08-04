@@ -39,15 +39,19 @@ class PlanetCategoryTests(unittest.TestCase):
             ).fetchone()[0]
         )
 
-    def test_radius_precedes_mass_and_ambiguous_radius_is_unclassified(self) -> None:
+    def test_radius_precedes_mass_and_preserves_neptune_size_middle(self) -> None:
         self.assertEqual(self.category_bit((1.5, None, 80.0, None, 350.0, None)), 8)
-        self.assertEqual(self.category_bit((3.0, None, 100.0, None, 350.0, None)), 0)
+        self.assertEqual(self.category_bit((3.0, None, 100.0, None, 350.0, None)), 64)
         self.assertEqual(self.category_bit((8.0, None, 2.0, None, 350.0, None)), 1)
 
-    def test_mass_only_policy_preserves_an_unclassified_middle(self) -> None:
+    def test_mass_only_policy_preserves_neptune_size_middle(self) -> None:
         self.assertEqual(self.category_bit((None, None, 10.0, None, 250.0, None)), 16)
-        self.assertEqual(self.category_bit((None, None, 30.0, None, 250.0, None)), 0)
+        self.assertEqual(self.category_bit((None, None, 30.0, None, 250.0, None)), 128)
         self.assertEqual(self.category_bit((None, None, 50.0, None, 250.0, None)), 2)
+
+    def test_missing_size_or_temperature_uses_neutral_fallback(self) -> None:
+        self.assertEqual(self.category_bit((None, None, None, None, 250.0, None)), 512)
+        self.assertEqual(self.category_bit((3.0, None, None, None, None, None)), 512)
 
     def test_insolation_is_a_temperature_fallback(self) -> None:
         self.assertEqual(self.category_bit((1.0, None, None, None, None, 1.0)), 16)
@@ -56,9 +60,9 @@ class PlanetCategoryTests(unittest.TestCase):
 
     def test_filter_categories_are_deduplicated_and_or_masked(self) -> None:
         categories = parse_planet_categories(
-            "hot_jupiter, temperate_terrestrial,hot_jupiter"
+            "hot_jupiter, temperate_terrestrial,hot_giant"
         )
-        self.assertEqual(categories, ["hot_jupiter", "temperate_terrestrial"])
+        self.assertEqual(categories, ["hot_giant", "temperate_terrestrial"])
         self.assertEqual(planet_category_mask(categories), 17)
 
 

@@ -6,6 +6,7 @@ const RECORD_SIZES = {
   spacegate_map_tile_v2: 72,
   spacegate_map_tile_v3: 80,
   spacegate_map_tile_v4: 81,
+  spacegate_map_tile_v5: 82,
 };
 const SPECTRAL_CLASSES = [
   "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
@@ -15,12 +16,16 @@ const BADGE_CLASSES = [
   null, "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WD", "WR", "NS", "BLACK HOLE", "UNKNOWN",
 ];
 const PLANET_BADGE_CLASSES = [
-  { bit: 1, key: "hot_gas_giant", label: "HJ" },
-  { bit: 2, key: "temperate_gas_giant", label: "TJ" },
-  { bit: 4, key: "cold_gas_giant", label: "CJ" },
+  { bit: 1, key: "hot_giant", label: "HG" },
+  { bit: 2, key: "temperate_giant", label: "TG" },
+  { bit: 4, key: "cold_giant", label: "CG" },
   { bit: 8, key: "hot_terrestrial", label: "HT" },
   { bit: 16, key: "temperate_terrestrial", label: "TT" },
   { bit: 32, key: "cold_terrestrial", label: "CT" },
+  { bit: 64, key: "hot_neptune", label: "HN" },
+  { bit: 128, key: "temperate_neptune", label: "TN" },
+  { bit: 256, key: "cold_neptune", label: "CN" },
+  { bit: 512, key: "unclassified_planet", label: "?" },
 ];
 const sharedTileCache = new Map();
 
@@ -71,12 +76,14 @@ export async function decodeMapTile(input) {
     const keyLength = view.getUint16(offset + 60, true);
     const flags = view.getUint8(offset + 67);
     const spectralClass = SPECTRAL_CLASSES[view.getUint8(offset + 66)] || "UNKNOWN";
-    const packedBadges = ["spacegate_map_tile_v3", "spacegate_map_tile_v4"].includes(header.schema_version)
+    const packedBadges = ["spacegate_map_tile_v3", "spacegate_map_tile_v4", "spacegate_map_tile_v5"].includes(header.schema_version)
       ? view.getBigUint64(offset + 72, true)
       : 0n;
-    const planetBadgeMask = header.schema_version === "spacegate_map_tile_v4"
-      ? view.getUint8(offset + 80)
-      : 0;
+    const planetBadgeMask = header.schema_version === "spacegate_map_tile_v5"
+      ? view.getUint16(offset + 80, true)
+      : header.schema_version === "spacegate_map_tile_v4"
+        ? view.getUint8(offset + 80)
+        : 0;
     const stellarClassBadges = [];
     for (let badgeIndex = 0; badgeIndex < 16; badgeIndex += 1) {
       const code = Number((packedBadges >> BigInt(badgeIndex * 4)) & 0xfn);

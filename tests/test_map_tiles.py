@@ -80,18 +80,18 @@ class MapTileContractTests(unittest.TestCase):
         self.assertEqual(names, {17788193: "Sol"})
         self.assertEqual(badges, {17788193: ["G"]})
 
-    def test_planet_badge_mask_is_capped_to_six_categories(self) -> None:
+    def test_planet_badge_mask_carries_nine_categories_and_unknown(self) -> None:
         row = (
             17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
             30.0, "G", 1, 8, 1, 1, 5772.0,
-            ["G"], 255, "Sol", "Sol", "Sun",
+            ["G"], 2047, "Sol", "Sol", "Sun",
         )
         raw, _ = encode_tile(
             depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1,
         )
         header_length = struct.unpack_from("<I", raw, 8)[0]
         record = RECORD_STRUCT.unpack_from(raw, 12 + header_length)
-        self.assertEqual(record[-1], 63)
+        self.assertEqual(record[-1], 1023)
 
     def test_tile_profile_prefers_build_pinned_disc_lineage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

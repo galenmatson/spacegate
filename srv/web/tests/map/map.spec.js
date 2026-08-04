@@ -127,11 +127,14 @@ test.describe("public 3D map beta", () => {
     await expect.poll(() => page.locator(".map-search-sidebar").evaluate((node) => Math.round(node.getBoundingClientRect().width)))
       .toBeGreaterThanOrEqual(230);
     const planetCategoryToggles = page.locator(".map-search-planet-category");
-    await expect(planetCategoryToggles).toHaveCount(6);
+    await expect(planetCategoryToggles).toHaveCount(9);
     await expect(planetCategoryToggles, "planet category controls should replace the broad HZ toggle").toContainText([
-      "Hot Jupiter",
-      "Temperate Jupiter",
-      "Cold Jupiter",
+      "Hot Giant",
+      "Temperate Giant",
+      "Cold Giant",
+      "Hot Neptunian",
+      "Temperate Neptunian",
+      "Cold Neptunian",
       "Hot Terrestrial",
       "Temperate Terrestrial",
       "Cold Terrestrial",
@@ -146,15 +149,16 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-recents", { hasText: "Cool Stars Nearby" })).toBeVisible();
     await expect(page.locator(".map-stellar-badge-stack").first()).toBeVisible();
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
-      .toBe("right_of_name_flat_category_v3");
+      .toBe("right_of_name_a2_category_v4");
     await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePalette || ""))
-      .toBe("ink_light_hot_temperate_cold_v1");
+      .toBe("a2_chromatic_bands_hot_temperate_cold_v2");
     const categoryIcons = page.locator(".map-search-planet-category .map-planet-category-icon");
-    await expect(categoryIcons).toHaveCount(6);
-    await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-kind", "jupiter");
+    await expect(categoryIcons).toHaveCount(9);
+    await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-kind", "giant");
     await expect(categoryIcons.nth(0)).toHaveAttribute("data-planet-temperature", "hot");
-    await expect(categoryIcons.nth(3)).toHaveAttribute("data-planet-kind", "terrestrial");
-    await expect(categoryIcons.nth(5)).toHaveAttribute("data-planet-temperature", "cold");
+    await expect(categoryIcons.nth(3)).toHaveAttribute("data-planet-kind", "neptune");
+    await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-kind", "terrestrial");
+    await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-temperature", "cold");
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");

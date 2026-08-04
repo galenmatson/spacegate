@@ -1137,41 +1137,71 @@ const MAP_PLANET_BADGE_PALETTE = Object.freeze({
   temperate: "#e4c66f",
   cold: "#65c8e8",
 });
+const MAP_PLANET_BAND_PALETTE = Object.freeze({
+  hot: "#9f2940",
+  temperate: "#87651d",
+  cold: "#146f91",
+});
 const MAP_PLANET_CATEGORIES = [
-  { bit: 1, key: "hot_gas_giant", queryKey: "hot_jupiter", filterLabel: "Hot Jupiter", label: "HJ", temperature: "hot", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.hot },
-  { bit: 2, key: "temperate_gas_giant", queryKey: "temperate_jupiter", filterLabel: "Temperate Jupiter", label: "TJ", temperature: "temperate", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.temperate },
-  { bit: 4, key: "cold_gas_giant", queryKey: "cold_jupiter", filterLabel: "Cold Jupiter", label: "CJ", temperature: "cold", kind: "jupiter", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 1, key: "hot_giant", queryKey: "hot_giant", filterLabel: "Hot Giant", label: "HG", temperature: "hot", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 2, key: "temperate_giant", queryKey: "temperate_giant", filterLabel: "Temperate Giant", label: "TG", temperature: "temperate", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 4, key: "cold_giant", queryKey: "cold_giant", filterLabel: "Cold Giant", label: "CG", temperature: "cold", kind: "giant", color: MAP_PLANET_BADGE_PALETTE.cold },
+  { bit: 64, key: "hot_neptune", queryKey: "hot_neptune", filterLabel: "Hot Neptunian", label: "HN", temperature: "hot", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.hot },
+  { bit: 128, key: "temperate_neptune", queryKey: "temperate_neptune", filterLabel: "Temperate Neptunian", label: "TN", temperature: "temperate", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.temperate },
+  { bit: 256, key: "cold_neptune", queryKey: "cold_neptune", filterLabel: "Cold Neptunian", label: "CN", temperature: "cold", kind: "neptune", color: MAP_PLANET_BADGE_PALETTE.cold },
   { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", temperature: "hot", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.hot },
   { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", temperature: "temperate", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.temperate },
   { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", temperature: "cold", kind: "terrestrial", color: MAP_PLANET_BADGE_PALETTE.cold },
 ];
-const MAP_PLANET_BADGE_STYLES = Object.fromEntries(
-  MAP_PLANET_CATEGORIES.map((category) => [category.key, category]),
-);
+const MAP_PLANET_UNKNOWN_BADGE = Object.freeze({
+  bit: 512,
+  key: "unclassified_planet",
+  label: "?",
+  temperature: "unknown",
+  kind: "unknown",
+  color: MAP_PLANET_BADGE_PALETTE.light,
+});
+const MAP_PLANET_BADGE_STYLES = Object.fromEntries([
+  ...MAP_PLANET_CATEGORIES.map((category) => [category.key, category]),
+  [MAP_PLANET_UNKNOWN_BADGE.key, MAP_PLANET_UNKNOWN_BADGE],
+]);
 
 function MapPlanetCategoryIcon({ category }) {
   const accent = category?.color || MAP_PLANET_BADGE_PALETTE.temperate;
-  const isJupiter = category?.kind === "jupiter";
+  const band = MAP_PLANET_BAND_PALETTE[category?.temperature] || MAP_PLANET_BADGE_PALETTE.ink;
+  const kind = category?.kind || "unknown";
+  const isGiant = kind === "giant";
+  const isNeptune = kind === "neptune";
+  const isTerrestrial = kind === "terrestrial";
   return (
     <svg
       className="map-planet-category-icon"
-      viewBox="0 0 24 24"
+      viewBox="0 0 32 32"
       aria-hidden="true"
-      data-planet-kind={isJupiter ? "jupiter" : "terrestrial"}
+      data-planet-kind={kind}
       data-planet-temperature={category?.temperature || "temperate"}
     >
-      {isJupiter && <ellipse cx="12" cy="12" rx="10.5" ry="4.2" transform="rotate(-18 12 12)" fill="none" stroke={accent} strokeWidth="2.2" />}
-      <circle cx="12" cy="12" r="6.8" fill={accent} stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.2" />
-      {isJupiter ? (
+      {isGiant && <path d="M1.2 16 A14.8 5.7 0 0 1 30.8 16" transform="rotate(-31 16 16)" fill="none" stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.7" strokeLinecap="round" />}
+      {isGiant && <ellipse cx="16" cy="16" rx="10.4" ry="8.4" fill={accent} stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.4" />}
+      {isNeptune && <circle cx="16" cy="16" r="8.4" fill={accent} stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.4" />}
+      {isTerrestrial && <circle cx="16" cy="16" r="6.5" fill={accent} stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.4" />}
+      {(isGiant || isNeptune) && (
         <>
-          <path d="M6.2 10.1h11.6M5.6 12.4h12.8M6.4 14.7h11.2" fill="none" stroke={MAP_PLANET_BADGE_PALETTE.ink} strokeWidth="1.15" strokeLinecap="round" opacity="0.78" />
-          <path d="M2.1 13.1c2.6 2.8 6 4 9.9 4s7.3-1.2 9.9-4" fill="none" stroke={accent} strokeWidth="2.2" strokeLinecap="round" />
+          <path d={isGiant ? "M8.2 13.1 C12.6 11.9 19.4 14.3 23.8 13.1 M7.2 16.2 C12.4 17.4 19.7 15 24.8 16.2 M8.2 19.1 C13.2 18 19 20.1 23.8 19.1" : "M9.6 13.1 C12.6 11.9 19.4 14.3 22.4 13.1 M8.6 16.2 C12.4 17.4 19.7 15 23.4 16.2 M9.6 19.1 C13.2 18 19 20.1 22.4 19.1"} fill="none" stroke={band} strokeWidth={isGiant ? "1.45" : "1.3"} strokeLinecap="round" />
         </>
-      ) : (
+      )}
+      {isTerrestrial && (
         <>
-          <path d="M14.2 5.8a7.2 7.2 0 0 1 3.2 9.8 6.8 6.8 0 0 1-5.8 3.2c2.5-1.8 3.7-4.2 3.7-7.1 0-2.2-.4-4.1-1.1-5.9Z" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.42" />
-          <circle cx="9" cy="9.4" r="1.05" fill={MAP_PLANET_BADGE_PALETTE.light} opacity="0.88" />
-          <circle cx="8.1" cy="13.4" r="1.35" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.55" />
+          <circle cx="13.1" cy="13.4" r="1.3" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.78" />
+          <circle cx="18.8" cy="18.7" r="1" fill={MAP_PLANET_BADGE_PALETTE.ink} opacity="0.68" />
+          <circle cx="19.2" cy="12.4" r="0.65" fill={MAP_PLANET_BADGE_PALETTE.light} opacity="0.78" />
+        </>
+      )}
+      {isGiant && <path d="M1.2 16 A14.8 5.7 0 0 0 30.8 16" transform="rotate(-31 16 16)" fill="none" stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.7" strokeLinecap="round" />}
+      {kind === "unknown" && (
+        <>
+          <circle cx="16" cy="16" r="7" fill="none" stroke={MAP_PLANET_BADGE_PALETTE.light} strokeWidth="1.4" strokeDasharray="2 1.6" />
+          <text x="16" y="19.3" textAnchor="middle" fill={MAP_PLANET_BADGE_PALETTE.light} fontFamily="ui-monospace, monospace" fontSize="10" fontWeight="800">?</text>
         </>
       )}
     </svg>
@@ -1180,68 +1210,81 @@ function MapPlanetCategoryIcon({ category }) {
 
 function drawMapPlanetCategoryBadge(ctx, tag, badgeX, badgeY, badgeSize) {
   const accent = tag?.color || MAP_PLANET_BADGE_PALETTE.temperate;
-  const radius = badgeSize * 0.34;
+  const band = MAP_PLANET_BAND_PALETTE[tag?.temperature] || MAP_PLANET_BADGE_PALETTE.ink;
+  const kind = tag?.kind || "unknown";
+  const isGiant = kind === "giant";
+  const isNeptune = kind === "neptune";
+  const isTerrestrial = kind === "terrestrial";
+  const radius = badgeSize * (isTerrestrial ? 0.203 : 0.263);
   ctx.save();
   ctx.lineCap = "round";
-  if (tag?.kind === "jupiter") {
+  if (kind === "unknown") {
     ctx.beginPath();
-    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI * 2);
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2.4;
+    ctx.arc(badgeX, badgeY, badgeSize * 0.22, 0, Math.PI * 2);
+    ctx.setLineDash([1.4, 1.2]);
+    ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.light;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.light;
+    ctx.font = `800 ${badgeSize * 0.38}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", badgeX, badgeY + 0.4);
+    ctx.restore();
+    return;
+  }
+  if (isGiant) {
+    ctx.beginPath();
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.463, badgeSize * 0.178, -0.54, 0, Math.PI);
+    ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.light;
+    ctx.lineWidth = 1.2;
     ctx.stroke();
   }
 
   ctx.beginPath();
-  ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2);
+  if (isGiant) ctx.ellipse(badgeX, badgeY, badgeSize * 0.325, badgeSize * 0.263, 0, 0, Math.PI * 2);
+  else ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2);
   ctx.fillStyle = accent;
   ctx.fill();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(badgeX, badgeY, radius - 0.3, 0, Math.PI * 2);
-  ctx.clip();
-  if (tag?.kind === "jupiter") {
-    ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.ink;
-    ctx.globalAlpha = 0.78;
-    ctx.lineWidth = 1.15;
-    [-0.28, 0, 0.3].forEach((offset) => {
-      ctx.beginPath();
-      ctx.moveTo(badgeX - radius, badgeY + radius * offset);
-      ctx.lineTo(badgeX + radius, badgeY + radius * offset);
-      ctx.stroke();
-    });
-  } else {
-    ctx.globalAlpha = 0.42;
-    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.ink;
-    ctx.beginPath();
-    ctx.arc(badgeX + radius * 0.55, badgeY + radius * 0.12, radius * 0.9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.light;
-    ctx.beginPath();
-    ctx.arc(badgeX - radius * 0.36, badgeY - radius * 0.35, radius * 0.14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.56;
-    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.ink;
-    ctx.beginPath();
-    ctx.arc(badgeX - radius * 0.48, badgeY + radius * 0.28, radius * 0.18, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  ctx.beginPath();
-  ctx.arc(badgeX, badgeY, radius, 0, Math.PI * 2);
   ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.light;
-  ctx.globalAlpha = 0.9;
-  ctx.lineWidth = 1.25;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  if (tag?.kind === "jupiter") {
+  if (isGiant || isNeptune) {
+    ctx.strokeStyle = band;
+    ctx.globalAlpha = 0.96;
+    ctx.lineWidth = isGiant ? 1.05 : 0.95;
+    const extent = badgeSize * (isGiant ? 0.245 : 0.2);
+    [-0.13, 0, 0.14].forEach((offset, index) => {
+      ctx.beginPath();
+      ctx.moveTo(badgeX - extent, badgeY + badgeSize * offset);
+      ctx.quadraticCurveTo(badgeX, badgeY + badgeSize * (offset + (index % 2 ? -0.035 : 0.035)), badgeX + extent, badgeY + badgeSize * offset);
+      ctx.stroke();
+    });
+  } else if (isTerrestrial) {
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.ink;
     ctx.beginPath();
-    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI);
-    ctx.strokeStyle = accent;
+    ctx.arc(badgeX - radius * 0.42, badgeY - radius * 0.4, radius * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.68;
+    ctx.beginPath();
+    ctx.arc(badgeX + radius * 0.43, badgeY + radius * 0.42, radius * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = MAP_PLANET_BADGE_PALETTE.light;
+    ctx.beginPath();
+    ctx.arc(badgeX + radius * 0.5, badgeY - radius * 0.45, radius * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (isGiant) {
+    ctx.beginPath();
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.463, badgeSize * 0.178, -0.54, Math.PI, Math.PI * 2);
+    ctx.strokeStyle = MAP_PLANET_BADGE_PALETTE.light;
     ctx.globalAlpha = 1;
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 1.2;
     ctx.stroke();
   }
   ctx.restore();
@@ -1268,7 +1311,7 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
       return STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
     });
   const planetTags = (Array.isArray(planetBadges) ? planetBadges : [])
-    .slice(0, 6)
+    .slice(0, 10)
     .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
     .filter(Boolean);
   const stellarBadgeWidth = badgeTags.length
@@ -1526,8 +1569,8 @@ function PriorityLabels({
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
     gl.domElement.dataset.mapLabelClassStrategy = "shared_leaf_mass_proxy_then_intrinsic_brightness_v3";
     gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
-    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_flat_category_v3";
-    gl.domElement.dataset.mapLabelPlanetBadgePalette = "ink_light_hot_temperate_cold_v1";
+    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_a2_category_v4";
+    gl.domElement.dataset.mapLabelPlanetBadgePalette = "a2_chromatic_bands_hot_temperate_cold_v2";
     gl.domElement.dataset.mapPinnedLabelCount = String((pinnedLabelSystems || []).length);
   }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems, pinnedLabelSystems]);
 
@@ -2922,7 +2965,7 @@ function MapStarSearchShell({
                 style={{ "--planet-category-color": category.color }}
                 onClick={() => togglePlanetCategory(category.queryKey)}
                 aria-pressed={active}
-                title={`${category.filterLabel}: confirmed planets with an unambiguous broad size or mass class and a ${category.temperature} HZ-screen temperature proxy. Color encodes the temperature category.${category.kind === "jupiter" ? " The annulus is a category glyph, not evidence of a physical ring system." : ""} Selected categories match any.`}
+                title={`${category.filterLabel}: confirmed planets with a broad ${category.kind === "neptune" ? "Neptune-size" : category.kind} size or mass class and a ${category.temperature} HZ-screen temperature proxy. Color encodes the temperature category.${category.kind === "giant" ? " The annulus is a category glyph, not evidence of a physical ring system." : ""} Selected categories match any.`}
               >
                 <MapPlanetCategoryIcon category={category} />
                 {category.filterLabel}

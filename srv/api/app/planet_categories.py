@@ -4,15 +4,27 @@ from collections.abc import Iterable
 
 
 PLANET_CATEGORY_BITS = {
-    "hot_jupiter": 1,
-    "temperate_jupiter": 2,
-    "cold_jupiter": 4,
+    "hot_giant": 1,
+    "temperate_giant": 2,
+    "cold_giant": 4,
     "hot_terrestrial": 8,
     "temperate_terrestrial": 16,
     "cold_terrestrial": 32,
+    "hot_neptune": 64,
+    "temperate_neptune": 128,
+    "cold_neptune": 256,
+    "unclassified_planet": 512,
 }
 
-SUPPORTED_PLANET_CATEGORIES = frozenset(PLANET_CATEGORY_BITS)
+PLANET_CATEGORY_ALIASES = {
+    "hot_jupiter": "hot_giant",
+    "temperate_jupiter": "temperate_giant",
+    "cold_jupiter": "cold_giant",
+}
+
+SUPPORTED_PLANET_CATEGORIES = frozenset(
+    (*PLANET_CATEGORY_BITS, *PLANET_CATEGORY_ALIASES)
+)
 
 
 def parse_planet_categories(value: str | None) -> list[str]:
@@ -20,6 +32,7 @@ def parse_planet_categories(value: str | None) -> list[str]:
     seen: set[str] = set()
     for raw in str(value or "").split(","):
         category = raw.strip().lower()
+        category = PLANET_CATEGORY_ALIASES.get(category, category)
         if category and category not in seen:
             categories.append(category)
             seen.add(category)
@@ -47,20 +60,28 @@ def planet_composition_proxy_sql(alias: str = "p") -> str:
         CASE
           WHEN {alias}.radius_earth IS NOT NULL AND {alias}.radius_earth <= 2.0 THEN 'terrestrial'
           WHEN {alias}.radius_earth IS NOT NULL AND {alias}.radius_earth >= 6.0 THEN 'giant_or_enveloped'
+          WHEN {alias}.radius_earth IS NOT NULL THEN 'neptune_size'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NOT NULL
             AND {alias}.radius_jup * 11.209 <= 2.0 THEN 'terrestrial'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NOT NULL
             AND {alias}.radius_jup * 11.209 >= 6.0 THEN 'giant_or_enveloped'
+          WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NOT NULL
+            THEN 'neptune_size'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
             AND {alias}.mass_earth IS NOT NULL AND {alias}.mass_earth <= 10.0 THEN 'terrestrial'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
             AND {alias}.mass_earth IS NOT NULL AND {alias}.mass_earth >= 50.0 THEN 'giant_or_enveloped'
+          WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
+            AND {alias}.mass_earth IS NOT NULL THEN 'neptune_size'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
             AND {alias}.mass_earth IS NULL AND {alias}.mass_jup IS NOT NULL
             AND {alias}.mass_jup * 317.83 <= 10.0 THEN 'terrestrial'
           WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
             AND {alias}.mass_earth IS NULL AND {alias}.mass_jup IS NOT NULL
             AND {alias}.mass_jup * 317.83 >= 50.0 THEN 'giant_or_enveloped'
+          WHEN {alias}.radius_earth IS NULL AND {alias}.radius_jup IS NULL
+            AND {alias}.mass_earth IS NULL AND {alias}.mass_jup IS NOT NULL
+            THEN 'neptune_size'
           ELSE NULL
         END
     """.strip()
@@ -84,6 +105,9 @@ def planet_category_bit_sql(alias: str = "p") -> str:
           WHEN ({composition}) = 'terrestrial' AND ({temperature}) > 320.0 THEN 8
           WHEN ({composition}) = 'terrestrial' AND ({temperature}) >= 200.0 THEN 16
           WHEN ({composition}) = 'terrestrial' AND ({temperature}) < 200.0 THEN 32
-          ELSE 0
+          WHEN ({composition}) = 'neptune_size' AND ({temperature}) > 320.0 THEN 64
+          WHEN ({composition}) = 'neptune_size' AND ({temperature}) >= 200.0 THEN 128
+          WHEN ({composition}) = 'neptune_size' AND ({temperature}) < 200.0 THEN 256
+          ELSE 512
         END
     """.strip()

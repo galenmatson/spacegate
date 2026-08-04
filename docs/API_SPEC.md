@@ -768,15 +768,14 @@ cache lifetimes. A missing or corrupt artifact is an explicit map error. The
 full coordinate, manifest, binary, selection, and cache contract is
 `docs/TILED_MAP.md`.
 
-Tile schema v4 uses an 81-byte record. It retains the mass/luminosity-ranked
+Tile schema v5 uses an 82-byte record. It retains the mass/luminosity-ranked
 `representative_stellar_class`, carries up to 16 repeated leaf classes from
-ARM `stellar_leaf_display_classifications`, and adds a six-bit
-`planet_badge_mask`. The planet bits represent hot/temperate/cold gas giants
-and hot/temperate/cold terrestrial planets, at most once per category. Only
-confirmed CORE planets with sufficiently unambiguous radius/mass and
-equilibrium-temperature/insolation evidence receive a bit. Ambiguous-size or
-missing-environment planets remain unbadged. Schema v1-v3 artifacts remain
-decodable during immutable-artifact transition.
+ARM `stellar_leaf_display_classifications`, and carries a ten-bit
+`planet_badge_mask`. Nine bits represent the hot/temperate/cold matrix for
+terrestrial-size, Neptune-size, and giant planets, at most once per category.
+The tenth bit is a neutral confirmed-planet fallback when size/mass or
+equilibrium-temperature/insolation inputs are insufficient. Schema v1-v4
+artifacts remain decodable during immutable-artifact transition.
 
 The system-detail and simulation-scene payloads expose
 `stellar_leaf_classifications` and overlay the matching row on each hierarchy
@@ -1475,9 +1474,12 @@ Query params:
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
-- `planet_category` (comma list, optional; values `hot_jupiter`,
-  `temperate_jupiter`, `cold_jupiter`, `hot_terrestrial`,
-  `temperate_terrestrial`, `cold_terrestrial`). Multiple values use OR
+- `planet_category` (comma list, optional; values `hot_giant`,
+  `temperate_giant`, `cold_giant`, `hot_neptune`, `temperate_neptune`,
+  `cold_neptune`, `hot_terrestrial`, `temperate_terrestrial`,
+  `cold_terrestrial`, `unclassified_planet`). The former `hot_jupiter`,
+  `temperate_jupiter`, and `cold_jupiter` names remain accepted aliases during
+  the compatibility window. Multiple values use OR
   semantics. This is the versioned broad map presentation proxy described in
   `docs/TILED_MAP.md`, not a canonical composition or habitability claim.
 - `sort` (`match` | `name` | `distance` | `coolness` | `planet_count` | `star_count` | `hottest` | `coolest`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)

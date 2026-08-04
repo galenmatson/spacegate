@@ -30,7 +30,7 @@ from app.planet_categories import (
 from app.queries import choose_display_name_info
 
 
-SCHEMA_VERSION = "spacegate_map_tile_v4"
+SCHEMA_VERSION = "spacegate_map_tile_v5"
 MANIFEST_VERSION = "spacegate_map_manifest_v1"
 INDEX_VERSION = "spacegate_map_index_v1"
 FRAME = "heliocentric_icrs_j2016"
@@ -40,7 +40,7 @@ MAX_EXACT_DEPTH = 5
 MAX_EXACT_RECORDS = 32768
 SAMPLE_DEPTHS = (2, 3)
 SAMPLE_LIMIT = 256
-RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBIQB")
+RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBIQH")
 MAGIC = b"SGTILE1\0"
 SPECTRAL_CODES = {value: idx for idx, value in enumerate((
     "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
@@ -228,7 +228,7 @@ def encode_tile(
         nice_planets = int(row[12] or 0)
         max_teff = max(0, min(0xFFFFFFFF, int(round(float(row[13] or 0)))))
         packed_badges = pack_stellar_class_badges(row[14], spectral)
-        planet_badge_mask = max(0, min(63, int(row[15] or 0)))
+        planet_badge_mask = max(0, min(1023, int(row[15] or 0)))
         name_refs: list[int] = []
         for name in names:
             name_bytes = name.encode("utf-8")[:65535]
@@ -613,15 +613,17 @@ def build_radius(
             "maximum_badges": 16,
         },
         "planet_badge_contract": {
-            "version": "planet_environment_badge_mask_v1",
+            "version": "planet_environment_badge_mask_v2",
             "field": "planet_badge_mask",
             "categories": [
-                "hot_gas_giant", "temperate_gas_giant", "cold_gas_giant",
+                "hot_giant", "temperate_giant", "cold_giant",
+                "hot_neptune", "temperate_neptune", "cold_neptune",
                 "hot_terrestrial", "temperate_terrestrial", "cold_terrestrial",
+                "unclassified_planet",
             ],
             "maximum_per_category": 1,
             "temperature_k": {"cold_lt": 200.0, "temperate_lte": 320.0, "hot_gt": 320.0},
-            "classification_policy": "source radius preferred over source mass; ambiguous 2-6 Rearth or 10-50 Mearth planets and missing environments remain unbadged",
+            "classification_policy": "source radius preferred over source mass; <=2 Rearth or <=10 Mearth is terrestrial-size, 2-6 Rearth or 10-50 Mearth is Neptune-size, and >=6 Rearth or >=50 Mearth is giant; missing size or environment uses the neutral confirmed-planet fallback",
         },
         "coolness_profile": profile,
         "sampling_policy": {

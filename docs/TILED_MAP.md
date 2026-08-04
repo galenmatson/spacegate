@@ -112,29 +112,30 @@ Search can materialize and pin an omitted ordinary system by stable identity.
 The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
 
-Tile schema v4 retains the compact representative-class byte, carries an
+Tile schema v5 retains the compact representative-class byte, carries an
 eight-byte packed sequence of up to 16 repeated classes from the shared ARM
-stellar-leaf projection, and adds a six-bit planet-category mask. The stellar
+stellar-leaf projection, and adds a two-byte planet-category mask. The stellar
 sequence supports `Off`, `Primary`, or `All` without per-label API calls; `All`
 is the default. Aggregate and nonstellar hierarchy support endpoints are
 excluded, repeated leaf classes are retained, and unresolved leaves remain
 explicitly `UNKNOWN`. The builder never injects a representative class into or
 removes a class from the leaf sequence.
 
-Planet bits represent hot/temperate/cold gas giants and
-hot/temperate/cold terrestrial planets, with at most one visible badge for each
-category. The mask is a presentation derivation over confirmed CORE planets:
-source radius is preferred to source mass, equilibrium temperature is preferred
-to an insolation-derived estimate, ambiguous 2-6 Earth-radius or 10-50
-Earth-mass objects are unbadged, and missing environments produce no badge.
+Nine planet bits represent terrestrial-size, Neptune-size, and giant planets
+across hot/temperate/cold HZ-screen classes, with at most one visible badge for
+each category. A tenth bit produces a neutral confirmed-planet glyph when size,
+mass, or environment evidence is insufficient. The mask is a presentation
+derivation over confirmed CORE planets: source radius is preferred to source
+mass and equilibrium temperature is preferred to an insolation-derived
+estimate.
 
-The public map calls the broad giant/enveloped class `Jupiter` for immediate
-lay readability. Internally this does not assert Jupiter-like composition:
+The broad map vocabulary is intentionally size-oriented and does not assert
+composition:
 
-- radius `<= 2 Rearth` is terrestrial; radius `>= 6 Rearth` is broad
-  giant/enveloped; the interval between remains unclassified;
-- mass is used only when radius is absent: `<= 10 Mearth` is terrestrial and
-  `>= 50 Mearth` is broad giant/enveloped; the middle remains unclassified;
+- radius `<= 2 Rearth` is terrestrial-size, `2-6 Rearth` is Neptune-size, and
+  `>= 6 Rearth` is giant;
+- mass is used only when radius is absent: `<= 10 Mearth` is terrestrial-size,
+  `10-50 Mearth` is Neptune-size, and `>= 50 Mearth` is giant;
 - source equilibrium temperature is the first environment proxy. When it is
   absent but positive source insolation exists, the builder uses
   `278.5 K * S^(1/4)`; `> 320 K` is hot, `200-320 K` temperate, and `< 200 K`
@@ -145,7 +146,11 @@ lay readability. Internally this does not assert Jupiter-like composition:
 - selected map categories and `GET /systems/search?planet_category=...` use OR
   semantics. A system may carry several category bits, but no category repeats.
 
-These thresholds are intentionally conservative navigation bins. The Fulton
+These thresholds are intentionally broad navigation bins. The A2 glyph family
+uses relative size and surface vocabulary while temperature owns the full-body
+color channel. The giant annulus is category iconography, not evidence for a
+physical ring system. Tile schemas v1-v4 remain decodable during immutable-
+artifact transition. The Fulton
 radius gap is evidence for two close-in small-planet populations, not a literal
 terrestrial/Jupiter boundary. A future environment revision should prefer
 incident flux against a host-temperature-dependent Kopparapu habitable-zone

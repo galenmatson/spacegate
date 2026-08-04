@@ -4028,8 +4028,12 @@ endpoints are excluded; repeated and unknown leaf classes remain visible; and
 conflicting evidence stays auditable on the selected row. The verifier covers
 all projected leaves plus HD 110067, HD 79107, Gl 161.1, HD 18134, and Castor as
 general regression targets rather than system-specific ingestion branches.
-Tile v4 also adds a bounded six-bit confirmed-planet presentation mask, while
-ambiguous physical/environment cases remain unbadged.
+Tile v4 added a bounded six-bit confirmed-planet presentation mask. The August
+4 A2 glyph follow-up advances this to tile v5: terrestrial-size, Neptune-size,
+and giant rows across hot/temperate/cold HZ-screen classes plus a neutral
+confirmed-planet fallback. The map uses relative glyph size, point-like
+terrestrial surface detail, chromatic fluid bands, and a steep layered annulus
+for giants; old tile versions remain decodable.
 
 Verified local checkpoint `20260716T1905Z_ad13e39_side` passes strict build,
 exact tile membership, all-leaf projection, and 1,000/1,000 priority-scene v3
