@@ -5430,7 +5430,6 @@ export default function StarMapPage({
                   className="map-system-drill-title-select"
                   aria-label={drillMode === "peek" ? "Explore selected system" : "Open selected system detail"}
                 >
-                  <span>System:</span>
                   <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
                 </button>
                 <span

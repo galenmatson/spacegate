@@ -1837,6 +1837,16 @@
   min-width: 0;
 }
 
+.map-system-drill-peek .map-system-drill-title-select {
+  flex: 0 0 auto;
+  max-width: min(260px, 100%);
+}
+
+.map-system-drill-peek .map-title-object-badges {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
 .map-system-drill-title-select:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
   outline-offset: 3px;

@@ -3155,6 +3155,9 @@ Accepted decisions:
   balanced and inspectable overflow count, and give Explorer an intrinsic
   header row plus a global-header-aware outer inset rather than overlaying the
   Coolstars header or simulation surface.
+- keep the simulator title name-first: omit the redundant `System:` prefix and
+  let Peek's object-glyph strip contract before the selected system name can be
+  crowded out.
 
 Imagery cache gate:
 

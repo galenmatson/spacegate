@@ -988,6 +988,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   bound crowded title glyph runs with an inspectable overflow count, and give
   Explorer a structural header row and global-header-aware outer inset so
   neither the simulation nor Explorer title underlays application chrome
+- [x] Remove the redundant `System:` simulator-title prefix and make Peek
+  preserve the selected system name before allocating width to object glyphs
+- [x] Normalize `TAGS.md` into consistent section, tag, tooltip, and example
+  structure without rewriting its description or definition prose
 - [ ] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for

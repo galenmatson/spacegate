@@ -1159,7 +1159,8 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".map-system-drill-title .map-name-info")).toHaveCount(0);
     await expect(drill.locator(".map-system-drill-title .map-name-copy")).toHaveCount(0);
     await expect(drill).toHaveAttribute("data-drill-mode", "peek");
-    await expect(drill).toContainText(/System:/i);
+    await expect(drill.locator(".map-system-drill-title-select .map-name-wrap")).not.toBeEmpty();
+    await expect(drill.locator(".map-system-drill-title")).not.toContainText(/System:/i);
     await expect(drill).not.toContainText(/System Simulation Peek/i);
     await expect(drill.getByRole("button", { name: /^Close$/i })).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
@@ -1197,6 +1198,13 @@ test.describe("public 3D map beta", () => {
     expect(handleBox, "peek resize handle bounds").toBeTruthy();
     expect(titleBox, "peek title bounds").toBeTruthy();
     expect(handleBox.x + handleBox.width).toBeLessThanOrEqual(titleBox.x);
+    const titleNameBox = await drill.locator(".map-system-drill-title-select .map-name-wrap").boundingBox();
+    const titleBadgeBox = await drill.locator(".map-title-object-badges").boundingBox();
+    expect(titleNameBox, "peek system name bounds").toBeTruthy();
+    expect(titleBadgeBox, "peek title badge bounds").toBeTruthy();
+    expect(titleNameBox.width).toBeGreaterThan(20);
+    expect(titleNameBox.x + titleNameBox.width).toBeLessThanOrEqual(titleBox.x + titleBox.width + 1);
+    expect(titleBadgeBox.x + titleBadgeBox.width).toBeLessThanOrEqual(titleBox.x + titleBox.width + 1);
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(handleBox.x - 80, handleBox.y - 60, { steps: 8 });
@@ -1240,6 +1248,19 @@ test.describe("public 3D map beta", () => {
     expect(resizedToolbarBounds.toolbarRight).toBeLessThanOrEqual(resizedToolbarBounds.drillRight);
     expect(resizedToolbarBounds.controlsLeft).toBeGreaterThanOrEqual(resizedToolbarBounds.drillLeft);
     expect(resizedToolbarBounds.controlsRight).toBeLessThanOrEqual(resizedToolbarBounds.drillRight);
+    const compactTitleBounds = await drill.locator(".map-system-drill-title").boundingBox();
+    const compactNameBounds = await drill.locator(".map-system-drill-title-select .map-name-wrap").boundingBox();
+    const compactBadgeBounds = await drill.locator(".map-title-object-badges").boundingBox();
+    expect(compactTitleBounds, "shrunk Peek title bounds").toBeTruthy();
+    expect(compactNameBounds, "shrunk Peek system name bounds").toBeTruthy();
+    expect(compactBadgeBounds, "shrunk Peek title badge bounds").toBeTruthy();
+    expect(compactNameBounds.width).toBeGreaterThan(20);
+    expect(compactNameBounds.x + compactNameBounds.width).toBeLessThanOrEqual(
+      compactTitleBounds.x + compactTitleBounds.width + 1,
+    );
+    expect(compactBadgeBounds.x + compactBadgeBounds.width).toBeLessThanOrEqual(
+      compactTitleBounds.x + compactTitleBounds.width + 1,
+    );
     await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
     await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(
@@ -1265,7 +1286,8 @@ test.describe("public 3D map beta", () => {
     await expect(drill).toBeVisible();
     await drill.locator(".map-system-drill-title-select").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
-    await expect(drill).toContainText(/System:/i);
+    await expect(drill.locator(".map-system-drill-title-select .map-name-wrap")).not.toBeEmpty();
+    await expect(drill.locator(".map-system-drill-title")).not.toContainText(/System:/i);
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     const exploreObjectList = drill.locator("[data-testid='system-preview-object-list']");
     await expect(exploreObjectList).toBeVisible();
