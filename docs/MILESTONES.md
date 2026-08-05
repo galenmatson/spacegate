@@ -3068,6 +3068,17 @@ Delivered:
 - one accessible shell provides hover/focus, keyboard, touch pinning,
   Escape/outside close, copy, Learn, Find More, bounded overflow, mobile-sheet,
   source, and evidence-state behavior without relying on color alone.
+- public tooltip editorial v2 treats a full tag explanation as a compact lesson:
+  normally three to six sentences defining the term, building physical intuition,
+  identifying Spacegate's activation evidence, and integrating uncertainty without
+  a stock disclaimer. All 34 enabled definitions and all 50 source definitions
+  follow the contract; deferred proposals were also revised so later activation
+  cannot reintroduce florid overstatement or deterministic evolutionary claims.
+- two clean editorial-v2 compiles for Public Read build
+  `20260804T1130Z_68fd99b_a2_planet_badges` reproduce registry hash
+  `fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
+  all physical artifacts, and every logical table hash in 230.8 seconds each.
+  Scientific assignments remain unchanged at 11,419,175 with zero quarantines.
 - the first reviewed concept routes cover spectral class, white dwarfs, brown
   dwarfs, multiple systems, exoplanets, habitable zones, orbital period, and
   evidence/provenance.

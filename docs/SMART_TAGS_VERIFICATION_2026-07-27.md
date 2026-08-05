@@ -116,3 +116,33 @@ Normal Photon remains in compatibility mode with
 `SPACEGATE_SMART_TAGS_REQUIRED=0`. Required mode passed in the isolated capacity
 stack and is encoded in the rehearsed release contract. No antiproton
 deployment occurred and Proton was not mutated.
+
+## Editorial v2 Addendum
+
+Completed: 2026-08-05 UTC
+
+Public tooltip copy now follows the teaching contract in `docs/TAGS.md` and
+`docs/SMART_TAGS.md`. Full definitions normally use three to six sentences to
+define the term, build physical intuition, explain the accepted fact or screen
+that activates it, and integrate uncertainty as part of the lesson. Compact
+surfaces retain their separate `short_tooltip` contract.
+
+All 34 enabled tag definitions and 50 source definitions were reviewed. The
+deferred vocabulary was also corrected without enabling it; future-state tags
+remain model predictions, observer-dependent tags remain contextual, and broad
+classifications do not assert climates, hazards, origins, or inevitable
+remnants.
+
+Two clean compiles against Public Read build
+`20260804T1130Z_68fd99b_a2_planet_badges` completed in 230.831 and 230.861
+seconds. They reproduce registry hash
+`fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
+the 407,306,240-byte SQLite, both Parquet artifacts, input lineage, counts, and
+all logical table hashes. Membership remains 11,419,175 assignments and
+11,418,608 system rollups with zero quarantines.
+
+Machine report:
+
+```text
+/data/spacegate/state/reports/smart_tags/20260804T1130Z_68fd99b_a2_planet_badges/editorial_v2_determinism.json
+```

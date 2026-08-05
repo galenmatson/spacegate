@@ -8193,6 +8193,9 @@ main {
   left: var(--smart-tag-popover-left, 12px);
   display: grid;
   width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   gap: 9px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--tag-color) 45%, var(--border));

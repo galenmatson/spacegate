@@ -166,6 +166,40 @@ test.describe("Smart Tags and concepts", () => {
     });
   });
 
+  test("expanded lessons remain reachable on short viewports", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "Short desktop viewport check");
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+
+    const trigger = page.locator(".system-detail-tags .smart-tag-trigger", {
+      hasText: /^Hierarchical$/,
+    });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const popover = page.getByRole("dialog", { name: "Hierarchical Multiple System details" });
+    await expect(popover).toBeVisible();
+    await expect(popover).toContainText("separation of scales");
+
+    const metrics = await popover.evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      const style = window.getComputedStyle(node);
+      return {
+        top: bounds.top,
+        bottom: bounds.bottom,
+        viewportHeight: window.innerHeight,
+        overflowY: style.overflowY,
+        scrollHeight: node.scrollHeight,
+        clientHeight: node.clientHeight,
+      };
+    });
+    expect(metrics.top).toBeGreaterThanOrEqual(0);
+    expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
+    expect(metrics.overflowY).toBe("auto");
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  });
+
   test("source tags use reviewed abbreviations without losing full catalog names", async ({ page }) => {
     const castor = await resolveSystem(page, "Castor");
     expect(castor).toBeTruthy();

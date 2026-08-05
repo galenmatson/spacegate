@@ -946,6 +946,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Suppress duplicate stellar/compact rollup tags on object-badge surfaces
   and move the richer registry explanation and evidence context onto each
   stellar badge
+- [x] Replace terse or florid Smart Tag copy with the editorial-v2 teaching
+  contract: accurate three-to-six-sentence full tooltips, compact fallback copy,
+  evidence-aware activation language, reviewed source explanations, and two
+  deterministic full-registry compilations with unchanged scientific membership
+- [x] Bound expanded Smart Tag lessons to the viewport with internal scrolling
+  so source context and actions remain reachable on short desktop and mobile
+  screens without truncating the educational copy
 - [x] Repair case-significant MSC component classification binding through the
   existing release-scoped orbit endpoint bridge: require one accepted physical
   leaf, preserve exact lineage, keep group endpoints and ambiguous tails

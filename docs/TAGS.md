@@ -10,6 +10,30 @@ The v1 architecture, compiler, API, interaction contract, and RIM boundary are
 defined in `docs/SMART_TAGS.md`. Missing data is never positive evidence for a
 tag, and evocative prose here must be reviewed before it becomes public copy.
 
+## Editorial Standard
+
+Spacegate tags are the first step in an educational path, not merely database
+labels. A public full tooltip should normally use three to six sentences and
+assume an interested reader whose astronomy knowledge comes primarily from
+school, documentaries, games, and science fiction. It should:
+
+1. define the term in plain language;
+2. build physical intuition for why the phenomenon occurs or matters;
+3. explain what observation, selected fact, or versioned screen activates the
+   tag in Spacegate; and
+4. incorporate important uncertainty or non-claims into the explanation
+   naturally rather than appending a perfunctory disclaimer.
+
+Vivid language is welcome when the physics earns it. Superlatives, hazards,
+surface conditions, evolutionary outcomes, and implications for life must not
+be invented from a broader proxy. Compact surfaces use the separate
+`short_tooltip`; the full tooltip should teach something worth opening.
+
+Source tokens follow the same educational standard but explain what the source
+observed or compiled, how that evidence helps Spacegate, and where its scope
+ends. They must never imply that catalog membership makes every value certain
+or that a source is authoritative outside the scientific domain it measures.
+
 ## Tag Color Schema
 
 Tag colors should teach category at a glance without becoming the only carrier
@@ -67,165 +91,165 @@ visually distinguishes the broad category and is not evidence for rings.
 
 ## Orbital Characteristics
 
-(These are not regular tags but labels which have values, I'd like these to Explain the labels where they appear, like in the system simulation)
+These explain orbital attributes so users understand what it takes to create an orbital solution.
 
 ### ORBITAL PERIOD
 
-The orbital period is the exact amount of time it takes for a celestial body to complete one full revolution around its host star or barycenter. Dictated by the fundamental laws of planetary motion, this parameter determines the length of a "year" on that specific world. Planets hugging their stars in tightly packed orbits might whip around in mere hours, enduring blistering heat and intense tidal forces. Conversely, distant ice giants or wide binary companions may take tens of thousands of Earth years to complete a single, slow lap through the frozen dark. Understanding the period is crucial for predicting planetary transits and mapping the rhythmic gravitational dance of complex multi-star systems.
+An orbital period is the time required for one complete revolution around a companion or shared barycenter. Astronomers can measure it from repeating transits, eclipses, radial-velocity shifts, timing signals, or changing positions on the sky; short periods may be known exquisitely well while a centuries-long visual orbit may remain uncertain. Together with the system's mass, the period sets the scale of the orbit through Kepler's laws. Spacegate should display the selected period with its source or fitted uncertainty so the simulator's rhythm remains tied to evidence.
 
 ### SEMIMAJOR AXIS
 
-The semimajor axis is the average distance between an orbiting body and its host, defining the overall physical size of the orbit. Representing half of the longest diameter of an elliptical path, it is typically measured in Astronomical Units (AU) for planetary systems. This single metric is arguably the most critical factor in determining a planet's climate, as it dictates the baseline amount of stellar radiation the world receives. A extremely small semimajor axis plunges a world into the scorching inferno of its star, while a massive one casts it out into the desolate void. It is the defining coordinate when searching for the elusive "habitable zone" where liquid water can survive.
+The semimajor axis is half the longest diameter of an elliptical orbit and is the standard measure of that orbit's physical scale. It is not the body's instantaneous distance and, for an eccentric orbit, is not simply the time-averaged separation. Binary-star catalogs may describe the relative orbit between two stars or the smaller barycentric orbit of one component, so component scope matters. In planetary systems it helps determine received stellar energy, but the star's luminosity, orbital eccentricity, and planetary atmosphere are needed before discussing climate.
 
 ### ECCENTRICITY
 
-Eccentricity defines how drastically an orbit deviates from a perfect, circular path. A value of exactly zero represents a flawless circle, while values approaching one describe highly elongated, stretched-out ellipses. Planets with high eccentricity endure brutal seasonal extremes, flash-frying as they dive close to their star at periastron before freezing in the deep cold of apastron. In chaotic or young systems, high eccentricity often points to past gravitational violence, where planets were violently scattered or slingshotted by massive gas giants. It is a vital parameter for Spacegate explorers, as extremely eccentric worlds rarely offer the stability needed to incubate complex life.
+Eccentricity describes the shape of an orbit: zero is circular, values between zero and one are bound ellipses, and values near one are strongly elongated. A body on an eccentric orbit receives changing stellar energy and moves fastest near periastron, but the climatic result also depends on the star, atmosphere, oceans, rotation, and thermal inertia. Eccentricity can preserve clues to migration and gravitational encounters without identifying one unique history. Spacegate should present the fitted value and uncertainty rather than turning every nonzero orbit into an extreme-world label.
 
 ### INCLINATION
 
-Inclination measures the steep "tilt" of a body's orbit relative to the system's foundational reference plane. In most calm, mature solar systems, planets orbit relatively flat along the same equatorial disk where they originally formed from a protoplanetary cloud. However, extreme inclinations reveal a turbulent history, indicating an object was either captured from deep space or violently knocked off its original axis by a catastrophic collision. High-inclination orbits carry worlds high above and far below the system's main orbital plane, subjecting them to complex, undulating gravitational forces. Identifying these tilted rogues is crucial for building accurate, fully realized 3D maps of a stellar neighborhood.
+Inclination measures an orbit's tilt relative to a named reference plane. Exoplanet and binary catalogs may measure against the plane of the sky, while a system visualization may compare one orbit with a chosen system plane; those angles answer different questions and cannot be silently exchanged. Near-edge-on orbits are favorable for eclipses and transits, but mutual inclination between orbits is what reveals a warped system. Spacegate must state the reference frame and evidence behind any displayed inclination.
 
 ## Orbital Parameter Tags
 
 ### ULTRASHORT PERIOD
 
-An ultra-short-period orbit is so breathtakingly close to its host star that the planet completes a full "year" in less than a single Earth day. Trapped in this ferocious gravitational embrace, these worlds are subjected to apocalyptic levels of stellar radiation and tidal heating. The intense heat often melts their entire dayside crusts into vast, churning oceans of liquid rock, while fierce stellar winds continuously strip away their atmospheres. Famous examples like the diamond-crusted hellscape 55 Cancri e or the molten iron world Kepler-10b showcase the extreme physics at play. Surviving in a USP orbit means enduring a perpetual, unimaginable inferno right on the edge of stellar consumption.
+An ultra-short-period planet completes an entire orbit in less than one Earth day. Such a compact orbit places the planet close to its star, where intense irradiation, tidal forces, and atmospheric loss can reshape it, although the outcome depends on the star and the planet's composition. These systems test how planets migrate inward and how long they can survive near their stars. Spacegate applies the conventional one-day threshold to a confirmed planet's selected orbital period.
 
 ### CONTACT BINARY
 
-A contact binary orbit occurs when two stars are locked in a gravitational death spiral so tight that their physical surfaces actually touch and merge. Rather than two distinct spheres, they form a massive, glowing cosmic peanut, violently sharing a single outer envelope of superheated plasma. This extreme proximity causes intense magnetic turbulence, dramatic mass transfer, and eventual, catastrophic mergers that can trigger brilliant "red nova" explosions. The famous system W Ursae Majoris perfectly illustrates this dynamic, acting as the prototype for these spectacular, shapeshifting pairs. For Spacegate explorers, these systems offer a front-row seat to stellar cannibalism and gravitational chaos.
+A contact binary contains two stars orbiting so closely that both fill their Roche lobes and share an outer envelope. They remain distinct stellar cores rather than two solid surfaces simply touching, while gas and energy can flow through the common envelope and produce continuously changing light. Angular momentum loss and mass transfer may eventually drive a merger, but contact does not make the timing or outcome certain. Spacegate should activate this tag from an accepted contact-binary classification or suitable light-curve and orbital evidence, not from a short period alone.
 
 ### HIERARCHICAL
 
-A hierarchical system features three or more celestial bodies organized into beautifully stable, nested orbital layers. To prevent chaotic gravitational sling-shotting, inner pairs must orbit very tightly, while outer companions circle from a massive distance, acting effectively as a single gravitational point. This matryoshka doll architecture allows incredibly complex multistar families to survive for billions of years without ripping themselves apart. The glorious six star Castor system and the sprawling septuple Nu Scorpii are prime examples of this elegant orbital choreography. Mapping these nested gravitational tiers is crucial for understanding the deep structural stability of the galaxy's most crowded neighborhoods.
+A system of three or more stars is difficult to preserve when every star tugs strongly on every other at comparable distances. Long-lived multiples usually arrange themselves as nested orbits: a close pair acts almost like one combined mass to a much more distant companion, while still wider members can orbit the inner group. This separation of scales prevents many of the close encounters that would scramble or eject stars. Spacegate applies HIERARCHICAL when accepted component relationships contain a stellar subgroup inside a larger system, revealing the architecture that can make a complex stellar family durable.
 
 ### TROJAN
 
-A Trojan or co-orbital body shares the exact same orbital path around a star as a much larger planet, safely anchored in gravitationally balanced "Lagrange points." These gravitational sweet spots sit sixty degrees ahead or behind the main planet, trapping asteroids, dust clouds, or even smaller companion worlds in a perpetual game of cosmic tag. In our own solar system, Jupiter shepherds tens of thousands of Trojan asteroids, while the exoplanet system PDS 70 shows tantalizing evidence of twin planets forming in the exact same orbital lane. Exploring these shared orbits reveals regions of quiet, mathematical harmony nestled within the chaotic dynamics of a moving solar system. These stable anchor points are prime real estate for deep-space waystations and ancient debris.
+A Trojan shares a 1:1 orbital resonance with a more massive body and librates around a stable region near the leading or trailing Lagrange points. It does not follow the exact same path at a fixed distance: the smaller body oscillates around the equilibrium region, and other kinds of co-orbital motion also exist. Jupiter's Trojan asteroids show how this geometry can preserve large populations for long periods. A Spacegate tag would require evidence for the resonant behavior, not merely two objects with similar reported periods.
 
 ### ROGUE
 
-A rogue object has been violently stripped of its orbital parameters entirely, doomed to drift through the freezing interstellar void untethered to any host star. These planetary orphans are usually the victims of chaotic gravitational scattering in young, crowded solar systems or the catastrophic aftermath of a supernova explosion. Without the warming glow of a sun, their surfaces are flash frozen, though some may retain hidden, geothermally heated subsurface oceans. Discoveries like the free floating gas giant PSO J318.5-22 prove that interstellar space is not empty, but haunted by billions of these dark, silent wanderers. Encountering a rogue world requires navigating deep, lightless space far outside the comforting glow of a stellar neighborhood.
+A rogue planet or planetary-mass object travels through space without being gravitationally bound to a star. Some may have been ejected from young planetary systems, while others may have formed more like isolated brown dwarfs, so freedom from a host does not reveal a single origin. Internal heat can persist after starlight is gone, leaving atmospheres or subsurface environments as physical possibilities rather than known properties. Spacegate must require positive evidence for an unbound object; a missing host, orbit, or catalog relationship is never enough.
 
 ### ECCENTRIC
 
-An eccentric orbit deviates wildly from a perfect circle, creating a highly elongated, stretched-out path through space. Worlds caught in these trajectories, like the comet-like gas giant HD 80606 b, endure brutal seasonal shifts, plunging dangerously close to their star before retreating back into the freezing void. This chaotic motion is often the smoking gun of a violent gravitational history, indicating the planet was violently scattered or slingshotted by massive neighboring giants. Surviving in an eccentric orbit requires enduring a constant, alternating cycle of flash-frying heat and deep-freeze hibernation. For Spacegate explorers, these turbulent worlds offer some of the most dynamic and hazardous environments in the galaxy.
+An eccentric tag would call attention to an orbit whose measured shape departs substantially from a circle. The scientific distinction needs a reviewed threshold, uncertainty rule, and target-specific context because a value important for a compact planet system may be ordinary for a wide binary. Eccentric orbits can produce dramatic changes in separation and interaction strength without proving a violent origin or an unstable future. Spacegate should show the value and reference solution alongside the tag so the distinction remains inspectable.
 
 ### INCLINED
 
-An inclined orbit is steeply tilted away from the flat equatorial plane where most of a system’s planets naturally form. These tilted trajectories carry worlds high above and far below the rest of their siblings, subjecting them to complex, undulating gravitational forces, much like the highly tilted orbit of Pluto in our own system. Finding a massive object in a highly inclined orbit usually points to a catastrophic past, such as a violent planetary collision or the gravitational capture of a rogue body from deep space. Navigating to these off axis orbits requires complex, energy intensive maneuvers to match the local planetary plane. Identifying these tilted rogues is crucial for building accurate, fully realized 3D maps of a stellar neighborhood.
+An inclined tag would identify an orbit tilted substantially relative to a specified comparison plane. That might mean the plane of the sky, a dominant planetary plane, a stellar equator, or another accepted orbit, and each choice carries a different physical meaning. Large mutual inclinations can preserve evidence of migration, scattering, capture, or disk warping, but the angle alone does not select among those histories. Spacegate must establish the reference plane, threshold, and uncertainty before enabling this distinction.
 
 ### EDGE ON
 
-An edge-on system happens to align perfectly with our line of sight from Earth, presenting its orbital plane completely flat to our telescopes. This serendipitous geometry is the holy grail for exoplanet hunters, allowing worlds like those in the Kepler-11 system to pass directly in front of their host stars and create measurable dips in starlight. In binary star systems like the famous "Demon Star" Algol, this alignment creates spectacular eclipsing binaries where two massive stars periodically block each other out in a mesmerizing cosmic dance. Without this exact viewing angle, many of the universe’s most fascinating, tightly packed planetary systems would remain completely invisible to us. For Spacegate navigators, an edge-on tag highlights a system whose deepest secrets were unlocked through the simple geometry of shadows.
+An edge-on orbit is viewed nearly along its orbital plane, so the moving bodies can pass in front of one another from Earth's perspective. This geometry makes transits and eclipses possible and lets astronomers recover radii, periods, and other properties from changes in light. The alignment need not be perfect, and the angular tolerance depends on the sizes and separation of the bodies. Spacegate should tie the tag to a defined sky-plane inclination or observed eclipse evidence rather than the visual impression of the simulator.
 
 ### RETROGRADE
 
-A retrograde orbit is a cosmic rebellion, describing a world that travels in the exact opposite direction of its star’s rotation or the rest of the planetary system. Since stars and their planets condense from the same spinning cloud of gas, everything naturally wants to rotate in the same uniform direction. When an object breaks this fundamental rule—such as the massive "hot Jupiter" WASP-17b or Neptune's captured moon Triton—it is almost always an alien interloper. These backwards-traveling bodies often face severe orbital decay, as opposing tidal forces slowly drain their momentum and drag them closer to their doom. Encountering a retrograde world is a stark reminder of the chaotic and violent gravitational forces that shape the galaxy.
+A retrograde orbit carries angular momentum opposite to a named reference rotation or orbital plane. Such motion can emerge through scattering, secular interactions, a tilted formation disk, mass transfer, or capture, so it does not automatically mark an interstellar intruder. Retrograde planets are often identified through the projected angle between a transit chord and the star's rotation, which may not reveal the complete three-dimensional geometry. Spacegate needs an explicit reference direction and uncertainty policy before assigning this tag.
 
 ### RESONANT
 
-A resonant system features multiple planets or moons locked into a perfectly synchronized gravitational dance. As these worlds orbit, their periods form simple mathematical ratios, such as completing exactly two laps for every one lap of their neighbor. This rhythmic tug-of-war can violently knead a planet's interior, triggering massive volcanic eruptions like those seen on Jupiter's moon Io. Alternatively, resonance can act as a stabilizing anchor, allowing tightly packed, multi-planet systems like TRAPPIST-1 to survive for billions of years without colliding. These mathematically beautiful orbits represent some of the most elegant and delicate architectural marvels in the cosmos.
+Orbital resonance occurs when repeated gravitational tugs happen in a regular pattern, often associated with a ratio of orbital periods built from small integers. A near-integer ratio is a clue, but true resonance is normally demonstrated when a resonant angle librates instead of circulating freely. Resonances can stabilize an architecture, drive eccentricity, or heat an interior, depending on the bodies and geometry involved. Spacegate should distinguish a measured or modeled resonance from a period-ratio screen.
 
 ### CIRCUMBINARY
 
-A circumbinary orbit traces a massive path around two central stars simultaneously, rather than just one. Worlds in these orbits, like the famous "Tatooine" planet Kepler-16b, enjoy skies graced by twin suns, enduring complex and constantly shifting patterns of light, shadow, and radiation. To remain stable, these planets must orbit far enough away that the two central stars effectively act as a single, unified gravitational anchor. If they drift too close to the inner binary, the chaotic, intersecting gravitational fields will violently eject them into deep space. Famous in science fiction, these systems prove that stable planetary formation can occur even in the turbulent heart of a multiple star system.
+A circumbinary body orbits both members of an inner binary rather than belonging to either star alone. From far enough away, the pair's combined gravity can support a durable outer orbit, while paths too near the binary are often destabilized by its changing gravitational field. The resulting seasons, transits, and illumination can be complex even when the orbit itself is stable. Spacegate should apply this tag from an accepted host relationship and preserve whether the orbit is measured, modeled, or assumed.
 
 ### TIDALLY LOCKED
 
-A tidally locked world has its rotation perfectly synchronized with its orbit, resulting in one hemisphere perpetually facing its host star. This permanent alignment creates a planet of brutal extremes: a scorching, irradiated dayside and a frozen, eternal nightside. The only refuge for life on these divided worlds, such as our nearest exoplanet neighbor Proxima Centauri b, is often the "terminator line," a narrow ring of perpetual twilight where the warring temperatures equalize. Powerful, globe-spanning winds constantly howl across the surface as the atmosphere desperately tries to redistribute the immense heat from the day side to the dark. This fate is incredibly common for planets orbiting close to red dwarf stars, making it a crucial factor in the search for extraterrestrial habitats.
+A tidally locked body rotates once per orbit so the same hemisphere continually faces its companion. Tides dissipate rotational energy until this synchronized state becomes favorable, especially for close planets and moons, but the timescale depends on internal structure and orbital history. Permanent day and night do not by themselves dictate a scorched hemisphere and frozen one: an atmosphere, ocean, clouds, and circulation can redistribute heat. Because exoplanet rotation is rarely measured directly, Spacegate should distinguish an observed constraint from a model-based locking expectation.
 
 ## Temperature Lines
 
 ### Vaporization Line
 
-This is the absolute inner edge of a star system where planets can begin to form. Closer to the star, the intense heat vaporizes even heavy rocks and metals directly into gas. Moving past this ~1,500 K (~2,240°F) boundary allows rocky dust to finally stay solid and stick together. Because worlds like Mercury, Earth, and Mars formed safely outside this line, they were able to successfully build and keep their solid, rocky crusts.
+The refractory-vaporization boundary marks the hot inner disk region where even many rock-forming solids cannot survive. Its location depends on pressure, mineral composition, stellar luminosity, and the changing structure of the young disk, so it is a modeled transition rather than a universal ring at one temperature. Beyond it, refractory grains can remain solid long enough to participate in planet formation. A Spacegate overlay should name its model and assumptions instead of implying that present-day planets formed at their current positions.
 
 ### Soot Line
 
-This boundary marks the spot where complex, carbon-based molecules can survive without being destroyed by the star's heat. Outside this ~300 K (~80°F) line, carbon chains safely condense into a solid, sooty dust that mixes with growing planets and asteroids. Many of the dark, carbon-rich asteroids in our own main asteroid belt formed just past this line. Scientists believe these drifting space rocks eventually crashed into a young Earth, delivering the crucial carbon needed to build the chemistry of life.
+The soot line is a modeled region inside which heat destroys or alters refractory carbon-rich grains. Crossing it can change the carbon available to forming planetesimals and may help explain differences in planetary composition. The relevant chemistry and temperature depend on the disk environment, and the line evolves as the young star and disk change. Spacegate should present it as a formation-model concept, not a fixed boundary proving how carbon reached a particular planet.
 
 ### Water Freeze Line
 
-Often just called the "Snowline," this is the crucial border where water turns from a gas directly into solid ice. Crossing into this ~150 K (~-190°F) deep freeze creates a massive abundance of solid ice crystals for planet-building. This extra material allows baby planets to quickly grow massive cores with enough gravity to sweep up surrounding gas. Jupiter and Saturn formed just past this line, allowing them to become massive gas giants circled by profoundly icy moons like Europa and Enceladus.
+The water snow line is the disk region beyond which water vapor can condense efficiently as ice. Icy grains add solid material and change how planetesimals grow, making the snow line important to theories of giant-planet cores and water delivery. Its location moves as the young star brightens or dims and as disk pressure and opacity evolve. A present-day orbit beyond a rendered snow line does not prove that the planet formed there or reveal how much water it contains.
 
 ### Carbon Dioxide Freeze Line
 
-Further out in the dark, the temperature drops until carbon dioxide gas finally freezes solid. At roughly 70 K (~-334°F), what we know on Earth as "dry ice" becomes a permanent, natural part of the landscape. Planets and moons forming in this region can build up incredibly thick, heavy layers of trapped carbon dioxide. The moons of Uranus, such as Ariel and Umbriel, formed safely past this line, which is why their cratered surfaces still contain hidden deposits of frozen dry ice.
+Farther into a cold protoplanetary disk, carbon dioxide can condense onto grains and alter the inventory of volatile material available to forming worlds. The transition depends on local pressure, chemistry, and disk history rather than one exact temperature everywhere. Migration and later heating can separate a planet's current orbit from the region where its building blocks condensed. Spacegate should render this as a model-dependent chemistry overlay with its assumptions available.
 
 ### Methane & Carbon Monoxide Freeze Line
 
-In the extreme outer reaches of a star system, it is finally cold enough for methane and carbon monoxide to freeze solid. Worlds that form past this ~20 K (~-424°F) boundary sweep up massive amounts of these deep-freeze chemicals. Because these compounds are so common in space, they end up making up a huge percentage of these distant worlds' overall volume. Sweeping up all this frozen methane is exactly what gives ice giants like Uranus and Neptune their beautiful, deep blue colors.
+Methane and carbon monoxide condense under different chemical and pressure conditions in the cold outer disk, so they should not ultimately share one undifferentiated physical boundary. Both transitions matter because they change where carbon-bearing volatiles remain in gas or become incorporated into icy solids. The locations evolve with disk temperature and may be altered by chemical reactions and irradiation. This combined proposal should remain a teaching placeholder until Spacegate adopts separate model definitions.
 
 ### Nitrogen Freeze Line
 
-This ultimate boundary marks the very edge of the planetary system, where almost nothing can exist as a gas except hydrogen and helium. Temperatures of ~12 K (~-438°F) are so close to absolute zero that even nitrogen gas freezes solid. Worlds born past this line are quiet, frozen time capsules made of the most fragile ices in the universe. We see this exact phenomenon on dwarf planets like Pluto, where the extreme cold creates massive, slowly flowing glaciers made entirely of solid nitrogen.
+The nitrogen condensation region lies among the coldest parts of a planet-forming disk, where nitrogen-bearing volatiles can be trapped in ices. Its location depends on whether nitrogen is present as molecular nitrogen, ammonia, or other compounds as well as on pressure and disk chemistry. Pluto's nitrogen ice shows that such material survives in today's outer Solar System, but it does not locate a universal formation boundary. Spacegate should expose the chosen chemical model whenever this line is rendered.
 
 ### Habitable Zone
 
-The habitable zone, often dubbed the "Goldilocks Zone," is the precise orbital region around a star where conditions are just right for liquid water to pool on a rocky planet's surface. The boundaries of this precious cosmic real estate are entirely dictated by the host star's temperature and luminosity, sitting incredibly close to dim red dwarfs and stretching far outward for blazing blue giants. However, residing in this zone is not a guarantee of paradise; a planet must also possess a stable atmosphere and magnetic field to prevent its oceans from boiling away or freezing solid. Because stars slowly brighten as they age, this zone is not static but gradually creeps outward over billions of years, occasionally leaving once-temperate worlds to fry in a runaway greenhouse effect. For Spacegate explorers and astrobiologists alike, this narrow orbital band remains the ultimate hunting ground in the search for extraterrestrial life.
+The circumstellar habitable zone is the range of stellar energy where a rocky planet with a suitable atmosphere might maintain liquid water on its surface. It is a family of climate-model boundaries, not a precise promise written into space: atmospheric composition, pressure, clouds, planetary mass, orbit, and stellar activity all matter. The zone also moves as a star evolves. Spacegate uses a deliberately broad HZ SCREEN to identify systems worth investigating while reserving any claim about actual surface water or life for much stronger evidence.
 
 ## Galactic Reference Frame
 
 ### COREWARD
 
-Looking coreward means turning your gaze toward the ancient, densely packed heart of the Milky Way. This direction points toward the constellation Sagittarius and the supermassive black hole that anchors our galaxy. Stars tagged here lie deeper in the galactic gravity well than our own Sun, surrounded by thick interstellar dust lanes and glowing nebulae. Famous sights in this direction include the Lagoon Nebula and the rich star clouds of the galactic bulge.
+Coreward points from Sol toward the center of the Milky Way in a specified Galactic coordinate frame. Flying that way looks into denser regions of the Galactic disk, though dust and survey selection can strongly shape what appears on the map. A directional tag would describe position on the sky, not prove that an object belongs to the bulge or is physically moving inward. Spacegate needs a versioned frame and angular boundary before assigning it.
 
 ### RIMWARD
 
-A rimward tag indicates a system located further out toward the lonely, thinning edges of the Milky Way. Looking this way means facing away from the galactic center, gazing past the Perseus spiral arm and toward the deep intergalactic void. The star fields here are less crowded, making it easier to spot distant galaxies through the clearing dust. If you look toward the constellation Auriga or Orion's sword, you are gazing out into the rimward frontier.
+Rimward points away from the Galactic center toward the outer disk. The direction provides useful orientation for exploring the Milky Way from Sol, but nearby stars labeled rimward may still have very different Galactic orbits. Survey depth and dust can make the apparent stellar density differ from the true population. Spacegate must define the coordinate frame and angular region before this becomes a tag.
 
 ### SPINWARD
 
-Spinward systems lie "ahead" of us in the grand rotation of the Milky Way's disk. As our solar system hurtles around the galactic core at over 500,000 miles per hour, we are flying directly toward these stars. This direction points roughly toward the constellation Cygnus, leading the charge of our local Orion spiral arm through the interstellar medium. You can think of these stars as the vehicles immediately ahead of us in galactic traffic.
+Spinward points along the direction of the Milky Way's rotation at the Sun's location. It is a navigational direction in a Galactocentric frame, not a claim that every star in that part of the sky moves with the local circular flow. Peculiar velocities and the Sun's own motion complicate the relationship between sightline and motion. Spacegate needs a pinned Galactic model and angular boundary before enabling the label.
 
 ### TRAILING
 
-Trailing stars are antispinward, located "behind" us in our orbit around the Milky Way. We are essentially leaving these systems in our cosmic dust as the Sun speeds along its 225-million-year journey around the galaxy. Looking trailing means gazing back along the Orion spiral arm toward constellations like Vela and Puppis. These are the systems we have already passed or are currently outpacing in the great galactic carousel.
+Trailing points opposite the local direction of Galactic rotation. Like spinward, it gives explorers a useful orientation while saying nothing by itself about an individual star's velocity. A star seen in the trailing hemisphere may be moving in almost any direction relative to Sol. Spacegate should keep the positional direction separate from kinematic evidence.
 
 ### GALACTIC ZENITH
 
-A system at the galactic zenith sits "straight up" above the flat, dusty disk of the Milky Way. Because our galaxy is incredibly thin compared to its width, looking this way quickly pierces through the local star fields into the deep intergalactic void. This view points toward the constellation Coma Berenices. With very little galactic dust to block the light, this direction offers astronomers a crystal-clear window to observe thousands of distant galaxies.
+Galactic zenith points toward the north Galactic pole, above the Milky Way's midplane in the adopted coordinate system. Looking this way leaves the dusty disk relatively quickly and opens a view toward the Galactic halo and distant universe. Nearby objects in that direction are not automatically halo members or physically traveling upward. Spacegate needs an explicit Galactic frame and angular region for the tag.
 
 ### GALACTIC NADIR
 
-The galactic nadir points "straight down" through the floor of the Milky Way's disk. Like the zenith, this direction looks away from the dense spiral arms and out into the vast, empty halo of the galaxy. Gazing toward the constellation Sculptor will point you toward the nadir. Systems tagged here are excellent vantage points for observing deep space without the interference of our galaxy's native gas and dust.
+Galactic nadir points toward the south Galactic pole, below the Milky Way's midplane in the adopted coordinate system. It is the opposite navigational direction from Galactic zenith and likewise looks out of the dense disk. Position in that hemisphere does not establish population membership or vertical motion. Spacegate should define it through the same versioned Galactic frame as the other directional tags.
 
 ## Equatorial & Observational Tags
 
 ### NORTH
 
-Systems tagged Celestial North lie near the northern pivot point of Earth's axis of rotation. If you stand outside in the northern hemisphere and watch the sky over several hours, these stars appear to remain nearly stationary while the rest of the cosmos wheels around them. This direction points directly toward Polaris, the famous North Star, which serves as the cosmic anchor for this region. Observers looking this way are essentially peering "up" from the very top of our spinning planet. Because of their unique position, these systems never set for most northern observers, offering a permanent, year-round window into this stellar neighborhood.
+North describes positive declination in a pinned equatorial coordinate frame. It does not mean an object is visible only from Earth's Northern Hemisphere: observers in both hemispheres can see across much of the celestial equator depending on latitude and horizon. The label is useful for organizing the sky but should not be confused with Galactic north or an object's physical location above the Milky Way. Spacegate must state the frame and epoch.
 
 ### SOUTH
 
-A Celestial South tag indicates a system located near the southern pivot point of Earth's rotational axis. Just as the northern sky rotates around Polaris, the southern sky wheels endlessly around this fixed celestial pole, which is anchored by the faint star Sigma Octantis. Backyard observers typically find this region by following the long axis of the famous Southern Cross constellation. These systems lie "down" relative to Earth's tilt, making them permanently hidden from mid-northern latitudes but beautifully ever-present for observers in the southern hemisphere. Gazing this way lets you look out into the void from the very bottom of our spinning terrestrial ship.
+South describes negative declination in a pinned equatorial coordinate frame. Many southern objects are visible from northern latitudes and vice versa, with the observer's latitude setting the actual limit. Equatorial south is a direction on Earth's sky rather than a Galactic population or motion claim. Spacegate should keep this coordinate label separate from live visibility calculations.
 
 ### CIRCUMPOLAR
 
-A circumpolar tag is the ultimate "Backyard Bonus" for amateur astronomers. Because of these stars' high latitude relative to Earth's tilt, they never actually set below the horizon for observers at mid-latitudes. You can walk outside on any clear night of the year and find these systems waiting for you in the sky. Iconic examples include the stars of the Big Dipper in the northern hemisphere and the Southern Cross in the south.
+A circumpolar object never sets below the horizon for a particular observer because its daily path circles a celestial pole. The result depends directly on observer latitude: a star can be circumpolar from one location, seasonal from another, and never rise from a third. This makes circumpolar an excellent live observing aid but not an intrinsic property of the star. Spacegate should calculate it from explicit location and time context instead of storing it permanently.
 
 ### ZODIACAL
 
-Zodiacal stars lie perfectly along the Ecliptic, the invisible highway that our Sun, Moon, and planets travel across Earth's sky. When you look at these systems, you are looking flat across the exact plane of our own solar system. Because they share this cosmic road, these stars are frequently occulted, or temporarily hidden, by the Moon and passing planets. You will find all of these stars within the familiar constellations of the Zodiac, like Taurus, Leo, or Scorpius.
+A zodiacal object lies within a defined band around the ecliptic, the Sun's apparent yearly path across Earth's sky. The Moon and planets remain near this band, so stars and extended objects there are more likely to experience conjunctions or occultations. The ecliptic crosses thirteen modern IAU constellations, while cultural zodiac traditions divide the sky differently. Spacegate needs an explicit band width, epoch, and cultural context before assigning the tag.
 
 ## Kinematic (Motion) Tags
 
 ### HIGH PROPER MOTION
 
-Stars with this tag are racing across our line of sight at incredible speeds. The universe is not static, and these systems move so fast that their positions among the background stars noticeably change over a single human lifetime. Barnard's Star is a famous example, sprinting across the constellation Ophiuchus year after year. This motion usually indicates that the star is both moving exceptionally fast and is located very close to our solar system.
+Proper motion is the angular drift of an object across the sky after annual parallax is separated out. A large value often calls attention to a nearby star, but a more distant object moving rapidly across our line of sight can also qualify. The apparent rate combines true tangential velocity with distance and carries measurement uncertainty. Spacegate needs a reviewed threshold and release-scoped astrometry before turning it into a distinction.
 
 ### APPROACHING
 
-Approaching systems have a high negative radial velocity, meaning they are actively speeding toward our solar system. Astronomers know this because the light from these stars is "blueshifted," compressed into shorter, bluer wavelengths by their forward momentum. Over the next few million years, these stars will become significantly brighter and closer neighbors in our night sky. It is a stark reminder that the stellar neighborhood is a dynamic, shifting crowd.
+An approaching object has a negative radial velocity in a specified reference frame, meaning its line-of-sight distance is currently decreasing. Spectral lines reveal that motion through their Doppler shift, but the measurement says nothing about sideways velocity and does not imply a future encounter with the Solar System. Binary orbital motion can also move a star toward and away from us around a system average. Spacegate must define the velocity frame, systemic value, threshold, and uncertainty.
 
 ### RECEDING
 
-Receding stars are speeding rapidly away from the Sun and out of our local stellar neighborhood. Their light arrives "redshifted," stretched out into longer wavelengths as they fly away from us. These could be stars that formed in different galactic regions just passing through, or systems born alongside the Sun that are now drifting apart. Over astronomical timescales, these stars will slowly fade from Earth's night sky entirely.
+A receding object has a positive radial velocity in a specified reference frame, meaning its line-of-sight distance is currently increasing. Its spectrum is shifted toward longer wavelengths by that motion, while proper motion supplies the missing sideways component. Receding does not mean the star is escaping the Galaxy or will quickly disappear from the sky. Spacegate should use a systemic radial velocity and explicit frame rather than a single phase of binary motion.
 
 ### CO-MOVING
 
-Co-moving stars are drifting through the galaxy at a similar direction and speed as our own Sun. You can think of them as our long-term travel companions on the 225-million-year orbit around the Milky Way. Many of these stars may have been born in the exact same stellar nursery as the Sun billions of years ago. The stars of the Ursa Major Moving Group (which make up most of the Big Dipper) are famous co-moving companions.
+Co-moving objects have three-dimensional velocities consistent within a defined tolerance after measurement uncertainties are considered. Similar motion can support a wide-binary, moving-group, or cluster relationship, but it does not by itself prove common birth or gravitational binding. Position, age, chemistry, and long-term dynamics provide additional tests. Spacegate needs a versioned velocity metric and reference population before assigning this tag.
 
 ## Source and Evidence
 
@@ -233,57 +257,57 @@ Co-moving stars are drifting through the galaxy at a similar direction and speed
 
 #### Gaia DR3
 
-Operated by the European Space Agency, the Gaia space observatory sits at the Earth-Sun L2 Lagrange point, quietly revolutionizing our understanding of the galaxy. Its billion-pixel digital camera measures the exact positions, distances, and motions of nearly two billion stars with unprecedented micro-arcsecond precision. Data Release 3 (DR3) is the definitive 3D map of the Milky Way, serving as the canonical structural backbone for Spacegate. It reveals not just where stars are today, but maps their kinematic trajectories millions of years into the past and future. If you want to know exactly how a star system is moving through the cosmic void, Gaia is the ultimate authority.
+Gaia repeatedly measured nearly two billion points of light, turning tiny shifts on the sky into positions, parallaxes, proper motions, brightnesses, and colors. Those measurements form the geometric backbone of Spacegate's nearby map and help separate stars that only appear close together from objects moving through space together. This token appears when an exact Gaia DR3 record contributes to the displayed object; distance estimates and physical interpretations remain distinct evidence.
 
 #### Bailer-Jones
 
-This critical dataset takes the raw, often noisy parallax measurements from the Gaia mission and uses advanced Bayesian statistics to calculate true geometric distances. Space is incredibly vast, and inferring distance just by looking at how a star seems to wobble is notoriously difficult and error-prone. Dr. Coryn Bailer-Jones and his team created the mathematical models that translate those tiny wobbles into hard light-year measurements. Without this dataset, Spacegate's 3D map would be distorted, with stars scattered at incorrect depths. This tag guarantees that a star's position in the 3D void is mathematically optimized and trusted.
+Parallax becomes difficult to translate directly into distance when the measurement is small or uncertain. The Bailer-Jones catalog combines Gaia EDR3 astrometry, and for photogeometric estimates stellar brightness and color, with an explicit model of the Galaxy to produce probability-based distance estimates. Spacegate preserves these as modeled evidence rather than treating them as exact measured locations.
 
 ### Planets & Exoplanet Habitability
 
 #### NASA Exoplanet Archive
 
-This is the official repository for every confirmed alien world discovered by humanity, operated by Caltech and NASA. It compiles data from legendary planet-hunting missions like Kepler and TESS, tracking orbital periods, planetary masses, and radii. Whenever the astronomical community confirms a new world, from scorching hot Jupiters to tidally locked super-Earths, its parameters are immortalized here. It serves as the baseline for Spacegate's planetary physics, allowing us to map the precise architecture of alien solar systems. Discoveries logged here dictate whether a world might host boiling lava oceans or the right conditions for liquid water.
+The NASA Exoplanet Archive gathers published discoveries and measurements from many planet-search methods into a curated, evolving record. It contributes confirmed-planet identity, discovery context, and both reference-specific and composite values for planets and their host stars. Spacegate preserves the references and uncertainties behind those values because a convenient composite is not a substitute for the evidence that produced it.
 
 #### TOI
 
-The TESS Objects of Interest catalog is a dynamic, high-stakes watchlist generated by NASA's Transiting Exoplanet Survey Satellite. TESS patrols the sky looking for telltale dips in starlight caused by planets passing in front of their host stars. A TOI tag means a system is actively suspected of harboring a hidden world, but the scientific community is still working to independently verify it. It represents the bleeding edge of exoplanet discovery, filled with candidate worlds that might be confirmed tomorrow or debunked as false positives. In Spacegate, these are the thrilling frontier systems where the map is still actively being drawn.
+TESS searches for repeated dips in starlight that may be caused by planets crossing their stars. TIC identifiers name the observed targets, while TOI records track signals selected for follow-up and their changing dispositions. Spacegate connects that evidence to the correct host or component while preserving the difference between a candidate, a confirmed planet, a false positive, and a false alarm.
 
 #### Habitable Worlds Catalog
 
-Maintained by the Planetary Habitability Laboratory at the University of Puerto Rico, this is humanity's shortlist for Earth 2.0. It rigorously analyzes confirmed exoplanets to identify those residing in the elusive "Goldilocks Zone" where liquid water could exist on a rocky surface. The catalog ranks worlds based on an Earth Similarity Index, comparing mass, radius, and estimated surface temperature against our home world. Famous systems like TRAPPIST-1 and Proxima Centauri b are the crown jewels of this list. When you see this tag, you are looking at a system that represents our highest hopes for finding extraterrestrial life.
+The Planetary Habitability Laboratory's Habitable Worlds Catalog collects published planet data and applies external habitability-oriented screens and metrics. It is useful for finding worlds that merit closer examination and for comparing how different screening assumptions behave. Spacegate presents it as a published assessment from that source, never as proof that a planet supports liquid water or life.
 
 ### Multiplicity & Orbital Dynamics
 
 #### WDS
 
-The Washington Double Star Catalog is the world's principal database of multiple star systems, maintained by the United States Naval Observatory. It contains astrometric measurements for over a hundred thousand pairs of stars, some of which have been tracked by astronomers for over two centuries. This catalog maps the intricate visual dances of binary, triple, and even septuple star systems as they orbit their common centers of mass. In Spacegate, the WDS provides the vital foundational geometry required to render complex, multi-star environments. If a system features multiple suns in its sky, the WDS is usually the ledger that proves it.
+The Washington Double Star Catalog is a long-running record of pairs and multiple components measured close together on the sky. It preserves component labels, relative positions, and observation histories that may span generations of observers. A WDS pair is not automatically gravitationally bound, so Spacegate uses the measurements as relation evidence and requires stronger support before turning proximity into canonical system membership.
 
 #### MSC
 
-The Multiple Star Catalog is an expertly curated database that goes beyond visual pairs to reconstruct the true hierarchical architecture of complex star systems. Created by astronomer Andrei Tokovinin, it combines data from visual, spectroscopic, and eclipsing observations to build complete "mobile-like" orbital trees. This is critical for systems like Castor, which appears as a simple binary to small telescopes but is actually a chaotic six-star system. Spacegate relies on the MSC to ensure orbital dynamics are mathematically stable and that planets are assigned to the correct host suns. It is the master blueprint for the most gravitationally complicated neighborhoods in the galaxy.
+The Multiple Star Catalog reconstructs how the components of triples and richer stellar families are arranged into nested subsystems. That hierarchy is essential because a close pair and a distant companion cannot be represented faithfully as three unrelated points or one flat list. Spacegate preserves MSC component scope and source-native orbit context, accepting only relationships that survive identity and collision checks.
 
 #### ORB6
 
-The Sixth Catalog of Orbits of Visual Binary Stars is the gold standard for predicting the exact future positions of orbiting suns. Maintained by the US Naval Observatory, it translates centuries of scattered telescope observations into precise mathematical orbital elements like eccentricity and orbital periods. While the WDS tells you two stars are near each other, ORB6 tells you exactly how they are dancing around each other in three-dimensional space. Spacegate uses these solutions to drive the physical system simulators, allowing you to watch stellar orbits unfold in real-time. It transforms static catalog entries into living, breathing, clockwork celestial mechanics.
+ORB6 collects published orbit solutions for visual binaries whose changing separation and position angle can be followed on the sky. A solution turns those measurements into one coherent set of orbital elements, but its reliability depends on how much of the orbit has been observed and is summarized by its grade and references. Spacegate preserves the complete solution and its provenance rather than mixing convenient elements from unrelated fits.
 
 #### SB9
 
-The Ninth Catalogue of Spectroscopic Binary Orbits tracks systems where the stars are so tightly bound that no telescope on Earth can visually split them. Instead, astronomers detect these hidden companions by watching the host star's light spectrum Doppler-shift back and forth as the invisible partner's gravity tugs on it. These systems often feature extreme environments, with stars whipping around each other in a matter of days or even hours. SB9 provides the critical orbital periods and mass ratios for these intimate stellar dances. In Spacegate, this tag means a star you thought was alone actually has a high-speed, invisible companion locked in a tight gravitational embrace.
+Spectroscopic binaries reveal their orbits through periodic Doppler shifts even when telescopes cannot cleanly separate the stars. SB9 gathers published radial-velocity orbit solutions, aliases, component information, and bibliography for these systems. Spacegate keeps each solution coherent and component-scoped so a measured period or velocity amplitude is not silently attached to the wrong star or combined with an incompatible orbit.
 
 #### DEBCat
 
-The Detached Eclipsing Binary Catalogue focuses on a highly prized type of star system where two stars perfectly eclipse each other from Earth's perspective. Because they block each other's light at predictable intervals, astronomers can use simple geometry to calculate their absolute masses and radii with incredible precision. These systems serve as fundamental measuring sticks for all of astrophysics, calibrating our mathematical models of how stars work. Spacegate uses DEBCat data because it represents some of the most hard, indisputable physical measurements in the entire database. If a star system has this tag, its physical parameters are locked in with absolute mathematical certainty.
+Detached eclipsing binaries let astronomers combine eclipses with radial velocities to measure stellar masses and radii with unusual precision. DEBCat curates well-studied systems, generally emphasizing measurements near the two-percent level while preserving published uncertainties and references. These stars are powerful tests of stellar models, but the catalog is a literature compilation rather than a perfectly homogeneous experiment.
 
 ### Nomenclature & Publications
 
 #### SIMBAD
 
-Operated by the Centre de Données astronomiques de Strasbourg in France, SIMBAD is the master switchboard of astronomical nomenclature. Because a single interesting star might be studied by fifty different telescopes over a century, it can accumulate dozens of confusing, overlapping catalog names. SIMBAD's primary mission is to link all these aliases together, ensuring that HD 20794, 82 G. Eridani, and HR 1008 are all recognized as the exact same object. It provides the essential cross-referencing spine that keeps Spacegate's identity graph from fracturing into duplicates. When you search for a star by an obscure historical name and actually find it, you have SIMBAD to thank.
+Astronomical objects accumulate names as different surveys, instruments, and papers observe them. SIMBAD links those identifiers to literature-reviewed objects and supplies object types, classifications, and bibliography, making it one of astronomy's essential cross-reference services. Spacegate uses individual SIMBAD contributions with object and component scope instead of treating every alias or historical classification as equally authoritative.
 
 #### IAU WGSN
 
-The International Astronomical Union's Working Group on Star Names is the ultimate global authority for standardizing the proper names of stars. Moving away from alphanumeric soup, they protect global cultural heritage by officially recognizing traditional names like Sirius, Betelgeuse, and thousands of names drawn from Indigenous, Arabic, and ancient mythologies. Spacegate heavily prefers these human-readable names to make the galaxy feel more accessible and culturally rich. When an otherwise random catalog star suddenly gets an evocative proper name, it was ratified here. This tag indicates a star important enough to human history that we gave it a real name.
+The IAU Working Group on Star Names standardizes proper names so one spelling and one stellar component can be used consistently across astronomy. Its catalog also records the historical or cultural attribution behind those names. Spacegate prefers an accepted proper name where appropriate while retaining catalog identifiers and never treating a named star as scientifically more important merely because it has a memorable name.
 
 #### Harvard ADS
 
@@ -293,43 +317,43 @@ The Astrophysics Data System is a digital library portal operated by the Smithso
 
 #### ATNF Pulsar
 
-Compiled by the Australia Telescope National Facility, this is the definitive registry of the galaxy's dead, spinning stellar cores. Pulsars are highly magnetized, rapidly rotating neutron stars that sweep beams of intense electromagnetic radiation across the cosmos like apocalyptic lighthouses. This catalog tracks their spin rates, magnetic field strengths, and precise locations, including those that spin hundreds of times per second. In Spacegate, these represent the most extreme, lethal environments on the map, where gravity and radiation warp the surrounding space. If you are looking for a scientifically accurate exotic hazard, the ATNF catalog is where you find it.
+Pulsars announce their rotation through precisely timed pulses detected at radio and other wavelengths. The ATNF Pulsar Catalogue brings together published identities, spin behavior, distances, timing parameters, and binary context for these objects. Spacegate preserves the measurement and reference behind each contribution because derived quantities such as characteristic age or magnetic field depend on a physical model.
 
 #### McGill Magnetar
 
-Maintained by McGill University, this specialized catalog tracks the rarest and most terrifying objects in the stellar graveyard. Magnetars are a bizarre sub-type of neutron star possessing magnetic fields trillions of times stronger than Earth's—strong enough to wipe a credit card from the distance of the Moon. When their solid crusts snap under magnetic stress, they unleash "starquakes" that blast the galaxy with unfathomable gamma-ray flares. Spacegate uses this catalog to flag these ticking time bombs, representing areas of space completely hostile to conventional physics. A system with this tag is the ultimate cosmic hazard zone.
+Magnetars are neutron stars recognized through their high-energy activity, spin behavior, and exceptionally strong inferred magnetic fields. The McGill Magnetar Catalog reviews the small known population and assembles timing, burst, and observational context from multiple missions. Spacegate uses that reviewed classification while keeping model-derived field strengths and ages distinct from direct observations.
 
 #### UltracoolSheet
 
-This highly specialized database tracks the dimmest, coolest substellar objects in the neighborhood, primarily brown dwarfs. These "failed stars" are too massive to be planets but lack the mass to ignite sustained hydrogen fusion, leaving them to slowly cool and fade in the dark. The UltracoolSheet compiles their complex atmospheric data, charting bizarre weather patterns involving clouds of liquid iron and silicate dust. In Spacegate, these objects bridge the gap between giant gas planets and true stars, offering incredibly unique system architectures. They are the stealthy, glowing embers of the galaxy, usually only visible to advanced infrared sensors.
+Ultracool dwarfs are faint enough that their identities and classifications are scattered across infrared surveys and specialist papers. UltracoolSheet links that literature into a practical compilation of optical and infrared spectral types, astrometry, and related measurements. Spacegate uses the exact classifications and references while respecting that spectral type, mass, and star-versus-brown-dwarf status are different questions.
 
 ### Deep Sky, Infrared, & Spectroscopy
 
 #### APOGEE
 
-The Apache Point Observatory Galactic Evolution Experiment is a massive spectroscopic survey that reads the chemical "DNA" of stars. By peering through the galaxy's obscuring dust using near-infrared light, its instruments can determine exactly what elements a star was born with. This allows astronomers to group stars into vast families and trace the entire formation history of the Milky Way. Spacegate uses APOGEE data to assign rich, scientifically accurate metallicity values to its stars. This chemical tag dictates everything from the star's color to the likelihood that it formed rocky terrestrial planets.
+APOGEE uses high-resolution near-infrared spectra to look through Galactic dust and read the absorption fingerprints in stellar atmospheres. DR17 contributes radial velocities, temperatures, surface gravities, and abundances for many chemical elements, together with the flags needed to judge those results. Spacegate keeps each calibrated parameter set and its quality context intact rather than constructing a chemically precise star from unrelated best-looking numbers.
 
 #### OpenNGC
 
-An open-source, modern successor to the legendary New General Catalogue, this database indexes the deep-sky objects that paint the interstellar medium. It tracks the sprawling emission nebulae, dark dust clouds, and sparkling open star clusters that serve as the backdrop of the galaxy. While Spacegate focuses heavily on individual stars, OpenNGC provides the vital regional geography, mapping the stellar nurseries and supernova remnants that shape whole sectors of space. These are the spectacular, glowing gas clouds that make up the iconic imagery of space exploration. A tag here means a star system is embedded in, or illuminating, one of these beautiful galactic structures.
+Stars live within a larger geography of clusters, nebulae, galaxies, and remnants rather than in an empty coordinate grid. OpenNGC and the companion nebula catalogs contribute names, positions, dimensions, object types, and aliases for those extended structures. Spacegate stores the structures separately from stellar systems and requires explicit evidence before claiming that a particular star belongs to, illuminates, or lies inside one.
 
 #### Cantat-Gaudin
 
-This is a modern, highly precise census of open star clusters made possible by the Gaia space telescope. It maps sprawling families of stars that were born together from the same massive molecular cloud and are currently drifting through space as a group. By analyzing the exact motions of millions of stars, astronomers can spot these clusters even when they are heavily disguised by the dense galactic background. In Spacegate, this tag identifies stars that share a common origin and trajectory, effectively identifying sibling suns. It adds deep historical context, showing how stellar nurseries disperse over millions of years.
+Open clusters are families of stars that formed together and still share related positions and motions through the Galaxy. Cantat-Gaudin and collaborators used Gaia astrometry to identify cluster populations and assign probability-bearing memberships. Spacegate preserves those probabilities and the Gaia-release context, because a likely co-moving member is evidence of association rather than an infallible family label.
 
 #### CatWISE2020
 
-This catalog is built from data gathered by NASA's Wide-field Infrared Survey Explorer (WISE) during its extended mission. It scans the entire sky in the infrared spectrum, specifically hunting for faint, incredibly cold objects that are entirely invisible to optical telescopes. This is humanity's premier dragnet for discovering rogue planets, ultra-cool brown dwarfs, and highly active supermassive black holes in the deep background. For Spacegate, CatWISE provides the crucial thermal signatures needed to map the dark, hidden populations of our local neighborhood. If an object is tagged with this, it was likely found glowing faintly in the freezing dark.
+WISE and NEOWISE repeatedly scanned the whole sky in infrared light, making cold and dusty objects visible and revealing their motion over time. Targeted CatWISE2020 records contribute positions, proper motions, and infrared photometry for matched cool or fast-moving objects in Spacegate. The token means that exact counterpart evidence contributes here, not that every property of the object was discovered by CatWISE.
 
 ### Solar System & Transitional
 
 #### JPL Horizons
 
-Operated by NASA's Jet Propulsion Laboratory, this is the gold-standard ephemeris system for tracking the exact positions of everything inside our own Solar System. It calculates the high-precision orbits of planets, moons, asteroids, and even artificial probes like Voyager and New Horizons with mind-bending accuracy. When Spacegate needs to render the exact position of Mars or the trajectory of an incoming comet on a specific date, it queries JPL Horizons data. It is the absolute authority for navigating our local celestial backyard. This tag represents the pinnacle of human orbital mechanics and spacecraft navigation.
+Solar System positions change continuously and depend on the requested time, coordinate frame, and observing location. JPL Horizons computes ephemerides, state vectors, and osculating elements from observation-based dynamical solutions for planets, moons, small bodies, and spacecraft. Spacegate pins the query, epoch, center, frame, and returned evidence so a rendered position can be reproduced rather than treated as a timeless coordinate.
 
 #### AT-HYG
 
-The HYG Database is a beloved, classic compilation of the Hipparcos, Yale Bright Star, and Gliese catalogs, historically used by countless planetariums and early digital star maps. While modern surveys like Gaia have largely superseded it in astrometric precision, it remains incredibly valuable for its curation of historical cross-references and bright-star data. Spacegate retains this transitional catalog primarily to ensure backward compatibility and to catch obscure aliases that modern pipelines might miss. It acts as a bridge between the foundational astronomy of the 20th century and the precision mapping of the 21st. A tag here usually points to a bright, familiar star that has been observed by humans since antiquity.
+AT-HYG combines several classic bright- and nearby-star catalogs that powered many earlier digital star maps. Modern Gaia astrometry usually provides a stronger geometric foundation, but the older compilation remains valuable for familiar names, historical identifiers, and compatibility with previous datasets. Spacegate uses those identity contributions without allowing transitional measurements to overrule better release-scoped evidence.
 
 ## Stellar Tags
 
@@ -337,383 +361,383 @@ The HYG Database is a beloved, classic compilation of the Hipparcos, Yale Bright
 
 #### O (O-Type Star)
 
-O-type stars are the most massive, hottest, and brightest main-sequence stars in the universe. They burn with an intense blue-white hue and emit staggering amounts of ultraviolet radiation. Because they consume their nuclear fuel at a ferocious rate, their lifespans are incredibly short, lasting only a few million years. These celestial titans play a crucial role in galactic evolution by scattering heavy elements when they inevitably explode as supernovae. Consequently, they are exceedingly rare, making up a tiny fraction of the overall stellar population.
+O-type stars are the hottest members of the familiar OBAFGKM spectral sequence, with blue light and strong ionizing ultraviolet radiation. Their enormous luminosity comes at a cost: massive O stars consume their nuclear fuel quickly and usually live for only a few million years. Their radiation and winds can carve cavities in nearby gas, light up nebulae, and influence the birth of other stars. Spacegate applies this tag from the selected spectrum or stellar classification; the letter describes the observed atmosphere and temperature class, while luminosity class and evolutionary state provide the rest of the story.
 
 #### B (B-Type Star)
 
-B-type stars are extremely luminous and hot, shining with a brilliant blue color. While slightly less massive than their O-type cousins, they still wield immense gravitational influence and emit powerful stellar winds. They typically live for tens of millions of years, burning through their hydrogen fuel rapidly before evolving into massive giant stars. These stars are often found clustered together in young stellar associations where recent star formation has occurred. Well-known examples like Rigel and Spica dominate our night sky due to their sheer brilliance.
+B-type stars are hot, blue-white stars whose spectra place them just below O stars in temperature. Many are several times the Sun's mass and shine so intensely that they remain conspicuous across hundreds of light-years. They burn their fuel faster than cooler stars and are common in young clusters and stellar associations, although a B spectrum alone does not prove a star is young or on the main sequence. Spacegate uses the selected stellar classification for this tag rather than inferring it from color alone.
 
 #### A (A-Type Star)
 
-A-type stars are young, hot, and rapidly spinning stars that shine with a crisp white or slightly bluish-white light. They are among the most common "naked eye" stars visible from Earth, counting Sirius and Vega among their ranks. These stars lack strong magnetic fields and stellar winds, which allows their atmospheres to remain relatively calm and layered. They have lifespans of roughly a billion years, making them short-lived compared to our Sun but stable enough to host complex orbital systems. Their intense radiation environments make the formation of habitable planets challenging, but certainly not impossible.
+A-type stars appear white or blue-white and are best known for the strong hydrogen absorption lines in their spectra. They are hotter and usually more massive than the Sun, so a typical A star has a shorter main-sequence lifetime and a brighter ultraviolet environment. Sirius A and Vega are nearby examples, but the class also includes stars at different evolutionary stages and some chemically or magnetically peculiar objects. Spacegate assigns the tag from a selected spectral classification, not from brightness or apparent color by itself.
 
 #### F (F-Type Star)
 
-F-type stars represent a transitional class of yellow-white stars that are slightly more massive and hotter than our Sun. They boast vigorous "boiling" convection zones in their outer layers, creating strong magnetic dynamos and active stellar surfaces. These stars have lifespans of a few billion years, providing a potentially stable enough window for advanced planetary systems to evolve. Because they emit a higher fraction of ultraviolet light than cooler stars, any habitable planets would require robust atmospheric shielding. Procyon is a famous nearby example of this bright and energetic stellar class.
+F-type stars are yellow-white stars that bridge the gap between hot A stars and Sun-like G stars. A typical main-sequence F star is somewhat hotter and more massive than the Sun, radiates a larger share of ultraviolet light, and uses its fuel more quickly. This makes F-star planetary systems interesting laboratories for how stellar lifetime and radiation shape planetary environments. Spacegate derives this tag from the selected spectral classification; the F label does not by itself specify the star's age, size, or evolutionary stage.
 
 #### G (G-Type Star)
 
-G-type stars are the familiar, stable yellow-white stars of the cosmos, most famously represented by our own Sun. They strike a perfect cosmic balance, possessing enough mass to burn steadily for roughly ten billion years without exhausting their fuel too quickly. This long-term stability creates an ideal, sustained habitable zone where liquid water can exist on rocky planets for eons. They are characterized by a temperate surface and a moderate emission of ultraviolet radiation, allowing complex chemistry to thrive on neighboring worlds. While they make up only a small percentage of all stars, they are prime targets in the search for extraterrestrial life.
+G-type stars are yellow-white stars in the same broad spectral class as the Sun. Their spectra reveal surface temperatures and absorption features produced in their atmospheres; on the main sequence they can burn hydrogen steadily for billions of years. The Sun makes this class familiar, but G-type stars also include evolved subgiants and giants with very different sizes and histories. Spacegate applies the tag from the selected classification, so it means Sun-like in spectral type, not necessarily Sun-like in age, planets, or habitability.
 
 #### K (K-Type Star)
 
-K-type stars, or "orange dwarfs," are slightly cooler and less massive than our Sun, emitting a warm, orange-tinged light. They are considered by many astrobiologists to be the "Goldilocks" stars of the universe. Their nuclear fusion proceeds at a relaxed pace, granting them incredibly long lifespans of 15 to 30 billion years—longer than the current age of the universe. Furthermore, they emit far less hazardous radiation than red dwarfs, providing a deeply stable and safe environment for orbiting planets. These abundant and peaceful stars are excellent candidates for hosting ancient, undisturbed planetary systems.
+K-type stars have orange light and cooler atmospheres than the Sun. Main-sequence K dwarfs consume hydrogen slowly and can remain stable for longer than G dwarfs, which makes their planetary systems especially interesting to astrobiologists. The same K spectrum can also belong to an evolved giant, so temperature class must not be confused with size or age. Spacegate assigns this tag from the selected stellar classification and presents luminosity or evolutionary information separately when it is known.
 
 #### M (M-Type Star)
 
-M-type stars, commonly known as red dwarfs, are the smallest, coolest, and by far the most abundant stars in the galaxy. Because their internal fusion operates so efficiently and slowly, they can burn steadily for trillions of years. However, their early lives are famously chaotic, often unleashing violent solar flares that can strip the atmospheres from tightly orbiting planets. To host liquid water, planets must orbit very close to these dim stars, frequently resulting in them becoming tidally locked with one side constantly facing the sun. Despite their volatile youth, their staggering lifespans make them the ultimate survivors of the stellar family.
+M is the coolest major class in the traditional stellar sequence, producing red light and spectra rich in molecules. Most stars in the Galaxy are small M dwarfs, which burn fuel slowly enough to outlive the present age of the universe, but young M dwarfs can also flare powerfully. Large evolved red giants may have the same M-type atmosphere even though their size and history are entirely different. Spacegate therefore uses this tag only for the selected spectral class and keeps dwarf, giant, activity, and age claims separate.
 
 #### L (L-Type Brown Dwarf)
 
-L-type objects bridge the gap between the lowest-mass true stars and massive substellar brown dwarfs. They are incredibly dim, glowing primarily in the infrared spectrum with a very dark red or magenta hue. Their atmospheres are cool enough that metallic compounds and thick silicate clouds can form, raining liquid iron and sand deep within their interiors. Because they lack the mass to sustain stable hydrogen fusion, most L-dwarfs slowly cool and fade over billions of years. They represent a fascinating gray area where stellar astrophysics begins to resemble planetary meteorology.
+L-type objects are so cool that their spectra are shaped by metal hydrides, alkali lines, and clouds of mineral condensates. Most are brown dwarfs that never achieved sustained hydrogen fusion, but the warmest L objects can be extremely low-mass stars. Their faint visible glow gives way to much stronger infrared emission, where their weather-filled atmospheres can be studied. Spacegate calls them ultracool objects because an L spectrum alone does not settle which side of the star–brown-dwarf boundary an individual object occupies.
 
 #### T (T-Type Brown Dwarf)
 
-T-type brown dwarfs are failed stars that are significantly cooler and darker than L-dwarfs. Their defining feature is the prominent presence of methane in their atmospheres, a chemical marker they share with giant gas planets like Jupiter. They emit almost no visible light, radiating their slowly dissipating internal heat exclusively into the infrared spectrum. Without any nuclear fusion to sustain them, they will continue to cool perpetually, drifting through space as dark, desolate spheres. Exploring a T-dwarf is akin to studying an isolated, massive gas giant untethered from a host star.
+T-type brown dwarfs are substellar objects cooler than L dwarfs, with near-infrared spectra strongly shaped by methane and water absorption. They do not sustain ordinary hydrogen fusion, so they gradually radiate away the heat left from their formation. Their masses overlap those of giant planets, but they are classified through their spectra and formation context rather than simply by appearance. Spacegate applies this tag from an accepted T classification, usually built from infrared observations.
 
 #### Y (Y-Type Brown Dwarf) (Added for completeness)
 
-Y-type brown dwarfs are the absolute coldest known class of substellar objects, representing the final stage of brown dwarf cooling. Their surface temperatures are astonishingly low, sometimes dipping to room temperature or even matching the freezing cold of Earth's poles. At these extremes, their atmospheres can harbor clouds of water vapor and ammonia, completely blurring the line between a rogue planet and a star. They are practically invisible to optical telescopes and must be hunted using highly sensitive space-based infrared observatories. These phantom objects offer critical clues about the dark, hidden mass drifting through our galactic neighborhood.
+Y-type brown dwarfs occupy the coldest recognized brown-dwarf spectral class, with some known examples having temperatures comparable to those found on Earth. At such low temperatures their atmospheres can contain ammonia and water-bearing clouds, making them resemble giant planets more than conventional stars. They are extraordinarily faint in visible light and are found mainly through sensitive infrared surveys and nearby-motion searches. Spacegate uses an accepted Y classification; temperature, mass, and age remain separate measured or modeled quantities.
 
 #### WR (Wolf-Rayet) (Added for completeness)
 
-Wolf-Rayet stars are rare, hyper-luminous, and incredibly unstable stars approaching the end of their violent lives. They are characterized by monstrous stellar winds that are actively blasting away their outer hydrogen envelopes at millions of miles per hour. This rapid mass loss exposes the star's superheated inner core, which burns at temperatures that can easily exceed 200,000 Kelvin. They are heavily enriched with heavy elements like carbon, nitrogen, and oxygen, which they furiously scatter into the surrounding interstellar medium. These terrifyingly beautiful objects are destined to end their existence in spectacular supernova explosions.
+Wolf-Rayet stars are hot, evolved stars whose spectra are dominated by broad emission lines from powerful, fast-moving winds. Those winds have stripped away much of the outer star and exposed material altered by nuclear reactions, returning enriched gas to the surrounding interstellar medium. Many Wolf-Rayet stars began with very high masses, while some are produced through mass transfer in binary systems. Spacegate applies the tag from an accepted WR classification; the class signals an extreme evolutionary state without predicting the exact manner or timing of the star's death.
 
 #### WD (White Dwarf)
 
-A white dwarf is the dense, glowing ember left behind after a low-to-medium mass star exhausts its nuclear fuel. Packing the mass of the Sun into a sphere roughly the size of Earth, their matter is crushed into an exotic, ultra-dense state called electron-degenerate gas. Because they no longer generate heat through fusion, they shine purely from trapped residual thermal energy. Over tens of billions of years, a white dwarf will slowly radiate this heat away, eventually fading into a theoretical, cold black dwarf. They are highly stable gravitational anchors, often retaining the surviving outer planets of their original solar systems.
+A white dwarf is the compact remnant left when a low- or intermediate-mass star sheds its outer layers. Roughly a star's worth of mass can be compressed into a body about the size of Earth, supported not by ordinary gas pressure but by electron degeneracy pressure from quantum mechanics. With no sustained core fusion, it shines by releasing stored heat and cools over immense spans of time. Spacegate applies this tag only when selected evidence identifies the object as a white dwarf, keeping candidates and mass-based guesses distinct.
 
 #### NS (Neutron Star)
 
-A neutron star is the ultra-dense, collapsed core of a massive star that perished in a spectacular supernova explosion. They are so incomprehensibly compact that a mass greater than our Sun is squeezed into a sphere only the size of a city. The immense gravitational pressure crushes protons and electrons together, forming a body composed almost entirely of closely packed neutrons. Their surfaces are solid and fiercely hot, enveloped by magnetic and gravitational fields billions of times stronger than Earth's. Escaping a neutron star's crushing gravity would require traveling at a significant fraction of the speed of light.
+A neutron star is the collapsed core left by some massive stars after core collapse. More than a Sun's worth of matter can be compressed into a sphere only tens of kilometers across, where atomic nuclei are forced into matter dominated by neutrons and the surface gravity is extreme. Some neutron stars appear as pulsars or magnetars, while others are difficult to detect at all. Spacegate applies this tag from accepted compact-object evidence rather than inferring a neutron star merely because a companion is unseen.
 
 #### PULSAR
 
-A pulsar is a highly magnetized, rapidly rotating neutron star that acts as a precise cosmic lighthouse. As it spins, it projects brilliant beams of electromagnetic radiation outward from its magnetic poles. When these poles do not align with the star's rotational axis, the beams sweep across space, pulsing with incredible, clock-like precision if they cross Earth's line of sight. Some millisecond pulsars spin hundreds of times every single second, often accelerated by consuming material from a neighboring companion star. These rhythmic beacons are so precise that astronomers can use them as natural GPS systems and gravitational wave detectors.
+A pulsar is a rotating neutron star detected through remarkably regular pulses of radiation. Its magnetic field channels emission into beams that sweep through space; when a beam crosses Earth, telescopes record a pulse like the flash of a lighthouse. Pulse timing can reveal rotation, orbital motion, surrounding plasma, and even tiny disturbances in spacetime. Spacegate uses an accepted pulsar classification, while the broader neutron-star tag describes the underlying compact object.
 
 #### MAGNETAR
 
-A magnetar is a rare, terrifyingly powerful variant of a neutron star possessing the strongest magnetic fields in the known universe. Their magnetic fields are up to a thousand times stronger than a typical neutron star, capable of tearing atomic structures apart at a distance of hundreds of miles. This extreme magnetic tension regularly twists and snaps the star's solid crust, causing cataclysmic events known as "starquakes." These quakes unleash blasts of X-rays and gamma rays so energetic they can temporarily blind satellites located halfway across the galaxy. Over roughly ten thousand years, their magnetic fields naturally decay, causing them to eventually settle down into ordinary neutron stars.
+A magnetar is a neutron star whose activity is powered largely by an exceptionally strong magnetic field. Stress in its crust and magnetic field can produce bursts of X-rays and gamma rays, and rare giant flares can briefly become visible across a large part of the Galaxy. Magnetars rotate and slow down in ways that help astronomers estimate their magnetic behavior, although the internal field cannot be measured directly. Spacegate applies this tag from accepted magnetar evidence and retains neutron star as the object's underlying physical class.
 
 #### BLACK HOLE
 
-A black hole is a region of spacetime where gravity is so overwhelmingly strong that nothing, not even light, can escape its grasp. They are typically born from the catastrophic core collapse of the universe's most massive stars during a supernova or hypernova event. The boundary surrounding the black hole is called the event horizon, a point of no return where the required escape velocity exceeds the speed of light. All of the object's mass is concentrated into an infinitely dense central point known as a singularity, where our current understanding of physics breaks down completely. Though invisible themselves, their presence is revealed by the glowing, superheated accretion disks of doomed matter swirling into their depths.
+A stellar-mass black hole forms when enough mass collapses inside an event horizon, a boundary from which light cannot return. The black hole itself emits no ordinary light, so astronomers infer it through effects such as a companion's orbit, gravitational waves, lensing, or radiation from nearby infalling matter. General relativity predicts a singularity inside, but present physics cannot tell us whether that mathematical prediction describes the true interior. Spacegate applies this tag only when accepted compact-object evidence supports a black-hole interpretation, not merely when a massive companion is invisible.
 
 ### 1. Evolutionary Stage
 
 #### Protostar
 
-- **Tooltip:** A very young star still gathering mass from its parent molecular cloud. It has not yet begun nuclear fusion in its core, generating heat entirely through gravitational contraction. These turbulent infants are often surrounded by protoplanetary disks where planets may be forming.
+- **Tooltip:** A protostar is a collapsing concentration of gas and dust that is still gathering mass. Gravity supplies most of its heat; sustained hydrogen fusion has not yet established the balance that defines a main-sequence star. Jets, disks, and dusty envelopes often make this stage easier to see in infrared light than in visible light. Spacegate should apply this tag only from accepted evolutionary-stage evidence, not merely because an object lies in a star-forming region.
 - **Examples:** T Tauri (460 LY), HL Tauri (450 LY), V1009 Persei (850 LY)
 
 #### Main Sequence
 
-- **Tooltip:** The longest and most stable phase of a star's life, characterized by the fusion of hydrogen into helium in its core. Our Sun is currently in this phase and will remain so for billions of years. The overall duration of this stage depends heavily on the star's initial mass.
+- **Tooltip:** A main-sequence star supports itself by fusing hydrogen into helium in its core. Fusion pressure and gravity settle into a long-lived balance, making this the stage in which stars spend most of their active lives. Massive stars burn much brighter and exhaust their fuel far sooner than low-mass stars, so main sequence does not imply one age, size, or color. Spacegate should derive this tag from an accepted luminosity class or evolutionary solution.
 - **Examples:** The Sun (0 LY), Sirius A (8.6 LY), Tau Ceti (11.9 LY)
 
 #### Subgiant
 
-- **Tooltip:** A star that has exhausted the hydrogen in its core and is beginning to fuse hydrogen in a surrounding shell. This causes the star to expand and cool as it transitions toward the red giant phase. It represents a relatively brief evolutionary stage before dramatic structural changes occur.
+- **Tooltip:** A subgiant has begun leaving the main sequence after depleting much of the hydrogen available for fusion in its core. Hydrogen fusion continues mainly in a shell around the changing core, and the star expands while its surface generally cools. This is a transitional state, not simply a star whose radius happens to be somewhat larger than the Sun's. Spacegate should require an accepted luminosity class or evolutionary-stage estimate.
 - **Examples:** Procyon A (11.4 LY), Beta Hydri (24 LY), Delta Eridani (29 LY)
 
 #### Red Giant
 
-- **Tooltip:** A dying star in the late stages of stellar evolution that has exhausted its core hydrogen. It relies on shell hydrogen fusion, causing its outer layers to expand dramatically and cool, giving it a reddish hue. These swollen stars will eventually shed their outer layers entirely.
+- **Tooltip:** A red giant is an evolved star whose core structure has changed after central hydrogen fusion ended. Fusion in shells around the core can drive the outer atmosphere outward, producing a large radius and a cooler, reddish surface even as the star remains luminous. Later evolution depends strongly on mass and composition, so red giant is a broad stage rather than a single inevitable script. Spacegate should use accepted evolutionary or luminosity-class evidence.
 - **Examples:** Arcturus (37 LY), Aldebaran (65 LY), Gacrux (88 LY)
 
 #### Horizontal Branch
 
-- **Tooltip:** A stage of stellar evolution following the red giant phase where a star actively fuses helium into carbon in its core. They maintain a relatively stable size and luminosity compared to the dramatic expansion of red giants. They populate a distinct horizontal band on the Hertzsprung-Russell diagram.
+- **Tooltip:** A horizontal-branch star is a low-mass evolved star that has begun fusing helium in its core while hydrogen fusion continues in a surrounding shell. Such stars occupy a roughly horizontal feature on a cluster's color-magnitude diagram because similar luminosities appear across a range of temperatures. The name describes that population pattern, not a physical branch in space. Spacegate should apply it from an accepted evolutionary solution with suitable composition and population context.
 - **Examples:** HD 109995 (800 LY), RR Lyrae (860 LY)
 
 #### Asymptotic Giant Branch
 
-- **Tooltip:** A highly evolved, luminous star fusing both helium and hydrogen in concentric shells around an inert carbon-oxygen core. They are highly unstable, experiencing intense thermal pulses and massive stellar winds. This violent mass-loss phase rapidly strips away the star's outer layers.
+- **Tooltip:** An asymptotic giant branch star has an inert core surrounded by helium- and hydrogen-burning shells beneath an enormous, cool envelope. Pulses in the helium-burning shell can alter the star's brightness and dredge newly formed elements toward the surface. Strong winds return gas and dust to interstellar space, but the details depend on the star's mass and composition. Spacegate should require accepted evolutionary-stage evidence rather than infer AGB status from red color alone.
 - **Examples:** R Leonis (225 LY), Mira (299 LY), Chi Cygni (550 LY)
 
 #### Post-AGB
 
-- **Tooltip:** A brief transitional phase for intermediate-mass stars after shedding their outer layers but before becoming a white dwarf. The exposed, hot stellar core rapidly heats the ejected gas surrounding it. Lasting only a few thousand years, this stage is the direct precursor to a planetary nebula.
+- **Tooltip:** A post-AGB star is crossing the short evolutionary interval after the asymptotic giant branch and before the white-dwarf cooling track. Its envelope has been greatly reduced, exposing an increasingly hot core while previously expelled material moves away. If the timing and gas conditions are suitable, ultraviolet radiation can illuminate that material as a planetary nebula; not every object produces an easily visible one. Spacegate should use an accepted post-AGB classification.
 - **Examples:** R Scuti (~850 LY), 89 Herculis (~1,000 LY), U Monocerotis (3,600 LY)
 
 #### Wolf-Rayet
 
-- **Tooltip:** Extremely massive, exceptionally hot stars that are rapidly losing mass through incredibly intense stellar winds. They have completely stripped away their outer hydrogen envelopes, exposing deep layers of heavier elements. These hyperactive stars are destined to end their lives in spectacular supernova explosions.
+- **Tooltip:** A Wolf-Rayet star has a hot spectrum dominated by broad emission lines formed in a dense, fast stellar wind. Many are evolved massive stars whose winds or binary interaction have exposed helium- or heavier-element-rich layers, although some retain hydrogen. Their spectra reveal extreme mass loss and rapid evolution, but do not by themselves specify the star's final explosion or remnant. Spacegate should apply this tag from an accepted WR spectral classification.
 - **Examples:** Gamma Velorum (1,090 LY), WR 104 (8,000 LY), Theta Muscae (7,400 LY)
 
 ### 2. Size & Luminosity Class
 
 #### Hypergiant
 
-- **Tooltip:** The most massive and luminous stars in the universe, often exceeding 100 solar masses. They burn through their fuel at an astonishing rate, resulting in highly unstable structures and massive stellar winds. Because of their extreme energy output, they have very short lifespans and are exceedingly rare.
+- **Tooltip:** Hypergiant is a descriptive classification for exceptionally luminous, massive stars with evidence of atmospheric instability or extreme mass loss. It is not simply a synonym for the largest radius or a guarantee that the present mass exceeds a fixed threshold. These rare stars can change measurably as their dense winds remove material. Spacegate should require an accepted hypergiant classification rather than derive the label from luminosity alone.
 - **Examples:** Rho Cassiopeiae (3,400 LY), VY Canis Majoris (3,900 LY), RW Cephei (11,500 LY)
 
 #### Supergiant
 
-- **Tooltip:** Immensely massive and luminous stars nearing the end of their stellar lifecycles. They are among the largest stars in terms of physical volume, though slightly less extreme than hypergiants. Familiar examples like Betelgeuse are nearing core collapse and are destined to go supernova.
+- **Tooltip:** A supergiant has luminosity class I: its spectrum indicates a very extended, luminous atmosphere compared with a main-sequence star of similar temperature. Supergiants span blue through red temperatures, so the class does not describe one color or radius. Many evolved massive supergiants may eventually undergo core collapse, but classification alone does not fix the timing or outcome. Spacegate should use an accepted luminosity class.
 - **Examples:** Polaris (430 LY), Antares (550 LY), Betelgeuse (642 LY)
 
 #### Bright Giant
 
-- **Tooltip:** A luminosity classification for highly evolved stars that sit midway between standard giants and supergiants. They are significantly larger and brighter than our Sun, representing an intermediate evolutionary step. This classification helps astronomers refine the physical parameters of highly luminous giant stars.
+- **Tooltip:** A bright giant has luminosity class II, identified through spectral features sensitive to atmospheric pressure and gravity. It lies between ordinary giants and supergiants in the luminosity-class system, but that ordering is a classification rather than a universal evolutionary staircase. Stars of different masses can pass through this region by different routes. Spacegate should preserve the source luminosity class and its component scope.
 - **Examples:** Canopus (310 LY), Epsilon Canis Majoris (430 LY), Alpha Persei (500 LY)
 
 #### Giant
 
-- **Tooltip:** A star with a substantially larger radius and luminosity than a main-sequence star of the same surface temperature. These are typically stars that have exhausted their core hydrogen and expanded to fuse heavier elements. They are incredibly common in the later evolutionary stages for low to intermediate-mass stars.
+- **Tooltip:** A giant has luminosity class III: its spectrum indicates lower surface gravity and a more extended atmosphere than a main-sequence star of similar temperature. Many giants have left core hydrogen burning, but their internal fusion stages are not all the same. The tag therefore describes luminosity class, not a complete evolutionary diagnosis. Spacegate should use accepted classification evidence rather than infer it from radius alone.
 - **Examples:** Pollux (34 LY), Arcturus (37 LY), Capella A (42 LY)
 
 #### Subdwarf
 
-- **Tooltip:** Stars that are significantly less luminous than main-sequence stars of the same temperature. They are typically older, metal-poor Population II stars commonly found in the galactic halo. Their low metallicity reduces atmospheric opacity, subtly altering their visible spectrum.
+- **Tooltip:** A cool subdwarf is less luminous than an ordinary main-sequence star of similar spectral type and is often old and metal-poor. Hot subdwarfs are a physically different family of compact evolved stars, so the word cannot be interpreted safely without its full classification. Their spectra and surface gravity provide the important evidence. Spacegate should keep the source subtype instead of flattening every subdwarf into one evolutionary story.
 - **Examples:** Kapteyn's Star (12.8 LY), Mu Cassiopeiae (24.6 LY), Groombridge 1830 (29.9 LY)
 
 #### Dwarf
 
-- **Tooltip:** The standard classification for a normal star on the main sequence that is currently fusing hydrogen in its core. Despite the name, they are average-sized stars, a group that includes our Sun. The term primarily exists to differentiate them from the massively expanded giant stars.
+- **Tooltip:** In luminosity classification, dwarf usually means luminosity class V, the main-sequence class that includes the Sun. The word compares atmospheric structure and luminosity with giants; it does not mean every dwarf is physically tiny. White dwarfs and brown dwarfs use the same word for entirely different kinds of objects. Spacegate should show the full class so those meanings remain distinct.
 - **Examples:** The Sun (0 LY), Epsilon Eridani (10.5 LY), Tau Ceti (11.9 LY)
 
 #### White Dwarf
 
-- **Tooltip:** The incredibly dense, dead core left behind after a low to intermediate-mass star sheds its outer layers. They no longer undergo nuclear fusion and shine purely from residual thermal energy. A white dwarf tightly packs the mass of a star into a physical volume roughly the size of Earth.
+- **Tooltip:** A white dwarf is an exposed stellar remnant supported mainly by electron degeneracy pressure rather than ongoing core fusion. It can contain a substantial fraction of the Sun's mass in a body roughly comparable to Earth in size, so its gravity and density are extreme. It shines as stored heat escapes and usually cools over very long times, while accretion or a companion can produce additional activity. Spacegate should apply the tag from accepted compact-object classification evidence.
 - **Examples:** Sirius B (8.6 LY), Procyon B (11.4 LY), Van Maanen 2 (14.1 LY)
 
 ### 3. Explosive & Variable Events
 
 #### Nova
 
-- **Tooltip:** A sudden, dramatic brightening of a star system caused by a thermonuclear explosion on the surface of a white dwarf. This occurs when the white dwarf siphons enough hydrogen from a binary companion star to ignite surface fusion. The star survives the event, violently blowing away the accreted envelope.
+- **Tooltip:** A classical nova is a thermonuclear eruption in material accumulated on a white dwarf from a companion. The runaway fusion brightens the binary enormously and ejects some of the surface layer, but unlike a supernova it normally leaves the white dwarf intact. A later eruption is possible if accretion resumes. Spacegate should distinguish an observed nova classification from a system merely capable of one.
 - **Examples:** V603 Aquilae (815 LY), GK Persei (1,500 LY), DQ Herculis (1,600 LY)
 
 ##### Recurring
 
-- **Tooltip:** A specialized nova system observed to erupt multiple times over human history, typically decades apart. They feature a massive white dwarf accreting material at a very high rate from a companion star. These systems are closely watched as potential progenitors for Type Ia supernovae.
+- **Tooltip:** A recurrent nova is a nova system with more than one recorded eruption. A relatively massive white dwarf, rapid accretion, and a small ignition layer can shorten the interval between eruptions, but recurrence times vary widely. Some are studied as possible Type Ia progenitor channels, which is a research question rather than a prediction for every system. Spacegate should require documented recurrent eruptions.
 - **Examples:** T Coronae Borealis (3,000 LY), RS Ophiuchi (5,000 LY)
 
 ##### Micronova
 
-- **Tooltip:** Small-scale, localized thermonuclear explosions that occur specifically at the magnetic poles of certain accreting white dwarfs. They burn through confined stellar material in a matter of hours, releasing massive amounts of energy. They represent a distinct, highly focused class of stellar explosions compared to standard novae.
+- **Tooltip:** A micronova is a much smaller thermonuclear event thought to burn accreted material confined near a magnetic white dwarf's pole. It can release immense energy by human standards while involving far less material than a classical nova. The class is new and its physical interpretation is still being tested. Spacegate should require a published event classification rather than infer one from magnetic accretion alone.
 - **Examples:** TV Columbae (1,200 LY), EI Ursae Majoris (Extragalactic)
 
 #### Supernova
 
-- **Tooltip:** A cataclysmic explosion resulting from the complete destruction of a white dwarf or the core collapse of a massive star. The resulting shockwave blasts the star's outer layers into space at relativistic speeds. This incredible explosion seeds the surrounding galaxy with heavy elements necessary for planetary formation.
+- **Tooltip:** Supernova is a family of stellar explosions, not one mechanism. Some result from the collapse of a massive stellar core; thermonuclear varieties disrupt part or all of a white dwarf. Their expanding ejecta and shocks reshape surrounding gas and distribute newly made or previously stored elements, but yields and remnants differ by subtype. Spacegate should attach this tag to accepted events or remnants with their subtype and evidence when known.
 - **Examples (Historical Remnants):** Vela Pulsar (900 LY), Crab Nebula (6,500 LY)
 
 ##### Type Ia
 
-- **Tooltip:** A cataclysmic explosion resulting from the total thermonuclear destruction of a white dwarf star. This occurs when the white dwarf accretes too much mass from a companion and exceeds its physical stability limit. Because their peak brightness is highly consistent, they are used as cosmic "standard candles."
+- **Tooltip:** A Type Ia supernova is a thermonuclear explosion of a carbon-oxygen white dwarf in a binary system. Several progenitor routes are under study, including accretion and white-dwarf mergers, so one simple mass-transfer story is not sufficient. Their light curves can be standardized to measure cosmic distances, but they are not perfectly identical candles. Spacegate should preserve the observed subtype and cited event evidence.
 - **Examples (Progenitor Candidates):** IK Pegasi (150 LY)
 
 ##### Type Iax
 
-- **Tooltip:** A significantly less energetic sub-class of thermonuclear supernovae that fails to completely destroy the progenitor white dwarf. The deflagration blows away the outer layers but leaves behind a rapidly moving, partially intact remnant. This provides a rare mechanism for white dwarfs to survive an explosive ignition.
+- **Tooltip:** Type Iax describes a diverse, generally fainter class of thermonuclear supernovae related to Type Ia events. Leading models involve incomplete burning, and some events may leave a bound white-dwarf remnant, but that outcome is not established for every member. Their range of brightness and spectra is part of what makes the class scientifically useful. Spacegate should use a published subtype rather than derive it from brightness alone.
 - **Examples:** SN 2012Z (Extragalactic - NGC 1309)
 
 ##### Core Collapse
 
-- **Tooltip:** The catastrophic death of a massive star when its core runs out of nuclear fuel and implodes under its own gravity. The resulting rebound shockwave blasts the star's massive outer layers into interstellar space. This violent implosion leaves behind an ultra-dense neutron star or a black hole.
+- **Tooltip:** Core collapse begins when a massive star can no longer support its central regions with energy-producing fusion. The inner core falls inward while neutrinos, shocks, rotation, and magnetic fields help determine whether the outer star is expelled. The remnant may be a neutron star or black hole, and some collapses may produce little visible explosion. Spacegate should reserve this tag for accepted event classifications or well-supported remnants.
 - **Examples (Progenitor Candidates):** Spica (250 LY), Antares (550 LY), Betelgeuse (642 LY)
 
 ##### Pair Instability
 
-- **Tooltip:** A theoretical hyper-energetic explosion of an extremely massive star where core gamma rays convert into electron-positron pairs. This sudden pressure drop causes a catastrophic collapse followed by uncontrolled runaway fusion. The resulting explosion is so powerful it obliterates the star entirely, leaving no remnant behind.
+- **Tooltip:** Pair instability can occur in an extremely massive, hot stellar core when energetic photons create electron-positron pairs and reduce radiation pressure. The contraction can trigger explosive oxygen burning; in the full pair-instability regime, models predict complete disruption with no compact remnant. A related pulsational regime ejects shells without necessarily destroying the star at once. Spacegate should require a published event or progenitor interpretation and preserve which regime is claimed.
 - **Examples (Progenitor Candidate):** Eta Carinae (7,500 LY)
 
 #### Hypernova
 
-- **Tooltip:** An exceptionally energetic core-collapse supernova, releasing orders of magnitude more energy than a standard stellar explosion. They typically occur in highly massive, rapidly rotating stars that collapse directly into black holes. They are currently the primary suspects for producing long-duration gamma-ray bursts.
+- **Tooltip:** Hypernova is an informal label often used for unusually energetic core-collapse supernovae, especially broad-lined Type Ic events. Some are associated with long gamma-ray bursts and central engines involving rapid rotation, strong magnetic fields, or black-hole formation. The term is not a single sharply bounded physical class. Spacegate should show it only when a source explicitly uses and supports the classification.
 - **Examples (Progenitor Candidates):** Eta Carinae (7,500 LY), WR 104 (8,000 LY)
 
 #### Kilonova
 
-- **Tooltip:** A powerful transient astronomical event resulting from the violent merger of two neutron stars, or a neutron star and a black hole. The collision ejects highly radioactive, neutron-rich material into space at extreme speeds. This unique nucleosynthesis process is a primary source of the universe's heaviest elements, like gold.
+- **Tooltip:** A kilonova is a rapidly changing glow powered by radioactive nuclei made in neutron-rich debris from a compact-object merger. The best-established case followed a neutron-star merger detected in gravitational waves; neutron-star-black-hole mergers can also produce one when matter is ejected. These events help create heavy r-process elements, although their total contribution across cosmic history remains an active question. Spacegate should bind the tag to an observed transient and its event evidence.
 - **Examples:** GW170817 (130 Million LY - Extragalactic)
 
 ### 4. Terminal State / Future Remnant
 
 #### Future White Dwarf
 
-- **Tooltip:** An evolutionary designation for low to intermediate-mass stars destined to end their active lives as white dwarfs. These stars will eventually shed their outer layers as planetary nebulae, leaving behind a dense core. Our Sun is classified in this category and will follow this path.
+- **Tooltip:** Current stellar-evolution models predict that many low- and intermediate-mass stars will ultimately leave white-dwarf remnants. The path can include giant phases, mass loss, and sometimes a visible planetary nebula, while binary interaction can redirect the evolution. A future state is a model prediction, not a property already observed. Spacegate should show this only with the model, inputs, uncertainty, and applicability visible.
 - **Examples:** The Sun (0 LY), Alpha Centauri A (4.3 LY), Sirius A (8.6 LY)
 
 #### Future Neutron Star
 
-- **Tooltip:** A terminal designation for massive stars that will eventually undergo a violent core-collapse supernova. The intense gravitational pressure of the collapse will crush the remaining core into an ultra-dense neutron star. These extremely compact objects represent the final stage of evolution for high-mass stars.
+- **Tooltip:** Some massive-star models predict a neutron-star remnant after core collapse. The outcome depends on the final core mass, mass loss, rotation, composition, binary interaction, and explosion physics, many of which are uncertain long before collapse. This tag would therefore express a probability-bearing model result, not a destiny. Spacegate should not enable it until those model and uncertainty contracts are defined.
 - **Examples:** Spica (250 LY), Bellatrix (250 LY), Zeta Ophiuchi (366 LY)
 
 #### Future Black Hole
 
-- **Tooltip:** A classification for the absolute most massive stars in the universe destined to collapse completely under their own gravity. Following a core-collapse supernova, the remaining core exceeds the physical mass limit for a neutron star. The core inevitably collapses into a singularity, forming a stellar-mass black hole.
+- **Tooltip:** Some stellar-evolution models predict that a massive star will leave a black hole, either after an explosion or through a collapse with little electromagnetic display. Mass loss, metallicity, rotation, binarity, and uncertain explosion physics can change that result. The presence of a massive star today does not make one remnant inevitable, and a singularity is not an observable classification. Spacegate should keep this disabled until it can present a versioned probabilistic model rather than a prophecy.
 - **Examples:** Rigel (860 LY), Alnitak (1,260 LY), Deneb (2,600 LY)
 
 #### Obliterated
 
-- **Tooltip:** A terminal state designation for stars that will be completely destroyed by a cataclysmic event. Following the explosion, absolutely no stellar remnant or compact core will be left behind. This total destruction is the expected outcome for Type Ia supernovae and Pair-Instability Supernovae.
+- **Tooltip:** Some explosion models predict that no bound stellar remnant survives, including many normal Type Ia and full pair-instability models. Other thermonuclear events can leave remnants, and observations may not directly reveal what survived. “Obliterated” is vivid but scientifically too broad unless it is tied to a specific event model and evidence. Spacegate should keep this proposal disabled or replace it with a precise remnant-status field.
 - **Examples (Progenitor Candidates):** IK Pegasi (150 LY), Eta Carinae (7,500 LY)
 
 #### Associated Nebula
 
-- **Tooltip:** The expansive, glowing gas structure created by a star at the end of its active lifecycle. This material is either shed slowly over time or blasted outward violently during an explosive death. It enriches the interstellar medium with complex elements and can trigger new star formation.
+- **Tooltip:** An associated nebula is an extended cloud linked to a star or stellar event by accepted positional, kinematic, historical, or physical evidence. It may contain expelled stellar material, swept-up interstellar gas, illuminated nearby gas, or a mixture of all three. Association does not automatically mean the star created every part of the cloud. Spacegate should preserve the relation type and source rather than reduce it to proximity.
 
 ##### Planetary Nebula
 
-- **Tooltip:** The beautiful, glowing shell of ionized gas ejected by red giant stars late in their lives. They represent the relatively peaceful transitional phase as a dying star slowly exposes its hot core to become a white dwarf. Despite the historical name, these structures have absolutely nothing to do with planets.
+- **Tooltip:** A planetary nebula is ionized gas expelled by a low- or intermediate-mass star near the end of its giant phases and illuminated by the exposed hot core. Winds, pulses, companions, and magnetic fields can sculpt shells, rings, and bipolar forms. The name is historical: early telescopes made some appear planet-like, but they are not planets or planetary systems. Spacegate should connect the nebula and central star through accepted relation evidence.
 - **Examples:** Helix Nebula (650 LY), Dumbbell Nebula (1,360 LY), Ring Nebula (2,570 LY)
 
 ##### Supernova Remnant
 
-- **Tooltip:** The rapidly expanding, highly complex shockwave structure resulting from the massive explosion of a star. It consists of ejected stellar material violently interacting with the surrounding interstellar medium. These remnants are incredibly rich in heavy elements and emit strongly across multiple spectrums.
+- **Tooltip:** A supernova remnant is the expanding structure left as supernova ejecta and shock waves interact with surrounding material. Different regions can glow in radio, infrared, visible, X-ray, and gamma-ray bands as magnetic fields accelerate particles and shocked gas heats or cools. Some remnants contain a neutron star or pulsar, while others have no detected compact object. Spacegate should preserve the event association and evidence rather than infer it from overlap alone.
 - **Examples:** Vela Supernova Remnant (800 LY), Geminga (815 LY), Cygnus Loop (1,500 LY)
 
 ### 5. Spectral & Emission Signatures
 
 #### Radio Emitter
 
-- **Tooltip:** Objects that emit significant, detectable amounts of radiation in the radio frequencies of the electromagnetic spectrum. In stellar terms, this strongly indicates the presence of a pulsar, a rapidly spinning neutron star with extreme magnetic fields. It can also point to highly active accretion processes in binary systems.
+- **Tooltip:** A radio emitter produces detectable electromagnetic radiation at wavelengths longer than infrared light. Stars and stellar systems can generate radio emission through magnetic activity, coherent bursts, winds, jets, shocks, accretion, or pulsar beams, so radio detection does not identify one mechanism by itself. The observing band, variability, polarization, and source resolution provide essential context. Spacegate should attach this tag to a cited detection with those details when available.
 - **Examples:** UV Ceti (8.7 LY), Vela Pulsar (900 LY), Crab Pulsar (6,500 LY)
 
 #### Infrared Excess
 
-- **Tooltip:** A stellar signature where an object emits noticeably more infrared radiation than expected for its surface temperature. This is a key observational indicator strongly suggesting the presence of surrounding dust. It points to a protoplanetary disk, a debris disk, or a dying star shedding material.
+- **Tooltip:** Infrared excess means an object is brighter at infrared wavelengths than an appropriate photospheric model predicts. Warm or cold dust is a common explanation, including protoplanetary disks, debris disks, or material lost by an evolved star, but unresolved companions, background sources, and model errors can imitate the signal. The wavelength range and significance determine what can reasonably be inferred. Spacegate should preserve the measurement and interpretation separately.
 - **Examples:** Epsilon Eridani (10.5 LY), Vega (25 LY), Fomalhaut (25 LY)
 
 #### UV Dominant
 
-- **Tooltip:** Extremely hot and luminous stars that emit the vast majority of their energy in the ultraviolet spectrum. Because the human eye cannot see UV light, these stars are often orders of magnitude more energetic than they appear visually. Their intense radiation powerfully ionizes surrounding gas, creating brilliant emission nebulae.
+- **Tooltip:** Ultraviolet-dominant means that a source or selected spectral-energy model places a large share of its emitted power beyond visible violet light. Hot stars and compact remnants can meet that description, while flares can create temporary ultraviolet enhancements in cooler stars. Interstellar dust absorbs ultraviolet light strongly, so apparent and intrinsic emission must not be confused. Spacegate should define the band, comparison, extinction treatment, and persistence before enabling this tag.
 - **Examples:** Regulus (79 LY), Spica (250 LY), Adhara (430 LY)
 
 #### X-Ray Source
 
-- **Tooltip:** Objects emitting high-energy X-ray radiation, signaling extreme stellar temperatures and highly energetic physical processes. For stars, this usually points to violent magnetic flaring activity or material superheating as it violently falls into an accretion disk. Binary systems containing a compact object like a neutron star are common X-ray sources.
+- **Tooltip:** An X-ray source emits photons energetic enough to trace million-degree plasma, strong magnetic activity, shocks, or matter heated during accretion. Ordinary stellar coronae, flares, colliding winds, and compact-object binaries can all produce X-rays at very different strengths. A positional match alone can be ambiguous because X-ray instruments and surveys have different resolution. Spacegate should require a cited counterpart association and retain band, flux, epoch, and uncertainty where available.
 - **Examples:** Sirius (8.6 LY), Capella (42 LY), Algol (90 LY)
 
 #### Gamma-Ray Source
 
-- **Tooltip:** Emitters of the absolute highest-energy radiation in the universe, indicating some of the most violent astrophysical events. Stellar sources for this extreme radiation include highly magnetic magnetars, rapidly spinning pulsars, and the afterglows of hypernovae. These are the distinct signatures of extreme physics involving compact stellar remnants.
+- **Tooltip:** A gamma-ray source emits at the highest-energy part of the electromagnetic spectrum. Pulsars, magnetars, compact binaries, relativistic jets, particle collisions, and transient explosions can contribute, often with uncertain counterpart associations. Detection reveals energetic particle or nuclear processes but does not by itself determine which object produced them. Spacegate should preserve the instrument, energy band, localization, time behavior, and association confidence.
 - **Examples:** Geminga (815 LY), Vela Pulsar (900 LY), Crab Pulsar (6,500 LY)
 
 ### 6. Core Mechanics & Composition
 
 #### PP Chain
 
-- **Tooltip:** The proton-proton chain reaction is the dominant nuclear fusion process in stars roughly the mass of our Sun or smaller. It slowly and steadily converts hydrogen nuclei into helium, releasing the energy that powers the star. This is a highly stable, long-duration process that defines the main sequence.
+- **Tooltip:** The proton-proton chain is a set of fusion reactions that converts hydrogen into helium and supplies most of the Sun's nuclear energy. It dominates central hydrogen burning in many low-mass stars, while the CNO cycle contributes increasingly at higher core temperatures. Astronomers usually infer the balance from stellar models rather than observe the individual reactions directly, apart from constraints such as solar neutrinos. Spacegate should present this as a model-dependent mechanism with applicability, not an object label inferred from spectral type alone.
 - **Examples:** The Sun (0 LY), Epsilon Indi (11.8 LY), Tau Ceti (11.9 LY)
 
 #### CNO Cycle
 
-- **Tooltip:** The Carbon-Nitrogen-Oxygen cycle is the primary hydrogen fusion pathway in massive, incredibly hot stars. It uses carbon, nitrogen, and oxygen as highly efficient catalysts to rapidly fuse hydrogen into helium. This process is extremely temperature-sensitive and powerfully drives the extreme luminosity of massive stars.
+- **Tooltip:** The CNO cycle converts hydrogen into helium through reactions in which carbon, nitrogen, and oxygen nuclei act as catalysts. Its rate rises steeply with core temperature, so it becomes the dominant hydrogen-burning route in stars hotter and more massive than the Sun. The transition is gradual and model-dependent rather than a clean spectral boundary. Spacegate should show this only from an applicable stellar model and retain its assumptions.
 - **Examples:** Sirius A (8.6 LY), Vega (25 LY), Fomalhaut (25 LY)
 
 #### Triple-Alpha
 
-- **Tooltip:** The specific nuclear fusion process where three distinct helium nuclei are transformed into a single carbon nucleus. This reaction only ignites at incredibly high temperatures and pressures, typically after a star has exhausted its core hydrogen. It is the absolute defining energy source powering a star during the red giant phase.
+- **Tooltip:** The triple-alpha process fuses helium nuclei into carbon at the high temperatures found in helium-burning stellar interiors. It can begin after central hydrogen is depleted, but not every red giant is already burning helium in its core, and later stages can burn helium in shells. Surface observations usually constrain this state through evolutionary models and oscillations rather than direct inspection of the core. Spacegate should require an accepted evolutionary solution.
 - **Examples:** Arcturus (37 LY), Capella A (42 LY), Aldebaran (65 LY)
 
 #### Population I
 
-- **Tooltip:** Relatively young stars containing a notably high abundance of heavy elements forged by previous generations of stars. They are typically found populating the active, star-forming spiral arms of galaxies. Our Sun is a classic, widely studied example of a metal-rich Population I star.
+- **Tooltip:** Population I is a historical label for relatively metal-rich stars associated mainly with the Milky Way's disk, including the Sun. “Metals” in astronomy means every element heavier than helium, and the abundance pattern carries information about earlier generations of stars. The populations overlap and modern studies often use measured chemistry and kinematics instead of a binary label. Spacegate should define the abundance and population criteria before enabling it.
 - **Examples:** The Sun (0 LY), Alpha Centauri (4.3 LY), Sirius (8.6 LY)
 
 #### Population II
 
-- **Tooltip:** Ancient, highly metal-poor stars formed early in the universe's history before many heavy elements were created. They are characterized by their age and are typically found in the galactic halo and dense globular clusters. They offer astronomers a unique window into the conditions of the early galaxy.
+- **Tooltip:** Population II is a historical label for generally old, metal-poor stars common in the Galactic halo, thick disk, and globular clusters. Their chemistry records formation from gas enriched by fewer earlier stellar generations, but low metallicity does not map to one exact age or orbit. Modern population assignments combine abundances, ages, and Galactic motion. Spacegate should expose those criteria and their uncertainty rather than infer the tag from location alone.
 - **Examples:** Kapteyn's Star (12.8 LY), Groombridge 1830 (29.9 LY), HD 140283 "Methuselah Star" (200 LY)
 
 #### Chemically Peculiar
 
-- **Tooltip:** Stars with highly unusual surface abundances of certain elements when compared to standard stellar classifications. This can be caused by gravitational settling, internal radiation pressure, or physical mass transfer from a binary companion. Classic examples include Barium stars and strongly magnetic Ap stars with unusual spectral lines.
+- **Tooltip:** A chemically peculiar star has spectral abundance patterns that depart from those expected for otherwise similar stars. Diffusion, magnetic fields, rotation, winds, internal mixing, or mass transfer can create different peculiar families, so the tag should never imply one mechanism. Surface abundance also need not represent the star's entire interior. Spacegate should preserve the published peculiarity subtype and measurements.
 - **Examples:** Alpha Circini (54 LY), Alioth (81 LY), Cor Caroli (110 LY)
 
 ### 7. Multiplicity & Kinematics
 
 #### Single
 
-- **Tooltip:** A star system consisting of only one primary star, completely unaccompanied by gravitationally bound stellar companions. While they seem common, a significant percentage of all stars are actually born into multiple-star systems. Our Sun is a prominent, well-studied example of an isolated single star system.
+- **Tooltip:** SINGLE means that Spacegate's accepted hierarchy currently contains one stellar member. It does not prove that no faint, close, distant, or as-yet undetected companion exists. Detecting companions depends on angular resolution, time coverage, orbital orientation, brightness contrast, and distance. The tag is useful as an inventory statement only when its observational limits are visible.
 - **Examples:** The Sun (0 LY), Barnard's Star (5.9 LY), Altair (16.7 LY)
 
 #### Binary
 
-- **Tooltip:** A dynamic star system containing two distinct stars orbiting around a shared common center of mass. They are incredibly common and vital for modern astronomy, as their overlapping orbits allow scientists to directly calculate stellar masses. They come in many varied forms, from widely separated pairs to tightly touching contact binaries.
+- **Tooltip:** A binary system contains two stars bound into one gravitational system. Both orbit their shared center of mass, or barycenter, with the more massive star moving on the smaller path. Binaries let astronomers measure stellar masses and test gravity because each star's motion constrains the other. Spacegate applies this tag when the accepted hierarchy contains two stellar members, even when the available observations do not yet provide a complete orbit.
 - **Examples:** Sirius (8.6 LY), Procyon (11.4 LY), Capella (42 LY)
 
 #### Multiple
 
-- **Tooltip:** Highly complex star systems comprising three or more gravitationally bound stars interacting with each other. These systems must exist in specific, highly stable orbital hierarchies, often featuring a tight binary orbited by a distant third star. They perfectly showcase the intricate, long-term gravitational dynamics of stellar formation.
+- **Tooltip:** A multiple system contains at least three accepted stellar members bound into one larger family. If several stars orbit at comparable distances, their repeated gravitational encounters can exchange energy, alter orbits, or eject a member. Long-lived systems therefore often organize themselves into separated orbital scales, such as a tight pair with a distant companion. Spacegate uses MULTIPLE for the member count and adds HIERARCHICAL when the accepted relationships reveal that nested structure.
 - **Examples:** Alpha Centauri (4.3 LY - Trinary), Castor (51 LY - Sextuple), Mizar/Alcor (83 LY - Sextuple)
 
 #### High Proper Motion
 
-- **Tooltip:** Stars that exhibit a visibly noticeable change in physical position across the night sky over relatively short human timescales. This rapid apparent movement strongly indicates the star is located very close to our solar system. Barnard's Star is the most famous and widely observed example of a high proper motion object.
+- **Tooltip:** Proper motion is a star's measured angular drift across the sky, usually expressed in milliarcseconds per year. A large value can result from nearness, high sideways velocity, or both; distance is needed to turn the angular motion into a physical tangential speed. Over decades the shift can become visible in repeated images even though the star remains enormously distant. Spacegate should define the threshold and reference frame before enabling HIGH PROPER MOTION.
 - **Examples:** Barnard's Star (5.9 LY), Kapteyn's Star (12.8 LY), Groombridge 1830 (29.9 LY)
 
 #### Runaway
 
-- **Tooltip:** A star moving completely through space at an unusually high velocity relative to its surrounding interstellar medium. They are typically violently ejected from a dense star cluster through complex gravitational interactions or flung away when a binary companion goes supernova. Because of their speed, they often create massive, visible bow shocks as they plow through space gas.
+- **Tooltip:** A runaway star moves unusually fast relative to its local stellar population or birthplace. Gravitational encounters in a dense group and disruption of a binary by a supernova are leading ejection routes, but tracing a specific origin requires full three-dimensional motion and age consistency. Some runaways form infrared bow shocks where their winds meet surrounding gas; many do not show an obvious one. Spacegate should require a defined velocity frame and accepted kinematic evidence.
 - **Examples:** Zeta Ophiuchi (366 LY), Mu Columbae (1,300 LY), AE Aurigae (1,460 LY)
 
 #### Hypervelocity
 
-- **Tooltip:** Extreme, incredibly rare stars traveling fast enough to break free from the Milky Way's gravitational grip entirely. They are believed to be powerfully accelerated by close, chaotic encounters with the supermassive black hole at the galactic center. These extremely fast stars are on a permanent, one-way trip outward into deep intergalactic space.
+- **Tooltip:** A hypervelocity star has an exceptionally large Galactic speed, sometimes high enough to be unbound under a chosen Milky Way mass model. Encounters with the central black hole are one production channel, but supernova disruption and other dynamical mechanisms can also accelerate stars. Whether an object escapes depends on its full velocity, position, uncertainties, and the adopted Galactic potential. Spacegate should never reduce that model-dependent probability to speed alone.
 - **Examples:** S5-HVS1 (29,000 LY), US 708 (62,000 LY), HE 0437-5439 (200,000 LY)
 
 #### Halo Star
 
-- **Tooltip:** Ancient, heavily metal-poor stars that reside out in the vast, roughly spherical galactic halo surrounding the main disk of the Milky Way. They typically have highly eccentric, plunging orbits that send them randomly diving through the galactic plane. They are considered pristine relics of the galaxy's absolute earliest formative years.
+- **Tooltip:** A halo star belongs kinematically or chemically to the Milky Way's extended stellar halo rather than its thin disk. Many are old and metal-poor and follow inclined or eccentric Galactic orbits, but the population contains streams and accreted structures with varied histories. A nearby star can be a halo member while physically passing through the Solar neighborhood. Spacegate should base the tag on an explicit population model with uncertainties.
 - **Examples:** Kapteyn's Star (12.8 LY), Groombridge 1830 (29.9 LY), HD 140283 (200 LY)
 
 ## Planet Matrix Tooltips (3×3 Taxonomy)
 
 ### 1. Hot Giant Planet
 
-- **Tooltip:** Massive gas giants orbiting in blistering proximity to their parent suns, completing orbits in a matter of days or hours. Subjected to intense stellar irradiation, their expanded atmospheric envelopes often exceed temperatures of 1,000 to 3,000 Kelvin, driving fierce planetary winds and titanium silicate rains. Many are tidally locked, suffering eternal, molten daysides while venting escaping hydrogen clouds into space like colossal comets. In sci-fi lore, these are the extreme furnace worlds of the galaxy—completely hostile to life, yet magnificent powerhouses of atmospheric physics.
+- **Tooltip:** A hot giant is a confirmed planet in Spacegate's largest size or mass bin that also receives intense stellar energy. Many well-studied examples orbit close to their stars, where their atmospheres can expand, circulate at extreme speeds, or escape into space. Those outcomes are possibilities, not properties inferred by this tag. Spacegate uses the selected radius when available, otherwise selected mass, together with a temperature or irradiation screen; the glyph's annulus identifies the giant category rather than observed rings.
 
 - **Examples:** 51 Pegasi b (Dimidium), WASP-12b, HD 209458 b (Osiris), WASP-76b.
 
 ### 2. Temperate Giant Planet
 
-- **Tooltip:** Jovian- or Saturnian-class gas giants residing within or near their star's circumstellar habitable zone. While these massive worlds lack solid surface boundaries for liquid oceans, their dynamic cloud decks experience mild, room-temperature thermal regimes. Their primary intrigue lies in their moon systems: giant exomoons orbiting such planets could host stable liquid water, thick atmospheres, and thriving biospheres. They serve as gravitational anchors in their solar systems, shielding inner worlds while creating Pandora-like satellite environments.
+- **Tooltip:** A temperate giant is a confirmed planet in Spacegate's largest size or mass bin receiving a moderate level of stellar energy. A giant planet is not expected to offer an Earth-like solid surface, but its atmosphere and any moons could make the system scientifically compelling. Spacegate cannot infer those environments from the map category alone. The tag combines selected radius or fallback mass with a temperature or irradiation screen, and the glyph's annulus denotes scale rather than observed rings.
 
 - **Examples:** HD 28185 b, Kepler-16b, Kepler-47c, PH2 b (Kepler-86b).
 
 ### 3. Cold Giant Planet
 
-- **Tooltip:** Massive stellar heavyweights lurking far out beyond the system's frost line, where volatile compounds easily freeze into ice. Wrapped in swirling bands of ammonia, methane, and liquid hydrogen, these frigid titans hold immense gravitational influence over their outer systems. Beneath their calm, frozen exterior clouds lie crushing high-pressure interiors and powerful planetary magnetic fields. They act as cosmic shields for inner rocky worlds, sweeping up rogue planetesimals and stabilizing multi-planet orbital dynamics.
+- **Tooltip:** A cold giant is a confirmed planet in Spacegate's largest size or mass bin receiving relatively little energy from its star. Such worlds often occupy wide, long-period orbits where volatile compounds can condense and direct detection may become easier than it is beside a brilliant star. Their actual clouds, internal heat, moons, and composition generally remain separate observational questions. Spacegate combines selected radius or fallback mass with a temperature or irradiation screen; the annulus in the glyph marks the giant bin, not detected rings.
 
 - **Examples:** Jupiter, Saturn, Epsilon Eridani b (Aegir), 47 Ursae Majoris b.
 
 ### 4. Hot Neptunian Planet
 
-- **Tooltip:** Intermediate-mass worlds—ranging from mini-Neptunes to super-Earths—whipping around host stars in extremely tight, scorching orbits. Residing in what astronomers call the "Neptunian Desert," these worlds are constantly blasted by solar winds that actively strip away their volatile hydrogen atmospheres. Some retain low-density puffed-up envelopes made of metal-rich steam, while others leave glowing tails of escaping gas as they migrate inward. They represent volatile transitional worlds balancing between gas giants and baked rocky cores.
+- **Tooltip:** A hot Neptunian is a confirmed planet in the broad scale between terrestrial worlds and giants while receiving intense stellar energy. This region includes diverse planets, from rocky cores with thick envelopes to volatile-rich worlds losing gas under strong irradiation. Spacegate cannot determine that composition from size or mass alone. The tag combines selected radius or fallback mass with a temperature or irradiation screen, using Neptunian as a map-scale category rather than proof of a Neptune-like interior.
 
 - **Examples:** Gliese 436 b, HAT-P-11b, WASP-107b, GJ 3470 b.
 
 ### 5. Temperate Neptunian Planet
 
-- **Tooltip:** Mid-scale sub-Neptunes and large super-Earths receiving moderate stellar flux within or near their system's temperate band. Many are prime candidates for "Hycean" worlds—hypothetical ocean-covered planets blanketed under warm, hydrogen-rich atmospheres capable of supporting subsurface life. Lacking direct analogs in our own Solar System, they represent one of the most common exoplanet populations across the galaxy. They offer fascinating atmospheric chemistry, bridging the gap between terrestrial rock and giant gaseous envelopes.
+- **Tooltip:** A temperate Neptunian is a confirmed planet in the broad scale between terrestrial worlds and giants receiving moderate stellar energy. Planets in this range have no exact Solar System counterpart and may include deep atmospheres, volatile-rich interiors, or large oceans beneath high pressure. Those possibilities make them fascinating targets for atmospheric study, but none follows from the tag alone. Spacegate combines selected radius or fallback mass with a temperature or irradiation screen and does not treat the result as evidence of a surface or habitability.
 
 - **Examples:** K2-18 b, TOI-1231 b, LP 791-18 c, Sub-Neptune LHS 1140 b.
 
 ### 6. Cold Neptunian Planet
 
-- **Tooltip:** Ice giants stationed in the deep, frozen reaches of their solar systems far beyond the snow line. Composed primarily of heavy elements, water mantle ice, methane, and ammonia under thin hydrogen-helium atmospheres, they are dark, howling worlds of ice and high-speed atmospheric storms. Orbiting at vast distances, they mark the cold outer borders of stellar architectures where planet formation slows down. They serve as long-period outer sentinels in distant planetary catalogs.
+- **Tooltip:** A cold Neptunian is a confirmed planet in the broad scale between terrestrial worlds and giants receiving relatively little stellar energy. A world in this bin could resemble an ice giant, a gas-rich super-Earth, or something with no close Solar System analogue. Its distant orbit and cool atmosphere can make detailed characterization difficult. Spacegate combines selected radius or fallback mass with a temperature or irradiation screen, so Neptunian names a useful scale rather than a measured composition.
 
 - **Examples:** Uranus, Neptune, OGLE-2005-BLG-390Lb, MOA-2007-BLG-192Lb.
 
 ### 7. Hot Terrestrial Planet
 
-- **Tooltip:** Small, high-density rocky worlds locked into ultra-short orbits dangerously close to their host suns. Blasted by relentless stellar radiation and tidal forces, their surfaces are stripped of volatile atmospheres and baked into oceans of churned molten lava under skies of vaporized rock. The dayside of a tidally locked hot terrestrial often glows like a miniature star, while the nightside remains a frozen slag heap of cooled basalt. They are harsh, apocalyptic testbeds for extreme planetary geology.
+- **Tooltip:** A hot terrestrial is a confirmed planet in Spacegate's smallest size or mass bin receiving intense stellar energy. Some such worlds may have rocky surfaces, lava regions, or eroded atmospheres, while others near the category boundary may retain substantial volatile envelopes. Size and mass make those scenarios testable but do not choose between them. Spacegate combines selected radius or fallback mass with a temperature or irradiation screen and reserves claims about surface conditions for stronger evidence.
 
 - **Examples:** 55 Cancri e (Janssen), Kepler-10b, CoRoT-7b, K2-141b.
 
 ### 8. Temperate Terrestrial Planet
 
-- **Tooltip:** Solid, rocky worlds situated squarely within their host star's circumstellar Habitable Zone (the "Goldilocks Zone"). Receiving the ideal balance of stellar irradiation, these worlds are capable of sustaining surface temperatures that allow liquid water oceans under a stable atmosphere. They are humanity's primary targets in the search for extraterrestrial biosignatures, atmospheric oxygen ratios, and potential Earth-twin candidates. In Spacegate, these rare jewels represent prime real estate for habitability and exploration.
+- **Tooltip:** A temperate terrestrial is a confirmed planet in Spacegate's smallest size or mass bin receiving a moderate level of stellar energy. That combination makes it an obvious target in the search for rocky, potentially clement worlds, but radius, mass, and irradiation do not reveal an atmosphere, ocean, magnetic field, or biosphere. Even a planet in the habitable zone can resemble Venus, Mars, or something unfamiliar. Spacegate uses this tag as a discovery screen that points toward the next questions rather than answering them prematurely.
 
 - **Examples:** Earth, TRAPPIST-1 e, Proxima Centauri b, TOI-700 d, Kepler-186f.
 
 ### 9. Cold Terrestrial Planet
 
-- **Tooltip:** Rocky or icy terrestrial-sized worlds positioned beyond the outer boundary of the habitable zone where water locks into permanent global glaciers. Lacking sufficient stellar heat, their surfaces are frozen wildernesses of water-ice, carbon dioxide snow, or liquid hydrocarbon lakes. However, under thick ice crusts, deep geothermal heat or gravitational tidal flexing can maintain liquid ocean biospheres in total darkness. They represent resilient outer rocky worlds holding vast subterranean secrets.
+- **Tooltip:** A cold terrestrial is a confirmed planet in Spacegate's smallest size or mass bin receiving relatively little energy from its star. Its surface could be rocky, ice-covered, volatile-rich, or hidden beneath an atmosphere, and internal or tidal heating may matter as much as starlight. Weak irradiation therefore does not mean a world is geologically inactive or scientifically dull. Spacegate combines selected radius or fallback mass with a temperature or irradiation screen while leaving composition and surface conditions open.
 
 - **Examples:** Mars, Earth's Moon, Proxima Centauri c, OGLE-2016-BLG-1195Lb.

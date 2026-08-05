@@ -45,6 +45,14 @@ target types, visual token, surface priorities, short/full explanations,
 optional concept route, source policy, bounded evaluator ID/version/parameters,
 and filter/rollup policy.
 
+The two explanation fields serve different jobs. `short_tooltip` is the terse
+fallback for constrained surfaces. The full `tooltip` is a compact lesson,
+normally three to six sentences: it defines the idea without assumed technical
+vocabulary, builds physical intuition, explains how Spacegate recognizes the
+tag, and weaves material uncertainty into the lesson. Accuracy does not require
+dryness, and inspiration does not permit unsupported climate, habitability,
+hazard, composition, or evolutionary claims.
+
 Registry files cannot contain SQL or executable expressions. Compiler code
 accepts only reviewed evaluator IDs. `scripts/smart_tag_registry.py` fails on
 unknown evaluators, malformed namespaces, missing source policy, invalid

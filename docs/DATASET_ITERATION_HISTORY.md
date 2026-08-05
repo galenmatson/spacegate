@@ -4547,6 +4547,24 @@ Representative commits:
   Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy on the same
   A2 glyph vocabulary while leaving CORE, ARM, DISC, and RIM unchanged.
 
+### 171) Smart Tag Editorial v2 Makes Vocabulary a Teaching Surface
+
+- The public full-tooltip contract now expects a compact three-to-six-sentence
+  lesson: define the term, build physical intuition, state the accepted evidence
+  or versioned screen that activates the tag, and integrate uncertainty without
+  bolting on a perfunctory disclaimer. `short_tooltip` remains the terse fallback
+  for constrained surfaces.
+- All 34 enabled tag definitions and all 50 source descriptions were rewritten
+  under that contract. Deferred proposals were corrected without activation,
+  removing deterministic remnant predictions, proxy-based environment claims,
+  and causal stories unsupported by the proposed evidence.
+- Two clean full compiles against Public Read build
+  `20260804T1130Z_68fd99b_a2_planet_badges` reproduce registry hash
+  `fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
+  every physical artifact, and every logical table hash. The copy-only change
+  preserves 11,419,175 assignments, 11,418,608 system memberships, and zero
+  quarantines; CORE, ARM, DISC, RIM, and Public Read are unchanged.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -5,182 +5,182 @@
       "source_id": "gaia.dr3.gaia_source",
       "public_name": "Gaia DR3",
       "short_name": "Gaia DR3",
-      "description": "Gaia Data Release 3 contributes precise source identity, astrometry, photometry, and motion measurements for the selected nearby-space inventory.",
+      "description": "Gaia repeatedly measured nearly two billion points of light, turning tiny shifts on the sky into positions, parallaxes, proper motions, brightnesses, and colors. Those measurements form the geometric backbone of Spacegate's nearby map and help separate stars that only appear close together from objects moving through space together. This token appears when an exact Gaia DR3 record contributes to the displayed object; distance estimates and physical interpretations remain distinct evidence.",
       "mission_instrument": "ESA Gaia spacecraft astrometry and photometry"
     },
     {
       "source_id": "distance.gaia_edr3_bailer_jones",
       "public_name": "Bailer-Jones Gaia EDR3 Distances",
       "short_name": "Bailer-Jones",
-      "description": "This catalog contributes Bayesian geometric and photogeometric distance estimates derived from Gaia EDR3 astrometry with an explicit Galactic prior.",
+      "description": "Parallax becomes difficult to translate directly into distance when the measurement is small or uncertain. The Bailer-Jones catalog combines Gaia EDR3 astrometry, and for photogeometric estimates stellar brightness and color, with an explicit model of the Galaxy to produce probability-based distance estimates. Spacegate preserves these as modeled evidence rather than treating them as exact measured locations.",
       "mission_instrument": "Statistical distance inference from ESA Gaia EDR3 astrometry and photometry"
     },
     {
       "source_id": "gaia.dr3.non_single_star",
       "public_name": "Gaia DR3 Non-Single Star",
       "short_name": "Gaia NSS",
-      "description": "Gaia DR3 orbital and acceleration solutions for sources whose astrometry or spectra indicate that one-star motion is not an adequate model.",
+      "description": "Some Gaia sources do not move like isolated stars: their positions wobble, their radial velocities vary, or their spectra contain more than one stellar signal. Gaia DR3 Non-Single Star solutions fit those observations with orbital, acceleration, or multiple-spectrum models. Spacegate uses the specific accepted solution and keeps its model type, quality, and component scope visible rather than turning every NSS record into a fully resolved binary.",
       "mission_instrument": "ESA Gaia spacecraft astrometry and radial-velocity spectroscopy"
     },
     {
       "source_id": "nasa_exoplanet_archive.planetary_systems",
       "public_name": "NASA Exoplanet Archive",
       "short_name": "NASA Exoplanets",
-      "description": "NASA's curated archive contributes confirmed-planet identity, discovery context, and reference-specific and composite planet parameters.",
+      "description": "The NASA Exoplanet Archive gathers published discoveries and measurements from many planet-search methods into a curated, evolving record. It contributes confirmed-planet identity, discovery context, and both reference-specific and composite values for planets and their host stars. Spacegate preserves the references and uncertainties behind those values because a convenient composite is not a substitute for the evidence that produced it.",
       "mission_instrument": "Multi-mission exoplanet literature and archive compilation"
     },
     {
       "source_id": "tess.identity_and_candidate_evidence",
       "public_name": "TESS Objects of Interest",
       "short_name": "TOI",
-      "description": "The official TOI/TIC evidence connects TESS targets and planet candidates to their host systems while preserving candidate, confirmed, false-positive, and false-alarm dispositions.",
+      "description": "TESS searches for repeated dips in starlight that may be caused by planets crossing their stars. TIC identifiers name the observed targets, while TOI records track signals selected for follow-up and their changing dispositions. Spacegate connects that evidence to the correct host or component while preserving the difference between a candidate, a confirmed planet, a false positive, and a false alarm.",
       "mission_instrument": "NASA TESS transit photometry and Exoplanet Follow-up Observing Program"
     },
     {
       "source_id": "exoplanet_lifecycle.hwc",
       "public_name": "Habitable Worlds Catalog",
       "short_name": "HWC",
-      "description": "The Planetary Habitability Laboratory catalog contributes a published external assessment of potentially habitable worlds. It remains source evidence, not a Spacegate habitability verdict.",
+      "description": "The Planetary Habitability Laboratory's Habitable Worlds Catalog collects published planet data and applies external habitability-oriented screens and metrics. It is useful for finding worlds that merit closer examination and for comparing how different screening assumptions behave. Spacegate presents it as a published assessment from that source, never as proof that a planet supports liquid water or life.",
       "mission_instrument": "Literature compilation and published habitability metrics"
     },
     {
       "source_id": "tess.villanova_eb",
       "public_name": "TESS Eclipsing Binary Catalog",
       "short_name": "TESS EB",
-      "description": "The Villanova catalog identifies and characterizes eclipsing binaries found in TESS photometry.",
+      "description": "When two stars orbit nearly edge-on from Earth, their eclipses produce a repeating pattern in TESS brightness measurements. The Villanova TESS Eclipsing Binary Catalog identifies these signals and records periods, sectors, morphology, and review flags. Spacegate uses that observation-target evidence without assuming that every light-curve signal resolves cleanly into canonical stellar components.",
       "mission_instrument": "NASA TESS full-frame and short-cadence photometry"
     },
     {
       "source_id": "multiplicity.wds",
       "public_name": "Washington Double Star Catalog",
       "short_name": "WDS",
-      "description": "The US Naval Observatory catalog preserves measured double-star pairs, component labels, relative positions, and observation history.",
+      "description": "The Washington Double Star Catalog is a long-running record of pairs and multiple components measured close together on the sky. It preserves component labels, relative positions, and observation histories that may span generations of observers. A WDS pair is not automatically gravitationally bound, so Spacegate uses the measurements as relation evidence and requires stronger support before turning proximity into canonical system membership.",
       "mission_instrument": "Published visual, speckle, interferometric, and other double-star observations"
     },
     {
       "source_id": "multiplicity.msc",
       "public_name": "Multiple Star Catalog",
       "short_name": "MSC",
-      "description": "The Multiple Star Catalog contributes reviewed hierarchical component relationships and source-native orbit context for complex stellar systems.",
+      "description": "The Multiple Star Catalog reconstructs how the components of triples and richer stellar families are arranged into nested subsystems. That hierarchy is essential because a close pair and a distant companion cannot be represented faithfully as three unrelated points or one flat list. Spacegate preserves MSC component scope and source-native orbit context, accepting only relationships that survive identity and collision checks.",
       "mission_instrument": "Literature compilation maintained by Andrei Tokovinin"
     },
     {
       "source_id": "multiplicity.orb6",
       "public_name": "Sixth Catalog of Orbits of Visual Binary Stars",
       "short_name": "ORB6",
-      "description": "ORB6 contributes published coherent visual-binary orbit solutions with their reference, grade, epoch, frame, and uncertainties.",
+      "description": "ORB6 collects published orbit solutions for visual binaries whose changing separation and position angle can be followed on the sky. A solution turns those measurements into one coherent set of orbital elements, but its reliability depends on how much of the orbit has been observed and is summarized by its grade and references. Spacegate preserves the complete solution and its provenance rather than mixing convenient elements from unrelated fits.",
       "mission_instrument": "US Naval Observatory compilation of resolved visual-binary astrometry"
     },
     {
       "source_id": "multiplicity.sb9",
       "public_name": "SB9 Spectroscopic Binary Orbits",
       "short_name": "SB9",
-      "description": "SB9 contributes published spectroscopic-binary orbit solutions, component spectra, aliases, and bibliography.",
+      "description": "Spectroscopic binaries reveal their orbits through periodic Doppler shifts even when telescopes cannot cleanly separate the stars. SB9 gathers published radial-velocity orbit solutions, aliases, component information, and bibliography for these systems. Spacegate keeps each solution coherent and component-scoped so a measured period or velocity amplitude is not silently attached to the wrong star or combined with an incompatible orbit.",
       "mission_instrument": "Literature compilation of radial-velocity spectroscopy"
     },
     {
       "source_id": "multiplicity.sbx",
       "public_name": "SBX",
       "short_name": "SBX",
-      "description": "SBX contributes cross-catalog spectroscopic-system identity, hierarchy, component classifications, and orbit evidence.",
+      "description": "SBX connects spectroscopic binaries across catalogs and literature that may use different names or component conventions. It contributes identity, hierarchy, classifications, and orbit evidence that help Spacegate reconcile close stellar subsystems. Those cross-catalog connections remain provenance-bearing claims rather than automatic proof that similarly named components are physically identical.",
       "mission_instrument": "Université libre de Bruxelles spectroscopic-binary database"
     },
     {
       "source_id": "multiplicity.debcat",
       "public_name": "DEBCat",
       "short_name": "DEBCat",
-      "description": "DEBCat contributes high-quality physical measurements for well-studied detached eclipsing binary components.",
+      "description": "Detached eclipsing binaries let astronomers combine eclipses with radial velocities to measure stellar masses and radii with unusual precision. DEBCat curates well-studied systems, generally emphasizing measurements near the two-percent level while preserving published uncertainties and references. These stars are powerful tests of stellar models, but the catalog is a literature compilation rather than a perfectly homogeneous experiment.",
       "mission_instrument": "Reviewed literature compilation of detached eclipsing binaries"
     },
     {
       "source_id": "identity.simbad",
       "public_name": "SIMBAD",
       "short_name": "SIMBAD",
-      "description": "SIMBAD contributes literature-linked object names, identifiers, object types, and selected bibliographic classifications.",
+      "description": "Astronomical objects accumulate names as different surveys, instruments, and papers observe them. SIMBAD links those identifiers to literature-reviewed objects and supplies object types, classifications, and bibliography, making it one of astronomy's essential cross-reference services. Spacegate uses individual SIMBAD contributions with object and component scope instead of treating every alias or historical classification as equally authoritative.",
       "mission_instrument": "CDS literature and catalog database"
     },
     {
       "source_id": "naming.iau_wgsn",
       "public_name": "IAU Working Group on Star Names",
       "short_name": "IAU WGSN",
-      "description": "The IAU WGSN catalog contributes internationally standardized proper star names and their cultural and bibliographic attribution.",
+      "description": "The IAU Working Group on Star Names standardizes proper names so one spelling and one stellar component can be used consistently across astronomy. Its catalog also records the historical or cultural attribution behind those names. Spacegate prefers an accepted proper name where appropriate while retaining catalog identifiers and never treating a named star as scientifically more important merely because it has a memorable name.",
       "mission_instrument": "International Astronomical Union nomenclature standard"
     },
     {
       "source_id": "compact.atnf",
       "public_name": "ATNF Pulsar Catalogue",
       "short_name": "ATNF",
-      "description": "The ATNF catalog contributes published pulsar identity, timing, spin, distance, and binary context.",
+      "description": "Pulsars announce their rotation through precisely timed pulses detected at radio and other wavelengths. The ATNF Pulsar Catalogue brings together published identities, spin behavior, distances, timing parameters, and binary context for these objects. Spacegate preserves the measurement and reference behind each contribution because derived quantities such as characteristic age or magnetic field depend on a physical model.",
       "mission_instrument": "Multi-observatory pulsar timing and literature compilation"
     },
     {
       "source_id": "compact.mcgill_magnetar",
       "public_name": "McGill Magnetar Catalog",
       "short_name": "McGill Magnetars",
-      "description": "The McGill catalog contributes reviewed magnetar identity, spin, activity, and observational context.",
+      "description": "Magnetars are neutron stars recognized through their high-energy activity, spin behavior, and exceptionally strong inferred magnetic fields. The McGill Magnetar Catalog reviews the small known population and assembles timing, burst, and observational context from multiple missions. Spacegate uses that reviewed classification while keeping model-derived field strengths and ages distinct from direct observations.",
       "mission_instrument": "Multi-mission high-energy magnetar observations"
     },
     {
       "source_id": "compact.gaia_edr3_white_dwarf",
       "public_name": "Gaia EDR3 White Dwarf Catalogue",
       "short_name": "Gaia EDR3 WD",
-      "description": "This catalog contributes white-dwarf candidates and fitted physical parameters tied to Gaia astrometry and photometry.",
+      "description": "Gaia's precise distances and colors make it possible to identify large populations of white-dwarf candidates and fit their physical properties. This EDR3 catalog contributes candidate probabilities and model-dependent temperature, gravity, mass, and cooling information tied to Gaia sources. Spacegate preserves candidate status and alternative fits rather than promoting every selected row into a certain compact-object identity.",
       "mission_instrument": "ESA Gaia EDR3 astrometry and photometry"
     },
     {
       "source_id": "ultracool.ultracoolsheet",
       "public_name": "UltracoolSheet",
       "short_name": "UltracoolSheet",
-      "description": "UltracoolSheet contributes literature-linked optical and infrared classifications for ultracool dwarfs.",
+      "description": "Ultracool dwarfs are faint enough that their identities and classifications are scattered across infrared surveys and specialist papers. UltracoolSheet links that literature into a practical compilation of optical and infrared spectral types, astrometry, and related measurements. Spacegate uses the exact classifications and references while respecting that spectral type, mass, and star-versus-brown-dwarf status are different questions.",
       "mission_instrument": "Community literature compilation of ultracool-object observations"
     },
     {
       "source_id": "spectroscopy.apogee_dr17",
       "public_name": "APOGEE DR17",
       "short_name": "APOGEE DR17",
-      "description": "APOGEE DR17 contributes high-resolution near-infrared stellar spectra, atmospheric parameters, radial velocities, and chemical abundances.",
+      "description": "APOGEE uses high-resolution near-infrared spectra to look through Galactic dust and read the absorption fingerprints in stellar atmospheres. DR17 contributes radial velocities, temperatures, surface gravities, and abundances for many chemical elements, together with the flags needed to judge those results. Spacegate keeps each calibrated parameter set and its quality context intact rather than constructing a chemically precise star from unrelated best-looking numbers.",
       "mission_instrument": "Sloan Digital Sky Survey APOGEE near-infrared spectrographs"
     },
     {
       "source_id": "extended.openngc_and_nebulae",
       "public_name": "OpenNGC and Nebula Catalogs",
       "short_name": "OpenNGC",
-      "description": "The extended-object compilation contributes identities, positions, types, dimensions, and aliases for clusters, nebulae, galaxies, and related deep-sky structures.",
+      "description": "Stars live within a larger geography of clusters, nebulae, galaxies, and remnants rather than in an empty coordinate grid. OpenNGC and the companion nebula catalogs contribute names, positions, dimensions, object types, and aliases for those extended structures. Spacegate stores the structures separately from stellar systems and requires explicit evidence before claiming that a particular star belongs to, illuminates, or lies inside one.",
       "mission_instrument": "Open catalog compilation from published deep-sky observations"
     },
     {
       "source_id": "clusters.cantat_gaudin_2020",
       "public_name": "Cantat-Gaudin Gaia Open Clusters",
       "short_name": "Cantat-Gaudin",
-      "description": "This catalog contributes probability-bearing Gaia membership and physical context for Galactic open clusters.",
+      "description": "Open clusters are families of stars that formed together and still share related positions and motions through the Galaxy. Cantat-Gaudin and collaborators used Gaia astrometry to identify cluster populations and assign probability-bearing memberships. Spacegate preserves those probabilities and the Gaia-release context, because a likely co-moving member is evidence of association rather than an infallible family label.",
       "mission_instrument": "ESA Gaia DR2 astrometry analyzed for co-moving stellar populations"
     },
     {
       "source_id": "infrared.catwise2020_targeted",
       "public_name": "CatWISE2020",
       "short_name": "CatWISE2020",
-      "description": "Targeted CatWISE2020 records contribute all-sky infrared positions, motions, and photometry for matched cool and high-proper-motion objects.",
+      "description": "WISE and NEOWISE repeatedly scanned the whole sky in infrared light, making cold and dusty objects visible and revealing their motion over time. Targeted CatWISE2020 records contribute positions, proper motions, and infrared photometry for matched cool or fast-moving objects in Spacegate. The token means that exact counterpart evidence contributes here, not that every property of the object was discovered by CatWISE.",
       "mission_instrument": "NASA WISE and NEOWISE multi-epoch infrared imaging"
     },
     {
       "source_id": "infrared.allwise_targeted",
       "public_name": "WISE / AllWISE",
       "short_name": "WISE / AllWISE",
-      "description": "NASA/IPAC IRSA serves the WISE and AllWISE infrared image products used by Spacegate's Infrared Sky View and targeted counterpart evidence.",
+      "description": "WISE mapped the sky in four infrared bands, revealing cool stars, warm dust, and structures hidden or inconspicuous in visible light. NASA/IPAC IRSA serves the calibrated WISE and AllWISE imagery and catalog products used by Spacegate's Infrared Sky View and targeted counterpart evidence. The displayed colors may combine wavelengths the human eye cannot see, so Spacegate identifies the bands and false-color mapping rather than presenting them as natural vision.",
       "mission_instrument": "NASA Wide-field Infrared Survey Explorer all-sky imaging in the W1-W4 bands"
     },
     {
       "source_id": "solar_system.jpl_horizons_authority",
       "public_name": "JPL Horizons",
       "short_name": "JPL Horizons",
-      "description": "JPL Horizons contributes pinned state vectors and osculating orbital elements for Solar System bodies under a documented frame, epoch, center, and query.",
+      "description": "Solar System positions change continuously and depend on the requested time, coordinate frame, and observing location. JPL Horizons computes ephemerides, state vectors, and osculating elements from observation-based dynamical solutions for planets, moons, small bodies, and spacecraft. Spacegate pins the query, epoch, center, frame, and returned evidence so a rendered position can be reproduced rather than treated as a timeless coordinate.",
       "mission_instrument": "NASA JPL numerical ephemerides and observation-based orbit solutions"
     },
     {
       "source_id": "transitional.athyg",
       "public_name": "AT-HYG",
       "short_name": "AT-HYG",
-      "description": "AT-HYG contributes historical catalog cross-identifiers and bright-star compatibility evidence retained for public search and identity reconciliation.",
+      "description": "AT-HYG combines several classic bright- and nearby-star catalogs that powered many earlier digital star maps. Modern Gaia astrometry usually provides a stronger geometric foundation, but the older compilation remains valuable for familiar names, historical identifiers, and compatibility with previous datasets. Spacegate uses those identity contributions without allowing transitional measurements to overrule better release-scoped evidence.",
       "mission_instrument": "Compilation of Hipparcos, Yale Bright Star, Gliese, and related catalogs"
     }
   ]
