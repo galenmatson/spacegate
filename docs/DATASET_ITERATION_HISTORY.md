@@ -4560,10 +4560,15 @@ Representative commits:
   and causal stories unsupported by the proposed evidence.
 - Two clean full compiles against Public Read build
   `20260804T1130Z_68fd99b_a2_planet_badges` reproduce registry hash
-  `fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
+  `8e2f35dfafe0c122ab8a1289d34ab7ae87f0a1ce6c790cdd4bc1ab82a25c8999`,
   every physical artifact, and every logical table hash. The copy-only change
   preserves 11,419,175 assignments, 11,418,608 system memberships, and zero
   quarantines; CORE, ARM, DISC, RIM, and Public Read are unchanged.
+- The long-running verification exposed an input-lineage race: the compiler
+  loaded registry bytes at startup but previously hashed their paths near the
+  end, so a concurrent edit could make the manifest describe different input
+  bytes. Compiler v2.5 snapshots and rechecks every compiler and registry input
+  and fails closed before promotion if any changed.
 
 ## Recurrent Defect Classes and Mitigations
 

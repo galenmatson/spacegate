@@ -134,12 +134,17 @@ classifications do not assert climates, hazards, origins, or inevitable
 remnants.
 
 Two clean compiles against Public Read build
-`20260804T1130Z_68fd99b_a2_planet_badges` completed in 230.831 and 230.861
+`20260804T1130Z_68fd99b_a2_planet_badges` completed in 231.901 and 231.494
 seconds. They reproduce registry hash
-`fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
-the 407,306,240-byte SQLite, both Parquet artifacts, input lineage, counts, and
+`8e2f35dfafe0c122ab8a1289d34ab7ae87f0a1ce6c790cdd4bc1ab82a25c8999`,
+the 407,322,624-byte SQLite, both Parquet artifacts, input lineage, counts, and
 all logical table hashes. Membership remains 11,419,175 assignments and
 11,418,608 system rollups with zero quarantines.
+
+Compiler v2.5 snapshots compiler and registry input hashes before work begins
+and compares them again before promotion. A concurrent edit now fails the build
+instead of allowing the manifest lineage to describe different bytes from the
+registry actually compiled.
 
 Machine report:
 

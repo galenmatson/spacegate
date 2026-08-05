@@ -92,6 +92,10 @@ Run:
 
 The compiler consumes only immutable selected Public Read fields. It does not
 select among competing evidence and does not mutate CORE, ARM, DISC, or RIM.
+Compiler v2.5 snapshots every compiler and registry input before work begins
+and verifies the same hashes before promotion. If an input changes during the
+run, compilation fails closed rather than publishing a manifest with misleading
+lineage.
 Output is:
 
 ```text

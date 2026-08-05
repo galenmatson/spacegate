@@ -30,7 +30,7 @@ MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
 ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.4"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.5"
 HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
 PLANET_CATEGORY_BIT_TO_TAG = {
     1: "science:planet.hot_gas_giant",
@@ -63,6 +63,29 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def input_fingerprints(paths: Iterable[Path], repo_root: Path) -> dict[str, Any]:
+    return {
+        str(path.relative_to(repo_root)): {
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in paths
+    }
+
+
+def assert_inputs_unchanged(
+    expected: dict[str, Any], paths: Iterable[Path], repo_root: Path
+) -> None:
+    current = input_fingerprints(paths, repo_root)
+    if current != expected:
+        changed = sorted(set(expected) | set(current))
+        changed = [key for key in changed if expected.get(key) != current.get(key)]
+        raise ValueError(
+            "smart-tag compiler inputs changed during compilation: "
+            + ", ".join(changed)
+        )
 
 
 def atomic_json(path: Path, value: Any) -> None:
@@ -1111,13 +1134,12 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
         Path(__file__).resolve(),
         (args.repo_root / "scripts/smart_tag_registry.py").resolve(strict=True),
     )
-    compiler_inputs = {
-        str(path.relative_to(args.repo_root)): {
-            "bytes": path.stat().st_size,
-            "sha256": sha256_file(path),
-        }
-        for path in compiler_sources
-    }
+    compiler_inputs = input_fingerprints(compiler_sources, args.repo_root)
+    source_registry_path = (
+        args.repo_root / registry.registry["source_registry"]
+    ).resolve(strict=True)
+    registry_sources = tuple(registry.source_files) + (source_registry_path,)
+    registry_inputs = input_fingerprints(registry_sources, args.repo_root)
     if final_dir.exists() and not args.force:
         manifest = json.loads((final_dir / "manifest.json").read_text(encoding="utf-8"))
         if (
@@ -1148,9 +1170,6 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             phase = time.perf_counter()
             create_work_schema(con)
             insert_definitions(con, registry)
-            source_registry_path = (
-                args.repo_root / registry.registry["source_registry"]
-            ).resolve(strict=True)
             source_mapping = insert_source_definitions(con, source_registry_path)
             _attach_public(con, public_read)
             sampled_system_count = prepare_sample_scope(con, args.sample_limit)
@@ -1420,19 +1439,8 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                 "bytes": path.stat().st_size,
                 "sha256": sha256_file(path),
             }
-        registry_inputs = {
-            str(path.relative_to(args.repo_root)): {
-                "bytes": path.stat().st_size,
-                "sha256": sha256_file(path),
-            }
-            for path in registry.source_files
-        }
-        registry_inputs[
-            str(source_registry_path.relative_to(args.repo_root))
-        ] = {
-            "bytes": source_registry_path.stat().st_size,
-            "sha256": sha256_file(source_registry_path),
-        }
+        assert_inputs_unchanged(compiler_inputs, compiler_sources, args.repo_root)
+        assert_inputs_unchanged(registry_inputs, registry_sources, args.repo_root)
         manifest = {
             "schema_version": MANIFEST_SCHEMA,
             "status": "pass",

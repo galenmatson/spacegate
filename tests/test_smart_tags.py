@@ -23,6 +23,16 @@ from app import smart_tags as api_smart_tags  # noqa: E402
 from app import main as api_main  # noqa: E402
 
 
+def test_compiler_rejects_changed_inputs(tmp_path: Path) -> None:
+    source = tmp_path / "registry.json"
+    source.write_text('{"version": 1}\n', encoding="utf-8")
+    expected = compiler.input_fingerprints((source,), tmp_path)
+    source.write_text('{"version": 2}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="inputs changed during compilation"):
+        compiler.assert_inputs_unchanged(expected, (source,), tmp_path)
+
+
 def make_public_read(path: Path) -> None:
     con = sqlite3.connect(path)
     con.executescript(

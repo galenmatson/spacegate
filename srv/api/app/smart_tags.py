@@ -16,7 +16,7 @@ EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v2"
 EXPECTED_ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 EXPECTED_SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 EXPECTED_SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.4"
+EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.5"
 EVIDENCE_STATUS_BITS = (
     ("source", 1),
     ("derived", 2),

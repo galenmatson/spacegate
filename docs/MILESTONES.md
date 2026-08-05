@@ -3076,8 +3076,11 @@ Delivered:
   cannot reintroduce florid overstatement or deterministic evolutionary claims.
 - two clean editorial-v2 compiles for Public Read build
   `20260804T1130Z_68fd99b_a2_planet_badges` reproduce registry hash
-  `fc5c8068e849cb141a2b0d93d0420ff930d5eb040cd7813f91c572aa8f40bce7`,
-  all physical artifacts, and every logical table hash in 230.8 seconds each.
+  `8e2f35dfafe0c122ab8a1289d34ab7ae87f0a1ce6c790cdd4bc1ab82a25c8999`,
+  all physical artifacts, and every logical table hash in 231.9 and 231.5
+  seconds. Compiler v2.5 also fails closed if registry or compiler inputs change
+  during a run, preventing a manifest from recording lineage different from the
+  bytes actually compiled.
   Scientific assignments remain unchanged at 11,419,175 with zero quarantines.
 - the first reviewed concept routes cover spectral class, white dwarfs, brown
   dwarfs, multiple systems, exoplanets, habitable zones, orbital period, and
