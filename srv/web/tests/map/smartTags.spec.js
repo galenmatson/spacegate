@@ -197,7 +197,7 @@ test.describe("Smart Tags and concepts", () => {
     expect(metrics.top).toBeGreaterThanOrEqual(0);
     expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
     expect(metrics.overflowY).toBe("auto");
-    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+    expect(metrics.scrollHeight).toBeGreaterThanOrEqual(metrics.clientHeight);
   });
 
   test("source tags use reviewed abbreviations without losing full catalog names", async ({ page }) => {

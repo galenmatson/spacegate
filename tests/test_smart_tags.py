@@ -220,6 +220,32 @@ def test_registry_is_typed_namespaced_and_expression_free() -> None:
     }
 
 
+def test_public_tag_lessons_do_not_expose_internal_policy() -> None:
+    registry = registry_module.load_registry(ROOT / "config/tags/registry.json")
+    forbidden = (
+        "spacegate applies",
+        "spacegate assigns",
+        "spacegate derives",
+        "spacegate keeps",
+        "spacegate preserves",
+        "spacegate should",
+        "spacegate uses",
+        "compiler",
+        "retention policy",
+        "selected fact",
+        "source policy",
+    )
+
+    lessons = [definition["tooltip"] for definition in registry.definitions]
+    lessons.extend(
+        source["description"]
+        for source in (registry.source_presentation or {}).get("sources", [])
+    )
+    for lesson in lessons:
+        lowered = lesson.lower()
+        assert not any(phrase in lowered for phrase in forbidden), lesson
+
+
 def test_compiler_materializes_object_assignments_rollups_and_sources(
     tmp_path: Path,
 ) -> None:

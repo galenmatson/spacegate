@@ -48,10 +48,18 @@ and filter/rollup policy.
 The two explanation fields serve different jobs. `short_tooltip` is the terse
 fallback for constrained surfaces. The full `tooltip` is a compact lesson,
 normally three to six sentences: it defines the idea without assumed technical
-vocabulary, builds physical intuition, explains how Spacegate recognizes the
-tag, and weaves material uncertainty into the lesson. Accuracy does not require
-dryness, and inspiration does not permit unsupported climate, habitability,
-hazard, composition, or evolutionary claims.
+vocabulary, builds physical intuition, and explains how astronomers recognize
+or study the phenomenon when useful. Material uncertainty should be woven into
+the astronomy instead of appended as a policy disclaimer. Accuracy does not
+require dryness, and inspiration does not permit unsupported climate,
+habitability, hazard, composition, or evolutionary claims.
+
+Public tooltip copy must not narrate schemas, selection policy, evaluator
+thresholds, storage, retention, or compiler behavior. Those implementation and
+provenance details remain available through structured Basis, evidence, and
+source fields and a future science view. Public lessons should not explain away
+implausible literal readings of ordinary astronomical terms. They use direct
+prose and avoid unnecessary hyphenated compounds.
 
 Registry files cannot contain SQL or executable expressions. Compiler code
 accepts only reviewed evaluator IDs. `scripts/smart_tag_registry.py` fails on

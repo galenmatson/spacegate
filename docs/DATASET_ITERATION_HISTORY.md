@@ -4570,6 +4570,29 @@ Representative commits:
   bytes. Compiler v2.5 snapshots and rechecks every compiler and registry input
   and fails closed before promotion if any changed.
 
+### 172) Public Tag Lessons Separate Astronomy From Implementation
+
+- Public tag copy now answers what a phenomenon is, why it happens, why it
+  matters, and how astronomers recognize it. It no longer narrates Spacegate's
+  schemas, selected fact policy, evaluators, compiler, storage, or retention.
+  Those details remain available through structured Basis, evidence, and source
+  records and are reserved for a future science view.
+- The active 34 tag lessons, source descriptions, and deferred `TAGS.md`
+  proposals were revised under the same audience contract. The Horizontal
+  Branch and Subdwarf lessons now teach their evolutionary context directly,
+  without explaining away implausible literal readings or discussing internal
+  subtype retention.
+- A registry test rejects common internal policy phrases in public tag and
+  source lessons so future vocabulary additions preserve this boundary. The
+  edit changes presentation copy only; assignments, evaluators, scientific
+  layers, and Public Read remain unchanged.
+- Two clean full compiles finish in 230.4 and 230.8 seconds and reproduce
+  registry hash
+  `78bbb1c1a59bcf5e46a86346986bd5d474360c372789df118c82128316f102ac`,
+  all artifact bytes, input lineage, and every logical table hash. Both retain
+  11,419,175 assignments, 11,418,608 system memberships, 90,771 exact source
+  contributions, and zero quarantines.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

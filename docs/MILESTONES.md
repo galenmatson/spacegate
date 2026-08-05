@@ -3070,14 +3070,17 @@ Delivered:
   source, and evidence-state behavior without relying on color alone.
 - public tooltip editorial v2 treats a full tag explanation as a compact lesson:
   normally three to six sentences defining the term, building physical intuition,
-  identifying Spacegate's activation evidence, and integrating uncertainty without
-  a stock disclaimer. All 34 enabled definitions and all 50 source definitions
-  follow the contract; deferred proposals were also revised so later activation
-  cannot reintroduce florid overstatement or deterministic evolutionary claims.
-- two clean editorial-v2 compiles for Public Read build
+  explaining how astronomers recognize or study it where useful, and integrating
+  uncertainty without a stock disclaimer. Public copy does not narrate internal
+  schemas, selection, evaluators, storage, retention, or compiler behavior; that
+  context stays in structured Basis, evidence, and source details. All 34 enabled
+  definitions and all 50 source definitions follow the contract; deferred
+  proposals were also revised so later activation cannot reintroduce florid
+  overstatement or deterministic evolutionary claims.
+- two clean public lesson compiles for Public Read build
   `20260804T1130Z_68fd99b_a2_planet_badges` reproduce registry hash
-  `8e2f35dfafe0c122ab8a1289d34ab7ae87f0a1ce6c790cdd4bc1ab82a25c8999`,
-  all physical artifacts, and every logical table hash in 231.9 and 231.5
+  `78bbb1c1a59bcf5e46a86346986bd5d474360c372789df118c82128316f102ac`,
+  all physical artifacts, and every logical table hash in 230.4 and 230.8
   seconds. Compiler v2.5 also fails closed if registry or compiler inputs change
   during a run, preventing a manifest from recording lineage different from the
   bytes actually compiled.

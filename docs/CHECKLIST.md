@@ -948,8 +948,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   stellar badge
 - [x] Replace terse or florid Smart Tag copy with the editorial-v2 teaching
   contract: accurate three-to-six-sentence full tooltips, compact fallback copy,
-  evidence-aware activation language, reviewed source explanations, and two
-  deterministic full-registry compilations with unchanged scientific membership
+  public astronomy separated from internal selection and retention commentary,
+  reviewed source explanations, and two deterministic full registry compilations
+  with unchanged scientific membership
 - [x] Bound expanded Smart Tag lessons to the viewport with internal scrolling
   so source context and actions remain reachable on short desktop and mobile
   screens without truncating the educational copy
