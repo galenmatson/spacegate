@@ -22,9 +22,8 @@ match the build and registry schemas. The frozen scene archive must be unpacked 
 runtime scene cache; copying the archive without installing it does not warm the
 public service.
 
-The first three rows below record the already deployed July 26 Public Read v1
-release. The fourth row is the locally accepted M8.3e.2 candidate and has not
-been deployed:
+The rows below record the already deployed July 26 Public Read v1 release and
+its later compatibility Smart Tag candidate:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -41,12 +40,25 @@ four-artifact candidate is 33,963,449,859 bytes. Its release manifest is:
 ```
 
 M8.3e.2b upgrades the next release contract to
-`spacegate.smart_tags.v4`/compiler v2.7. The locally rehearsed Smart Tag archive
-is 452,101,060 bytes with SHA-256
-`9169b50cab0debd812de24d5d1063a686a4fe1973870181192bcd3ba4ca3de5b`.
-It is not deployed; any future edge release must stage this v4 artifact with
-matching scientific, Public Read, and scene build identity before activating
-code that requires v4.
+`spacegate.smart_tags.v4`/compiler v2.7. The complete build-matched August 6
+candidate is:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Scientific archive | 17,082,150,067 | `004fbfd42ca26e53c099595116d3b318c533542c15f981729207b5ae4985173c` |
+| Public Read v2 SQLite | 16,455,512,064 | `87edcf9cd40a3171d91b892007ad9584925cb4dc7c6eec8071dc6ded48922086` |
+| Frozen scenes | 80,782,995 | `78a6309fe93632caa1c980d0899f31d700bc430bc7c38613d94b8b0d978e5cfa` |
+| Smart Tags v4 | 452,101,060 | `9169b50cab0debd812de24d5d1063a686a4fe1973870181192bcd3ba4ca3de5b` |
+
+The verified transfer is 34,070,546,186 bytes. The manifest is:
+
+```text
+/data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/smart-tags-v4/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/release.json
+```
+
+`verify-source` passes all four roles. This release is not deployed. Code was
+synchronized without restart, but the currently served July release remains
+active until the edge disk gate can retain rollback safety.
 
 ## Runtime Contract
 
@@ -72,14 +84,14 @@ Use the repository virtual environment and verify the release:
 ```bash
 cd /srv/spacegate/app
 .venv/bin/python scripts/public_edge_release.py verify-source \
-  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/smart-tags-v2/80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec/release.json
+  --manifest /data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/smart-tags-v4/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/release.json
 ```
 
 Run normal local verification and confirm Docker health before transfer:
 
 ```bash
 SPACEGATE_STATE_DIR=/data/spacegate/state \
-  scripts/verify_build.sh e7_24cb15211f430a37f199f462_full_public
+  scripts/verify_build.sh 20260804T1130Z_68fd99b_a2_planet_badges
 .venv/bin/python scripts/test_api_integration.py http://127.0.0.1:8000/api/v1
 .venv/bin/python scripts/verify_known_systems_api.py http://127.0.0.1:8000/api/v1
 scripts/compose_spacegate.sh ps
@@ -101,6 +113,15 @@ On July 26, 2026 the reviewed preflight removed only:
 The active `20260717T0614Z_f452835_side` build and its published archive remain
 the immediate rollback. Antiproton has 70,120,824,832 bytes free after cleanup.
 Do not repeat the cleanup by pattern or delete the active archive.
+
+The August 6 candidate requires exactly 58,368,187,518 bytes free before
+staging, including the enforced 15-GiB post-stage reserve. A read-only preflight
+found 27,666,776,064 bytes free on the 102,888,095,744-byte root filesystem,
+leaving a 30,701,411,454-byte deficit. Both public containers remained healthy
+on `e7_24cb15211f430a37f199f462_full_public`; no current or rollback artifact was
+removed. Do not weaken the reserve or discard the served rollback to force this
+release. Expand antiproton to at least 160 GB total, preferably 200 GB for two
+modern releases plus operating reserve, then repeat the preflight.
 
 ## Sync Code Without Restart
 
@@ -126,7 +147,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   sgdeploy@158.69.198.29 \
   "cd /srv/spacegate/app && \
    python3 scripts/public_edge_release.py configure-runtime-env \
-     --manifest /srv/spacegate/data/incoming/public-edge/e7_24cb15211f430a37f199f462_full_public/release.json \
+     --manifest /srv/spacegate/data/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
      --env-file .spacegate.local.env"
 ```
 
@@ -143,7 +164,7 @@ Run:
 
 ```bash
 scripts/push_public_edge_release.sh \
-  --manifest /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/release.json \
+  --manifest /data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/smart-tags-v4/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/release.json \
   --remote sgdeploy@158.69.198.29 \
   --ssh-key ~/.ssh/spacegate_antiproton \
   --ssh-cooldown 3
@@ -177,7 +198,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   sgdeploy@158.69.198.29 \
   "cd /srv/spacegate/app && \
    python3 scripts/public_edge_release.py activate \
-     --manifest /srv/spacegate/data/incoming/public-edge/e7_24cb15211f430a37f199f462_full_public/release.json \
+     --manifest /srv/spacegate/data/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
      --state-dir /srv/spacegate/data"
 
 scripts/deploy_antiproton.sh \
@@ -222,7 +243,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   sgdeploy@158.69.198.29 \
   "cd /srv/spacegate/app && \
    python3 scripts/public_edge_release.py rollback \
-     --build-id e7_24cb15211f430a37f199f462_full_public \
+     --build-id 20260804T1130Z_68fd99b_a2_planet_badges \
      --state-dir /srv/spacegate/data && \
    scripts/compose_spacegate.sh up -d --build api web"
 ```

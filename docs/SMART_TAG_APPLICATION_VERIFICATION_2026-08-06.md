@@ -1,7 +1,8 @@
 # Smart Tag Application and Hero Salience v1 Verification
 
-Status: local Photon candidate accepted for branch review. No antiproton
-deployment was performed.
+Status: accepted and reconciled to `master` through `d357363`. The matching
+four-artifact public release verifies locally; antiproton activation is blocked
+by the documented edge disk gate.
 
 ## Verified Contract
 

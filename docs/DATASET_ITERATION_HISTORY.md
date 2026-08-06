@@ -4660,6 +4660,21 @@ Representative commits:
   planets, labels, orbit rings, an HZ band, and controls at 1440 by 900. The
   separate `simple-light-4k-20260806` Castor run passes at 3840 by 2160.
 
+### 176) Smart Tags v4 Has A Build-Matched Public Release Candidate
+
+- Release `20260804T1130Z_68fd99b_a2_planet_badges` binds the verified
+  scientific archive, Public Read v2 SQLite, deterministic frozen scene set,
+  and Smart Tags v4 artifact under one `spacegate.public_edge_release.v2`
+  manifest. All four source checks pass and the exact transfer is
+  34,070,546,186 bytes.
+- The scene admin job materialized all 7,724 policy-selected systems with zero
+  failures, and two freezes reproduced the same archive hash. The complete
+  scientific build, API integration, and representative known-system gates pass.
+- Antiproton remains on the prior verified release. Its read-only preflight
+  found 27,666,776,064 free bytes against a 58,368,187,518-byte staging
+  requirement, so Spacegate retained the active release and rollback instead of
+  weakening the 15-GiB operating reserve.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

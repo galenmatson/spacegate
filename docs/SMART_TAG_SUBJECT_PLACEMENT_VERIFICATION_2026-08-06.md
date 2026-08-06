@@ -2,8 +2,9 @@
 
 Date: 2026-08-06
 
-Status: locally accepted on `feature/smart-tag-application-v1`. No Proton or
-antiproton state was mutated.
+Status: accepted and reconciled to `master` through `d357363`. Proton was not
+mutated. The matching public release verifies locally, while antiproton
+activation is blocked by the documented edge disk gate.
 
 ## Result
 
@@ -64,14 +65,11 @@ planet hosts, and singleton systems measured 0.172 ms p50, 0.237 ms p95,
 0.305 ms p99, and 0.479 ms maximum on Photon. The live Castor detail response
 returns one public-named system subject and seven distinct stellar leaves.
 
-The focused Python suite passes 36 tests. The repository-wide suite records 529
-passes and five existing Evidence Lake accounting failures outside this diff:
-one source batch test expects 26 rather than 27 completed sources, one
-disposition audit does not know the selected IAU 2015 Resolution B3 source, the
-completion contract still requires retention-removed E6/E7 artifacts, and two
-derivation-inventory checks expect `planet_environment_badge_mask_v1` while the
-checked-in map compiler declares v2. These remain explicit checklist work and
-were not bypassed here.
+The focused Python suite passes 36 tests. The retained Evidence Lake accounting
+contracts now include the 27th source batch, IAU 2015 Resolution B3, explicit
+retention evidence for retired E6/E7 artifacts, and the v2 planet environment
+marker. The repository-wide suite passes 535 tests plus six subtests with no
+failures.
 
 The complete Smart Tag Playwright run
 passes 20 applicable desktop/mobile checks with four intentional profile skips.
@@ -91,4 +89,14 @@ generation remains untouched as rollback because the vocabulary registry hash
 did not change across the schema/compiler upgrade. The API and web containers
 are healthy at `https://10.0.0.12`. The release packager accepts only the v4
 schema/compiler contract, and its local 452,101,060-byte rehearsal archive
-verified successfully. No public deployment was performed.
+verified successfully. The final release member reproduces that archive at
+452,101,060 bytes and SHA-256
+`9169b50cab0debd812de24d5d1063a686a4fe1973870181192bcd3ba4ca3de5b`.
+No public activation was performed.
+
+The complete `spacegate.public_edge_release.v2` candidate transfers
+34,070,546,186 bytes and passes source verification for the scientific build,
+Public Read, frozen scenes, and Smart Tags. Its enforced minimum starting free
+space is 58,368,187,518 bytes. Antiproton had 27,666,776,064 bytes free during
+the read-only preflight, so staging was correctly deferred without removing the
+active release or rollback.

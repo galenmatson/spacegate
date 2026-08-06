@@ -978,13 +978,23 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Complete M8.3e.2b acceptance: prove two clean full-build hashes, API and
   browser subject/focus parity, local container health, and record the final
   artifact size and query-performance evidence
-- [ ] Reconcile the checked-in E5 source batch expectation from 26 to 27
+- [x] Reconcile M8.3e.2a/M8.3e.2b, retained Evidence Lake verification, and the
+  Simple Light contrast repair into `master` through `d357363`
+- [x] Build and verify the build-matched August 6 public edge v2 manifest:
+  34,070,546,186 transfer bytes across scientific, Public Read, frozen scene,
+  and Smart Tag v4 artifacts, with all four source roles passing checksums and
+  identity gates
+- [ ] Expand antiproton storage and repeat the edge preflight before staging the
+  August 6 release. The 96-GB filesystem has 27,666,776,064 bytes free versus
+  the manifest's 58,368,187,518-byte minimum; retain the current release and
+  rollback rather than weakening the 15-GiB reserve
+- [x] Reconcile the checked-in E5 source batch expectation from 26 to 27
   completed sources and register or remove the currently unknown selected
   source `standards.iau_2015_resolution_b3`
-- [ ] Refresh the Evidence Lake completion contract after retention removed its
+- [x] Refresh the Evidence Lake completion contract after retention removed its
   superseded E6/E7 and clean-science artifact paths; preserve audit history
   without requiring intentionally retired files to remain online
-- [ ] Reconcile the legacy derivation inventory's expected
+- [x] Reconcile the legacy derivation inventory's expected
   `planet_environment_badge_mask_v1` marker with the implemented v2 map policy
   and rerun the complete repository suite
 - [ ] Revisit React Router advisory `GHSA-qwww-vcr4-c8h2` when an upstream

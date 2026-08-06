@@ -3123,8 +3123,9 @@ Goal:
   ranking, placing, and exploring Smart Tags without allowing concise public
   language to overstate the supporting evidence.
 
-Status: locally verified candidate on `feature/smart-tag-application-v1`; no
-public deployment was performed.
+Status: verified and reconciled to `master` through `d357363`; the build-matched
+four-artifact public release verifies locally, but antiproton activation is
+blocked by the edge disk gate.
 
 Delivered:
 
@@ -3180,8 +3181,9 @@ Goal:
   their actual subjects, while keeping the System Page hero a bounded system
   summary and preserving portable evidence for audit.
 
-Status: locally accepted on `feature/smart-tag-application-v1`; no public
-deployment was performed.
+Status: accepted and reconciled to `master` through `d357363`; the build-matched
+four-artifact public release verifies locally, but antiproton activation is
+blocked by the edge disk gate.
 
 Delivered:
 
