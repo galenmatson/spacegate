@@ -6,7 +6,8 @@ Rim data is intentionally separate from core science and disc derived artifacts.
 ## Reserved Smart Tag Extension
 
 `rim:` Smart Tag keys are reserved for future user and pack-authored
-worldbuilding labels. M8.3e.2 does not implement editing or persistence.
+worldbuilding labels. M8.3e.2a does not implement editing or persistence and
+does not include RIM assignments in scientific hero salience.
 
 When implemented, every RIM tag must retain:
 

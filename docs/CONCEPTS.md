@@ -102,6 +102,16 @@ Tooltips should be useful even when the user never opens the concept page.
 Concept pages should reward the click with substantially more context, not
 repeat the tooltip.
 
+The compact title follows the shared claim grammar. Observed, accepted,
+derived, modeled, likely, candidate, disputed, and contextual claims must remain
+distinguishable without relying on color or an unopened tooltip. A short title
+may create curiosity, but it may not turn a model outcome into a settled fact.
+
+Opening a concept from the pinned Tag Inspector carries a return context. The
+reader can return to the prior system or map route, scroll position, and
+selection context rather than restarting exploration. Rolled-up member tags
+also retain an explicit focus action for the star or planet that earned the tag.
+
 ## Learning Paths
 
 These are intentionally staged routes from common public questions toward

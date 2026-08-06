@@ -11,6 +11,12 @@ artifact is not evidence authority and never writes ARM. Source tokens mean an
 exact accepted contribution in displayed lineage, not boolean catalog
 presence.
 
+Judgment-dependent tags use the AAA packet contract in
+`config/tags/aaa_tag_adjudication.schema.json`. A reviewed packet may support an
+ARM proposal or accepted overlay through the ordinary review lifecycle, but a
+tag decision cannot bypass subject resolution, evidence lineage, uncertainty,
+or quarantine and cannot mutate CORE.
+
 Purpose:
 - store deterministic, provenance-bound science support rows outside core hot
   paths

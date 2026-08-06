@@ -8260,7 +8260,7 @@ main {
 
 .smart-tag-portal .smart-tag-popover {
   visibility: visible;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .smart-tag-inspector {

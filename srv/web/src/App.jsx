@@ -3046,8 +3046,14 @@ function ConceptPage({ buildId = "" }) {
               type="button"
               className="button compact concept-return-button"
               onClick={() => {
-                navigate(-1);
-                window.setTimeout(() => window.scrollTo({ top: Number(returnContext.scrollY) || 0 }), 0);
+                if (returnContext.mapReturnToken) {
+                  navigate(`/map?restore=${encodeURIComponent(returnContext.mapReturnToken)}`, {
+                    replace: true,
+                  });
+                } else {
+                  navigate(-1);
+                  window.setTimeout(() => window.scrollTo({ top: Number(returnContext.scrollY) || 0 }), 0);
+                }
               }}
             >
               Return to exploration

@@ -270,7 +270,9 @@ def attach_tag_fixture(con: sqlite3.Connection) -> None:
           expanded_priority INTEGER,concept_slug TEXT,tooltip TEXT,
           short_tooltip TEXT,source_policy TEXT,evaluator_id TEXT,
           evaluator_version INTEGER,evaluator_params_json TEXT,
-          filterable INTEGER,rollup TEXT
+          filterable INTEGER,rollup TEXT,
+          application_profile TEXT,application_json TEXT,
+          hero_profile TEXT,hero_json TEXT
         );
         CREATE TABLE smart_tags.system_tag_membership(
           system_id INTEGER,
@@ -282,6 +284,19 @@ def attach_tag_fixture(con: sqlite3.Connection) -> None:
           min_confidence REAL,
           max_confidence REAL,
           PRIMARY KEY(system_id,tag_id)
+        );
+        CREATE TABLE smart_tags.system_hero_tags(
+          system_id INTEGER,
+          hero_rank INTEGER,
+          tag_id INTEGER,
+          hero_score INTEGER,
+          hero_family_code INTEGER,
+          signal_mask INTEGER,
+          origin_scope_code INTEGER,
+          origin_target_key TEXT,
+          claim_mode_code INTEGER,
+          PRIMARY KEY(system_id,hero_rank),
+          UNIQUE(system_id,tag_id)
         );
         CREATE TABLE smart_tags.source_definitions(
           source_num INTEGER PRIMARY KEY,source_key TEXT,source_id TEXT,
@@ -296,13 +311,14 @@ def attach_tag_fixture(con: sqlite3.Connection) -> None:
         INSERT INTO smart_tags.tag_definitions VALUES
           (1,'science:test.alpha','Alpha','Alpha','test','concept','disc',
            '["system"]','test',1,1,1,NULL,'Alpha','Alpha','test',
-           'system_count_v1',1,'{}',1,'direct'),
+           'system_count_v1',1,'{}',1,'direct','test','{}','none','{}'),
           (2,'science:test.beta','Beta','Beta','test','concept','disc',
            '["system"]','test',1,1,1,NULL,'Beta','Beta','test',
-           'system_count_v1',1,'{}',1,'direct'),
+           'system_count_v1',1,'{}',1,'direct','test','{}','none','{}'),
           (3,'evidence:test.nonfilterable','Evidence','Evidence','evidence',
            'status','arm','["system"]','evidence',1,1,1,NULL,'Evidence',
-           'Evidence','status','system_count_v1',1,'{}',0,'none');
+           'Evidence','status','system_count_v1',1,'{}',0,'none',
+           'test','{}','none','{}');
         INSERT INTO smart_tags.system_tag_membership VALUES
           (1,1,1,0,0,1,1.0,1.0),
           (1,2,1,0,0,2,0.9,0.9),

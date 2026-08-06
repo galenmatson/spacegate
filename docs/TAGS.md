@@ -42,6 +42,27 @@ observed or compiled and where its scientific scope ends. They must never imply
 that catalog membership makes every value certain or that a source is
 authoritative outside the scientific domain it measures.
 
+## Application Standard
+
+This document proposes vocabulary; it does not authorize assignments. Every
+enabled definition must have a reviewed application profile in
+`config/tags/application_policies.json` covering subject scope, evidence,
+uncertainty, conflicts, rollup, surfaces, evaluator version, and revisit
+conditions. The compiler emits a feasibility row for every proposal, including
+deferred and rejected ideas.
+
+Short titles may be vivid, but they cannot make a stronger claim than the
+evidence. Modeled, likely, candidate, disputed, and contextual claims retain a
+visible text or symbol distinction even when the tooltip contains the full
+scientific explanation. For example, `BLACK HOLE FATE?` can introduce an
+uncertain evolutionary model; categorical `FUTURE BLACK HOLE` requires a level
+of certainty that present models will rarely support.
+
+Hero placement is not an assignment rule. A separate versioned DISC policy
+selects at most four already valid tags using bounded interest, rarity,
+specificity, scope, and diversity signals. Full membership remains available
+through All Tags, object glyphs, hierarchy placement, filters, and the API.
+
 ## Tag Color Schema
 
 Tag colors should teach category at a glance without becoming the only carrier

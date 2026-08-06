@@ -45,6 +45,13 @@ July 17 build remains the immediate rollback while the release soaks. Smart
 Tags and a secure, citation-backed, reviewed AI Astronomy Agency vertical slice
 are the next presentation and investigation foundations.
 
+Smart Tag application is now an explicit DISC policy layered over immutable
+assignments. Reviewed claim modes and originating-object scope govern what may
+be shown, while a separate bounded hero composer selects a diverse maximum of
+four interesting tags without changing scientific membership, search filters,
+or coolness. Judgment-dependent tag families use auditable AAA packets and
+remain deferred until reusable evidence and uncertainty policies are accepted.
+
 ## Core Principles
 
 1. Canonical inventory first, enrichment second.

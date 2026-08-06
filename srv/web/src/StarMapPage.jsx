@@ -4479,10 +4479,7 @@ export default function StarMapPage({
     onContextMenu: (event) => event.preventDefault(),
   });
 
-  const openSystemDetail = useCallback((system) => {
-    if (!system?.system_id) {
-      return;
-    }
+  const captureMapReturnState = useCallback((system = selectedSystem) => {
     const liveCameraPosition = parseMapCameraDatasetPosition(
       document.querySelector(".map-canvas canvas")?.dataset?.mapCameraPosition || ""
     );
@@ -4491,20 +4488,37 @@ export default function StarMapPage({
       : mapCameraStateRef.current;
     const token = writeStoredMapReturnState({
       camera: cameraState,
-      selectedSystemId: system.system_id,
-      selectedSystemName: system.display_name || system.system_name || "",
+      selectedSystemId: system?.system_id || null,
+      selectedSystemName: system?.display_name || system?.system_name || "",
       drillMode,
       peekSize,
       mapFrame,
       showDirectionLabels,
       selectionHistoryIds: selectionHistory.map((item) => item.system_id).filter(Boolean),
     });
+    return token;
+  }, [drillMode, mapFrame, peekSize, selectedSystem, selectionHistory, showDirectionLabels]);
+
+  useEffect(() => {
+    const captureForConcept = (event) => {
+      if (!event?.detail || typeof event.detail !== "object") return;
+      event.detail.token = captureMapReturnState();
+    };
+    window.addEventListener("spacegate:capture-map-return-state", captureForConcept);
+    return () => window.removeEventListener("spacegate:capture-map-return-state", captureForConcept);
+  }, [captureMapReturnState]);
+
+  const openSystemDetail = useCallback((system) => {
+    if (!system?.system_id) {
+      return;
+    }
+    const token = captureMapReturnState(system);
     const params = new URLSearchParams({ from: "map" });
     if (token) {
       params.set("map_return", token);
     }
     navigate(`/systems/${system.system_id}?${params.toString()}`);
-  }, [drillMode, mapFrame, navigate, peekSize, selectionHistory, showDirectionLabels]);
+  }, [captureMapReturnState, navigate]);
 
   const selectSearchSystem = useCallback((system, options = {}) => {
     const existing = systems.find((item) => String(item.system_id) === String(system?.system_id));

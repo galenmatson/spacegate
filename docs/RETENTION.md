@@ -1641,6 +1641,22 @@ part of the public release contract once
 `SPACEGATE_SMART_TAGS_REQUIRED=1`. They must not be moved to Proton or an NFS
 runtime path.
 
+Smart Tag manifest v3 also retains `proposal_feasibility.json` and
+`hero_accounting.json`. These are compact audit products that explain why each
+proposal is active or deferred and why the sparse hero projection selected its
+rows; retain them with the generation. The separate clean-build roots used for
+M8.3e.2a determinism are protected until branch acceptance records their
+physical and logical comparison. After that, one unserved duplicate may be
+proposed through an enumerated retention dry-run, but the canonical verified
+generation and its immediate rollback remain protected.
+
+The August 6 application-policy candidate for Public Read build
+`20260804T1130Z_68fd99b_a2_planet_badges` has registry hash
+`79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13`.
+Its hot SQLite is 421,978,112 bytes, assignment Parquet is 294,888,664 bytes,
+and source-contribution Parquet is 763,812 bytes. It retains the prior verified
+generation as local rollback and was not deployed publicly.
+
 The July 31, 2026 source-summary v3 generation for Public Read build
 `e7_24cb15211f430a37f199f462_full_public` has registry hash
 `06003700fa80ed3593c144665dc50bd533b37419d50391bc5ecad06c3edcd7c2`.

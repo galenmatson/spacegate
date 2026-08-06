@@ -33,6 +33,42 @@ def test_compiler_rejects_changed_inputs(tmp_path: Path) -> None:
         compiler.assert_inputs_unchanged(expected, (source,), tmp_path)
 
 
+def test_aaa_adjudication_schema_requires_auditable_decision_contract() -> None:
+    schema = json.loads(
+        (ROOT / "config/tags/aaa_tag_adjudication.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["schema_version"]["const"] == (
+        "spacegate.aaa_tag_adjudication.v1"
+    )
+    assert {
+        "subject",
+        "proposed_tag",
+        "evidence",
+        "counterevidence",
+        "model",
+        "confidence",
+        "alternatives",
+        "recommendation",
+        "review",
+        "revisit_triggers",
+    }.issubset(schema["required"])
+    assert set(schema["properties"]["proposed_tag"]["properties"]["claim_mode"]["enum"]) == {
+        "observed",
+        "accepted",
+        "derived",
+        "modeled",
+        "likely",
+        "candidate",
+        "disputed",
+        "contextual",
+    }
+    assert schema["properties"]["evidence"]["minItems"] == 1
+    assert schema["properties"]["revisit_triggers"]["minItems"] == 1
+
+
 def make_public_read(path: Path) -> None:
     con = sqlite3.connect(path)
     con.executescript(

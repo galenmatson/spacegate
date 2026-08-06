@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { fetchSmartTagRegistry } from "./api.js";
 
@@ -75,7 +75,10 @@ export function SmartTagRegistryProvider({ children }) {
       <SmartTagInspector
         trail={inspectorTrail}
         onBack={() => setInspectorTrail((current) => current.slice(0, -1))}
-        onClose={() => setInspectorTrail([])}
+        onClose={() => {
+          inspectorTrail.at(-1)?.trigger?.focus?.();
+          setInspectorTrail([]);
+        }}
       />
     </SmartTagRegistryContext.Provider>
   );
@@ -170,8 +173,11 @@ function claimModeSummary(resolved, statuses) {
 function SmartTagInspector({ trail = [], onBack, onClose }) {
   const entry = trail.at(-1);
   const [copied, setCopied] = useState(false);
+  const inspectorRef = useRef(null);
+  const navigate = useNavigate();
   useEffect(() => {
     if (!entry) return undefined;
+    inspectorRef.current?.focus();
     const closeEscape = (event) => {
       if (event.key === "Escape") onClose();
     };
@@ -193,15 +199,41 @@ function SmartTagInspector({ trail = [], onBack, onClose }) {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
   };
-  const returnState = {
-    spacegateReturn: {
+  const returnState = () => {
+    const mapReturn = {};
+    window.dispatchEvent(new CustomEvent("spacegate:capture-map-return-state", {
+      detail: mapReturn,
+    }));
+    return {
+      spacegateReturn: {
       path: `${window.location.pathname}${window.location.search}${window.location.hash}`,
       scrollY: window.scrollY,
       tagKey: resolved.key,
-    },
+        mapReturnToken: mapReturn.token || "",
+      },
+    };
   };
   return createPortal(
-    <aside className="smart-tag-inspector" role="dialog" aria-modal="false" aria-label={`${resolved.name} tag inspector`}>
+    <aside
+      ref={inspectorRef}
+      className="smart-tag-inspector"
+      role="dialog"
+      aria-modal="false"
+      aria-label={`${resolved.name} tag inspector`}
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab") return;
+        const focusable = popoverFocusableElements(inspectorRef.current);
+        if (!focusable.length) return;
+        if (event.shiftKey && document.activeElement === focusable[0]) {
+          event.preventDefault();
+          focusable.at(-1)?.focus();
+        } else if (!event.shiftKey && document.activeElement === focusable.at(-1)) {
+          event.preventDefault();
+          focusable[0]?.focus();
+        }
+      }}
+    >
       <div className="smart-tag-inspector-nav">
         <button type="button" onClick={onBack} disabled={trail.length < 2}>Back</button>
         <span>{trail.length > 1 ? `${trail.length} inspected tags` : "Tag inspector"}</span>
@@ -237,9 +269,19 @@ function SmartTagInspector({ trail = [], onBack, onClose }) {
         </div>
       ) : null}
       <div className="smart-tag-actions">
-        {conceptPath ? <Link to={conceptPath} state={returnState}>Learn</Link> : null}
+        {conceptPath ? (
+          <Link
+            to={conceptPath}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(conceptPath, { state: returnState() });
+            }}
+          >
+            Learn
+          </Link>
+        ) : null}
         {filterPath ? <Link to={filterPath}>Find more</Link> : null}
-        {focusTarget && entry.systemId ? (
+        {focusTarget && entry.systemId && focusTargetType !== "system" ? (
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("spacegate:focus-object", {
@@ -412,7 +454,7 @@ export function SmartTag({
 
   useEffect(() => {
     const closeEscape = (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && open) {
         setDismissed(true);
         suppressFocusOpenRef.current = true;
         rootRef.current?.querySelector("button")?.focus();
@@ -449,6 +491,7 @@ export function SmartTag({
     <span
       ref={rootRef}
       className={`smart-tag-root smart-tag-${variant} ${className}`.trim()}
+      data-tag-key={resolved.key}
       data-tag-category={resolved.category}
       data-tag-visual={resolved.visual_token}
       data-tag-kind={resolved.kind}
@@ -519,6 +562,7 @@ export function SmartTag({
             details: inspectorDetails,
             copyValue,
             systemId,
+            trigger: triggerRef.current,
           });
           setHovered(false);
           setFocused(false);
@@ -539,6 +583,7 @@ export function SmartTag({
       {open && typeof document !== "undefined" ? createPortal(
         <span
           className={`smart-tag-portal smart-tag-root smart-tag-${variant}`}
+          data-tag-key={resolved.key}
           data-tag-category={resolved.category}
           data-tag-visual={resolved.visual_token}
           data-tag-kind={resolved.kind}
@@ -753,7 +798,8 @@ export function HeroSmartTagList({
   label = "Featured tags",
 }) {
   const [expanded, setExpanded] = useState(false);
-  const eligible = (Array.isArray(tags) ? tags : []).filter(
+  const allTags = Array.isArray(tags) ? tags : [];
+  const eligible = allTags.filter(
     (tag) => !excludeCategories.includes(String(tag?.category || "")),
   );
   const featured = eligible
@@ -764,7 +810,7 @@ export function HeroSmartTagList({
       || String(left.key).localeCompare(String(right.key))
     ))
     .slice(0, 4);
-  if (!featured.length && !eligible.length) return null;
+  if (!featured.length && !allTags.length) return null;
   return (
     <span className={`smart-tag-hero-group ${className}`.trim()}>
       <span className="smart-tag-list" aria-label={label}>
@@ -783,16 +829,16 @@ export function HeroSmartTagList({
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? "Hide tags" : `All tags (${eligible.length})`}
+          {expanded ? "Hide tags" : `All tags (${allTags.length})`}
         </button>
       </span>
       {expanded ? (
         <span className="smart-tag-all-panel" aria-label="All system tags">
           <SmartTagList
-            tags={eligible}
+            tags={allTags}
             sources={sources}
             mode="expanded"
-            limit={eligible.length}
+            limit={allTags.length}
             systemId={systemId}
           />
           <SourceTagList sources={sources} limit={sources.length} />

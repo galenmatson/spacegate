@@ -188,7 +188,7 @@ Rules:
 ## Smart Tag Projection
 
 The earlier planned monolithic `system_tags` table is superseded by
-`spacegate.smart_tags.v2`, `spacegate.smart_tag_assignments.v2`, and
+`spacegate.smart_tags.v3`, `spacegate.smart_tag_assignments.v2`, and
 `spacegate.smart_tag_source_contributions.v1`; see `docs/SMART_TAGS.md`.
 
 Smart Tags remain DISC-owned presentation/derivation products but are compiled
@@ -196,11 +196,14 @@ as a separate immutable artifact keyed to Public Read build identity and
 registry hash. Object-scoped assignments are not flattened into systems:
 
 - `tag_definitions` stores reviewed semantics, layer, evaluator, priorities,
-  concept route, and source policy;
+  concept route, source policy, application profile, and hero policy;
 - portable `tag_assignments` stores target type/key, system context, evidence
   status, basis reference, confidence, and evaluator version;
 - `system_tag_membership` stores indexed direct and member-rollup discovery
   membership;
+- `system_hero_tags` stores a sparse DISC presentation selection with rank,
+  score, family, score signals, claim mode, and the originating object. It never
+  changes assignment membership or canonical truth;
 - `source_definitions` and compact `system_sources` store bounded source
   summaries separately from science taxonomy;
 - portable `source_contributions` preserves the exact target and contribution

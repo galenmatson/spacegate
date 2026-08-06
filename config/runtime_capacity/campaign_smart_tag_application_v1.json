@@ -1,0 +1,70 @@
+{
+  "schema_version": "spacegate.runtime_capacity_campaign.v1",
+  "campaign_id": "m8.3e.2a_smart_tag_application_v1",
+  "build_id": "20260804T1130Z_68fd99b_a2_planet_badges",
+  "workload_manifest": "config/runtime_capacity/workload_smart_tag_application_v1.json",
+  "resource_model": {
+    "constrained": "antiproton_like_6vcpu_12gib",
+    "unconstrained": "photon_control",
+    "note": "This short delta campaign supplements rather than replaces the complete M8.3e.2 capacity campaign."
+  },
+  "runs": [
+    {
+      "label": "application_unconstrained_control",
+      "profile": "application_mixed",
+      "environment_profile": "unconstrained_photon",
+      "cache_state": "warm",
+      "duration_seconds": 20,
+      "concurrency": 12
+    },
+    {
+      "label": "application_constrained_exact_c1",
+      "profile": "application_exact_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 20,
+      "concurrency": 1
+    },
+    {
+      "label": "application_constrained_filter_c1",
+      "profile": "application_filter_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 20,
+      "concurrency": 1
+    },
+    {
+      "label": "application_constrained_summary_c1",
+      "profile": "application_summary_c1",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 20,
+      "concurrency": 1
+    },
+    {
+      "label": "application_constrained_mixed_c12",
+      "profile": "application_mixed",
+      "environment_profile": "antiproton_like",
+      "cache_state": "warm",
+      "duration_seconds": 30,
+      "concurrency": 12
+    },
+    {
+      "label": "application_constrained_idle",
+      "profile": "idle",
+      "environment_profile": "antiproton_like",
+      "cache_state": "idle",
+      "duration_seconds": 15,
+      "concurrency": 0
+    }
+  ],
+  "staircase": {
+    "profile": "application_mixed",
+    "environment_profile": "antiproton_like",
+    "cache_state": "warm",
+    "steps": [1, 4, 8, 12],
+    "duration_seconds_per_step": 10,
+    "recovery_seconds": 5,
+    "continue_through_slo_fail": true
+  }
+}

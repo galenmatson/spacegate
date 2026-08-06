@@ -1,0 +1,115 @@
+{
+  "schema_version": "spacegate.runtime_capacity_workload.v1",
+  "workload_id": "20260804_smart_tag_application_v1",
+  "build_id": "20260804T1130Z_68fd99b_a2_planet_badges",
+  "random_seed": 8313621,
+  "notes": [
+    "This bounded delta workload verifies Smart Tag manifest v3 and the sparse hero join against the accepted M8.3e serving envelope.",
+    "The prior complete M8.3e.2 campaign remains the full architectural capacity baseline.",
+    "Photon CPU quotas model resource quantity, not exact OVH core speed."
+  ],
+  "artifacts": [
+    "derived/public_read/20260804T1130Z_68fd99b_a2_planet_badges/public_read.sqlite",
+    "derived/smart_tags/20260804T1130Z_68fd99b_a2_planet_badges/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/smart_tags.sqlite",
+    "derived/smart_tags/20260804T1130Z_68fd99b_a2_planet_badges/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/assignments.parquet",
+    "derived/smart_tags/20260804T1130Z_68fd99b_a2_planet_badges/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/source_contributions.parquet"
+  ],
+  "endpoints": {
+    "health": {
+      "category": "health",
+      "path": "/api/v1/health",
+      "expected_status": [200]
+    },
+    "tag_registry": {
+      "category": "tag_registry",
+      "path": "/api/v1/tags",
+      "expected_status": [200]
+    },
+    "tag_definition": {
+      "category": "tag_definition",
+      "path": "/api/v1/tags/science:system.hierarchical",
+      "expected_status": [200]
+    },
+    "tag_filter": {
+      "category": "search_tag_filter",
+      "path": "/api/v1/systems/search?tags_all=science:system.multiple&tags_exclude=science:system.one_known_star&sort=name&limit=50",
+      "expected_status": [200]
+    },
+    "system_tags": {
+      "category": "system_tags",
+      "path": "/api/v1/systems/17784468/tags",
+      "expected_status": [200]
+    },
+    "assignment_evidence": {
+      "category": "tag_assignment_evidence",
+      "path": "/api/v1/systems/17784468/tag-assignments?offset=0&limit=25",
+      "expected_status": [200]
+    }
+  },
+  "profiles": {
+    "idle": {
+      "duration_seconds": 15,
+      "concurrency": 0,
+      "acceptance": {
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_oom": true
+      },
+      "entries": []
+    },
+    "application_exact_c1": {
+      "duration_seconds": 20,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 150,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [["tag_registry", 1], ["tag_definition", 3]]
+    },
+    "application_filter_c1": {
+      "duration_seconds": 20,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [["tag_filter", 1]]
+    },
+    "application_summary_c1": {
+      "duration_seconds": 20,
+      "concurrency": 1,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 750,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [["system_tags", 4], ["assignment_evidence", 1]]
+    },
+    "application_mixed": {
+      "duration_seconds": 30,
+      "concurrency": 12,
+      "acceptance": {
+        "max_error_rate_pct": 1.0,
+        "max_p95_latency_ms": 3000,
+        "max_aggregate_memory_bytes": 8589934592,
+        "require_no_timeouts": true,
+        "require_no_oom": true
+      },
+      "entries": [
+        ["health", 1],
+        ["tag_registry", 1],
+        ["tag_definition", 2],
+        ["tag_filter", 3],
+        ["system_tags", 4],
+        ["assignment_evidence", 1]
+      ]
+    }
+  }
+}

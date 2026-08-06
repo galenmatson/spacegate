@@ -35,6 +35,9 @@ test.describe("Smart Tags and concepts", () => {
     expect(registryResponse.ok()).toBeTruthy();
     const registry = await registryResponse.json();
     expect(registry.definitions.length).toBeGreaterThanOrEqual(30);
+    expect(registry.application_policy.id).toBe("spacegate_public_tag_application");
+    expect(registry.claim_grammar.modeled.marker).toBe("M");
+    expect(registry.definitions.every((definition) => definition.application && definition.hero)).toBeTruthy();
 
     const filteredResponse = await page.request.get("/api/v1/systems/search", {
       params: {
@@ -58,6 +61,10 @@ test.describe("Smart Tags and concepts", () => {
     expect(tagResponse.ok()).toBeTruthy();
     const tagPayload = await tagResponse.json();
     expect(tagPayload.smart_tags.length).toBeGreaterThan(0);
+    expect(tagPayload.hero_tags.length).toBeLessThanOrEqual(4);
+    expect(tagPayload.hero_tags.map((tag) => tag.hero_assignment.rank)).toEqual(
+      [...tagPayload.hero_tags.map((tag) => tag.hero_assignment.rank)].sort((a, b) => a - b),
+    );
     expect(tagPayload.source_summary.length).toBeGreaterThan(0);
     const sourceKey = tagPayload.source_summary[0].key;
     const sourceResponse = await page.request.get(
@@ -97,19 +104,19 @@ test.describe("Smart Tags and concepts", () => {
     await expect(popover).not.toBeVisible();
 
     await trigger.click();
-    await expect(popover).toBeVisible();
-    await expect(popover.getByRole("button", { name: /Copy/ }).first()).toBeVisible();
-    const learn = popover.getByRole("link", { name: "Learn" });
+    const inspector = page.locator(".smart-tag-inspector");
+    await expect(inspector).toBeVisible();
+    await expect(inspector.getByRole("button", { name: /Copy/ }).first()).toBeVisible();
+    const learn = inspector.getByRole("link", { name: "Learn" });
     if (await learn.count()) {
       const href = await learn.getAttribute("href");
       expect(href).toMatch(/^\/concepts\//);
     }
     await page.keyboard.press("Tab");
-    await expect(popover.locator("a, button").first()).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
+    await expect(inspector.locator("a[href], button:not([disabled])").first()).toBeFocused();
+    await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();
-    await page.mouse.click(4, 4);
-    await expect(popover).not.toBeVisible();
+    await expect(inspector).not.toBeVisible();
 
     await page.screenshot({
       path: testInfo.outputPath(`smart-tags-${testInfo.project.name}.png`),
@@ -149,17 +156,17 @@ test.describe("Smart Tags and concepts", () => {
       if (right <= left || bottom <= top) {
         return { width: 0, height: 0, popoverIsTopmost: false };
       }
-      const target = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+      const portal = document.querySelector(".smart-tag-portal");
       return {
         width: right - left,
         height: bottom - top,
-        popoverIsTopmost: Boolean(target?.closest(".smart-tag-popover")),
+        portalZIndex: Number(window.getComputedStyle(portal).zIndex),
       };
     });
     expect(overlap).toBeTruthy();
     expect(overlap.width).toBeGreaterThan(8);
     expect(overlap.height).toBeGreaterThan(8);
-    expect(overlap.popoverIsTopmost).toBeTruthy();
+    expect(overlap.portalZIndex).toBeGreaterThanOrEqual(10000);
     await page.screenshot({
       path: testInfo.outputPath("system-hero-tag-overlay.png"),
       fullPage: false,
@@ -173,12 +180,12 @@ test.describe("Smart Tags and concepts", () => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
 
-    const trigger = page.locator(".system-detail-tags .smart-tag-trigger", {
-      hasText: /^Hierarchical$/,
-    });
+    const trigger = page.locator(
+      ".system-detail-tags [data-tag-key='science:system.hierarchical'] .smart-tag-trigger",
+    );
     await expect(trigger).toBeVisible();
     await trigger.click();
-    const popover = page.getByRole("dialog", { name: "Hierarchical Multiple System details" });
+    const popover = page.getByRole("dialog", { name: "Hierarchical Multiple System tag inspector" });
     await expect(popover).toBeVisible();
     await expect(popover).toContainText("separation of scales");
 
@@ -200,12 +207,52 @@ test.describe("Smart Tags and concepts", () => {
     expect(metrics.scrollHeight).toBeGreaterThanOrEqual(metrics.clientHeight);
   });
 
+  test("concept detours preserve the pinned inspector and return context", async ({ page }) => {
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+
+    const trigger = page.locator(
+      ".system-detail-tags [data-tag-key='science:system.hierarchical'] .smart-tag-trigger",
+    );
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const inspector = page.getByRole("dialog", {
+      name: "Hierarchical Multiple System tag inspector",
+    });
+    await expect(inspector).toBeVisible();
+    await inspector.getByRole("link", { name: "Learn" }).click();
+    await expect(page).toHaveURL(/\/concepts\/binary-and-multiple-stars$/);
+    await page.getByRole("button", { name: "Return to exploration" }).click();
+    await expect(page).toHaveURL(new RegExp(`/systems/${castor.system_id}$`));
+    await expect(inspector).toBeVisible();
+  });
+
+  test("the live map serializes camera state for concept return", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "One live camera contract pass is sufficient");
+    await page.goto("/map?radius=100", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".map-canvas canvas")).toBeVisible();
+    const captured = await page.evaluate(() => {
+      const detail = {};
+      window.dispatchEvent(new CustomEvent("spacegate:capture-map-return-state", { detail }));
+      const token = String(detail.token || "");
+      const raw = token
+        ? window.sessionStorage.getItem(`spacegate.map.return.${token}`)
+        : null;
+      return { token, state: raw ? JSON.parse(raw) : null };
+    });
+    expect(captured.token).toMatch(/^r[a-z0-9]+$/);
+    expect(captured.state?.camera?.position).toHaveLength(3);
+    expect(captured.state?.mapFrame).toBe("icrs");
+  });
+
   test("source tags use reviewed abbreviations without losing full catalog names", async ({ page }) => {
     const castor = await resolveSystem(page, "Castor");
     expect(castor).toBeTruthy();
     await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
 
-    const sourceTags = page.locator(".system-detail-source-tags .smart-tag-trigger");
+    await page.locator(".system-detail-tags .smart-tag-all-toggle").click();
+    const sourceTags = page.locator(".system-detail-tags .smart-source-list .smart-tag-trigger");
     await expect(sourceTags.filter({ hasText: /^MSC$/ })).toHaveCount(1);
     await expect(sourceTags.filter({ hasText: /^SB9$/ })).toHaveCount(1);
     await expect(sourceTags.filter({ hasText: "Multiple Star Catalog" })).toHaveCount(0);

@@ -958,6 +958,23 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   existing release-scoped orbit endpoint bridge: require one accepted physical
   leaf, preserve exact lineage, keep group endpoints and ambiguous tails
   deferred, and pass full inventory/scientific A/B and clean reproduction gates
+- [x] Complete M8.3e.2a Smart Tag Application and Hero Salience v1: reviewed
+  application semantics for all 34 active definitions, eight-mode public claim
+  grammar, complete 137-proposal feasibility audit, and auditable AAA packet
+  schema
+- [x] Separate DISC hero salience from scientific assignment and coolness;
+  compose at most four evidence-gated tags with family limits, redundancy
+  suppression, exact member origin, and machine-readable score signals
+- [x] Add the pinned viewport-level Tag Inspector with bounded history,
+  keyboard/touch behavior, object focus, All Tags access, concept return,
+  scroll restoration, and map-camera restoration
+- [x] Prove Smart Tag v3 determinism with two clean full compiles retaining
+  11,419,175 assignments, 90,771 exact source contributions, zero quarantines,
+  and byte-identical SQLite/Parquet artifacts
+- [ ] Revisit React Router advisory `GHSA-qwww-vcr4-c8h2` when an upstream
+  nonbreaking patched release is available. Spacegate does not use the affected
+  RSC/action path; do not accept npm's current breaking downgrade solely to
+  silence the advisory
 - [ ] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
   review a 1,600-px System Page maximum across all themes while retaining
   readable narrative columns

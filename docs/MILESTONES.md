@@ -3102,6 +3102,63 @@ Delivered:
 See `docs/SMART_TAGS.md` and
 `docs/SMART_TAGS_VERIFICATION_2026-07-27.md`.
 
+### M8.3e.2a. Smart Tag Application and Hero Salience v1
+
+Goal:
+
+- establish one defensible, expandable policy for assigning, qualifying,
+  ranking, placing, and exploring Smart Tags without allowing concise public
+  language to overstate the supporting evidence.
+
+Status: locally verified candidate on `feature/smart-tag-application-v1`; no
+public deployment was performed.
+
+Delivered:
+
+- application policy v1 resolves every one of the 34 enabled definitions to a
+  reviewed claim mode, primary scope, evidence requirement, uncertainty and
+  conflict policy, rollup rule, eligible surfaces, evaluator identity, and
+  revisit trigger;
+- the public claim grammar distinguishes observed, accepted, derived, modeled,
+  likely, candidate, disputed, and contextual claims with visible noncolor
+  markers where qualification is material;
+- the feasibility compiler accounts for all 137 `TAGS.md` proposals with
+  available inputs, expected coverage, false-positive risk, unresolved scope,
+  model needs, activation path, status, and revisit condition. No deferred
+  model-sensitive family was activated;
+- compiler v2.6 adds sparse `system_hero_tags` as DISC presentation, not science
+  assignment. It gates evidence first and then composes at most one architecture,
+  two exceptional-science, and one planetary/environment tag, with a hard total
+  of four and exact originating-object identity for member rollups;
+- the full artifact contains 183,047 hero selections across 182,885 systems
+  while retaining 11,419,175 assignments, 11,418,608 memberships, 90,771 exact
+  source contributions, and zero quarantines. The 421,978,112-byte hot SQLite
+  remains 1.10 GiB below its 1.5-GiB gate;
+- two clean full compiles in 285.4 and 287.3 seconds reproduce every physical
+  artifact SHA-256, logical table hash, count, registry hash, and input lineage;
+- the build-matched 6-vCPU/12-GiB delta campaign passes six profiles and the
+  c1/c4/c8/c12 staircase with zero errors, timeouts, OOMs, or safety stops;
+  constrained c1 tag reads remain at or below 70.2 ms p95 and mixed c12 traffic
+  passes at 1.977 seconds p95;
+- Hero and All Tags surfaces, visible claim markers, a pinned inspector with a
+  bounded trail, member-object focus, concept return state, and map-camera
+  restoration provide progressive exploration without nested hover traps;
+- `spacegate.aaa_tag_adjudication.v1` records subject, evidence,
+  counterevidence, model, calibrated confidence, alternatives, decision,
+  reviewer, and revisit triggers. It supports reusable policy or auditable
+  reviewed exceptions, never named-object compiler branches.
+
+Success criteria:
+
+- assignment truth remains unchanged by hero salience;
+- all enabled and proposed tags have explicit application status;
+- hero output is deterministic, bounded, diverse, scope-preserving, and
+  machine-explainable;
+- API, browser, accessibility, deterministic build, capacity, and local release
+  gates pass without weakening science or deploying to antiproton.
+
+See `docs/SMART_TAG_APPLICATION_VERIFICATION_2026-08-06.md`.
+
 ### M8.3e.3. Public UI and Simulation Coherence
 
 Goal:

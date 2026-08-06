@@ -4593,6 +4593,36 @@ Representative commits:
   11,419,175 assignments, 11,418,608 system memberships, 90,771 exact source
   contributions, and zero quarantines.
 
+### 173) Smart Tag Application Separates Truth From Hero Salience
+
+- Application policy v1 gives every enabled definition explicit subject scope,
+  evidence requirements, uncertainty and conflict treatment, rollup behavior,
+  eligible surfaces, evaluator identity, and revisit conditions. A shared claim
+  grammar distinguishes observed, accepted, derived, modeled, likely,
+  candidate, disputed, and contextual claims without relying on color or an
+  unopened tooltip.
+- All 137 editorial proposals receive a machine-readable feasibility decision.
+  Model-sensitive remnant, tidal-locking, resonance, rogue, uncertain-emission,
+  and hazard families remain deferred; the new policy activates no scientific
+  tags and changes no assignment membership.
+- Compiler v2.6 materializes 183,047 sparse DISC hero selections for 182,885
+  systems. Composition is capped at one architecture, two exceptional-science,
+  one planetary/environment, and four total tags. Member rollups retain their
+  exact star or planet origin and do not become direct system claims.
+- Two clean full builds finish in 285.4 and 287.3 seconds with byte-identical
+  SQLite and Parquet artifacts, identical logical hashes, 11,419,175 assignments,
+  11,418,608 memberships, 90,771 exact source contributions, and zero
+  quarantines. The 421,978,112-byte hot SQLite remains below its 1.5-GiB gate.
+- A pinned inspector provides bounded history, object focus, All Tags access,
+  concept return, scroll and live map-camera restoration, keyboard focus return,
+  and mobile containment. AAA-dependent tags use an auditable packet schema
+  rather than named-object production logic. CORE, ARM, RIM, Public Read, and
+  canonical counts are unchanged; antiproton was not deployed.
+- The build-matched capacity delta passes constrained c1 reads, mixed c12,
+  idle, recovery, and the c1/c4/c8/c12 staircase with zero errors, timeouts,
+  OOMs, or safety stops. Mixed c12 is 1.977 seconds p95 at 20.8 requests per
+  second and recovery returns to 65.7 ms p95.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,7 @@
 # Smart Tags and Concepts v1
 
-Status: M8.3e.2 locally accepted on `feature/smart-tags-v1`; not publicly
-deployed.
+Status: M8.3e.2 locally accepted. M8.3e.2a application and hero policy is a
+local candidate on `feature/smart-tag-application-v1`; not publicly deployed.
 
 ## Purpose
 
@@ -26,6 +26,8 @@ The reviewed registry begins at:
 ```text
 config/tags/registry.json
 config/tags/definitions/*.json
+config/tags/application_policies.json
+config/tags/aaa_tag_adjudication.schema.json
 config/tags/proposal_inventory.json
 config/tags/legacy_token_inventory.json
 config/tags/source_presentation.json
@@ -40,10 +42,12 @@ science:planet.temperate_terrestrial
 presentation:distance.nearby
 ```
 
-Each definition includes a public label/name, category, kind, layer, explicit
+Each resolved definition includes a public label/name, category, kind, layer, explicit
 target types, visual token, surface priorities, short/full explanations,
 optional concept route, source policy, bounded evaluator ID/version/parameters,
-and filter/rollup policy.
+filter/rollup policy, application semantics, and hero policy. The application
+registry has one exact binding for every enabled definition; missing, extra, or
+unknown bindings fail validation.
 
 The two explanation fields serve different jobs. `short_tooltip` is the terse
 fallback for constrained surfaces. The full `tooltip` is a compact lesson,
@@ -78,6 +82,50 @@ Source presentation v2 records both a full `public_name` and a reviewed
 copied details retain the full catalog or mission name. No frontend acronym
 heuristic invents abbreviations.
 
+## Application And Claim Contract
+
+Assignment truth and public prominence are separate decisions. Every resolved
+definition records claim mode, primary object scope, evidence requirements,
+uncertainty and conflict policy, rollup behavior, eligible surfaces, evaluator
+identity, and its revisit trigger.
+
+The public claim grammar is `observed`, `accepted`, `derived`, `modeled`,
+`likely`, `candidate`, `disputed`, and `contextual`. A compact title may omit
+technical qualification, but it must not change the truth conditions of the
+claim. Material uncertainty remains visible as text or a marker independent of color. A
+modeled possible outcome may use a concise question such as `BLACK HOLE FATE?`;
+it may not use categorical `FUTURE BLACK HOLE` and expect an unopened tooltip
+to repair the overstatement.
+
+Definitions with `claim_mode=evidence_bound` resolve their public mode from the
+exact assignment. Accepted source evidence stays accepted, deterministic
+calculation stays derived, source models and screens stay modeled, assumptions
+and candidates stay candidate, and ambiguous, quarantined, or missing evidence
+cannot enter the hero projection.
+
+## Hero Salience
+
+Hero salience is a versioned DISC presentation policy. It does not alter tag
+membership, scientific confidence, coolness, search filtering, or canonical
+data. The compiler first applies the evidence gate, then scores eligible tags
+using bounded rarity, specificity, concept value, direct scope, and reviewed
+base interest. Every selected row preserves its originating system, star, or
+planet and records rank, score, family, claim mode, and score signals.
+
+Composition is deliberate rather than a raw top-N sort:
+
+- no more than one architecture tag;
+- no more than two exceptional science tags;
+- no more than one planetary or environmental tag;
+- no more than four tags total;
+- only the most specific member of an exclusive family may occupy a slot.
+
+Generic one-star, ordinary spectral, planet-host, distance, source, and evidence
+tokens are not hero candidates. Stellar and compact classifications already
+communicated by object glyphs remain available through those glyphs and the
+expanded All Tags view. A member rollup remains a discovery pointer to its
+originating object rather than becoming a direct system claim.
+
 ## Intrinsic and Contextual Tags
 
 Intrinsic tags describe an object or accepted system using the build's
@@ -100,7 +148,7 @@ Run:
 
 The compiler consumes only immutable selected Public Read fields. It does not
 select among competing evidence and does not mutate CORE, ARM, DISC, or RIM.
-Compiler v2.5 snapshots every compiler and registry input before work begins
+Compiler v2.6 snapshots every compiler and registry input before work begins
 and verifies the same hashes before promotion. If an input changes during the
 run, compilation fails closed rather than publishing a manifest with misleading
 lineage.
@@ -116,6 +164,8 @@ $SPACEGATE_STATE_DIR/derived/smart_tags/<build_id>/<registry_hash>/
   coverage.json
   quarantine.json
   proposal_accounting.json
+  proposal_feasibility.json
+  hero_accounting.json
   source_accounting.json
   timings.json
 ```
@@ -125,9 +175,10 @@ registry hash. The manifest records build and registry identity, schema
 versions, input identity, counts, logical table hashes, checksums, bytes, and
 phase timing.
 
-`spacegate.smart_tags.v2` separates the hot serving projection from complete
+`spacegate.smart_tags.v3` separates the hot serving projection from complete
 portable evidence. The normalized SQLite contains integer-keyed definitions,
-system rollups, bounded exact-contribution source summaries, and quarantine.
+system rollups, sparse hero selections, bounded exact-contribution source
+summaries, and quarantine.
 Object-level assignments and exact source contribution records remain in
 sorted Parquet artifacts. This replaces the v1 baseline that took 232.1
 seconds and produced a 6,521,847,808-byte SQLite plus a 319,843,581-byte
@@ -232,21 +283,42 @@ Escape/outside close, concept and filtered-search links, copied links,
 source-policy display, and bounded source summaries. Text and accessible
 labels carry meaning in addition to color.
 
+Hover and keyboard focus provide a temporary preview. Click or touch opens a
+viewport-level pinned inspector above panels and WebGL canvases. The inspector
+retains a bounded back trail when another tag is opened, can focus the
+originating simulation object for member rollups, and carries return context
+into concept pages. The expanded All Tags control exposes the complete system
+vocabulary and exact source tokens without crowding the hero.
+
 Where a surface already renders per-object stellar or compact-class badges,
 the parallel system-rollup taxonomy token is suppressed as duplicate
 presentation. The assignment remains available to search and the API. Each
 object badge carries the full registry explanation, member scope, evidence
 state, evaluator basis, and bounded system source context.
 
-Non-source evidence states use visible letter markers and border patterns:
-`D` derived, `A` assumed, `E` source model estimate, `S` screen, `C`
-candidate, `?` ambiguous, `Q` quarantined, `-` missing, and `M` mixed. They
-describe how the displayed claim was obtained; they are not intrinsic object
-taxonomy.
+Non-source claim modes use visible letter markers and border patterns where a
+qualification is material: `O` observed, `D` derived, `M` modeled, `L` likely,
+`?` candidate, `!` disputed, and `@` contextual. Accepted claims need no extra
+marker. Structured evidence details continue to distinguish source, assumption,
+screen, ambiguity, quarantine, and missing states.
 
 Map world labels remain reserved for stellar and planet glyphs. General Smart
 Tags appear in selection, Peek/Explorer, sidebars, search results, and System
 Pages rather than crowding every 3D label.
+
+## AAA Adjudication
+
+`config/tags/aaa_tag_adjudication.schema.json` defines the packet for a tag that
+cannot be assigned by a reviewed deterministic policy. It requires an explicit
+subject, proposed claim mode, evidence and counterevidence, model identity and
+applicability, calibrated confidence, alternatives, recommendation, review
+state, reviewer, and revisit triggers.
+
+AAA review should improve reusable evaluator policy or produce an auditable
+reviewed exception. It never creates compiler branches for named objects and
+never writes CORE directly. Future remnant, tidal locking, resonance, rogue,
+uncertain emission, hazard, and similar families remain deferred until their
+feasibility and review requirements pass.
 
 ## Concept Pages
 
@@ -295,3 +367,20 @@ campaign and rehearsed public release require the exact matching artifact.
 
 See `docs/SMART_TAGS_VERIFICATION_2026-07-27.md` for the acceptance record and
 machine-report paths.
+
+M8.3e.2a compiler v2.6 adds the application and hero projection without
+changing scientific assignment membership. Two clean full builds finish in
+285.4 and 287.3 seconds and reproduce every physical artifact and logical table
+hash. Each contains 11,419,175 assignments, 11,418,608 system memberships,
+90,771 exact source contributions, 183,047 composed hero rows across 182,885
+systems, and zero quarantines. The hot SQLite is 421,978,112 bytes, a 3.6%
+increase over v2.5 and well below the 1.5-GiB serving gate.
+
+The build-matched 6-vCPU/12-GiB delta campaign also passes every profile and
+the c1/c4/c8/c12 staircase with zero errors, timeouts, OOMs, or safety stops.
+Constrained registry/definition, tag-filter, and system-tag/evidence reads are
+6.1, 70.2, and 33.7 ms p95; mixed c12 traffic is 1.977 seconds p95 and recovers
+to 65.7 ms p95.
+
+See `docs/SMART_TAG_APPLICATION_VERIFICATION_2026-08-06.md` for the application,
+scope, hero, interaction, capacity, and deterministic-build acceptance record.

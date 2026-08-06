@@ -2020,7 +2020,9 @@ Response 200: same as `/systems/{system_id}`.
 
 ### Smart Tags
 
-`GET /tags` returns the active build-keyed reviewed definition registry.
+`GET /tags` returns the active build-keyed reviewed definition registry,
+application policy identity, public claim grammar, and resolved application and
+hero semantics for every definition.
 
 `GET /tags/{tag_key}` returns one definition by its stable namespaced key.
 
@@ -2029,8 +2031,9 @@ presentation definition, including publisher, mission/instrument context,
 citation URL, license, authority roles, full `public_name`, and reviewed compact
 `short_name`.
 
-`GET /systems/{system_id}/tags` returns system discovery membership, including
-direct versus member-rollup scope and bounded source references.
+`GET /systems/{system_id}/tags` returns system discovery membership, a bounded
+`hero_tags` projection, direct versus member-rollup scope, originating-object
+focus for hero rollups, and bounded source references.
 
 `GET /systems/{system_id}/tag-assignments?offset=0&limit=100` returns a bounded,
 stable page from the portable object-assignment evidence plus bounded exact
@@ -2064,6 +2067,15 @@ payloads expose:
         "evidence_statuses": ["source"],
         "min_confidence": 1.0,
         "max_confidence": 1.0
+      },
+      "hero_assignment": {
+        "rank": 1,
+        "score": 120,
+        "family": "architecture",
+        "signals": ["rare", "direct", "concept", "specific"],
+        "origin_target_type": "system",
+        "origin_target_key": "canon:system:example",
+        "claim_mode": "derived"
       }
     }
   ],
@@ -2085,6 +2097,11 @@ payloads expose:
   ]
 }
 ```
+
+Only tags selected by the versioned hero composition policy contain
+`hero_assignment`. No system has more than four, with at most one architecture,
+two exceptional-science, and one planetary/environment selection. `smart_tags`
+remains the complete bounded system membership and is not truncated to the hero.
 
 The API validates tag manifest, build identity, registry hash, both portable
 Parquet artifacts, and schema before attaching the separate read-only SQLite

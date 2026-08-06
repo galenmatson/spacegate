@@ -114,6 +114,11 @@ The Playwright map suite imports
   Find More, all eight concept routes, and bounded desktop/mobile/4K behavior in
   Simple Dark and Simple Light. Science, evidence, source, presentation, and
   future RIM tokens retain text/shape semantics rather than relying on color.
+- Smart Tag application parity verifies a maximum four-tag hero composition,
+  one architecture/two exceptional/one planetary family limits, visible claim
+  modes, exact member origin, a complete All Tags path, pinned inspector history,
+  simulation focus, concept return navigation, keyboard focus return, and mobile
+  viewport containment. Hero ranking must never change membership or filters.
 
 The accepted M8.3e local parity run
 `public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing
