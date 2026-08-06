@@ -2984,9 +2984,12 @@ Goal:
 - make every System Simulation surface legible in Simple Light without
   weakening the dark themes or changing scientific scene content.
 
-Status: queued. Production hotfix `b70bef6` makes Simple Dark the default for
-new and private sessions while preserving explicit saved theme choices. This
-mitigates the public first-visit failure but does not repair Simple Light.
+Status: locally verified on `feature/smart-tag-application-v1`. Production
+hotfix `b70bef6` remains the safe first-visit default, while the shared scene
+renderer now applies an explicit light-background contrast policy to labels,
+orbits, hierarchy guides, selection halos, HZ bands, formation lines, planets,
+stars, and subsystem markers. The same contract is used by Search Cards, Peek,
+Explorer, and System Page simulations.
 
 Deliverables:
 
@@ -3009,6 +3012,16 @@ Success criteria:
   low-contrast orbit traces, unreadable labels, and control overlap;
 - text and interactive controls meet the existing accessibility contrast
   standard, and all other themes retain visual parity.
+
+Verification:
+
+- `simple-light-20260806-r5` passes the shared desktop/mobile Playwright gate;
+- the desktop capture covers the full Explorer surface, while the System Page
+  canvas-pixel gate requires both a light field and dark/chromatic scene detail;
+- `simple-light-4k-20260806` passes the 3840 by 2160 Castor system check and
+  retains a reviewable screenshot;
+- selected Simple Light persistence remains covered by the existing new-visitor
+  theme regression.
 
 ### M8.3e.2. Smart Tags and Concepts v1
 

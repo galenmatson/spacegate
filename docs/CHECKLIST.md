@@ -656,7 +656,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Default new and private visitors to Simple Dark while retaining explicit
   saved theme choices, preventing the Simple Light simulator contrast defect
   from breaking the first public experience
-- [ ] Complete M8.3e.1a Simple Light Simulation Contrast Repair across Search
+- [x] Complete M8.3e.1a Simple Light Simulation Contrast Repair across Search
   Card previews, Peek, Explorer, and System Page simulations with
   desktop/mobile/high-resolution screenshots, canvas-pixel checks, and saved
   Simple Light persistence coverage

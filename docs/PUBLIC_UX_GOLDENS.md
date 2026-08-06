@@ -124,6 +124,11 @@ The Playwright map suite imports
   architecture tags at the hierarchy root; sources separated from taxonomy;
   exact object focus; and no duplicate stellar or planet category beside an
   equivalent glyph. The hero remains bounded and links to this section.
+- Simple Light simulation parity uses the shared scene contrast contract across
+  Search Cards, Peek, Explorer, and System Page Detail. Canvas checks require a
+  light field with dark and chromatic scene pixels, while desktop/mobile
+  screenshots retain visible stars, planets, labels, orbit and hierarchy
+  guides, HZ bands, and controls without changing the scientific scene.
 
 The accepted M8.3e local parity run
 `public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing

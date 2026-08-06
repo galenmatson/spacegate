@@ -3481,7 +3481,15 @@
 }
 
 :root[data-theme="simple_light"] .map-system-drill .system-preview-canvas {
-  background: rgba(244, 248, 251, 0.72);
+  background: rgba(244, 248, 251, 0.96);
+  border-color: rgba(23, 37, 47, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.84);
+}
+
+:root[data-theme="simple_light"] .system-preview-canvas {
+  background: #f4f8fb;
+  border-color: rgba(23, 37, 47, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.84);
 }
 
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-canvas {

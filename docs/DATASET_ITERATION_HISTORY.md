@@ -4643,6 +4643,23 @@ Representative commits:
   selected public naming is preserved. Desktop/mobile Smart Tag tests pass;
   CORE, ARM, RIM, Public Read, and canonical inventory are unchanged.
 
+### 175) Simple Light Uses An Explicit Scene Contrast Contract
+
+- The shared simulation renderer now treats canvas contrast as a theme policy
+  instead of assuming every scene sits on near black. Light scenes darken text
+  and guide colors, strengthen orbit and selection geometry, and add bounded
+  back-side contrast to bodies while preserving stellar and planet color
+  identity.
+- Search Cards, Peek, Explorer, and System Page Detail all consume the same
+  policy. The change touches presentation only: scene inputs, hierarchy, orbit
+  selection, HZ calculations, canonical science, and public inventories remain
+  unchanged.
+- The `simple-light-20260806-r5` desktop/mobile Playwright run passes. Its
+  canvas-pixel gate proves that Detail contains a light field plus dark and
+  chromatic scene pixels, and the retained Explorer screenshot verifies visible
+  planets, labels, orbit rings, an HZ band, and controls at 1440 by 900. The
+  separate `simple-light-4k-20260806` Castor run passes at 3840 by 2160.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

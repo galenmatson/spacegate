@@ -72,6 +72,33 @@ async function expectPreviewCanvasPainted(previewCanvas, label) {
   ).toBeGreaterThan(30);
 }
 
+async function previewCanvasContrastProfile(previewCanvas) {
+  return previewCanvas.evaluate((canvas) => {
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (!gl) {
+      return { opaque: 0, light: 0, dark: 0, chromatic: 0 };
+    }
+    const width = gl.drawingBufferWidth || canvas.width || 0;
+    const height = gl.drawingBufferHeight || canvas.height || 0;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const profile = { opaque: 0, light: 0, dark: 0, chromatic: 0 };
+    for (let idx = 0; idx < pixels.length; idx += 4) {
+      const red = pixels[idx];
+      const green = pixels[idx + 1];
+      const blue = pixels[idx + 2];
+      const alpha = pixels[idx + 3];
+      if (!alpha) continue;
+      profile.opaque += 1;
+      const sum = red + green + blue;
+      if (sum >= 650) profile.light += 1;
+      if (sum <= 510) profile.dark += 1;
+      if (Math.max(red, green, blue) - Math.min(red, green, blue) >= 24) profile.chromatic += 1;
+    }
+    return profile;
+  });
+}
+
 async function resolveGoldenSystem(page, golden) {
   const response = await page.request.get("/api/v1/systems/search", {
     params: { q: golden.query, limit: "1", sort: "match" },
@@ -1536,6 +1563,93 @@ test.describe("public 3D map beta", () => {
       await expect(preview).toHaveAttribute("data-scene-label-font", fontFamily);
       await expect(preview.locator(".system-preview-canvas canvas")).toBeVisible();
     }
+  });
+
+  test("Simple Light keeps simulation geometry legible across public preview surfaces", async ({ page }, testInfo) => {
+    await page.addInitScript(() => window.localStorage.setItem("spacegate.theme", "simple_light"));
+    const system = await resolveGoldenSystem(page, { query: "Tau Ceti" });
+    expect(system?.system_id, "Tau Ceti should resolve for the Simple Light contrast check").toBeTruthy();
+
+    await page.goto(`/systems/${system.system_id}`, { waitUntil: "domcontentloaded" });
+    const detailPreview = page.locator("[data-testid='system-preview-panel']");
+    const detailCanvas = detailPreview.locator(".system-preview-canvas canvas");
+    await expect(detailPreview).toHaveAttribute("data-scene-contrast", "light");
+    await expect(detailCanvas).toBeVisible();
+    await detailCanvas.scrollIntoViewIfNeeded();
+    await expect.poll(
+      () => detailCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+      { timeout: 10000 },
+    ).toBeGreaterThanOrEqual(1);
+    await expect.poll(async () => {
+      const profile = await previewCanvasContrastProfile(detailCanvas);
+      return profile.light > 1000 && profile.dark > 30 && profile.chromatic > 15;
+    }, { timeout: 10000, message: "Simple Light detail scene should contain a light field and contrasting geometry" }).toBeTruthy();
+
+    if (testInfo.project.name.includes("mobile")) {
+      return;
+    }
+
+    await page.goto("/search?min_planet_count=1&sort=distance&limit=5", { waitUntil: "domcontentloaded" });
+    const cardSurface = page.locator(".map-search-card-preview").first();
+    const cardPreview = cardSurface.locator("[data-testid='system-preview-panel']");
+    await expect(cardPreview).toHaveAttribute("data-scene-contrast", "light", { timeout: 12000 });
+    await cardSurface.scrollIntoViewIfNeeded();
+    await expect.poll(
+      () => cardSurface.locator(".system-preview-canvas canvas, img.map-search-card-capture").count(),
+      { timeout: 10000 },
+    ).toBeGreaterThanOrEqual(1);
+
+    await openMap(page);
+    await openMapPeekFromRecents(page);
+    const peek = page.locator("[data-testid='map-system-drill']");
+    await expect(peek).toHaveAttribute("data-drill-mode", "peek");
+    await expect(peek.locator("[data-testid='system-preview-panel']")).toHaveAttribute("data-scene-contrast", "light");
+    await expectPreviewCanvasPainted(peek.locator(".system-preview-canvas canvas"), "Simple Light Peek");
+
+    await peek.getByRole("button", { name: /^Explore$/i }).click();
+    const explore = page.locator("[data-testid='map-system-drill']");
+    await expect(explore).toHaveAttribute("data-drill-mode", "explore");
+    await expect(explore.locator("[data-testid='system-preview-panel']")).toHaveAttribute("data-scene-contrast", "light");
+    const exploreCanvas = explore.locator(".system-preview-canvas canvas");
+    await expect(exploreCanvas).toBeVisible();
+    await expect.poll(
+      () => exploreCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+      { timeout: 5000 },
+    ).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({
+      path: testInfo.outputPath("simple-light-simulation-surfaces.png"),
+      fullPage: false,
+    });
+  });
+
+  test("Simple Light system simulation remains legible at 4K", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440", "One 4K desktop pass is sufficient");
+    await page.setViewportSize({ width: 3840, height: 2160 });
+    await page.addInitScript(() => window.localStorage.setItem("spacegate.theme", "simple_light"));
+    const system = await resolveGoldenSystem(page, { query: "Castor" });
+    expect(system?.system_id, "Castor should resolve for the 4K contrast check").toBeTruthy();
+    await page.goto(`/systems/${system.system_id}`, { waitUntil: "domcontentloaded" });
+
+    const preview = page.locator("[data-testid='system-preview-panel']");
+    const canvas = preview.locator(".system-preview-canvas canvas");
+    await expect(preview).toHaveAttribute("data-scene-contrast", "light");
+    await canvas.scrollIntoViewIfNeeded();
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.inspectableStarCount || 0)),
+      { timeout: 10000 },
+    ).toBeGreaterThanOrEqual(2);
+    await expect.poll(async () => {
+      const profile = await previewCanvasContrastProfile(canvas);
+      return profile.light > 5000 && profile.dark > 50 && profile.chromatic > 30;
+    }, { timeout: 10000 }).toBeTruthy();
+    await page.screenshot({
+      path: testInfo.outputPath("simple-light-system-4k.png"),
+      fullPage: false,
+    });
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4),
+    ).toBeTruthy();
   });
 
   test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {

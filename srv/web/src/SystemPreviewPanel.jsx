@@ -19,6 +19,17 @@ const DEFAULT_SCENE_LABEL_TYPOGRAPHY = {
   revision: 0,
 };
 const SceneLabelTypographyContext = React.createContext(DEFAULT_SCENE_LABEL_TYPOGRAPHY);
+const DARK_SCENE_CONTRAST = Object.freeze({
+  id: "dark",
+  background: "#050b12",
+  lightBackground: false,
+});
+const LIGHT_SCENE_CONTRAST = Object.freeze({
+  id: "light",
+  background: "#f4f8fb",
+  lightBackground: true,
+});
+const SceneContrastContext = React.createContext(DARK_SCENE_CONTRAST);
 const SIM_DAYS_PER_SECOND = 0.7;
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SCALE_MODE_OPTIONS = [
@@ -79,6 +90,24 @@ const PLANET_VISUAL_PALETTES = {
 };
 const TRUE_BODY_STAR_RADIUS_FACTOR = 0.13;
 const EARTH_RADIUS_IN_SOLAR_RADII = 0.0091577;
+
+function sceneContrastForTheme(theme) {
+  return theme === "simple_light" ? LIGHT_SCENE_CONTRAST : DARK_SCENE_CONTRAST;
+}
+
+function lightBackgroundContrastColor(color, maximumLightness = 0.36) {
+  const parsed = new THREE.Color(color || "#274050");
+  const hsl = { h: 0, s: 0, l: 0 };
+  parsed.getHSL(hsl);
+  parsed.setHSL(hsl.h, Math.max(0.48, hsl.s), Math.min(maximumLightness, hsl.l));
+  return `#${parsed.getHexString()}`;
+}
+
+function sceneGuideColor(color, contrast, maximumLightness = 0.36) {
+  return contrast?.lightBackground
+    ? lightBackgroundContrastColor(color, maximumLightness)
+    : color;
+}
 
 function numericField(fields, key) {
   const field = fieldRecord(fields, key);
@@ -1480,7 +1509,9 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
   const worldPositionRef = React.useRef(new THREE.Vector3());
   const { camera, size } = useThree();
   const typography = React.useContext(SceneLabelTypographyContext);
+  const contrast = React.useContext(SceneContrastContext);
   const label = compactIdentifier(text, 24);
+  const resolvedColor = sceneGuideColor(color, contrast, 0.32);
   const texturePayload = useMemo(() => {
     if (!label || typeof document === "undefined") {
       return null;
@@ -1502,9 +1533,11 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     context.textBaseline = "middle";
     context.lineJoin = "round";
     context.lineWidth = 9;
-    context.strokeStyle = "rgba(2, 8, 14, 0.96)";
+    context.strokeStyle = contrast.lightBackground
+      ? "rgba(250, 253, 255, 0.98)"
+      : "rgba(2, 8, 14, 0.96)";
     context.strokeText(label, canvas.width / 2, canvas.height / 2 + 1);
-    context.fillStyle = color;
+    context.fillStyle = resolvedColor;
     context.fillText(label, canvas.width / 2, canvas.height / 2 + 1);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -1512,7 +1545,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
     return { texture, aspect: canvas.width / canvas.height };
-  }, [color, label, typography.family, typography.revision]);
+  }, [contrast.lightBackground, label, resolvedColor, typography.family, typography.revision]);
 
   useEffect(() => () => texturePayload?.texture?.dispose(), [texturePayload]);
 
@@ -1561,6 +1594,8 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
 
 function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
   const ref = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
+  const haloColor = sceneGuideColor(color, contrast, 0.3);
 
   useFrame(({ clock }) => {
     if (!pulse || !ref.current) {
@@ -1573,7 +1608,14 @@ function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
   return (
     <mesh ref={ref}>
       <sphereGeometry args={[radius, 32, 18]} />
-      <meshBasicMaterial color={color} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+      <meshBasicMaterial
+        color={haloColor}
+        transparent
+        opacity={contrast.lightBackground ? 0.22 : 0.16}
+        depthWrite={false}
+        blending={contrast.lightBackground ? THREE.NormalBlending : THREE.AdditiveBlending}
+        side={THREE.BackSide}
+      />
     </mesh>
   );
 }
@@ -1598,6 +1640,7 @@ function useSceneTargetRegistration(targetId, objectRef, targetRegistryRef) {
 
 function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const bodyClass = stellarBodyClass(star);
   const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
@@ -1650,7 +1693,14 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
       </mesh>
       <mesh>
         <sphereGeometry args={[haloRadius, 32, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={selected ? 0.24 : (bodyClass === "white_dwarf" ? 0.22 : 0.16)} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial
+          color={contrast.lightBackground ? sceneGuideColor(color, contrast, 0.28) : color}
+          transparent
+          opacity={contrast.lightBackground ? (selected ? 0.34 : 0.24) : (selected ? 0.24 : (bodyClass === "white_dwarf" ? 0.22 : 0.16))}
+          depthWrite={false}
+          blending={contrast.lightBackground ? THREE.NormalBlending : THREE.AdditiveBlending}
+          side={THREE.BackSide}
+        />
       </mesh>
       {selected && <SelectionHalo radius={Math.max(radius * 1.82, radius + 0.28)} color="#fff2b7" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
@@ -2254,6 +2304,7 @@ function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupM
 
 function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", center = [0, 0, 0], simClockRef, running = true, speedMultiplier = 1, showOrbits = true, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const primaryRef = React.useRef(null);
   const secondaryRef = React.useRef(null);
   const primary = starsByKey.get(orbit.primary_body_key);
@@ -2332,13 +2383,13 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale 
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.95 : 0.62} />
+            <lineBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#ffdca8", contrast)} transparent opacity={selected ? 0.95 : (contrast.lightBackground ? 0.78 : 0.62)} />
           </lineLoop>
           <lineLoop {...orbitHandlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={massFractions.basis === "source_mass_ratio" ? "#f6c971" : "#fff4c4"} transparent opacity={selected ? 0.72 : 0.34} />
+            <lineBasicMaterial color={sceneGuideColor(massFractions.basis === "source_mass_ratio" ? "#f6c971" : "#fff4c4", contrast)} transparent opacity={selected ? 0.72 : (contrast.lightBackground ? 0.58 : 0.34)} />
           </lineLoop>
         </>
       )}
@@ -2372,6 +2423,7 @@ function centerForBodyKeys(keys, layout, starsByKey) {
 
 function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", simClockRef, running = true, speedMultiplier = 1, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const primaryCenter = centerForBodyKeys(orbit.primary_child_body_keys, layout, starsByKey);
   const secondaryCenter = centerForBodyKeys(orbit.secondary_child_body_keys, layout, starsByKey);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0));
@@ -2441,13 +2493,13 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.52 : 0.24} />
+        <lineBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.7 : (contrast.lightBackground ? 0.56 : 0.24)} />
       </lineLoop>
       <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4"} transparent opacity={selected ? 0.88 : 0.44} />
+        <lineBasicMaterial color={sceneGuideColor(massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4", contrast)} transparent opacity={selected ? 0.88 : (contrast.lightBackground ? 0.62 : 0.44)} />
       </lineLoop>
     </group>
   );
@@ -2624,6 +2676,7 @@ function simulationTreeBodyPositionAt(treeContext, bodyKey, simDays) {
 }
 
 function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+  const contrast = React.useContext(SceneContrastContext);
   const relativePathPoints = useMemo(
     () => sampledOrbitPoints(spec.orbitRadius, spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind === "group_pair" ? 224 : 192),
     [spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind, spec.orbitRadius],
@@ -2678,13 +2731,13 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={selected ? "#fff4c4" : (spec.orbit.endpoint_kind === "group_pair" ? "#7ddcff" : "#ffdca8")} transparent opacity={selected ? 0.78 : (spec.orbit.endpoint_kind === "group_pair" ? 0.28 : 0.62)} />
+            <lineBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : (spec.orbit.endpoint_kind === "group_pair" ? "#7ddcff" : "#ffdca8"), contrast)} transparent opacity={selected ? 0.86 : (contrast.lightBackground ? (spec.orbit.endpoint_kind === "group_pair" ? 0.58 : 0.78) : (spec.orbit.endpoint_kind === "group_pair" ? 0.28 : 0.62))} />
           </lineLoop>
           <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={spec.massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4"} transparent opacity={selected ? 0.88 : (spec.orbit.endpoint_kind === "group_pair" ? 0.44 : 0.34)} />
+            <lineBasicMaterial color={sceneGuideColor(spec.massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4", contrast)} transparent opacity={selected ? 0.88 : (contrast.lightBackground ? 0.62 : (spec.orbit.endpoint_kind === "group_pair" ? 0.44 : 0.34))} />
           </lineLoop>
         </>
       )}
@@ -2802,6 +2855,7 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
 
 function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
   const payloadKey = payloadId(payload);
   useSceneTargetRegistration(payloadKey, groupRef, targetRegistryRef);
@@ -2838,15 +2892,15 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
     <group ref={groupRef} position={center} data-testid="system-preview-subsystem-marker">
       <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload: payload }}>
         <torusGeometry args={[selected ? 0.25 : 0.19, selected ? 0.018 : 0.011, 8, 44]} />
-        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.9 : 0.58} />
+        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.9 : (contrast.lightBackground ? 0.76 : 0.58)} />
       </mesh>
       <mesh {...handlers} rotation={[0, Math.PI / 2, 0]} userData={{ hoverPayload: payload }}>
         <torusGeometry args={[selected ? 0.2 : 0.155, selected ? 0.014 : 0.008, 8, 36]} />
-        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.5 : 0.26} />
+        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.62 : (contrast.lightBackground ? 0.48 : 0.26)} />
       </mesh>
       <mesh {...handlers} userData={{ hoverPayload: payload }}>
         <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
-        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.92 : 0.62} />
+        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.92 : (contrast.lightBackground ? 0.78 : 0.62)} />
       </mesh>
       <SceneLabel
         text={subsystem.display_name || subsystem.name || "Subsystem"}
@@ -2861,6 +2915,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
 
 function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
   const phaseRad = numericField(planet.fields, "phase_rad") || Number(planet.phaseRad) || 0;
@@ -2912,7 +2967,14 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
       </mesh>
       <mesh>
         <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
-        <meshBasicMaterial color="#b7e2ff" transparent opacity={selected ? 0.2 : (visualKind === "gas_giant" ? 0.05 : 0.09)} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial
+          color={sceneGuideColor("#b7e2ff", contrast)}
+          transparent
+          opacity={contrast.lightBackground ? (selected ? 0.28 : 0.16) : (selected ? 0.2 : (visualKind === "gas_giant" ? 0.05 : 0.09))}
+          depthWrite={false}
+          blending={contrast.lightBackground ? THREE.NormalBlending : THREE.AdditiveBlending}
+          side={THREE.BackSide}
+        />
       </mesh>
       {selected && <SelectionHalo radius={Math.max(pickRadius, 0.22)} color="#b7e2ff" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
@@ -3289,6 +3351,7 @@ function SceneMotionMetrics({
 
 function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -3345,13 +3408,14 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
-      <lineBasicMaterial color={selected ? "#e6f6ff" : "#b1d6ff"} transparent opacity={selected ? 0.9 : 0.5} />
+      <lineBasicMaterial color={sceneGuideColor(selected ? "#e6f6ff" : "#b1d6ff", contrast)} transparent opacity={selected ? 0.9 : (contrast.lightBackground ? 0.72 : 0.5)} />
     </lineLoop>
   );
 }
 
 function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, scaleMode = "structure" }) {
   const lineRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const attributeRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -3397,13 +3461,14 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
       <bufferGeometry>
         <bufferAttribute ref={attributeRef} attach="attributes-position" args={[initialPoints, 3]} />
       </bufferGeometry>
-      <lineBasicMaterial color={color} transparent opacity={normalizeScaleMode(scaleMode) === "true_bodies" ? 0.76 : 0.28} />
+      <lineBasicMaterial color={sceneGuideColor(color, contrast)} transparent opacity={normalizeScaleMode(scaleMode) === "true_bodies" ? 0.76 : (contrast.lightBackground ? 0.5 : 0.28)} />
     </line>
   );
 }
 
 function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const bounds = useMemo(() => habitableZoneBoundsAu(star), [star]);
   const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
   const planeInclinationRad = THREE.MathUtils.degToRad(planeInclinationDeg);
@@ -3442,19 +3507,19 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
     <group ref={groupRef} position={center} data-testid="system-preview-habitable-zone">
       <mesh rotation={[Math.PI / 2 + planeInclinationRad, 0, 0]} userData={{ hoverPayload }}>
         <ringGeometry args={[innerRadius, outerRadius, 128]} />
-        <meshBasicMaterial color="#76d78f" transparent opacity={selected ? 0.26 : 0.16} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={sceneGuideColor("#76d78f", contrast, 0.42)} transparent opacity={selected ? 0.26 : (contrast.lightBackground ? 0.12 : 0.16)} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <lineLoop userData={{ hoverPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[innerPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#d6ff9f" transparent opacity={selected ? 0.95 : 0.64} />
+        <lineBasicMaterial color={sceneGuideColor("#d6ff9f", contrast)} transparent opacity={selected ? 0.95 : (contrast.lightBackground ? 0.76 : 0.64)} />
       </lineLoop>
       <lineLoop userData={{ hoverPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[outerPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#78e38f" transparent opacity={selected ? 0.95 : 0.68} />
+        <lineBasicMaterial color={sceneGuideColor("#78e38f", contrast)} transparent opacity={selected ? 0.95 : (contrast.lightBackground ? 0.78 : 0.68)} />
       </lineLoop>
       <SceneLabel
         text="Habitable zone"
@@ -3469,6 +3534,7 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
 
 function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const contrast = React.useContext(SceneContrastContext);
   const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
   const planeInclinationRad = THREE.MathUtils.degToRad(planeInclinationDeg);
   const radiusAu = formationLineRadiusAu(star, line);
@@ -3515,7 +3581,7 @@ function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit =
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[points, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={line.color} transparent opacity={selected ? 0.95 : 0.7} />
+        <lineBasicMaterial color={sceneGuideColor(line.color, contrast)} transparent opacity={selected ? 0.95 : (contrast.lightBackground ? 0.82 : 0.7)} />
       </lineLoop>
       <SceneLabel
         text={line.shortLabel}
@@ -4013,8 +4079,9 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
   return null;
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, theme = "simple_dark", onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
   const targetRegistryRef = React.useRef(new Map());
+  const contrast = sceneContrastForTheme(theme);
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -4085,43 +4152,45 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   ), [scene]);
 
   return (
-    <Canvas
-      camera={{ position: [0, 6.2, 10.8], fov: 43 }}
-      dpr={previewDprForQuality(qualityTier)}
-      frameloop={frameLoop}
-      gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer, powerPreference: "high-performance" }}
-      onPointerMissed={onPointerMissed}
-    >
-      {!transparentBackground && <color attach="background" args={["#050b12"]} />}
-      <WebGLContextGuard onContextLost={onContextLost} />
-      <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
-      <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} />
-      <CanvasHoverRaycaster onHover={onHover} />
-      <SceneLabelTypographyContext.Provider value={labelTypography}>
-        <PreviewObjects
-          stars={stars}
-          planets={planets}
-          subsystems={subsystems}
-          renderOrbits={renderOrbits}
-          simulationTree={simulationTree}
-          hierarchy={scene?.hierarchy}
-          visualScale={visualScale}
-          scaleMode={activeScaleMode}
-          running={running}
-          speedMultiplier={speedMultiplier}
-          resetToken={resetToken}
-          showOrbits={showOrbits}
-          showHabitableZones={showHabitableZones}
-          showFormationLines={showFormationLines}
-          showLabels={showLabels}
-          selectedObjectId={selectedObjectId}
-          targetRegistryRef={targetRegistryRef}
-          onHover={onHover}
-          onSelect={onSelect}
-          onClockSample={onClockSample}
-        />
-      </SceneLabelTypographyContext.Provider>
-    </Canvas>
+    <SceneContrastContext.Provider value={contrast}>
+      <Canvas
+        camera={{ position: [0, 6.2, 10.8], fov: 43 }}
+        dpr={previewDprForQuality(qualityTier)}
+        frameloop={frameLoop}
+        gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer, powerPreference: "high-performance" }}
+        onPointerMissed={onPointerMissed}
+      >
+        {!transparentBackground && <color attach="background" args={[contrast.background]} />}
+        <WebGLContextGuard onContextLost={onContextLost} />
+        <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
+        <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} />
+        <CanvasHoverRaycaster onHover={onHover} />
+        <SceneLabelTypographyContext.Provider value={labelTypography}>
+          <PreviewObjects
+            stars={stars}
+            planets={planets}
+            subsystems={subsystems}
+            renderOrbits={renderOrbits}
+            simulationTree={simulationTree}
+            hierarchy={scene?.hierarchy}
+            visualScale={visualScale}
+            scaleMode={activeScaleMode}
+            running={running}
+            speedMultiplier={speedMultiplier}
+            resetToken={resetToken}
+            showOrbits={showOrbits}
+            showHabitableZones={showHabitableZones}
+            showFormationLines={showFormationLines}
+            showLabels={showLabels}
+            selectedObjectId={selectedObjectId}
+            targetRegistryRef={targetRegistryRef}
+            onHover={onHover}
+            onSelect={onSelect}
+            onClockSample={onClockSample}
+          />
+        </SceneLabelTypographyContext.Provider>
+      </Canvas>
+    </SceneContrastContext.Provider>
   );
 }
 
@@ -4788,6 +4857,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       data-panel-visible={panelVisible ? "true" : "false"}
       data-simulation-running={effectiveRunning ? "true" : "false"}
       data-scene-label-font={labelTypography.primary}
+      data-scene-contrast={sceneContrastForTheme(activeTheme).id}
     >
       {!embeddedPresentation && (
         <div className="system-preview-header">
@@ -4822,6 +4892,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 captureFrame={captureFrame}
                 onFrameCapture={onFrameCapture}
                 labelTypography={labelTypography}
+                theme={activeTheme}
                 onHover={interactiveReadouts ? handleHoverObject : null}
                 onSelect={interactiveReadouts ? setPinnedObject : null}
                 onPointerMissed={interactiveReadouts ? () => setPinnedObject(null) : null}
