@@ -1657,6 +1657,18 @@ Its hot SQLite is 421,978,112 bytes, assignment Parquet is 294,888,664 bytes,
 and source-contribution Parquet is 763,812 bytes. It retains the prior verified
 generation as local rollback and was not deployed publicly.
 
+The August 6 subject-placement v4 generation for the same Public Read build and
+registry hash uses canonical generation directory
+`79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13.v4`.
+The suffix distinguishes a schema/compiler generation when the reviewed
+vocabulary hash itself did not change. Its hot SQLite is 682,602,496 bytes,
+assignment Parquet is 295,377,586 bytes, and source-contribution Parquet is
+763,812 bytes. Preserve the unsuffixed v3 generation as immediate local
+rollback. The two clean v4 roots remain protected through branch acceptance;
+after acceptance one duplicate and the 452,101,060-byte packaging rehearsal may
+be proposed through an enumerated dry run because both are reproducible and
+unserved. Do not remove the canonical v4 target, v3 rollback, or machine reports.
+
 The July 31, 2026 source-summary v3 generation for Public Read build
 `e7_24cb15211f430a37f199f462_full_public` has registry hash
 `06003700fa80ed3593c144665dc50bd533b37419d50391bc5ecad06c3edcd7c2`.

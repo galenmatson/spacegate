@@ -188,7 +188,7 @@ Rules:
 ## Smart Tag Projection
 
 The earlier planned monolithic `system_tags` table is superseded by
-`spacegate.smart_tags.v3`, `spacegate.smart_tag_assignments.v2`, and
+`spacegate.smart_tags.v4`, `spacegate.smart_tag_assignments.v2`, and
 `spacegate.smart_tag_source_contributions.v1`; see `docs/SMART_TAGS.md`.
 
 Smart Tags remain DISC-owned presentation/derivation products but are compiled
@@ -201,6 +201,10 @@ registry hash. Object-scoped assignments are not flattened into systems:
   status, basis reference, confidence, and evaluator version;
 - `system_tag_membership` stores indexed direct and member-rollup discovery
   membership;
+- `subject_tag_assignments` stores compact direct star and planet assignments
+  for normal interactive reads. Integer Public Read object IDs are preferred;
+  reviewed hierarchy leaves without a flat object row retain their stable leaf
+  key and resolve through `stellar_badge_overlays`;
 - `system_hero_tags` stores a sparse DISC presentation selection with rank,
   score, family, score signals, claim mode, and the originating object. It never
   changes assignment membership or canonical truth;

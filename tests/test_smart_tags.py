@@ -76,22 +76,29 @@ def make_public_read(path: Path) -> None:
         CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT);
         INSERT INTO metadata VALUES ('build_id','tag-test-build');
         CREATE TABLE systems(
-          system_id INTEGER PRIMARY KEY,stable_object_key TEXT,star_count INTEGER,
+          system_id INTEGER PRIMARY KEY,stable_object_key TEXT,system_name TEXT,star_count INTEGER,
           planet_count INTEGER,dist_ly REAL,has_gaia_nss_evidence INTEGER,
           has_msc_evidence INTEGER,has_sbx_evidence INTEGER,
           has_wds_evidence INTEGER,has_orb6_evidence INTEGER
         );
         CREATE TABLE stars(
-          stable_object_key TEXT,system_id INTEGER,selected_classification TEXT,
+          star_id INTEGER,stable_object_key TEXT,system_id INTEGER,star_name TEXT,selected_classification TEXT,
           classification_status TEXT,classification_fact_id TEXT,
           classification_confidence REAL
         );
         CREATE TABLE planets(
-          stable_object_key TEXT,system_id INTEGER,planet_status TEXT,
+          planet_id INTEGER,stable_object_key TEXT,system_id INTEGER,planet_name TEXT,planet_status TEXT,
           size_mass_class TEXT,insolation_class TEXT,classifier_version TEXT,
           orbital_period_days REAL,selected_fact_lineage_json TEXT,
           radius_earth REAL,radius_jup REAL,mass_earth REAL,mass_jup REAL,
           eq_temp_k REAL,insol_earth REAL
+        );
+        CREATE TABLE stellar_badge_overlays(
+          system_id INTEGER,badge_order INTEGER,hierarchy_node_key TEXT,
+          leaf_component_key TEXT,evidence_component_key TEXT,star_id_text TEXT,
+          stable_object_key TEXT,display_name TEXT,catalog_component_label TEXT,
+          classification_value TEXT,classification_status TEXT,evidence_basis TEXT,
+          selected_fact_id TEXT,source_catalog TEXT,source_version TEXT
         );
         CREATE TABLE hierarchy_bundles(
           system_id INTEGER,payload_gzip BLOB,payload_sha256 TEXT
@@ -99,27 +106,29 @@ def make_public_read(path: Path) -> None:
         """
     )
     con.executemany(
-        "INSERT INTO systems VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO systems VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [
-            (1, "canon:system:one", 1, 0, 10.0, 0, 0, 0, 0, 0),
-            (2, "canon:system:two", 3, 2, 50.0, 1, 1, 1, 1, 1),
+            (1, "canon:system:one", "One", 1, 0, 10.0, 0, 0, 0, 0, 0),
+            (2, "canon:system:two", "Two", 3, 2, 50.0, 1, 1, 1, 1, 1),
         ],
     )
     con.executemany(
-        "INSERT INTO stars VALUES (?,?,?,?,?,?)",
+        "INSERT INTO stars VALUES (?,?,?,?,?,?,?,?)",
         [
-            ("canon:star:one", 1, "G", "source", "fact-g", 0.99),
-            ("canon:star:two-a", 2, "WD", "source", "fact-wd", 1.0),
-            ("canon:star:two-b", 2, "M", "assumed", "fact-m", 0.35),
-            ("canon:star:two-c", 2, "WD", "source_model", "fact-wd-model", 0.8),
+            (11, "canon:star:one", 1, "One A", "G", "source", "fact-g", 0.99),
+            (21, "canon:star:two-a", 2, "Two A", "WD", "source", "fact-wd", 1.0),
+            (22, "canon:star:two-b", 2, "Two B", "M", "assumed", "fact-m", 0.35),
+            (23, "canon:star:two-c", 2, "Two C", "WD", "source_model", "fact-wd-model", 0.8),
         ],
     )
     con.executemany(
-        "INSERT INTO planets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO planets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [
             (
+                201,
                 "canon:planet:two-b",
                 2,
+                "Two b",
                 "confirmed",
                 "terrestrial",
                 "temperate",
@@ -134,8 +143,10 @@ def make_public_read(path: Path) -> None:
                 1.0,
             ),
             (
+                202,
                 "canon:planet:two-c",
                 2,
+                "Two c",
                 "confirmed",
                 "jupiter",
                 "hot",
@@ -149,6 +160,14 @@ def make_public_read(path: Path) -> None:
                 500.0,
                 12.0,
             ),
+        ],
+    )
+    con.executemany(
+        "INSERT INTO stellar_badge_overlays VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            (2, 0, "canon:leaf:two:a", "comp:star:two:a", "comp:star:two:a", None, None, "Two A", "a", "WD", "source", "selected_component_class", "fact-wd", "fixture", "v1"),
+            (2, 1, "canon:leaf:two:b", "comp:star:two:b", "comp:star:two:b", None, None, "Two B", "b", "M", "assumed", "selected_component_prior", "fact-m", "fixture", "v1"),
+            (2, 2, "canon:leaf:two:c", "comp:star:two:c", "comp:star:two:c", None, None, "Two C", "c", "WD", "source_model", "selected_component_model", "fact-wd-model", "fixture", "v1"),
         ],
     )
     hierarchy = {
@@ -368,7 +387,24 @@ def test_compiler_materializes_object_assignments_rollups_and_sources(
             "science:planet.temperate_terrestrial",
         }
         assert [row[1] for row in hero_rows] == [1, 2, 3, 4]
-        assert any(row[3] == 1 and row[4] == "canon:star:two-a" for row in hero_rows)
+        assert any(row[3] == 1 and row[4] == "canon:leaf:two:a" for row in hero_rows)
+        assert con.execute(
+            "SELECT count(*) FROM subject_tag_assignments"
+        ).fetchone()[0] == 8
+        overlay_subjects = con.execute(
+            """
+            SELECT a.target_object_id,a.target_key,d.tag_key
+            FROM subject_tag_assignments a
+            JOIN tag_definitions d USING(tag_id)
+            WHERE a.system_id=2 AND a.scope_code=1
+            ORDER BY a.target_key
+            """
+        ).fetchall()
+        assert overlay_subjects == [
+            (0, "canon:leaf:two:a", "science:stellar.white_dwarf"),
+            (0, "canon:leaf:two:b", "science:stellar.m"),
+            (0, "canon:leaf:two:c", "science:stellar.white_dwarf"),
+        ]
     finally:
         con.close()
 
@@ -423,7 +459,7 @@ def test_runtime_attachment_exposes_typed_tags_and_bounded_filters(
     assert [row["hero_assignment"]["rank"] for row in payload["hero_tags"]] == [1, 2, 3, 4]
     assert tags["science:stellar.white_dwarf"]["hero_assignment"][
         "origin_target_key"
-    ] == "canon:star:two-a"
+    ] == "canon:leaf:two:a"
     assert tags["science:stellar.m"].get("hero_assignment") is None
     assert tags["science:stellar.m"]["assignment"]["evidence_statuses"] == [
         "assumed"
@@ -435,6 +471,35 @@ def test_runtime_attachment_exposes_typed_tags_and_bounded_filters(
         "evidence_statuses"
     ] == ["screen"]
     assert payload["source_summary"]
+    subjects = api_smart_tags.subject_tags_attached(public, [2])[2]
+    assert {(row["target_type"], row["stable_object_key"]) for row in subjects} == {
+        ("system", "canon:system:two"),
+        ("star", "canon:leaf:two:a"),
+        ("star", "canon:leaf:two:b"),
+        ("star", "canon:leaf:two:c"),
+        ("planet", "canon:planet:two-b"),
+        ("planet", "canon:planet:two-c"),
+    }
+    two_b = next(
+        row for row in subjects if row["stable_object_key"] == "canon:planet:two-b"
+    )
+    assert {tag["key"] for tag in two_b["tags"]} == {
+        "science:planet.temperate_terrestrial",
+        "science:planet.habitable_zone_screen",
+        "science:planet.ultrashort_period",
+    }
+    assert next(
+        tag for tag in two_b["tags"]
+        if tag["key"] == "science:planet.habitable_zone_screen"
+    )["assignment"]["evidence_statuses"] == ["screen"]
+    two_a = next(
+        row for row in subjects if row["stable_object_key"] == "canon:leaf:two:a"
+    )
+    assert two_a["target_id"] == 0
+    assert two_a["identity_keys"] == [
+        "canon:leaf:two:a",
+        "comp:star:two:a",
+    ]
     assert api_smart_tags.validate_filter_keys(
         public, ["science:system.multiple"]
     ) == ["science:system.multiple"]

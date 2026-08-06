@@ -2354,7 +2354,123 @@ function HierarchyOrbitDetails({ orbit }) {
   );
 }
 
-function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() }) {
+const INLINE_SUBJECT_TAG_EXCLUDES = Object.freeze([
+  ...OBJECT_BADGE_TAG_CATEGORIES,
+  "planet_type",
+]);
+
+function buildSubjectTagIndex(subjectTags = []) {
+  const index = new Map();
+  (Array.isArray(subjectTags) ? subjectTags : []).forEach((subject) => {
+    const targetType = String(subject?.target_type || "");
+    const stableKey = String(subject?.stable_object_key || "");
+    const targetId = subject?.target_id;
+    const identityKeys = new Set([stableKey, ...(subject?.identity_keys || [])]);
+    identityKeys.forEach((key) => {
+      if (targetType && key) index.set(`${targetType}:key:${String(key)}`, subject);
+    });
+    if (targetType && Number(targetId) > 0) {
+      index.set(`${targetType}:id:${String(targetId)}`, subject);
+    }
+  });
+  return index;
+}
+
+function subjectForHierarchyNode(node, displayType, subjectTagIndex) {
+  const targetType = displayType === "subsystem" ? "relation" : displayType;
+  const objectId = node?.core_object_id;
+  if (objectId !== null && objectId !== undefined) {
+    const byId = subjectTagIndex.get(`${targetType}:id:${String(objectId)}`);
+    if (byId) return byId;
+  }
+  const stableCandidates = [
+    node?.stellar_leaf_classification?.stable_object_key,
+    node?.stellar_leaf_classification?.hierarchy_node_key,
+    node?.stellar_leaf_classification?.leaf_component_key,
+    node?.stellar_leaf_classification?.evidence_component_key,
+    node?.stable_object_key,
+    node?.stable_component_key,
+  ].filter(Boolean).map(String);
+  const componentPrefix = `comp:${targetType}:`;
+  stableCandidates.forEach((key) => {
+    if (key.startsWith(componentPrefix)) stableCandidates.push(key.slice(componentPrefix.length));
+  });
+  return stableCandidates
+    .map((key) => subjectTagIndex.get(`${targetType}:key:${key}`))
+    .find(Boolean) || null;
+}
+
+function SystemSubjectTags({ subjects = [], sources = [], systemId }) {
+  const ordered = useMemo(() => {
+    const typeRank = { system: 0, relation: 1, star: 2, planet: 3 };
+    return (Array.isArray(subjects) ? subjects : []).slice().sort((left, right) => (
+      (typeRank[left?.target_type] ?? 9) - (typeRank[right?.target_type] ?? 9)
+      || String(left?.display_name || "").localeCompare(String(right?.display_name || ""))
+      || String(left?.stable_object_key || "").localeCompare(String(right?.stable_object_key || ""))
+    ));
+  }, [subjects]);
+  if (!ordered.length) return null;
+  return (
+    <section className="panel system-subject-tags" id="system-all-tags" tabIndex={-1}>
+      <div className="system-subject-tags-heading">
+        <div>
+          <span className="system-story-kicker">Explore the system</span>
+          <h3>All Tags</h3>
+        </div>
+        <strong>{ordered.reduce((total, subject) => total + (subject?.tags?.length || 0), 0)} assignments</strong>
+      </div>
+      <p className="muted">
+        Tags stay with the system, star, or planet they describe. Select one for the concept, evidence state, and related systems.
+      </p>
+      <div className="system-subject-tag-groups">
+        {ordered.map((subject) => {
+          const targetType = String(subject?.target_type || "object");
+          const displayName = String(subject?.display_name || subject?.stable_object_key || "Unnamed object");
+          const tags = Array.isArray(subject?.tags) ? subject.tags : [];
+          if (!tags.length) return null;
+          return (
+            <article
+              className={`system-subject-tag-row is-${targetType}`}
+              key={`${targetType}:${subject?.target_id || 0}:${subject?.stable_object_key}`}
+            >
+              <div className="system-subject-tag-label">
+                <strong>{displayName}</strong>
+                <span>{hierarchyTypeLabel(targetType)}</span>
+              </div>
+              <SmartTagList
+                tags={tags}
+                mode="expanded"
+                limit={tags.length}
+                systemId={systemId}
+                contextName={displayName}
+                targetKey={subject?.stable_object_key || ""}
+                targetType={targetType}
+                label={`${displayName} tags`}
+              />
+            </article>
+          );
+        })}
+      </div>
+      {Array.isArray(sources) && sources.length ? (
+        <div className="system-subject-tag-sources">
+          <div className="system-subject-tag-label">
+            <strong>Sources used on this page</strong>
+            <span>Evidence references</span>
+          </div>
+          <SourceTagList sources={sources} limit={sources.length} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function HierarchyNodeCard({
+  node,
+  depth = 0,
+  planetCategoryByKey = new Map(),
+  subjectTagIndex = new Map(),
+  systemId = null,
+}) {
   const children = Array.isArray(node?.children) ? node.children : [];
   const [expanded, setExpanded] = useState(true);
   const displayName = formatText(node?.display_name);
@@ -2378,6 +2494,8 @@ function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() })
       || "unclassified_planet"
     )
     : null;
+  const tagSubject = subjectForHierarchyNode(node, displayType, subjectTagIndex);
+  const subjectTags = Array.isArray(tagSubject?.tags) ? tagSubject.tags : [];
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -2417,6 +2535,18 @@ function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() })
                   {tag.label}
                 </span>
               ))}
+              <SmartTagList
+                tags={subjectTags}
+                mode="compact"
+                limit={3}
+                excludeCategories={INLINE_SUBJECT_TAG_EXCLUDES}
+                systemId={systemId}
+                contextName={displayName}
+                targetKey={tagSubject?.stable_object_key || ""}
+                targetType={tagSubject?.target_type || displayType}
+                className="hierarchy-subject-tags"
+                label={`${displayName} tags`}
+              />
             </div>
             {showPlainSummary ? (
               <div className="hierarchy-node-summary">
@@ -2456,6 +2586,8 @@ function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() })
                 node={child}
                 depth={depth + 1}
                 planetCategoryByKey={planetCategoryByKey}
+                subjectTagIndex={subjectTagIndex}
+                systemId={systemId}
               />
             ))}
           </div>
@@ -2465,7 +2597,7 @@ function HierarchyNodeCard({ node, depth = 0, planetCategoryByKey = new Map() })
   );
 }
 
-function SystemHierarchyPanel({ hierarchy, planets = [] }) {
+function SystemHierarchyPanel({ hierarchy, planets = [], subjectTags = [], systemId = null }) {
   const root = hierarchy?.root;
   const counts = hierarchy?.counts || {};
   const planetCategoryByKey = useMemo(() => {
@@ -2483,6 +2615,7 @@ function SystemHierarchyPanel({ hierarchy, planets = [] }) {
     });
     return out;
   }, [planets]);
+  const subjectTagIndex = useMemo(() => buildSubjectTagIndex(subjectTags), [subjectTags]);
   if (!root) {
     return null;
   }
@@ -2498,7 +2631,13 @@ function SystemHierarchyPanel({ hierarchy, planets = [] }) {
         <div><strong>Top Level</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
       </div>
       <div className="hierarchy-tree">
-        <HierarchyNodeCard node={root} depth={0} planetCategoryByKey={planetCategoryByKey} />
+        <HierarchyNodeCard
+          node={root}
+          depth={0}
+          planetCategoryByKey={planetCategoryByKey}
+          subjectTagIndex={subjectTagIndex}
+          systemId={systemId}
+        />
       </div>
     </section>
   );
@@ -4614,6 +4753,7 @@ function SystemDetailPage({ buildId = "" }) {
     hierarchy = null,
     narrative_blocks: narrativeBlocks = [],
     stellar_leaf_classifications: stellarLeafClassifications = [],
+    subject_tags: subjectTags = [],
   } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
@@ -4622,6 +4762,8 @@ function SystemDetailPage({ buildId = "" }) {
   });
   const armSummary = system?.arm_evidence_summary || {};
   const systemTags = Array.isArray(system?.smart_tags) ? system.smart_tags : [];
+  const subjectTagCount = (Array.isArray(subjectTags) ? subjectTags : [])
+    .reduce((total, subject) => total + (subject?.tags?.length || 0), 0);
 
   return (
     <Layout showSearchLink={false} buildId={buildId}>
@@ -4674,6 +4816,8 @@ function SystemDetailPage({ buildId = "" }) {
                 excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
                 className="result-tags system-detail-tags"
                 label={`${currentSystemDisplayName} featured tags`}
+                allTagsTargetId="system-all-tags"
+                allTagCount={subjectTagCount}
               />
             </div>
           </div>
@@ -4686,6 +4830,7 @@ function SystemDetailPage({ buildId = "" }) {
             snapshot={system.snapshot}
             defaultScaleMode={defaultScaleMode}
             nameStyle={nameStyle}
+            subjectTags={subjectTags}
           />
         </React.Suspense>
 
@@ -4697,7 +4842,18 @@ function SystemDetailPage({ buildId = "" }) {
 
         <ConceptExplainerGrid smartTags={systemTags} />
 
-        <SystemHierarchyPanel hierarchy={hierarchy} planets={planets} />
+        <SystemHierarchyPanel
+          hierarchy={hierarchy}
+          planets={planets}
+          subjectTags={subjectTags}
+          systemId={system.system_id}
+        />
+
+        <SystemSubjectTags
+          subjects={subjectTags}
+          sources={system?.source_summary}
+          systemId={system.system_id}
+        />
 
         <details className="panel detail-disclosure">
           <summary>

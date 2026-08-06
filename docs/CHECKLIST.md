@@ -971,6 +971,22 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Prove Smart Tag v3 determinism with two clean full compiles retaining
   11,419,175 assignments, 90,771 exact source contributions, zero quarantines,
   and byte-identical SQLite/Parquet artifacts
+- [x] Implement M8.3e.2b Smart Tag Subject Placement v1: add the compact indexed
+  subject projection, group the System Page All Tags view by actual system,
+  star, planet, or hierarchy leaf, place architecture tags at the hierarchy
+  root, keep sources separate, and preserve bounded hero composition
+- [x] Complete M8.3e.2b acceptance: prove two clean full-build hashes, API and
+  browser subject/focus parity, local container health, and record the final
+  artifact size and query-performance evidence
+- [ ] Reconcile the checked-in E5 source batch expectation from 26 to 27
+  completed sources and register or remove the currently unknown selected
+  source `standards.iau_2015_resolution_b3`
+- [ ] Refresh the Evidence Lake completion contract after retention removed its
+  superseded E6/E7 and clean-science artifact paths; preserve audit history
+  without requiring intentionally retired files to remain online
+- [ ] Reconcile the legacy derivation inventory's expected
+  `planet_environment_badge_mask_v1` marker with the implemented v2 map policy
+  and rerun the complete repository suite
 - [ ] Revisit React Router advisory `GHSA-qwww-vcr4-c8h2` when an upstream
   nonbreaking patched release is available. Spacegate does not use the affected
   RSC/action path; do not accept npm's current breaking downgrade solely to

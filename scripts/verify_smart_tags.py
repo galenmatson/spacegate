@@ -99,6 +99,39 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
         ).fetchone()[0]
         if oversized_heroes:
             raise ValueError("smart-tag hero projection exceeds composition budget")
+        invalid_subjects = con.execute(
+            """
+            SELECT count(*)
+            FROM subject_tag_assignments a
+            LEFT JOIN tag_definitions d USING(tag_id)
+            WHERE d.tag_id IS NULL
+               OR a.scope_code NOT IN (1,2)
+               OR a.target_object_id<0
+               OR (a.target_object_id=0 AND trim(a.target_key)='')
+               OR (a.scope_code=2 AND a.target_object_id=0)
+               OR a.evidence_status_code NOT BETWEEN 1 AND 10
+               OR a.basis_code NOT BETWEEN 1 AND 3
+            """
+        ).fetchone()[0]
+        if invalid_subjects:
+            raise ValueError("smart-tag subject projection contains invalid rows")
+        subject_count = con.execute(
+            "SELECT count(*) FROM subject_tag_assignments"
+        ).fetchone()[0]
+        coverage = json.loads(
+            (root / manifest["artifacts"]["coverage"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        expected_subject_count = int(
+            (coverage.get("hot_projection_counts") or {}).get(
+                "subject_tag_assignments", -1
+            )
+        )
+        if subject_count != expected_subject_count:
+            raise ValueError(
+                "smart-tag subject projection count does not match coverage"
+            )
         hot_counts = {
             table: con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
             for table in (
@@ -129,6 +162,7 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
         )
     counts = {
         **hot_counts,
+        "subject_tag_assignments": subject_count,
         "tag_assignments": assignment_count,
         "source_contributions": contribution_count,
     }

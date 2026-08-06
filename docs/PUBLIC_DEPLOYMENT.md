@@ -40,6 +40,14 @@ four-artifact candidate is 33,963,449,859 bytes. Its release manifest is:
 /data/spacegate/state/releases/e7_24cb15211f430a37f199f462_full_public/smart-tags-v2/80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec/release.json
 ```
 
+M8.3e.2b upgrades the next release contract to
+`spacegate.smart_tags.v4`/compiler v2.7. The locally rehearsed Smart Tag archive
+is 452,101,060 bytes with SHA-256
+`9169b50cab0debd812de24d5d1063a686a4fe1973870181192bcd3ba4ca3de5b`.
+It is not deployed; any future edge release must stage this v4 artifact with
+matching scientific, Public Read, and scene build identity before activating
+code that requires v4.
+
 ## Runtime Contract
 
 The accepted 6-vCPU/12-GiB capacity campaign requires:

@@ -110,11 +110,11 @@ def make_smart_tags(path: Path, build_id: str) -> tuple[dict[str, object], Path]
         }
     manifest = {
         "schema_version": "spacegate.smart_tags_manifest.v3",
-        "tag_schema_version": "spacegate.smart_tags.v3",
+        "tag_schema_version": "spacegate.smart_tags.v4",
         "assignment_schema_version": "spacegate.smart_tag_assignments.v2",
         "source_summary_schema_version": "spacegate.smart_tag_source_summary.v3",
         "source_contribution_schema_version": "spacegate.smart_tag_source_contributions.v1",
-        "compiler_version": "spacegate.smart_tags_compiler.v2.6",
+        "compiler_version": "spacegate.smart_tags_compiler.v2.7",
         "status": "pass",
         "build_id": build_id,
         "registry_hash": hashlib.sha256(b"registry").hexdigest(),

@@ -8008,6 +8008,8 @@ main {
 }
 
 .smart-tag-all-toggle {
+  display: inline-flex;
+  align-items: center;
   min-height: 22px;
   padding: 3px 8px;
   border: 1px solid var(--border);
@@ -8019,6 +8021,7 @@ main {
   letter-spacing: 0;
   text-transform: uppercase;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .smart-tag-all-toggle:hover,
@@ -9413,6 +9416,90 @@ main {
   font-size: 0.92rem;
 }
 
+.hierarchy-subject-tags {
+  margin-left: 2px;
+}
+
+.system-subject-tags {
+  scroll-margin-top: 92px;
+}
+
+.system-subject-tags-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.system-subject-tags-heading h3 {
+  margin: 2px 0 0;
+}
+
+.system-subject-tags-heading > strong {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.system-subject-tag-groups {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.system-subject-tag-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.system-subject-tag-sources {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.system-subject-tag-label {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.system-subject-tag-label strong {
+  overflow-wrap: anywhere;
+}
+
+.system-subject-tag-label span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .system-subject-tag-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .system-subject-tag-sources {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+}
+
 .hierarchy-node-kind {
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -10556,6 +10643,11 @@ main {
   outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.system-preview-object-tags {
+  grid-column: 2;
+  min-width: 0;
 }
 
 .system-preview-readout .system-preview-object-name {

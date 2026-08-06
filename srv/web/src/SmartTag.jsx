@@ -190,8 +190,8 @@ function SmartTagInspector({ trail = [], onBack, onClose }) {
   const filterPath = resolved.filterable
     ? `/search?tags_all=${encodeURIComponent(resolved.key)}`
     : "";
-  const focusTarget = resolved.hero_assignment?.origin_target_key;
-  const focusTargetType = resolved.hero_assignment?.origin_target_type;
+  const focusTarget = entry.targetKey || resolved.hero_assignment?.origin_target_key;
+  const focusTargetType = entry.targetType || resolved.hero_assignment?.origin_target_type;
   const copy = async () => {
     if (!navigator?.clipboard) return;
     const path = conceptPath || filterPath || window.location.pathname;
@@ -311,6 +311,8 @@ export function SmartTag({
   copyValue = null,
   evidenceStatuses = null,
   systemId = null,
+  targetKey = "",
+  targetType = "",
 }) {
   const registry = useContext(SmartTagRegistryContext);
   const registryDefinition = registry.definitions.get(String(tagKey || "")) || null;
@@ -562,6 +564,8 @@ export function SmartTag({
             details: inspectorDetails,
             copyValue,
             systemId,
+            targetKey,
+            targetType,
             trigger: triggerRef.current,
           });
           setHovered(false);
@@ -745,6 +749,9 @@ export function SmartTagList({
   label = "Smart tags",
   excludeCategories = [],
   systemId = null,
+  contextName = "",
+  targetKey = "",
+  targetType = "",
 }) {
   const budget = Number.isFinite(Number(limit))
     ? Number(limit)
@@ -774,6 +781,9 @@ export function SmartTagList({
           definition={tag}
           sources={sources}
           systemId={systemId}
+          contextName={contextName}
+          targetKey={targetKey}
+          targetType={targetType}
         />
       ))}
       {overflow ? (
@@ -796,6 +806,8 @@ export function HeroSmartTagList({
   excludeCategories = [],
   className = "",
   label = "Featured tags",
+  allTagsTargetId = "",
+  allTagCount = null,
 }) {
   const [expanded, setExpanded] = useState(false);
   const allTags = Array.isArray(tags) ? tags : [];
@@ -823,16 +835,22 @@ export function HeroSmartTagList({
             systemId={systemId}
           />
         ))}
-        <button
-          type="button"
-          className="smart-tag-all-toggle"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? "Hide tags" : `All tags (${allTags.length})`}
-        </button>
+        {allTagsTargetId ? (
+          <a className="smart-tag-all-toggle" href={`#${allTagsTargetId}`}>
+            {`All tags (${allTagCount ?? allTags.length})`}
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="smart-tag-all-toggle"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "Hide tags" : `All tags (${allTags.length})`}
+          </button>
+        )}
       </span>
-      {expanded ? (
+      {expanded && !allTagsTargetId ? (
         <span className="smart-tag-all-panel" aria-label="All system tags">
           <SmartTagList
             tags={allTags}

@@ -3159,6 +3159,52 @@ Success criteria:
 
 See `docs/SMART_TAG_APPLICATION_VERIFICATION_2026-08-06.md`.
 
+### M8.3e.2b. Smart Tag Subject Placement v1
+
+Goal:
+
+- expose the assignments already compiled for individual stars and planets at
+  their actual subjects, while keeping the System Page hero a bounded system
+  summary and preserving portable evidence for audit.
+
+Status: locally accepted on `feature/smart-tag-application-v1`; no public
+deployment was performed.
+
+Delivered:
+
+- `spacegate.smart_tags.v4` adds a compact, integer-keyed
+  `subject_tag_assignments` hot projection for direct star and planet tags;
+  full evidence and source contribution records remain in portable Parquet;
+- Public Read system detail and hierarchy bundles expose
+  `spacegate.smart_tag_subjects.v1`, grouped by the real system, star, planet,
+  or reviewed hierarchy leaf and carrying stable focus identities;
+- accepted stellar badge overlays replace incomplete flat-star rows as the
+  classification subject only for systems where the reviewed hierarchy
+  projection supplies those leaves. This is a general identity rule over the
+  complete overlay table, not a named-system correction;
+- the System Page now presents a visible lower All Tags section grouped by
+  subject, places architecture tags at the hierarchy root, and keeps source
+  references in a separate evidence section;
+- hierarchy and simulation object lists accept subject-local tags while
+  suppressing stellar and planet categories already conveyed by their glyphs;
+- the hero remains limited to the salience policy's four tags and its All Tags
+  action navigates to the grouped subject view rather than expanding a second
+  unstructured tag wall.
+
+Success criteria:
+
+- every hot object assignment resolves to one Public Read subject or fails the
+  build;
+- exceptional hierarchy leaves retain distinct stable identities even when no
+  flat public object row exists;
+- indexed normal detail reads do not scan the multi-million-row assignment
+  Parquet;
+- desktop/mobile interaction, object focus, concept navigation, API parity,
+  full-build determinism, and local container health pass without changing
+  CORE, ARM, RIM, canonical counts, or scientific selection.
+
+See `docs/SMART_TAG_SUBJECT_PLACEMENT_VERIFICATION_2026-08-06.md`.
+
 ### M8.3e.3. Public UI and Simulation Coherence
 
 Goal:

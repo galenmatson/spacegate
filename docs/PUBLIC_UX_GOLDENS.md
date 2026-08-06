@@ -119,6 +119,11 @@ The Playwright map suite imports
   modes, exact member origin, a complete All Tags path, pinned inspector history,
   simulation focus, concept return navigation, keyboard focus return, and mobile
   viewport containment. Hero ranking must never change membership or filters.
+- Smart Tag subject-placement parity verifies a visible lower All Tags section
+  grouped by actual system, star, planet, or reviewed hierarchy leaf; system
+  architecture tags at the hierarchy root; sources separated from taxonomy;
+  exact object focus; and no duplicate stellar or planet category beside an
+  equivalent glyph. The hero remains bounded and links to this section.
 
 The accepted M8.3e local parity run
 `public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing
@@ -163,6 +168,13 @@ unchanged Search-icon geometry with seven passes and one intentional
 desktop-only stacking skip on mobile. The complete follow-up
 `smart-tag-compact-labels-final-20260731` suite passes all 14 applicable
 desktop/mobile checks with two intentional profile skips.
+
+The M8.3e.2b focused run
+`smart-tag-subject-placement-final-20260806` passes both desktop and mobile
+subject placement checks. The complete Smart Tag run
+`smart-tag-subject-placement-full-20260806` passes all 20 applicable checks
+with four intentional device/profile skips. Retained desktop/mobile screenshots
+show the lower grouped assignment view without clipping or overlap.
 
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend

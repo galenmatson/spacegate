@@ -7,6 +7,7 @@ import {
   OBJECT_BADGE_TAG_CATEGORIES,
   HeroSmartTagList,
   SmartTag,
+  SmartTagList,
 } from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
@@ -27,6 +28,10 @@ const SCALE_MODE_OPTIONS = [
   { value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." },
 ];
 const SYSTEM_SIMULATION_TITLE = "Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.";
+const INLINE_SUBJECT_TAG_EXCLUDES = Object.freeze([
+  ...OBJECT_BADGE_TAG_CATEGORIES,
+  "planet_type",
+]);
 const HABITABLE_ZONE_TOOLTIP = "The habitable zone, often dubbed the Goldilocks Zone, is the precise orbital region around a star where conditions are just right for liquid water to pool on a rocky planet's surface. The boundaries of this precious cosmic real estate are entirely dictated by the host star's temperature and luminosity, sitting incredibly close to dim red dwarfs and stretching far outward for blazing blue giants. However, residing in this zone is not a guarantee of paradise; a planet must also possess a stable atmosphere and magnetic field to prevent its oceans from boiling away or freezing solid. Because stars slowly brighten as they age, this zone is not static but gradually creeps outward over billions of years, occasionally leaving once-temperate worlds to fry in a runaway greenhouse effect. For Spacegate explorers and astrobiologists alike, this narrow orbital band remains the ultimate hunting ground in the search for extraterrestrial life.";
 const DEFAULT_VISUAL_SCALE = {
   schema_version: "visual_scale_beta_v1",
@@ -626,6 +631,10 @@ function spectralClassLetter(value) {
 
 function payloadId(payload) {
   return String(payload?.id || "");
+}
+
+function bodyIdentityKeys(body = {}) {
+  return Array.from(keyAliasesForBody(body)).map(String);
 }
 
 function objectHoverPayload(kind, body) {
@@ -4369,7 +4378,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full" }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full", subjectTags = [] }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4570,6 +4579,34 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
+  const subjectTagIndex = useMemo(() => {
+    const index = new Map();
+    (Array.isArray(subjectTags) ? subjectTags : []).forEach((subject) => {
+      const targetType = String(subject?.target_type || "");
+      const stableKey = String(subject?.stable_object_key || "");
+      new Set([stableKey, ...(subject?.identity_keys || [])]).forEach((key) => {
+        if (targetType && key) index.set(`${targetType}:key:${String(key)}`, subject);
+      });
+      if (targetType && Number(subject?.target_id) > 0) {
+        index.set(`${targetType}:id:${String(subject.target_id)}`, subject);
+      }
+    });
+    return index;
+  }, [subjectTags]);
+  const tagsForObjectItem = useCallback((item) => {
+    const targetType = item?.recordKind;
+    if (!targetType || !item?.record) return null;
+    const objectId = targetType === "star"
+      ? (item.record?.source?.star_id ?? item.record?.star_id)
+      : (item.record?.source?.planet_id ?? item.record?.planet_id);
+    if (Number(objectId) > 0) {
+      const byId = subjectTagIndex.get(`${targetType}:id:${String(objectId)}`);
+      if (byId) return byId;
+    }
+    return bodyIdentityKeys(item.record)
+      .map((key) => subjectTagIndex.get(`${targetType}:key:${key}`))
+      .find(Boolean) || null;
+  }, [subjectTagIndex]);
   useEffect(() => {
     const focusObject = (event) => {
       const detail = event?.detail || {};
@@ -4836,7 +4873,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           {showObjectList ? (
             <div className="system-preview-object-list" data-testid="system-preview-object-list">
               <span className="system-preview-object-list-title">Objects</span>
-              {objectItems.length > 0 ? objectItems.map((item) => (
+              {objectItems.length > 0 ? objectItems.map((item) => {
+                const tagSubject = tagsForObjectItem(item);
+                const itemTags = Array.isArray(tagSubject?.tags) ? tagSubject.tags : [];
+                return (
                 <div
                   key={item.key}
                   className="system-preview-object-chip"
@@ -4878,8 +4918,21 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                       <span key={vital} className="system-preview-object-vital">{vital}</span>
                     ))}
                   </button>
+                  <SmartTagList
+                    tags={itemTags}
+                    mode="compact"
+                    limit={2}
+                    excludeCategories={INLINE_SUBJECT_TAG_EXCLUDES}
+                    systemId={systemId}
+                    contextName={item.name}
+                    targetKey={tagSubject?.stable_object_key || ""}
+                    targetType={tagSubject?.target_type || item.recordKind}
+                    className="system-preview-object-tags"
+                    label={`${item.name} tags`}
+                  />
                 </div>
-              )) : (
+                );
+              }) : (
                 <span className="system-preview-object-empty">No rendered objects</span>
               )}
             </div>

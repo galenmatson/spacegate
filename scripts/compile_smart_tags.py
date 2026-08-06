@@ -26,12 +26,12 @@ if str(API_ROOT) not in sys.path:
 from app.planet_categories import planet_category_bit_sql  # noqa: E402
 
 
-SCHEMA_VERSION = "spacegate.smart_tags.v3"
+SCHEMA_VERSION = "spacegate.smart_tags.v4"
 MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v3"
 ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.6"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.7"
 HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
 PLANET_CATEGORY_BIT_TO_TAG = {
     1: "science:planet.hot_gas_giant",
@@ -78,6 +78,27 @@ HERO_SIGNAL_BITS = {
     "specific": 8,
     "modeled": 16,
     "member_focus": 32,
+}
+SUBJECT_SCOPE_CODES = {
+    "star": 1,
+    "planet": 2,
+}
+EVIDENCE_STATUS_CODES = {
+    "source": 1,
+    "accepted": 2,
+    "derived": 3,
+    "assumed": 4,
+    "screen": 5,
+    "candidate": 6,
+    "ambiguous": 7,
+    "quarantined": 8,
+    "missing": 9,
+    "source_model": 10,
+}
+BASIS_KIND_CODES = {
+    "selected_public_fact": 1,
+    "versioned_derivation": 2,
+    "accepted_hierarchy_projection": 3,
 }
 
 
@@ -302,6 +323,17 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
           PRIMARY KEY(system_id,hero_rank),
           UNIQUE(system_id,tag_id)
         ) WITHOUT ROWID;
+        CREATE TABLE subject_tag_assignments(
+          system_id INTEGER NOT NULL,
+          scope_code INTEGER NOT NULL,
+          target_object_id INTEGER NOT NULL,
+          target_key TEXT NOT NULL,
+          tag_id INTEGER NOT NULL,
+          evidence_status_code INTEGER NOT NULL,
+          confidence REAL,
+          basis_code INTEGER NOT NULL,
+          PRIMARY KEY(system_id,scope_code,target_object_id,target_key,tag_id)
+        ) WITHOUT ROWID;
         CREATE TABLE source_definitions(
           source_num INTEGER PRIMARY KEY,
           source_key TEXT NOT NULL UNIQUE,
@@ -335,6 +367,8 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
           ON system_tag_membership(tag_id,system_id);
         CREATE INDEX idx_system_hero_tags_tag
           ON system_hero_tags(tag_id,system_id);
+        CREATE INDEX idx_subject_tag_assignments_tag
+          ON subject_tag_assignments(tag_id,system_id);
         CREATE INDEX idx_system_sources_source
           ON system_sources(source_num,system_id);
         """
@@ -564,6 +598,27 @@ def insert_star_assignments(
         {scope_join}
         JOIN class_tag_map m
           ON m.classification=upper(trim(s.selected_classification))
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.stellar_badge_overlays o
+          WHERE o.system_id=s.system_id
+        )
+        """
+    )
+    overlay_scope_join = _scope_join("o", sample_limit)
+    con.execute(
+        f"""
+        INSERT INTO tag_assignments
+        SELECT 'star',o.hierarchy_node_key,o.system_id,m.tag_key,
+               CASE WHEN o.classification_status='assumed'
+                    THEN 'versioned_derivation' ELSE 'selected_public_fact' END,
+               o.selected_fact_id,
+               coalesce(o.classification_status,'missing'),
+               NULL,
+               'stellar_class_v1',1
+        FROM public.stellar_badge_overlays o
+        {overlay_scope_join}
+        JOIN class_tag_map m
+          ON m.classification=upper(trim(o.classification_value))
         """
     )
 
@@ -1218,6 +1273,65 @@ def build_hot_database(
             hero_rows,
         )
 
+        subject_rows = []
+        missing_subjects = 0
+        for row in work.execute(
+            """
+            SELECT a.system_id,a.target_type,
+                   CASE a.target_type
+                     WHEN 'star' THEN coalesce(s.star_id,0)
+                     WHEN 'planet' THEN p.planet_id
+                   END AS target_object_id,
+                   CASE
+                     WHEN a.target_type='star' AND s.star_id IS NULL
+                       THEN a.stable_object_key
+                     ELSE ''
+                   END AS target_key,
+                   a.tag_key,a.evidence_status,a.confidence,a.basis_kind
+            FROM tag_assignments a
+            LEFT JOIN public.stars s
+              ON a.target_type='star'
+             AND s.system_id=a.system_id
+             AND s.stable_object_key=a.stable_object_key
+            LEFT JOIN public.planets p
+              ON a.target_type='planet'
+             AND p.system_id=a.system_id
+             AND p.stable_object_key=a.stable_object_key
+            WHERE a.target_type IN ('star','planet')
+            ORDER BY a.system_id,a.target_type,target_object_id,a.tag_key
+            """
+        ):
+            if row[2] is None or (int(row[2]) == 0 and not str(row[3])):
+                missing_subjects += 1
+                continue
+            subject_rows.append(
+                (
+                    int(row[0]),
+                    SUBJECT_SCOPE_CODES[str(row[1])],
+                    int(row[2]),
+                    str(row[3]),
+                    tag_ids[str(row[4])],
+                    EVIDENCE_STATUS_CODES[str(row[5]).lower()],
+                    row[6],
+                    BASIS_KIND_CODES[str(row[7])],
+                )
+            )
+            if len(subject_rows) >= 100_000:
+                hot.executemany(
+                    "INSERT INTO subject_tag_assignments VALUES (?,?,?,?,?,?,?,?)",
+                    subject_rows,
+                )
+                subject_rows.clear()
+        if missing_subjects:
+            raise ValueError(
+                f"{missing_subjects} object tag assignments lack a Public Read subject"
+            )
+        if subject_rows:
+            hot.executemany(
+                "INSERT INTO subject_tag_assignments VALUES (?,?,?,?,?,?,?,?)",
+                subject_rows,
+            )
+
         source_payload = json.loads(
             source_registry_path.read_text(encoding="utf-8")
         )
@@ -1314,6 +1428,11 @@ def build_hot_database(
                 ).fetchone()[0]
             ),
             "system_hero_tags": len(hero_rows),
+            "subject_tag_assignments": int(
+                hot.execute(
+                    "SELECT count(*) FROM subject_tag_assignments"
+                ).fetchone()[0]
+            ),
             "source_definitions": len(source_rows),
             "system_sources": len(source_rows_hot),
             "quarantine": int(
@@ -1647,7 +1766,6 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     "SELECT tag_key,count(*) FROM tag_assignments GROUP BY tag_key"
                 )
             }
-            con.execute("DETACH DATABASE public")
             integrity = con.execute("PRAGMA quick_check").fetchone()[0]
             if integrity != "ok":
                 raise ValueError(f"smart-tag SQLite quick_check failed: {integrity}")
@@ -1666,7 +1784,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     "Parquet source-contribution count does not match SQLite"
                 )
             phase = time.perf_counter()
-            build_hot_database(
+            hot_projection_counts = build_hot_database(
                 con,
                 database,
                 source_registry_path=source_registry_path,
@@ -1679,6 +1797,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                 ),
             )
             timings["hot_projection_seconds"] = time.perf_counter() - phase
+            con.execute("DETACH DATABASE public")
         finally:
             con.close()
         work_database.unlink(missing_ok=True)
@@ -1756,6 +1875,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             "registry_hash": registry.registry_hash,
             "sample_limit": args.sample_limit,
             "counts": counts,
+            "hot_projection_counts": hot_projection_counts,
             "assignment_counts_by_tag": assignment_counts_by_tag,
             "proposal_inventory": registry.proposal_inventory,
             "legacy_token_inventory": registry.legacy_token_inventory,

@@ -7546,6 +7546,8 @@ def projected_system_hierarchy(
         or (payload.get("system") or {}).get("smart_tags", []),
         "source_summary": payload.get("source_summary")
         or (payload.get("system") or {}).get("source_summary", []),
+        "subject_tag_schema_version": payload.get("subject_tag_schema_version"),
+        "subject_tags": payload.get("subject_tags", []),
         "read_backend": payload.get("read_backend", "public_read_v2"),
     }
 

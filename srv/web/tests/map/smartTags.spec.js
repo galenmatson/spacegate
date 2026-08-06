@@ -252,7 +252,8 @@ test.describe("Smart Tags and concepts", () => {
     await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
 
     await page.locator(".system-detail-tags .smart-tag-all-toggle").click();
-    const sourceTags = page.locator(".system-detail-tags .smart-source-list .smart-tag-trigger");
+    await expect(page.locator("#system-all-tags")).toBeInViewport();
+    const sourceTags = page.locator("#system-all-tags .smart-source-list .smart-tag-trigger");
     await expect(sourceTags.filter({ hasText: /^MSC$/ })).toHaveCount(1);
     await expect(sourceTags.filter({ hasText: /^SB9$/ })).toHaveCount(1);
     await expect(sourceTags.filter({ hasText: "Multiple Star Catalog" })).toHaveCount(0);
@@ -262,6 +263,28 @@ test.describe("Smart Tags and concepts", () => {
     await expect(msc).toHaveAttribute("aria-label", "Multiple Star Catalog");
     await msc.hover();
     await expect(page.getByRole("dialog", { name: "Multiple Star Catalog details" })).toBeVisible();
+  });
+
+  test("system details place direct tags on their actual subjects", async ({ page }) => {
+    const castor = await resolveSystem(page, "Castor");
+    expect(castor).toBeTruthy();
+    await page.goto(`/systems/${castor.system_id}`, { waitUntil: "domcontentloaded" });
+
+    const allTagsLink = page.locator(".system-detail-tags .smart-tag-all-toggle");
+    await expect(allTagsLink).toHaveAttribute("href", "#system-all-tags");
+    await allTagsLink.click();
+
+    const grouped = page.locator("#system-all-tags");
+    await expect(grouped).toBeVisible();
+    await expect(grouped.locator(".system-subject-tag-row.is-system")).toHaveCount(1);
+    await expect(grouped.locator(".system-subject-tag-row.is-system strong")).toHaveText("Castor");
+    await expect(grouped.locator(".system-subject-tag-row.is-star")).toHaveCount(7);
+    await expect(grouped.locator("[data-tag-key='science:system.hierarchical']")).toBeVisible();
+    await expect(grouped.locator("[data-tag-key='science:stellar.a']").first()).toBeVisible();
+
+    const hierarchyRootTags = page.locator(".hierarchy-tree > .hierarchy-node .hierarchy-subject-tags").first();
+    await expect(hierarchyRootTags.locator("[data-tag-key='science:system.hierarchical']")).toBeVisible();
+    await expect(hierarchyRootTags.locator("[data-tag-category='stellar_class']")).toHaveCount(0);
   });
 
   test("object badges absorb stellar taxonomy details without duplicate hero tags", async ({ page }) => {

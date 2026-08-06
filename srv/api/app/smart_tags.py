@@ -12,11 +12,12 @@ from typing import Any, Iterable
 
 
 EXPECTED_MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v3"
-EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v3"
+EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v4"
 EXPECTED_ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 EXPECTED_SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 EXPECTED_SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.6"
+EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.7"
+SUBJECT_API_SCHEMA = "spacegate.smart_tag_subjects.v1"
 EVIDENCE_STATUS_BITS = (
     ("source", 1),
     ("derived", 2),
@@ -51,6 +52,27 @@ HERO_SIGNALS = (
     ("modeled", 16),
     ("member_focus", 32),
 )
+SUBJECT_SCOPE_BY_CODE = {
+    1: "star",
+    2: "planet",
+}
+EVIDENCE_STATUS_BY_CODE = {
+    1: "source",
+    2: "accepted",
+    3: "derived",
+    4: "assumed",
+    5: "screen",
+    6: "candidate",
+    7: "ambiguous",
+    8: "quarantined",
+    9: "missing",
+    10: "source_model",
+}
+BASIS_KIND_BY_CODE = {
+    1: "selected_public_fact",
+    2: "versioned_derivation",
+    3: "accepted_hierarchy_projection",
+}
 _RUNTIME_LOCK = threading.Lock()
 _RUNTIME_COUNTERS: Counter[str] = Counter()
 _RUNTIME_TIMING_MS: Counter[str] = Counter()
@@ -520,6 +542,144 @@ def system_payload(con: sqlite3.Connection, system_id: int) -> dict[str, Any]:
         "hero_tags": [row for row in tags if row.get("hero_assignment")],
         "source_summary": sources,
     }
+
+
+def subject_tags_attached(
+    con: sqlite3.Connection,
+    system_ids: Iterable[int],
+    *,
+    system_display_names: dict[int, str] | None = None,
+) -> dict[int, list[dict[str, Any]]]:
+    """Return compact direct assignments grouped by their actual public subject."""
+    started = time.perf_counter()
+    ids = sorted({int(value) for value in system_ids})
+    result: dict[int, list[dict[str, Any]]] = {system_id: [] for system_id in ids}
+    if not ids or not is_attached(con):
+        _record_query("subject_tags", started, 0)
+        return result
+
+    system_tags = system_tags_attached(con, ids)
+    placeholders = ",".join("?" for _ in ids)
+    system_rows = {
+        int(row[0]): (str(row[1]), str(row[2] or row[1]))
+        for row in con.execute(
+            f"SELECT system_id,stable_object_key,system_name FROM systems "
+            f"WHERE system_id IN ({placeholders})",
+            ids,
+        )
+    }
+    for system_id in ids:
+        direct = [
+            tag
+            for tag in system_tags.get(system_id, [])
+            if (tag.get("assignment") or {}).get("scope") == "system"
+        ]
+        if direct and system_id in system_rows:
+            target_key, display_name = system_rows[system_id]
+            display_name = str(
+                (system_display_names or {}).get(system_id) or display_name
+            )
+            result[system_id].append(
+                {
+                    "target_type": "system",
+                    "target_id": system_id,
+                    "stable_object_key": target_key,
+                    "identity_keys": [target_key],
+                    "display_name": display_name,
+                    "tags": direct,
+                }
+            )
+
+    rows = con.execute(
+        f"""
+        SELECT a.system_id,a.scope_code,a.target_object_id,a.target_key,
+               CASE a.scope_code
+                 WHEN 1 THEN coalesce(s.stable_object_key,a.target_key)
+                 WHEN 2 THEN p.stable_object_key
+               END AS stable_object_key,
+               CASE a.scope_code
+                 WHEN 1 THEN coalesce(s.star_name,o.display_name)
+                 WHEN 2 THEN p.planet_name
+               END AS display_name,
+               o.hierarchy_node_key AS overlay_hierarchy_node_key,
+               o.leaf_component_key AS overlay_leaf_component_key,
+               o.evidence_component_key AS overlay_evidence_component_key,
+               a.evidence_status_code,a.confidence,a.basis_code,d.*
+        FROM smart_tags.subject_tag_assignments a
+        JOIN smart_tags.tag_definitions d USING(tag_id)
+        LEFT JOIN stars s
+          ON a.scope_code=1
+         AND a.target_object_id>0
+         AND s.system_id=a.system_id
+         AND s.star_id=a.target_object_id
+        LEFT JOIN stellar_badge_overlays o
+          ON a.scope_code=1
+         AND a.target_object_id=0
+         AND o.system_id=a.system_id
+         AND o.hierarchy_node_key=a.target_key
+        LEFT JOIN planets p
+          ON a.scope_code=2
+         AND p.system_id=a.system_id
+         AND p.planet_id=a.target_object_id
+        WHERE a.system_id IN ({placeholders})
+        ORDER BY a.system_id,a.scope_code,a.target_object_id,a.target_key,
+                 d.expanded_priority DESC,d.category,d.name,d.tag_key
+        """,
+        ids,
+    )
+    grouped: dict[tuple[int, int, int, str], dict[str, Any]] = {}
+    for row in rows:
+        system_id = int(row["system_id"])
+        scope_code = int(row["scope_code"])
+        target_id = int(row["target_object_id"])
+        stable_object_key = row["stable_object_key"]
+        if stable_object_key is None:
+            raise SmartTagsIncompatible(
+                "subject tag assignment does not resolve in Public Read"
+            )
+        group_key = (system_id, scope_code, target_id, str(row["target_key"] or ""))
+        subject = grouped.get(group_key)
+        if subject is None:
+            subject = {
+                "target_type": SUBJECT_SCOPE_BY_CODE[scope_code],
+                "target_id": target_id,
+                "stable_object_key": str(stable_object_key),
+                "identity_keys": sorted(
+                    {
+                        str(value)
+                        for value in (
+                            stable_object_key,
+                            row["overlay_hierarchy_node_key"],
+                            row["overlay_leaf_component_key"],
+                            row["overlay_evidence_component_key"],
+                        )
+                        if value
+                    }
+                ),
+                "display_name": str(row["display_name"] or stable_object_key),
+                "tags": [],
+            }
+            grouped[group_key] = subject
+            result[system_id].append(subject)
+        tag = _definition_payload(row)
+        status = EVIDENCE_STATUS_BY_CODE[int(row["evidence_status_code"])]
+        confidence = row["confidence"]
+        tag["assignment"] = {
+            "scope": "direct",
+            "member_count": 1,
+            "basis_kind": BASIS_KIND_BY_CODE[int(row["basis_code"])],
+            "evidence_statuses": [status],
+            "min_confidence": confidence,
+            "max_confidence": confidence,
+        }
+        subject["tags"].append(tag)
+
+    _record_query(
+        "subject_tags",
+        started,
+        sum(len(subject["tags"]) for values in result.values() for subject in values),
+    )
+    return result
 
 
 def assignments_payload(

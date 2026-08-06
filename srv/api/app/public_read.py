@@ -749,6 +749,17 @@ def projected_system_detail(
     summary = system_summary(con, system_id, name_style=name_style)
     if summary is None:
         return None
+    subject_tags = smart_tags.subject_tags_attached(
+        con,
+        [system_id],
+        system_display_names={
+            int(system_id): str(
+                summary.get("display_name") or summary.get("system_name") or ""
+            )
+        },
+    ).get(
+        int(system_id), []
+    )
     bundle = hierarchy_bundle(con, system_id)
     if bundle and isinstance(bundle.get("payload"), dict):
         payload = dict(bundle["payload"])
@@ -758,6 +769,8 @@ def projected_system_detail(
         }
         payload["smart_tags"] = summary.get("smart_tags", [])
         payload["source_summary"] = summary.get("source_summary", [])
+        payload["subject_tag_schema_version"] = smart_tags.SUBJECT_API_SCHEMA
+        payload["subject_tags"] = subject_tags
         category_by_planet_key = {
             str(row.get("stable_object_key") or ""): row.get("planet_category_key")
             for row in summary.get("planet_object_badges", [])
@@ -799,6 +812,8 @@ def projected_system_detail(
         "narrative_blocks": [],
         "hierarchy": hierarchy,
         "stellar_leaf_classifications": [classification],
+        "subject_tag_schema_version": smart_tags.SUBJECT_API_SCHEMA,
+        "subject_tags": subject_tags,
         "read_backend": "public_read_v2_singleton",
     }
 

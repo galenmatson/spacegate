@@ -4623,6 +4623,26 @@ Representative commits:
   OOMs, or safety stops. Mixed c12 is 1.977 seconds p95 at 20.8 requests per
   second and recovery returns to 65.7 ms p95.
 
+### 174) Smart Tag Subjects Follow The Reviewed Public Hierarchy
+
+- Compiler v2.7 keeps portable assignment evidence intact while adding
+  5,546,540 compact, indexed direct-subject rows to Smart Tags v4. Normal system
+  detail no longer scans the portable assignment Parquet to show object tags.
+- The existing stellar badge overlay becomes the general source of visible-leaf
+  class assignments for its 5,312 systems and 16,167 leaves. This replaces
+  incomplete flat-star rollups without any named-system branch. The A/B adds
+  7,557 discovery memberships and removes 127 legacy class memberships that do
+  not occur on the accepted visible leaves; nonstellar memberships are unchanged.
+- Two clean builds complete in 340.8 and 343.1 seconds and reproduce every
+  logical and physical hash. Each contains 11,431,099 portable assignments,
+  11,426,038 system memberships, 183,356 hero rows, 90,771 source
+  contributions, and zero quarantines. The hot SQLite is 682,602,496 bytes.
+- System detail and hierarchy responses group tags by the real system, star,
+  planet, or stable hierarchy leaf. The page hero remains bounded, All Tags is
+  a visible subject-grouped section, source references remain separate, and
+  selected public naming is preserved. Desktop/mobile Smart Tag tests pass;
+  CORE, ARM, RIM, Public Read, and canonical inventory are unchanged.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1,7 +1,8 @@
 # Smart Tags and Concepts v1
 
-Status: M8.3e.2 locally accepted. M8.3e.2a application and hero policy is a
-local candidate on `feature/smart-tag-application-v1`; not publicly deployed.
+Status: M8.3e.2, M8.3e.2a application and hero policy, and M8.3e.2b subject
+placement are locally accepted on `feature/smart-tag-application-v1`; not
+publicly deployed.
 
 ## Purpose
 
@@ -175,12 +176,17 @@ registry hash. The manifest records build and registry identity, schema
 versions, input identity, counts, logical table hashes, checksums, bytes, and
 phase timing.
 
-`spacegate.smart_tags.v3` separates the hot serving projection from complete
+`spacegate.smart_tags.v4` separates the hot serving projection from complete
 portable evidence. The normalized SQLite contains integer-keyed definitions,
 system rollups, sparse hero selections, bounded exact-contribution source
-summaries, and quarantine.
-Object-level assignments and exact source contribution records remain in
-sorted Parquet artifacts. This replaces the v1 baseline that took 232.1
+summaries, compact direct subject assignments, and quarantine. Direct star and
+planet assignments use Public Read integer IDs. Reviewed hierarchy leaves that
+do not have a flat object row retain a stable leaf key and resolve through the
+build-matched stellar badge overlay.
+
+Complete object-level assignments and exact source contribution records remain
+in sorted Parquet artifacts. The compact subject table is an interactive index,
+not a replacement evidentiary store. This replaces the v1 baseline that took 232.1
 seconds and produced a 6,521,847,808-byte SQLite plus a 319,843,581-byte
 Parquet for 11,415,117 assignments. The hot SQLite has a hard 1.5-GiB gate;
 complete evidence is not discarded to satisfy it.
@@ -243,8 +249,20 @@ the 16-GB Search v2 database.
 - `GET /api/v1/systems/search?tags_exclude=...`
 
 Search results and system summaries include `smart_tags` and
-`source_summary`. Any/all/exclude use indexed `EXISTS`/bounded-count queries;
-they never run fuzzy matching over tag definitions.
+`source_summary`. Main system detail and hierarchy bundles additionally expose
+`subject_tag_schema_version=spacegate.smart_tag_subjects.v1` and
+`subject_tags`, grouped by the actual system, star, planet, or reviewed
+hierarchy leaf. These normal reads use indexed SQLite and never scan the
+portable assignment Parquet. Any/all/exclude use indexed
+`EXISTS`/bounded-count queries; they never run fuzzy matching over tag
+definitions.
+
+The public hero remains a maximum four-tag DISC composition. Its All Tags action
+navigates to a visible lower section grouped by subject. System architecture
+appears at the hierarchy root, direct object tags remain with their object, and
+source references remain a separate evidence list. Stellar and planet class
+tags are not repeated beside equivalent object glyphs, but the glyph inspector
+retains the full lesson and evidence state.
 
 Source-summary v3 adds the reviewed `short_name` alongside `public_name`.
 Consumers use the short form only for the visible token and retain the full
@@ -384,3 +402,21 @@ to 65.7 ms p95.
 
 See `docs/SMART_TAG_APPLICATION_VERIFICATION_2026-08-06.md` for the application,
 scope, hero, interaction, capacity, and deterministic-build acceptance record.
+
+M8.3e.2b compiler v2.7 adds 5,546,540 compact direct subject assignments to
+the hot projection. Two clean full builds finish in 340.8 and 343.1 seconds and
+produce byte-identical 682,602,496-byte SQLite, 295,377,586-byte assignment
+Parquet, and 763,812-byte source-contribution Parquet artifacts. The 61.8%
+SQLite growth over v3 is the measured cost of indexed object placement and
+still leaves 928.0 MB (885.0 MiB) below the 1.5-GiB serving gate.
+
+The general overlay rule evaluates the 16,167 reviewed stellar leaves in 5,312
+systems instead of attaching classifications to incomplete flat-star rows. The
+scientific A/B adds 7,557 system/class discovery memberships and removes 127
+legacy flat-row memberships that disagree with the visible leaves; no
+nonstellar membership changes. Indexed single-system subject reads across 300
+representative overlay, planet-host, and singleton systems measure 0.172 ms
+p50, 0.237 ms p95, and 0.479 ms maximum on warm Photon storage.
+
+See `docs/SMART_TAG_SUBJECT_PLACEMENT_VERIFICATION_2026-08-06.md` for the
+determinism, scientific A/B, runtime, UI, and local-promotion record.

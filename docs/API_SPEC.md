@@ -2040,6 +2040,45 @@ stable page from the portable object-assignment evidence plus bounded exact
 source contributions. `limit` is capped at 200; large diagnostics never attach
 to normal search results.
 
+Main system detail and hierarchy-bundle responses also include an indexed
+subject projection:
+
+```json
+{
+  "subject_tag_schema_version": "spacegate.smart_tag_subjects.v1",
+  "subject_tags": [
+    {
+      "target_type": "star",
+      "target_id": 42,
+      "stable_object_key": "canon:star:example",
+      "identity_keys": ["canon:star:example"],
+      "display_name": "Example B",
+      "tags": [
+        {
+          "key": "science:stellar.m",
+          "label": "M",
+          "assignment": {
+            "scope": "direct",
+            "member_count": 1,
+            "basis_kind": "selected_public_fact",
+            "evidence_statuses": ["source"],
+            "min_confidence": 0.98,
+            "max_confidence": 0.98
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`target_id` is a Public Read object ID when one exists. A reviewed hierarchy
+leaf that is absent from the flat object table uses `target_id=0`, a nonempty
+stable leaf key, and additional `identity_keys` for hierarchy focus. These
+entries remain distinct subjects and never collapse into a synthetic system
+claim. Normal detail reads use the compact `subject_tag_assignments` SQLite
+table; only the explicit paginated audit endpoint reads portable Parquet.
+
 Search accepts comma-separated stable keys:
 
 - `tags_any`: at least one requested tag;

@@ -16,6 +16,8 @@ from typing import Any
 
 
 EXPECTED_SCHEMA = "spacegate.smart_tags_manifest.v3"
+EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v4"
+EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.7"
 
 
 def sha256_file(path: Path) -> str:
@@ -31,10 +33,12 @@ def load_manifest(artifact: Path) -> dict[str, Any]:
     if (
         not isinstance(manifest, dict)
         or manifest.get("schema_version") != EXPECTED_SCHEMA
+        or manifest.get("tag_schema_version") != EXPECTED_TAG_SCHEMA
+        or manifest.get("compiler_version") != EXPECTED_COMPILER_VERSION
         or manifest.get("status") != "pass"
         or manifest.get("sample_limit") is not None
     ):
-        raise ValueError("only a verified full Smart Tag v3 artifact can be packaged")
+        raise ValueError("only a verified full Smart Tag v4 artifact can be packaged")
     return manifest
 
 
