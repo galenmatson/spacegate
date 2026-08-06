@@ -126,6 +126,53 @@ def audit(contract_path: Path, state_dir: Path) -> dict[str, Any]:
             }],
         })
 
+    retired_artifacts: list[dict[str, Any]] = []
+    for requirement in contract.get("retired_artifacts") or []:
+        if not isinstance(requirement, dict):
+            raise ValueError(f"invalid retired artifact requirement: {requirement!r}")
+        label, retired_path = artifact_path(
+            requirement, state_dir=state_dir, artifact_roots=artifact_roots
+        )
+        evidence_relative = str(requirement.get("evidence_report") or "")
+        evidence_path = Path(evidence_relative)
+        if (
+            not evidence_relative
+            or evidence_path.is_absolute()
+            or ".." in evidence_path.parts
+        ):
+            raise ValueError(
+                f"retirement evidence path must be relative and bounded: {evidence_relative!r}"
+            )
+        if not str(requirement.get("retired_at") or "") or not str(
+            requirement.get("reason") or ""
+        ):
+            raise ValueError(f"retired artifact requires retired_at and reason: {label}")
+        present_evidence = [
+            root / evidence_path for root in report_roots if (root / evidence_path).is_file()
+        ]
+        failures = [] if len(present_evidence) == 1 else [{
+            "field": "$retirement_evidence",
+            "expected": "present in exactly one registered report root",
+            "actual": [str(path) for path in present_evidence] or "missing",
+        }]
+        resolved_evidence = (
+            present_evidence[0] if present_evidence else report_roots[0] / evidence_path
+        )
+        checks.append({
+            "kind": "retirement_evidence",
+            "path": label,
+            "resolved_path": str(resolved_evidence),
+            "passed": not failures,
+            "failures": failures,
+        })
+        retired_artifacts.append({
+            "path": label,
+            "retired_at": requirement["retired_at"],
+            "reason": requirement["reason"],
+            "evidence_report": evidence_relative,
+            "artifact_present": retired_path.is_file(),
+        })
+
     failing = [item for item in checks if not item["passed"]]
     open_gates = contract.get("open_gates") or []
     checkpoint_status = "pass" if not failing else "fail"
@@ -145,6 +192,8 @@ def audit(contract_path: Path, state_dir: Path) -> dict[str, Any]:
         "failing_checks": failing,
         "open_gate_count": len(open_gates),
         "open_gates": open_gates,
+        "retired_artifact_count": len(retired_artifacts),
+        "retired_artifacts": retired_artifacts,
         "checks": checks,
     }
 

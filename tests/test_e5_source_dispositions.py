@@ -18,9 +18,9 @@ def test_checked_in_e5_dispositions_account_every_accepted_source() -> None:
         json.loads(disposition_audit.DEFAULT_DISPOSITIONS.read_text()),
     )
     assert report["status"] == "pass"
-    assert report["summaries"]["accepted_e4_sources"] == 39
-    assert report["summaries"]["selected_sources"] == 14
-    assert report["summaries"]["selection_programs"] == 15
+    assert report["summaries"]["accepted_e4_sources"] == 40
+    assert report["summaries"]["selected_sources"] == 15
+    assert report["summaries"]["selection_programs"] == 16
     assert report["summaries"]["explicit_dispositions"] == 25
     assert report["checks"]["selection_disposition_conflicts"] == []
     assert report["checks"]["metadata_errors"] == []

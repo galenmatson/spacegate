@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-07-23.e0-e7-acceptance.19",
+  "contract_version": "2026-08-06.e0-e7-acceptance.20",
   "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
   "shadow_build_id": "39b7386d4524ce5b1ff2729f",
   "artifact_roots": {
@@ -656,8 +656,6 @@
     }
   ],
   "required_artifacts": [
-    "out/e6_95e7af54d69f3d9602d81e5b_shadow/manifest.json",
-    "out/e6_95e7af54d69f3d9602d81e5b_public/map_tiles/index.json",
     "derived/evidence_lake_v2/selected_facts/fa4aaed18aebcffb8632d978/manifest.json",
     "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0/manifest.json",
     "derived/evidence_lake_v2/selected_compact_objects/f0d7273f65371efeda365611/manifest.json",
@@ -670,7 +668,6 @@
     "derived/evidence_lake_v2/permanent_identity_vocabulary/6b4fb210e1b1bcf61299fe7f/manifest.json",
     "derived/evidence_lake_v2/extended_identity_seed/555fa1890943b97dd0e4ef3d/manifest.json",
     "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7/manifest.json",
-    "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
     "derived/evidence_lake_v2/selected_facts/33006bde9bedd1fb365238b5/manifest.json",
     "derived/evidence_lake_v2/selected_planet_derivations/1dfc750b79b88018983ded82/manifest.json",
     "derived/evidence_lake_v2/clean_science/7c27f1595c69278b8d55c9e4/manifest.json",
@@ -689,16 +686,61 @@
     {"root": "bulk", "path": "e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json"},
     {"root": "data", "path": "e7-clean-runtime-disc/30280c152441804f449d86b3/manifest.json"},
     {"root": "bulk", "path": "e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json"},
-    "out/e7_73349c253a411945c246d459_public/core.duckdb",
-    "out/e7_73349c253a411945c246d459_public/arm.duckdb",
-    "out/e7_73349c253a411945c246d459_public/disc.duckdb",
-    "out/e7_73349c253a411945c246d459_public/canonical_hierarchy.duckdb",
-    "out/e7_73349c253a411945c246d459_public/map_tiles/index.json",
     "out/e7_39b7386d4524ce5b1ff2729f_public/core.duckdb",
     "out/e7_39b7386d4524ce5b1ff2729f_public/arm.duckdb",
     "out/e7_39b7386d4524ce5b1ff2729f_public/disc.duckdb",
     "out/e7_39b7386d4524ce5b1ff2729f_public/canonical_hierarchy.duckdb",
     "out/e7_39b7386d4524ce5b1ff2729f_public/map_tiles/index.json"
+  ],
+  "retired_artifacts": [
+    {
+      "path": "out/e6_95e7af54d69f3d9602d81e5b_shadow/manifest.json",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E6 shadow generation was independently archived and retired after E7 promotion.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e6_95e7af54d69f3d9602d81e5b_public/map_tiles/index.json",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E6 public generation was independently archived and retired after E7 promotion.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "derived/evidence_lake_v2/clean_science/35eb29fa3b2a3ac518f5303a/manifest.json",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded clean-science compiler generation was removed by the reviewed E7 compiler-retention action.",
+      "evidence_report": "e7_compiler_retention_apply_2026-07-24.json"
+    },
+    {
+      "path": "out/e7_73349c253a411945c246d459_public/core.duckdb",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e7_73349c253a411945c246d459_public/arm.duckdb",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e7_73349c253a411945c246d459_public/disc.duckdb",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e7_73349c253a411945c246d459_public/canonical_hierarchy.duckdb",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e7_73349c253a411945c246d459_public/map_tiles/index.json",
+      "retired_at": "2026-07-24",
+      "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
+      "evidence_report": "storage_archive_retirement_20260724.json"
+    }
   ],
   "open_gates": []
 }

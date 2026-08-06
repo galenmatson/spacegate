@@ -219,13 +219,13 @@
       "value_status": "derived",
       "outputs": ["planet_category_bit"],
       "inputs": ["radius_earth", "radius_jup", "mass_earth", "mass_jup", "eq_temp_k", "insol_earth"],
-      "algorithm_version": "planet_environment_badge_mask_v1",
+      "algorithm_version": "planet_environment_badge_mask_v2",
       "applicability": "Confirmed, visible planets with unambiguous broad size/mass and temperature proxy; ambiguous Fulton-gap region remains unclassified.",
       "uncertainty": "Current thresholds do not evaluate measurement intervals crossing a boundary.",
       "confidence": "presentation",
       "provenance": "Shared SQL helper is consumed by search and tile builds but currently points at legacy core fields.",
       "supersession": {"state": "rebuild_from_selected_facts", "e5_derivation_key": null, "retirement_gate": "E6 search/map category parity and boundary audit"},
-      "implementations": [{"file": "srv/api/app/planet_categories.py", "symbol": "planet_category_bit_sql", "markers": ["planet_composition_proxy_sql", "planet_temperature_proxy_sql"]}, {"file": "scripts/build_map_tiles.py", "symbol": "tile_query", "markers": ["planet_environment_badge_mask_v1"]}],
+      "implementations": [{"file": "srv/api/app/planet_categories.py", "symbol": "planet_category_bit_sql", "markers": ["planet_composition_proxy_sql", "planet_temperature_proxy_sql"]}, {"file": "scripts/build_map_tiles.py", "symbol": "tile_query", "markers": ["planet_environment_badge_mask_v2"]}],
       "materialized_markers": []
     },
     {

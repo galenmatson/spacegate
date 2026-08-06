@@ -125,3 +125,38 @@ def test_additional_report_root_is_explicit_and_unambiguous(tmp_path: Path) -> N
 
     assert report["verified_checkpoint_status"] == "pass"
     assert report["checks"][0]["resolved_path"] == str(external / "pass.json")
+
+
+def test_retired_artifact_uses_retention_evidence_without_requiring_artifact(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    reports = state / "reports/evidence_lake_v2"
+    reports.mkdir(parents=True)
+    (reports / "retention.json").write_text(
+        '{"status":"pass"}\n', encoding="utf-8"
+    )
+    contract = {
+        "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
+        "contract_version": "test",
+        "report_checks": [],
+        "required_artifacts": [],
+        "retired_artifacts": [
+            {
+                "path": "out/retired/manifest.json",
+                "retired_at": "2026-07-24",
+                "reason": "Superseded and removed through reviewed retention.",
+                "evidence_report": "retention.json",
+            }
+        ],
+        "open_gates": [],
+    }
+    contract_path = tmp_path / "contract.json"
+    contract_path.write_text(json.dumps(contract), encoding="utf-8")
+
+    report = completion.audit(contract_path, state)
+
+    assert report["verified_checkpoint_status"] == "pass"
+    assert report["retired_artifact_count"] == 1
+    assert report["retired_artifacts"][0]["artifact_present"] is False
+    assert report["checks"][0]["kind"] == "retirement_evidence"
