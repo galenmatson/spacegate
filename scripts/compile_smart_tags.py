@@ -5,6 +5,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import math
 import os
 import shutil
 import sqlite3
@@ -25,12 +26,12 @@ if str(API_ROOT) not in sys.path:
 from app.planet_categories import planet_category_bit_sql  # noqa: E402
 
 
-SCHEMA_VERSION = "spacegate.smart_tags.v2"
-MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
+SCHEMA_VERSION = "spacegate.smart_tags.v3"
+MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v3"
 ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.5"
+COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.6"
 HOT_ARTIFACT_MAX_BYTES = 1536 * 1024**2
 PLANET_CATEGORY_BIT_TO_TAG = {
     1: "science:planet.hot_gas_giant",
@@ -54,6 +55,29 @@ EVIDENCE_STATUS_BITS = {
     "quarantined": 64,
     "missing": 128,
     "source_model": 256,
+}
+CLAIM_MODE_CODES = {
+    "observed": 1,
+    "accepted": 2,
+    "derived": 3,
+    "modeled": 4,
+    "likely": 5,
+    "candidate": 6,
+    "disputed": 7,
+    "contextual": 8,
+}
+HERO_FAMILY_CODES = {
+    "architecture": 1,
+    "exceptional_science": 2,
+    "planet_environment": 3,
+}
+HERO_SIGNAL_BITS = {
+    "rare": 1,
+    "direct": 2,
+    "concept": 4,
+    "specific": 8,
+    "modeled": 16,
+    "member_focus": 32,
 }
 
 
@@ -140,7 +164,11 @@ def create_work_schema(con: sqlite3.Connection) -> None:
           evaluator_version INTEGER NOT NULL,
           evaluator_params_json TEXT NOT NULL,
           filterable INTEGER NOT NULL,
-          rollup TEXT NOT NULL
+          rollup TEXT NOT NULL,
+          application_profile TEXT NOT NULL,
+          application_json TEXT NOT NULL,
+          hero_profile TEXT NOT NULL,
+          hero_json TEXT NOT NULL
         ) WITHOUT ROWID;
         CREATE TABLE tag_assignments(
           target_type TEXT NOT NULL,
@@ -165,6 +193,19 @@ def create_work_schema(con: sqlite3.Connection) -> None:
           min_confidence REAL,
           max_confidence REAL,
           PRIMARY KEY(system_id,tag_key)
+        ) WITHOUT ROWID;
+        CREATE TABLE system_hero_tags(
+          system_id INTEGER NOT NULL,
+          tag_key TEXT NOT NULL,
+          hero_rank INTEGER NOT NULL,
+          hero_score INTEGER NOT NULL,
+          hero_family TEXT NOT NULL,
+          signal_mask INTEGER NOT NULL,
+          origin_target_type TEXT NOT NULL,
+          origin_target_key TEXT NOT NULL,
+          claim_mode TEXT NOT NULL,
+          PRIMARY KEY(system_id,hero_rank),
+          UNIQUE(system_id,tag_key)
         ) WITHOUT ROWID;
         CREATE TABLE source_definitions(
           source_key TEXT PRIMARY KEY,
@@ -231,7 +272,11 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
           evaluator_version INTEGER NOT NULL,
           evaluator_params_json TEXT NOT NULL,
           filterable INTEGER NOT NULL,
-          rollup TEXT NOT NULL
+          rollup TEXT NOT NULL,
+          application_profile TEXT NOT NULL,
+          application_json TEXT NOT NULL,
+          hero_profile TEXT NOT NULL,
+          hero_json TEXT NOT NULL
         );
         CREATE TABLE system_tag_membership(
           system_id INTEGER NOT NULL,
@@ -243,6 +288,19 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
           min_confidence REAL,
           max_confidence REAL,
           PRIMARY KEY(system_id,tag_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE system_hero_tags(
+          system_id INTEGER NOT NULL,
+          tag_id INTEGER NOT NULL,
+          hero_rank INTEGER NOT NULL,
+          hero_score INTEGER NOT NULL,
+          hero_family_code INTEGER NOT NULL,
+          signal_mask INTEGER NOT NULL,
+          origin_scope_code INTEGER NOT NULL,
+          origin_target_key TEXT NOT NULL,
+          claim_mode_code INTEGER NOT NULL,
+          PRIMARY KEY(system_id,hero_rank),
+          UNIQUE(system_id,tag_id)
         ) WITHOUT ROWID;
         CREATE TABLE source_definitions(
           source_num INTEGER PRIMARY KEY,
@@ -275,6 +333,8 @@ def create_hot_schema(con: sqlite3.Connection) -> None:
         );
         CREATE INDEX idx_system_tag_membership_tag
           ON system_tag_membership(tag_id,system_id);
+        CREATE INDEX idx_system_hero_tags_tag
+          ON system_hero_tags(tag_id,system_id);
         CREATE INDEX idx_system_sources_source
           ON system_sources(source_num,system_id);
         """
@@ -308,9 +368,13 @@ def insert_definitions(con: sqlite3.Connection, registry: LoadedRegistry) -> Non
                 json.dumps(evaluator["params"], sort_keys=True, separators=(",", ":")),
                 int(bool(definition.get("filterable"))),
                 definition["rollup"],
+                definition["application_profile"],
+                json.dumps(definition["application"], sort_keys=True, separators=(",", ":")),
+                definition["hero_profile"],
+                json.dumps(definition["hero"], sort_keys=True, separators=(",", ":")),
             )
         )
-    con.executemany("INSERT INTO tag_definitions VALUES (" + ",".join("?" * 20) + ")", rows)
+    con.executemany("INSERT INTO tag_definitions VALUES (" + ",".join("?" * 24) + ")", rows)
 
 
 def insert_source_definitions(
@@ -669,6 +733,201 @@ def build_rollups(con: sqlite3.Connection) -> None:
     )
 
 
+def claim_mode_for_assignment(status: str, configured: str) -> str:
+    normalized = str(status or "").strip().lower()
+    if configured != "evidence_bound":
+        return configured
+    if normalized in {"source", "accepted"}:
+        return "accepted"
+    if normalized == "derived":
+        return "derived"
+    if normalized in {"source_model", "screen"}:
+        return "modeled"
+    if normalized in {"assumed", "candidate"}:
+        return "candidate"
+    if normalized in {"ambiguous", "quarantined", "missing"}:
+        return "disputed"
+    return "disputed"
+
+
+def build_hero_selections(
+    con: sqlite3.Connection, registry: LoadedRegistry
+) -> dict[str, Any]:
+    """Compose a sparse, explainable hero projection without changing assignments."""
+    definitions = {
+        str(row["key"]): row
+        for row in registry.definitions
+        if bool((row.get("hero") or {}).get("eligible"))
+    }
+    if not definitions:
+        return {"selected": 0, "systems": 0, "candidates": 0, "by_family": {}}
+
+    scope_exists = con.execute(
+        "SELECT 1 FROM sqlite_temp_master WHERE type='table' AND name='compiler_system_scope'"
+    ).fetchone()
+    total_systems = int(
+        con.execute(
+            "SELECT count(*) FROM compiler_system_scope"
+            if scope_exists
+            else "SELECT count(*) FROM public.systems"
+        ).fetchone()[0]
+    )
+    prevalence = {
+        str(row[0]): int(row[1])
+        for row in con.execute(
+            """
+            SELECT tag_key,count(*)
+            FROM system_tag_membership
+            WHERE tag_key IN ("""
+            + ",".join("?" for _ in definitions)
+            + ") GROUP BY tag_key",
+            sorted(definitions),
+        )
+    }
+    placeholders = ",".join("?" for _ in definitions)
+    cursor = con.execute(
+        f"""
+        SELECT system_id,tag_key,target_type,stable_object_key,evidence_status,
+               confidence
+        FROM tag_assignments
+        WHERE tag_key IN ({placeholders})
+        ORDER BY system_id,tag_key,stable_object_key
+        """,
+        sorted(definitions),
+    )
+
+    claim_rank = {
+        "observed": 0,
+        "accepted": 1,
+        "derived": 2,
+        "likely": 3,
+        "modeled": 4,
+        "candidate": 5,
+        "disputed": 6,
+        "contextual": 7,
+    }
+    allowed = {"observed", "accepted", "derived", "modeled", "likely"}
+    best: dict[tuple[int, str], dict[str, Any]] = {}
+    for row in cursor:
+        system_id = int(row[0])
+        tag_key = str(row[1])
+        definition = definitions[tag_key]
+        claim_mode = claim_mode_for_assignment(
+            str(row[4]), str(definition["application"]["claim_mode"])
+        )
+        if claim_mode not in allowed:
+            continue
+        confidence = float(row[5]) if row[5] is not None else 0.5
+        candidate = {
+            "system_id": system_id,
+            "tag_key": tag_key,
+            "target_type": str(row[2]),
+            "target_key": str(row[3]),
+            "claim_mode": claim_mode,
+            "confidence": confidence,
+        }
+        key = (system_id, tag_key)
+        current = best.get(key)
+        candidate_order = (
+            claim_rank[claim_mode],
+            -confidence,
+            candidate["target_type"],
+            candidate["target_key"],
+        )
+        if current is None or candidate_order < current["order"]:
+            candidate["order"] = candidate_order
+            best[key] = candidate
+
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for candidate in best.values():
+        definition = definitions[candidate["tag_key"]]
+        hero = definition["hero"]
+        fraction = max(
+            1.0 / max(1, total_systems),
+            prevalence.get(candidate["tag_key"], 0) / max(1, total_systems),
+        )
+        rarity = min(28, round(-math.log10(fraction) * float(hero["rarity_weight"])))
+        direct = candidate["target_type"] == "system"
+        score = (
+            float(hero["base_interest"])
+            + rarity
+            + float(hero["specificity"]) * 2
+            + (8 if direct else 3)
+            + (4 if definition.get("concept_slug") else 0)
+            - (8 if candidate["claim_mode"] == "modeled" else 0)
+            - (2 if candidate["claim_mode"] == "derived" else 0)
+        )
+        signal_mask = 0
+        if rarity >= 8:
+            signal_mask |= HERO_SIGNAL_BITS["rare"]
+        signal_mask |= HERO_SIGNAL_BITS["direct" if direct else "member_focus"]
+        if definition.get("concept_slug"):
+            signal_mask |= HERO_SIGNAL_BITS["concept"]
+        if float(hero["specificity"]) >= 3:
+            signal_mask |= HERO_SIGNAL_BITS["specific"]
+        if candidate["claim_mode"] == "modeled":
+            signal_mask |= HERO_SIGNAL_BITS["modeled"]
+        candidate.update(
+            {
+                "score": int(round(score)),
+                "family": str(hero["family"]),
+                "exclusive_group": str(hero["exclusive_group"]),
+                "signal_mask": signal_mask,
+            }
+        )
+        grouped.setdefault(candidate["system_id"], []).append(candidate)
+
+    family_limits = {"architecture": 1, "exceptional_science": 2, "planet_environment": 1}
+    rows: list[tuple[Any, ...]] = []
+    by_family: dict[str, int] = {}
+    for system_id in sorted(grouped):
+        candidates = sorted(
+            grouped[system_id],
+            key=lambda row: (-row["score"], row["tag_key"], row["target_key"]),
+        )
+        exclusive_seen: set[str] = set()
+        family_counts: dict[str, int] = {}
+        composed: list[dict[str, Any]] = []
+        for candidate in candidates:
+            family = candidate["family"]
+            exclusive = candidate["exclusive_group"]
+            if exclusive in exclusive_seen:
+                continue
+            if family_counts.get(family, 0) >= family_limits.get(family, 0):
+                continue
+            composed.append(candidate)
+            exclusive_seen.add(exclusive)
+            family_counts[family] = family_counts.get(family, 0) + 1
+            if len(composed) == 4:
+                break
+        for rank, candidate in enumerate(composed, start=1):
+            rows.append(
+                (
+                    system_id,
+                    candidate["tag_key"],
+                    rank,
+                    candidate["score"],
+                    candidate["family"],
+                    candidate["signal_mask"],
+                    candidate["target_type"],
+                    candidate["target_key"],
+                    candidate["claim_mode"],
+                )
+            )
+            by_family[candidate["family"]] = by_family.get(candidate["family"], 0) + 1
+    con.executemany(
+        "INSERT INTO system_hero_tags VALUES (?,?,?,?,?,?,?,?,?)", rows
+    )
+    return {
+        "selected": len(rows),
+        "systems": len({row[0] for row in rows}),
+        "candidates": len(best),
+        "by_family": dict(sorted(by_family.items())),
+        "family_limits": family_limits,
+        "maximum_per_system": 4,
+    }
+
+
 def reject_duplicate_assignments(con: sqlite3.Connection) -> None:
     duplicate = con.execute(
         """
@@ -893,7 +1152,7 @@ def build_hot_database(
         }
         hot.executemany(
             "INSERT INTO tag_definitions VALUES ("
-            + ",".join("?" * 21)
+            + ",".join("?" * 25)
             + ")",
             [
                 (tag_ids[str(row[0])], *tuple(row))
@@ -932,6 +1191,32 @@ def build_hot_database(
                 "INSERT INTO system_tag_membership VALUES (?,?,?,?,?,?,?,?)",
                 membership_rows,
             )
+
+        hero_rows = []
+        for row in work.execute(
+            """
+            SELECT system_id,tag_key,hero_rank,hero_score,hero_family,signal_mask,
+                   origin_target_type,origin_target_key,claim_mode
+            FROM system_hero_tags ORDER BY system_id,hero_rank
+            """
+        ):
+            hero_rows.append(
+                (
+                    int(row[0]),
+                    tag_ids[str(row[1])],
+                    int(row[2]),
+                    int(row[3]),
+                    HERO_FAMILY_CODES[str(row[4])],
+                    int(row[5]),
+                    0 if row[6] == "system" else (1 if row[6] == "star" else 2),
+                    str(row[7]),
+                    CLAIM_MODE_CODES[str(row[8])],
+                )
+            )
+        hot.executemany(
+            "INSERT INTO system_hero_tags VALUES (?,?,?,?,?,?,?,?,?)",
+            hero_rows,
+        )
 
         source_payload = json.loads(
             source_registry_path.read_text(encoding="utf-8")
@@ -1028,6 +1313,7 @@ def build_hot_database(
                     "SELECT count(*) FROM system_tag_membership"
                 ).fetchone()[0]
             ),
+            "system_hero_tags": len(hero_rows),
             "source_definitions": len(source_rows),
             "system_sources": len(source_rows_hot),
             "quarantine": int(
@@ -1189,6 +1475,22 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     ("registry_hash", registry.registry_hash),
                     ("compiler_version", COMPILER_VERSION),
                     (
+                        "claim_grammar_json",
+                        json.dumps(
+                            registry.application_policies["claim_grammar"],
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                    ),
+                    (
+                        "application_policy_id",
+                        registry.application_policies["policy_id"],
+                    ),
+                    (
+                        "application_policy_version",
+                        registry.application_policies["policy_version"],
+                    ),
+                    (
                         "sample_limit",
                         "" if args.sample_limit is None else str(args.sample_limit),
                     ),
@@ -1211,6 +1513,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             reject_duplicate_assignments(con)
             reject_unknown_evidence_statuses(con)
             build_rollups(con)
+            hero_accounting = build_hero_selections(con, registry)
             source_accounting = build_sources(
                 con, args.sample_limit, source_mapping
             )
@@ -1224,6 +1527,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                     "tag_definitions",
                     "tag_assignments",
                     "system_tag_membership",
+                    "system_hero_tags",
                     "source_definitions",
                     "system_sources",
                     "source_contributions",
@@ -1264,6 +1568,10 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                         "evaluator_params_json",
                         "filterable",
                         "rollup",
+                        "application_profile",
+                        "application_json",
+                        "hero_profile",
+                        "hero_json",
                     ],
                 ),
                 "tag_assignments": logical_table_hash(
@@ -1295,6 +1603,21 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                         "evidence_status_mask",
                         "min_confidence",
                         "max_confidence",
+                    ],
+                ),
+                "system_hero_tags": logical_table_hash(
+                    con,
+                    "system_hero_tags",
+                    [
+                        "system_id",
+                        "tag_key",
+                        "hero_rank",
+                        "hero_score",
+                        "hero_family",
+                        "signal_mask",
+                        "origin_target_type",
+                        "origin_target_key",
+                        "claim_mode",
                     ],
                 ),
                 "system_sources": logical_table_hash(
@@ -1378,6 +1701,40 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
         atomic_json(
             staging / "proposal_accounting.json", proposal_accounting
         )
+        feasibility_rows = []
+        feasibility_policy = registry.application_policies["proposal_feasibility"]
+        for proposal in registry.proposal_inventory["proposals"]:
+            feasibility_rows.append(
+                {
+                    **proposal,
+                    **feasibility_policy[str(proposal["family"])],
+                }
+            )
+        atomic_json(
+            staging / "proposal_feasibility.json",
+            {
+                "schema_version": "spacegate.smart_tag_proposal_feasibility.v1",
+                "status": "pass",
+                "build_id": build_id,
+                "registry_hash": registry.registry_hash,
+                "policy_id": registry.application_policies["policy_id"],
+                "policy_version": registry.application_policies["policy_version"],
+                "proposal_count": len(feasibility_rows),
+                "proposals": feasibility_rows,
+            },
+        )
+        atomic_json(
+            staging / "hero_accounting.json",
+            {
+                "schema_version": "spacegate.smart_tag_hero_accounting.v1",
+                "status": "pass",
+                "build_id": build_id,
+                "registry_hash": registry.registry_hash,
+                "policy_id": registry.application_policies["policy_id"],
+                "policy_version": registry.application_policies["policy_version"],
+                **hero_accounting,
+            },
+        )
         atomic_json(
             staging / "source_accounting.json",
             {
@@ -1403,6 +1760,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             "proposal_inventory": registry.proposal_inventory,
             "legacy_token_inventory": registry.legacy_token_inventory,
             "source_accounting": source_accounting,
+            "hero_accounting": hero_accounting,
         }
         atomic_json(staging / "coverage.json", coverage)
         atomic_json(
@@ -1430,6 +1788,8 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
             "coverage.json",
             "quarantine.json",
             "proposal_accounting.json",
+            "proposal_feasibility.json",
+            "hero_accounting.json",
             "source_accounting.json",
             "timings.json",
         ):
@@ -1495,6 +1855,7 @@ def compile_tags(args: argparse.Namespace) -> dict[str, Any]:
                 "hot_artifact_status": "pass",
             },
             "source_accounting": source_accounting,
+            "hero_accounting": hero_accounting,
         }
         atomic_json(staging / "manifest.json", manifest)
         if final_dir.exists():

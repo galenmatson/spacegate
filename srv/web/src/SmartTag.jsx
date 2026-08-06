@@ -16,6 +16,7 @@ import { fetchSmartTagRegistry } from "./api.js";
 const SmartTagRegistryContext = createContext({
   definitions: new Map(),
   status: "idle",
+  openInspector: () => {},
 });
 
 export const OBJECT_BADGE_TAG_CATEGORIES = Object.freeze([
@@ -28,6 +29,7 @@ export function SmartTagRegistryProvider({ children }) {
     definitions: new Map(),
     status: "loading",
   });
+  const [inspectorTrail, setInspectorTrail] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -51,9 +53,30 @@ export function SmartTagRegistryProvider({ children }) {
     };
   }, []);
 
+  const value = useMemo(() => ({
+    ...state,
+    openInspector: (entry) => {
+      setInspectorTrail((current) => {
+        const previous = current.at(-1);
+        if (
+          previous?.definition?.key === entry?.definition?.key
+          && previous?.contextName === entry?.contextName
+        ) {
+          return [...current.slice(0, -1), entry];
+        }
+        return [...current, entry].slice(-8);
+      });
+    },
+  }), [state]);
+
   return (
-    <SmartTagRegistryContext.Provider value={state}>
+    <SmartTagRegistryContext.Provider value={value}>
       {children}
+      <SmartTagInspector
+        trail={inspectorTrail}
+        onBack={() => setInspectorTrail((current) => current.slice(0, -1))}
+        onClose={() => setInspectorTrail([])}
+      />
     </SmartTagRegistryContext.Provider>
   );
 }
@@ -76,22 +99,33 @@ function popoverFocusableElements(popover) {
 const EVIDENCE_STATUS_MARKERS = {
   derived: "D",
   assumed: "A",
-  screen: "S",
-  candidate: "C",
-  ambiguous: "?",
+  screen: "M",
+  candidate: "?",
+  ambiguous: "!",
   quarantined: "Q",
   missing: "-",
-  source_model: "E",
+  source_model: "M",
 };
 const EVIDENCE_STATUS_LABELS = {
   derived: "Derived evidence",
   assumed: "Assumed presentation value",
-  screen: "Screening result",
-  candidate: "Candidate evidence",
-  ambiguous: "Ambiguous evidence",
+  screen: "Model screening result",
+  candidate: "Candidate claim",
+  ambiguous: "Disputed or ambiguous evidence",
   quarantined: "Quarantined evidence",
   missing: "Missing evidence",
-  source_model: "Source model estimate",
+  source_model: "Model estimate",
+};
+
+const CLAIM_MODE_PRESENTATION = {
+  observed: { marker: "O", label: "Observed claim" },
+  accepted: null,
+  derived: { marker: "D", label: "Derived claim" },
+  modeled: { marker: "M", label: "Model based claim" },
+  likely: { marker: "L", label: "Likely claim" },
+  candidate: { marker: "?", label: "Candidate claim" },
+  disputed: { marker: "!", label: "Disputed claim" },
+  contextual: { marker: "@", label: "Context dependent claim" },
 };
 
 function normalizedEvidenceStatuses(value) {
@@ -120,6 +154,108 @@ function evidenceStateSummary(statuses) {
   };
 }
 
+function claimModeSummary(resolved, statuses) {
+  const explicit = String(resolved?.hero_assignment?.claim_mode || "").trim();
+  if (explicit && explicit !== "evidence_bound") {
+    return CLAIM_MODE_PRESENTATION[explicit] || null;
+  }
+  const configured = String(resolved?.application?.claim_mode || "").trim();
+  if (configured && configured !== "evidence_bound") {
+    return CLAIM_MODE_PRESENTATION[configured] || null;
+  }
+  const status = evidenceStateSummary(statuses);
+  return status ? { marker: status.marker, label: status.label } : null;
+}
+
+function SmartTagInspector({ trail = [], onBack, onClose }) {
+  const entry = trail.at(-1);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!entry) return undefined;
+    const closeEscape = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeEscape);
+    return () => document.removeEventListener("keydown", closeEscape);
+  }, [entry, onClose]);
+  if (!entry || typeof document === "undefined") return null;
+  const resolved = entry.definition;
+  const conceptPath = resolved.concept_slug ? `/concepts/${resolved.concept_slug}` : "";
+  const filterPath = resolved.filterable
+    ? `/search?tags_all=${encodeURIComponent(resolved.key)}`
+    : "";
+  const focusTarget = resolved.hero_assignment?.origin_target_key;
+  const focusTargetType = resolved.hero_assignment?.origin_target_type;
+  const copy = async () => {
+    if (!navigator?.clipboard) return;
+    const path = conceptPath || filterPath || window.location.pathname;
+    await navigator.clipboard.writeText(new URL(path, window.location.origin).href);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+  const returnState = {
+    spacegateReturn: {
+      path: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      scrollY: window.scrollY,
+      tagKey: resolved.key,
+    },
+  };
+  return createPortal(
+    <aside className="smart-tag-inspector" role="dialog" aria-modal="false" aria-label={`${resolved.name} tag inspector`}>
+      <div className="smart-tag-inspector-nav">
+        <button type="button" onClick={onBack} disabled={trail.length < 2}>Back</button>
+        <span>{trail.length > 1 ? `${trail.length} inspected tags` : "Tag inspector"}</span>
+        <button type="button" onClick={onClose} aria-label="Close tag inspector">Close</button>
+      </div>
+      <div className="smart-tag-popover-heading">
+        <strong>{entry.contextName ? `${entry.contextName}: ${resolved.name}` : resolved.name}</strong>
+        <span>{resolved.layer}</span>
+      </div>
+      <p>{resolved.tooltip || resolved.short_tooltip}</p>
+      {(entry.details || []).some((row) => row?.value) ? (
+        <div className="smart-tag-details">
+          {entry.details.filter((row) => row?.value).map((row) => (
+            <span key={`${row.label}-${row.value}`}><strong>{row.label}</strong><span>{row.value}</span></span>
+          ))}
+        </div>
+      ) : null}
+      {resolved.application ? (
+        <div className="smart-tag-inspector-basis">
+          <strong>How this applies</strong>
+          <span>{resolved.application.evidence_requirements?.join("; ")}</span>
+          <span>{resolved.application.uncertainty_policy}</span>
+        </div>
+      ) : null}
+      {entry.sources?.length ? (
+        <div className="smart-tag-sources">
+          <strong>Sources in this system</strong>
+          {entry.sources.slice(0, 4).map((source) => (
+            source.citation_url
+              ? <a key={`${source.key}-${source.contribution_kind}`} href={source.citation_url} target="_blank" rel="noreferrer">{source.public_name || source.source_id}</a>
+              : <span key={`${source.key}-${source.contribution_kind}`}>{source.public_name || source.source_id}</span>
+          ))}
+        </div>
+      ) : null}
+      <div className="smart-tag-actions">
+        {conceptPath ? <Link to={conceptPath} state={returnState}>Learn</Link> : null}
+        {filterPath ? <Link to={filterPath}>Find more</Link> : null}
+        {focusTarget && entry.systemId ? (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("spacegate:focus-object", {
+              detail: { systemId: entry.systemId, targetKey: focusTarget, targetType: focusTargetType },
+            }))}
+          >
+            Focus object
+          </button>
+        ) : null}
+        <button type="button" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
+      </div>
+    </aside>,
+    document.body,
+  );
+}
+
 export function SmartTag({
   tagKey = "",
   definition = null,
@@ -132,8 +268,10 @@ export function SmartTag({
   details = [],
   copyValue = null,
   evidenceStatuses = null,
+  systemId = null,
 }) {
-  const registryDefinition = useSmartTagDefinition(tagKey);
+  const registry = useContext(SmartTagRegistryContext);
+  const registryDefinition = registry.definitions.get(String(tagKey || "")) || null;
   const resolved = definition || registryDefinition || {
     key: tagKey,
     label: label || tagKey,
@@ -149,7 +287,6 @@ export function SmartTag({
   };
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [pinned, setPinned] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState(null);
@@ -158,12 +295,13 @@ export function SmartTag({
   const popoverRef = useRef(null);
   const hoverCloseTimerRef = useRef(null);
   const suppressFocusOpenRef = useRef(false);
-  const open = !dismissed && (pinned || hovered || focused);
+  const open = !dismissed && (hovered || focused);
   const popoverId = React.useId();
   const resolvedEvidenceStatuses = normalizedEvidenceStatuses(
     evidenceStatuses ?? resolved.assignment?.evidence_statuses,
   );
   const evidenceState = evidenceStateSummary(resolvedEvidenceStatuses);
+  const claimMode = claimModeSummary(resolved, resolvedEvidenceStatuses);
   const resolvedDisplayName = contextName
     ? `${contextName}: ${resolved.name || resolved.label || label || tagKey}`
     : (resolved.name || resolved.label || label || tagKey);
@@ -273,33 +411,18 @@ export function SmartTag({
   useEffect(() => () => cancelHoverClose(), []);
 
   useEffect(() => {
-    if (!pinned) {
-      return undefined;
-    }
-    const closeOutside = (event) => {
-      if (
-        !rootRef.current?.contains(event.target)
-        && !popoverRef.current?.contains(event.target)
-      ) {
-        setPinned(false);
-        setDismissed(false);
-      }
-    };
     const closeEscape = (event) => {
       if (event.key === "Escape") {
-        setPinned(false);
         setDismissed(true);
         suppressFocusOpenRef.current = true;
         rootRef.current?.querySelector("button")?.focus();
       }
     };
-    document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeEscape);
     return () => {
-      document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("keydown", closeEscape);
     };
-  }, [pinned]);
+  }, [open]);
 
   const copyLink = async () => {
     const relative = conceptPath || filterPath;
@@ -357,7 +480,6 @@ export function SmartTag({
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
           event.stopPropagation();
-          setPinned(false);
           setDismissed(true);
         } else if (
           event.key === "Tab"
@@ -385,22 +507,32 @@ export function SmartTag({
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? popoverId : undefined}
-        aria-label={evidenceState
-          ? `${resolvedDisplayName}, ${evidenceState.label}`
+        aria-label={claimMode
+          ? `${resolvedDisplayName}, ${claimMode.label}`
           : resolvedDisplayName}
         onClick={() => {
-          setDismissed(false);
-          setPinned((value) => !value);
+          const inspectorDetails = resolvedDetails.filter((row) => row?.value);
+          registry.openInspector({
+            definition: resolved,
+            sources,
+            contextName,
+            details: inspectorDetails,
+            copyValue,
+            systemId,
+          });
+          setHovered(false);
+          setFocused(false);
+          setDismissed(true);
         }}
       >
         {resolved.label || label || tagKey}
-        {evidenceState ? (
+        {claimMode ? (
           <span
             className="smart-tag-state-marker"
             aria-hidden="true"
-            title={evidenceState.label}
+            title={claimMode.label}
           >
-            {evidenceState.marker}
+            {claimMode.marker}
           </span>
         ) : null}
       </button>
@@ -567,6 +699,7 @@ export function SmartTagList({
   className = "",
   label = "Smart tags",
   excludeCategories = [],
+  systemId = null,
 }) {
   const budget = Number.isFinite(Number(limit))
     ? Number(limit)
@@ -595,6 +728,7 @@ export function SmartTagList({
           tagKey={tag.key}
           definition={tag}
           sources={sources}
+          systemId={systemId}
         />
       ))}
       {overflow ? (
@@ -604,6 +738,64 @@ export function SmartTagList({
           title={ordered.slice(budget).map((tag) => tag.name || tag.label || tag.key).join(", ")}
         >
           +{overflow}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export function HeroSmartTagList({
+  tags = [],
+  sources = [],
+  systemId = null,
+  excludeCategories = [],
+  className = "",
+  label = "Featured tags",
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const eligible = (Array.isArray(tags) ? tags : []).filter(
+    (tag) => !excludeCategories.includes(String(tag?.category || "")),
+  );
+  const featured = eligible
+    .filter((tag) => tag?.hero_assignment)
+    .slice()
+    .sort((left, right) => (
+      Number(left.hero_assignment.rank) - Number(right.hero_assignment.rank)
+      || String(left.key).localeCompare(String(right.key))
+    ))
+    .slice(0, 4);
+  if (!featured.length && !eligible.length) return null;
+  return (
+    <span className={`smart-tag-hero-group ${className}`.trim()}>
+      <span className="smart-tag-list" aria-label={label}>
+        {featured.map((tag) => (
+          <SmartTag
+            key={tag.key}
+            tagKey={tag.key}
+            definition={tag}
+            sources={sources}
+            systemId={systemId}
+          />
+        ))}
+        <button
+          type="button"
+          className="smart-tag-all-toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Hide tags" : `All tags (${eligible.length})`}
+        </button>
+      </span>
+      {expanded ? (
+        <span className="smart-tag-all-panel" aria-label="All system tags">
+          <SmartTagList
+            tags={eligible}
+            sources={sources}
+            mode="expanded"
+            limit={eligible.length}
+            systemId={systemId}
+          />
+          <SourceTagList sources={sources} limit={sources.length} />
         </span>
       ) : null}
     </span>

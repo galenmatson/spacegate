@@ -19,6 +19,7 @@ import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 import { PlanetCategoryBadge, planetCategoryTitle } from "./planetCategoryIcons.jsx";
 import {
   OBJECT_BADGE_TAG_CATEGORIES,
+  HeroSmartTagList,
   SmartTagList,
   SmartTagRegistryProvider,
   SourceTagList,
@@ -3018,6 +3019,9 @@ function DataPage({ buildId = "" }) {
 
 function ConceptPage({ buildId = "" }) {
   const { slug = "" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const returnContext = location.state?.spacegateReturn;
   const key = `../content/concepts/${slug}.md`;
   const markdown = CONCEPT_MARKDOWN_CONTENT[key];
   if (typeof markdown !== "string") {
@@ -3037,6 +3041,18 @@ function ConceptPage({ buildId = "" }) {
     <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout concept-page-layout">
         <section className="panel markdown-panel concept-article">
+          {returnContext?.path ? (
+            <button
+              type="button"
+              className="button compact concept-return-button"
+              onClick={() => {
+                navigate(-1);
+                window.setTimeout(() => window.scrollTo({ top: Number(returnContext.scrollY) || 0 }), 0);
+              }}
+            >
+              Return to exploration
+            </button>
+          ) : null}
           <MarkdownContent markdown={markdown} />
         </section>
       </section>
@@ -4645,18 +4661,13 @@ function SystemDetailPage({ buildId = "" }) {
                 planets={planets}
                 className="system-detail-stellar-tags"
               />
-              <SmartTagList
+              <HeroSmartTagList
                 tags={systemTags}
                 sources={system?.source_summary}
-                limit={12}
+                systemId={system.system_id}
                 excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
                 className="result-tags system-detail-tags"
-                label={`${currentSystemDisplayName} smart tags`}
-              />
-              <SourceTagList
-                sources={system?.source_summary}
-                limit={4}
-                className="system-detail-source-tags"
+                label={`${currentSystemDisplayName} featured tags`}
               />
             </div>
           </div>

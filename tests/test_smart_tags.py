@@ -188,6 +188,12 @@ def test_registry_is_typed_namespaced_and_expression_free() -> None:
         definition["evaluator"]["id"] in registry_module.KNOWN_EVALUATORS
         for definition in registry.definitions
     )
+    assert all(definition["application"] for definition in registry.definitions)
+    assert all(definition["hero"] for definition in registry.definitions)
+    assert all(
+        definition["application"]["primary_scope"] in definition["target_types"]
+        for definition in registry.definitions
+    )
     statuses = {
         row["status"] for row in registry.proposal_inventory["families"]
     }
@@ -310,6 +316,23 @@ def test_compiler_materializes_object_assignments_rollups_and_sources(
             "nasa_exoplanet_archive.planetary_systems",
         }
         assert "gaia.dr3.non_single_star" not in source_ids
+        hero_rows = con.execute(
+            """
+            SELECT d.tag_key,h.hero_rank,h.hero_family_code,h.origin_scope_code,
+                   h.origin_target_key,h.claim_mode_code
+            FROM system_hero_tags h JOIN tag_definitions d USING(tag_id)
+            WHERE h.system_id=2 ORDER BY h.hero_rank
+            """
+        ).fetchall()
+        assert len(hero_rows) == 4
+        assert {row[0] for row in hero_rows} == {
+            "science:system.hierarchical",
+            "science:stellar.white_dwarf",
+            "science:planet.ultrashort_period",
+            "science:planet.temperate_terrestrial",
+        }
+        assert [row[1] for row in hero_rows] == [1, 2, 3, 4]
+        assert any(row[3] == 1 and row[4] == "canon:star:two-a" for row in hero_rows)
     finally:
         con.close()
 
@@ -361,6 +384,11 @@ def test_runtime_attachment_exposes_typed_tags_and_bounded_filters(
     keys = {row["key"] for row in payload["smart_tags"]}
     assert "science:system.multiple" in keys
     tags = {row["key"]: row for row in payload["smart_tags"]}
+    assert [row["hero_assignment"]["rank"] for row in payload["hero_tags"]] == [1, 2, 3, 4]
+    assert tags["science:stellar.white_dwarf"]["hero_assignment"][
+        "origin_target_key"
+    ] == "canon:star:two-a"
+    assert tags["science:stellar.m"].get("hero_assignment") is None
     assert tags["science:stellar.m"]["assignment"]["evidence_statuses"] == [
         "assumed"
     ]
@@ -392,6 +420,16 @@ def test_runtime_attachment_exposes_typed_tags_and_bounded_filters(
     assert stats["artifact_identity"]["build_id"] == "tag-test-build"
     assert stats["counters"]["system_tags_queries"] >= 1
     public.close()
+
+
+def test_compiler_emits_complete_proposal_feasibility_audit(tmp_path: Path) -> None:
+    artifact = compile_fixture(tmp_path)
+    audit = json.loads((artifact / "proposal_feasibility.json").read_text())
+    registry = registry_module.load_registry(ROOT / "config/tags/registry.json")
+    assert audit["status"] == "pass"
+    assert audit["proposal_count"] == len(registry.proposal_inventory["proposals"])
+    assert all(row["activation_path"] for row in audit["proposals"])
+    assert all("false_positive_risks" in row for row in audit["proposals"])
 
 
 def test_registry_definition_and_source_api_endpoints(

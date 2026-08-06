@@ -5,9 +5,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
 import {
   OBJECT_BADGE_TAG_CATEGORIES,
+  HeroSmartTagList,
   SmartTag,
-  SmartTagList,
-  SourceTagList,
 } from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
@@ -4571,6 +4570,22 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
+  useEffect(() => {
+    const focusObject = (event) => {
+      const detail = event?.detail || {};
+      if (String(detail.systemId || "") !== String(systemId || "")) return;
+      const targetKey = String(detail.targetKey || "");
+      const item = objectItems.find((candidate) => (
+        bodyIdentityKeys(candidate.record).includes(targetKey)
+        || String(candidate.payload?.id || "") === targetKey
+      ));
+      if (!item) return;
+      setPinnedObject(item.payload);
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    window.addEventListener("spacegate:focus-object", focusObject);
+    return () => window.removeEventListener("spacegate:focus-object", focusObject);
+  }, [objectItems, systemId]);
   const stellarClassEntries = useMemo(() => {
     const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
     return stars
@@ -4810,17 +4825,13 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           ) : null}
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
-          <SmartTagList
+          <HeroSmartTagList
             tags={scene?.smart_tags}
             sources={scene?.source_summary}
-            limit={compactPresentation ? 4 : 8}
+            systemId={systemId}
             excludeCategories={OBJECT_BADGE_TAG_CATEGORIES}
             className="system-preview-smart-tags"
-          />
-          <SourceTagList
-            sources={scene?.source_summary}
-            limit={compactPresentation ? 2 : 3}
-            className="system-preview-source-tags"
+            label={`${systemName} featured tags`}
           />
           {showObjectList ? (
             <div className="system-preview-object-list" data-testid="system-preview-object-list">

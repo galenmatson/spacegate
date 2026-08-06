@@ -75,11 +75,36 @@ def verify_artifact(root: Path, expected_build_id: str | None = None) -> dict[st
             raise ValueError(
                 "smart-tag membership has an unrepresented evidence status"
             )
+        invalid_hero = con.execute(
+            """
+            SELECT count(*)
+            FROM system_hero_tags h
+            LEFT JOIN system_tag_membership m
+              ON m.system_id=h.system_id AND m.tag_id=h.tag_id
+            WHERE m.tag_id IS NULL OR h.hero_rank NOT BETWEEN 1 AND 4
+               OR h.hero_family_code NOT BETWEEN 1 AND 3
+               OR h.claim_mode_code NOT BETWEEN 1 AND 8
+               OR trim(h.origin_target_key)=''
+            """
+        ).fetchone()[0]
+        if invalid_hero:
+            raise ValueError("smart-tag hero projection contains invalid rows")
+        oversized_heroes = con.execute(
+            """
+            SELECT count(*) FROM (
+              SELECT system_id,count(*) AS n
+              FROM system_hero_tags GROUP BY system_id HAVING n>4
+            )
+            """
+        ).fetchone()[0]
+        if oversized_heroes:
+            raise ValueError("smart-tag hero projection exceeds composition budget")
         hot_counts = {
             table: con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
             for table in (
                 "tag_definitions",
                 "system_tag_membership",
+                "system_hero_tags",
                 "source_definitions",
                 "system_sources",
                 "quarantine",

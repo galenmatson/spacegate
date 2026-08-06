@@ -8001,6 +8001,43 @@ main {
   gap: 5px;
 }
 
+.smart-tag-hero-group {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.smart-tag-all-toggle {
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.smart-tag-all-toggle:hover,
+.smart-tag-all-toggle:focus-visible {
+  border-color: var(--accent);
+  color: var(--ink);
+  outline: none;
+}
+
+.smart-tag-all-panel {
+  display: grid;
+  max-width: min(980px, calc(100vw - 48px));
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-soft) 82%, transparent);
+}
+
 .smart-tag-overflow {
   color: var(--muted);
   font-family: var(--font-mono);
@@ -8226,6 +8263,80 @@ main {
   pointer-events: auto;
 }
 
+.smart-tag-inspector {
+  position: fixed;
+  z-index: 10020;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  width: min(390px, calc(100vw - 32px));
+  max-height: min(78vh, 680px);
+  overflow-y: auto;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 97%, #000 3%);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.34);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.smart-tag-inspector p {
+  margin: 0;
+}
+
+.smart-tag-inspector-nav {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.smart-tag-inspector-nav span {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.smart-tag-inspector-nav button,
+.smart-tag-inspector .smart-tag-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.smart-tag-inspector-nav button:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.smart-tag-inspector-basis {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+}
+
+.smart-tag-inspector-basis span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 .smart-tag-popover-heading,
 .smart-tag-policy,
 .smart-tag-sources,
@@ -8310,6 +8421,18 @@ main {
     width: auto;
     max-height: min(72vh, 520px);
     overflow: auto;
+  }
+
+  .smart-tag-inspector {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 72vh;
+  }
+
+  .smart-tag-all-panel {
+    max-width: calc(100vw - 32px);
   }
 }
 

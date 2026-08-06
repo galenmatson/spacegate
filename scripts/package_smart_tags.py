@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 
-EXPECTED_SCHEMA = "spacegate.smart_tags_manifest.v2"
+EXPECTED_SCHEMA = "spacegate.smart_tags_manifest.v3"
 
 
 def sha256_file(path: Path) -> str:
@@ -34,7 +34,7 @@ def load_manifest(artifact: Path) -> dict[str, Any]:
         or manifest.get("status") != "pass"
         or manifest.get("sample_limit") is not None
     ):
-        raise ValueError("only a verified full Smart Tag v2 artifact can be packaged")
+        raise ValueError("only a verified full Smart Tag v3 artifact can be packaged")
     return manifest
 
 

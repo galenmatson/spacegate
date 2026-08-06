@@ -1,12 +1,14 @@
 {
-  "schema_version": "spacegate.smart_tag_registry.v1",
+  "schema_version": "spacegate.smart_tag_registry.v2",
   "registry_id": "spacegate_public",
-  "registry_version": "2026-07-26-v1",
+  "registry_version": "2026-08-06-v2",
   "definition_files": [
     "definitions/foundation.json"
   ],
   "source_registry": "config/evidence_lake/source_releases.json",
   "source_presentation": "config/tags/source_presentation.json",
+  "application_policies": "config/tags/application_policies.json",
+  "aaa_adjudication_schema": "config/tags/aaa_tag_adjudication.schema.json",
   "legacy_token_inventory": "config/tags/legacy_token_inventory.json",
   "rules": {
     "allow_raw_sql": false,

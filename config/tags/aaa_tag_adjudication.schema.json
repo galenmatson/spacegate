@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spacegates.org/schemas/aaa-tag-adjudication-v1.json",
+  "title": "Spacegate AAA Smart Tag Adjudication Packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_id",
+    "policy_version",
+    "subject",
+    "proposed_tag",
+    "evidence",
+    "counterevidence",
+    "model",
+    "confidence",
+    "alternatives",
+    "recommendation",
+    "review",
+    "revisit_triggers",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "spacegate.aaa_tag_adjudication.v1"},
+    "packet_id": {"type": "string", "minLength": 1},
+    "policy_version": {"type": "string", "minLength": 1},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_type", "stable_object_key", "system_id"],
+      "properties": {
+        "target_type": {"enum": ["system", "star", "planet", "extended_object", "relation"]},
+        "stable_object_key": {"type": "string", "minLength": 1},
+        "system_id": {"type": ["integer", "null"], "minimum": 1},
+        "relation_key": {"type": ["string", "null"]}
+      }
+    },
+    "proposed_tag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag_key", "claim_mode", "evaluator_id", "evaluator_version"],
+      "properties": {
+        "tag_key": {"type": "string", "pattern": "^(science|presentation|evidence|source|rim):"},
+        "claim_mode": {"enum": ["observed", "accepted", "derived", "modeled", "likely", "candidate", "disputed", "contextual"]},
+        "evaluator_id": {"type": "string", "minLength": 1},
+        "evaluator_version": {"type": "integer", "minimum": 1}
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/evidenceReference"}
+    },
+    "counterevidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidenceReference"}
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "model_version", "applicability", "inputs", "limitations"],
+      "properties": {
+        "model_id": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "applicability": {"type": "string", "minLength": 1},
+        "inputs": {"type": "array", "items": {"type": "string"}},
+        "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "calibration", "threshold_policy"],
+      "properties": {
+        "value": {"type": "number", "minimum": 0, "maximum": 1},
+        "calibration": {"type": "string", "minLength": 1},
+        "threshold_policy": {"type": "string", "minLength": 1}
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tag_key", "confidence", "reason"],
+        "properties": {
+          "tag_key": {"type": ["string", "null"]},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "recommendation": {"enum": ["accept", "reject", "defer", "escalate"]},
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewer", "rationale"],
+      "properties": {
+        "status": {"enum": ["proposed", "accepted", "rejected", "deferred", "escalated", "superseded"]},
+        "reviewer": {"type": ["string", "null"]},
+        "rationale": {"type": "string"},
+        "decided_at": {"type": ["string", "null"], "format": "date-time"},
+        "supersedes_packet_id": {"type": ["string", "null"]}
+      }
+    },
+    "revisit_triggers": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "source_id", "release_or_citation", "claim", "supports"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1},
+        "source_id": {"type": "string", "minLength": 1},
+        "release_or_citation": {"type": "string", "minLength": 1},
+        "claim": {"type": "string", "minLength": 1},
+        "supports": {"enum": ["for", "against", "context"]}
+      }
+    }
+  }
+}

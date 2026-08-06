@@ -11,12 +11,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-EXPECTED_MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v2"
-EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v2"
+EXPECTED_MANIFEST_SCHEMA = "spacegate.smart_tags_manifest.v3"
+EXPECTED_TAG_SCHEMA = "spacegate.smart_tags.v3"
 EXPECTED_ASSIGNMENT_SCHEMA = "spacegate.smart_tag_assignments.v2"
 EXPECTED_SOURCE_SUMMARY_SCHEMA = "spacegate.smart_tag_source_summary.v3"
 EXPECTED_SOURCE_CONTRIBUTION_SCHEMA = "spacegate.smart_tag_source_contributions.v1"
-EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.5"
+EXPECTED_COMPILER_VERSION = "spacegate.smart_tags_compiler.v2.6"
 EVIDENCE_STATUS_BITS = (
     ("source", 1),
     ("derived", 2),
@@ -27,6 +27,29 @@ EVIDENCE_STATUS_BITS = (
     ("quarantined", 64),
     ("missing", 128),
     ("source_model", 256),
+)
+CLAIM_MODE_BY_CODE = {
+    1: "observed",
+    2: "accepted",
+    3: "derived",
+    4: "modeled",
+    5: "likely",
+    6: "candidate",
+    7: "disputed",
+    8: "contextual",
+}
+HERO_FAMILY_BY_CODE = {
+    1: "architecture",
+    2: "exceptional_science",
+    3: "planet_environment",
+}
+HERO_SIGNALS = (
+    ("rare", 1),
+    ("direct", 2),
+    ("concept", 4),
+    ("specific", 8),
+    ("modeled", 16),
+    ("member_focus", 32),
 )
 _RUNTIME_LOCK = threading.Lock()
 _RUNTIME_COUNTERS: Counter[str] = Counter()
@@ -291,6 +314,10 @@ def _definition_payload(row: sqlite3.Row) -> dict[str, Any]:
         },
         "filterable": bool(row["filterable"]),
         "rollup": row["rollup"],
+        "application_profile": row["application_profile"],
+        "application": json.loads(row["application_json"]),
+        "hero_profile": row["hero_profile"],
+        "hero": json.loads(row["hero_json"]),
     }
 
 
@@ -309,6 +336,11 @@ def registry_payload(con: sqlite3.Connection) -> dict[str, Any]:
         "registry_id": metadata["registry_id"],
         "registry_version": metadata["registry_version"],
         "registry_hash": metadata["registry_hash"],
+        "application_policy": {
+            "id": metadata["application_policy_id"],
+            "version": metadata["application_policy_version"],
+        },
+        "claim_grammar": json.loads(metadata["claim_grammar_json"]),
         "definitions": definitions,
     }
     _record_query("registry", started, len(definitions))
@@ -394,11 +426,16 @@ def system_tags_attached(
     rows = con.execute(
         f"""
         SELECT m.system_id,m.member_count,m.scope_code,m.basis_code,
-               m.evidence_status_mask,m.min_confidence,m.max_confidence,d.*
+               m.evidence_status_mask,m.min_confidence,m.max_confidence,
+               h.hero_rank,h.hero_score,h.hero_family_code,h.signal_mask,
+               h.origin_scope_code,h.origin_target_key,h.claim_mode_code,d.*
         FROM smart_tags.system_tag_membership m
         JOIN smart_tags.tag_definitions d USING(tag_id)
+        LEFT JOIN smart_tags.system_hero_tags h
+          ON h.system_id=m.system_id AND h.tag_id=m.tag_id
         WHERE m.system_id IN ({placeholders})
-        ORDER BY m.system_id,d.normal_priority DESC,d.category,d.name,d.tag_key
+        ORDER BY m.system_id,h.hero_rank IS NULL,h.hero_rank,
+                 d.normal_priority DESC,d.category,d.name,d.tag_key
         """,
         ids,
     )
@@ -416,6 +453,23 @@ def system_tags_attached(
             "min_confidence": row["min_confidence"],
             "max_confidence": row["max_confidence"],
         }
+        if row["hero_rank"] is not None:
+            signal_mask = int(row["signal_mask"] or 0)
+            value["hero_assignment"] = {
+                "rank": int(row["hero_rank"]),
+                "score": int(row["hero_score"]),
+                "family": HERO_FAMILY_BY_CODE[int(row["hero_family_code"])],
+                "signals": [
+                    signal for signal, bit in HERO_SIGNALS if signal_mask & bit
+                ],
+                "origin_target_type": (
+                    "system"
+                    if int(row["origin_scope_code"]) == 0
+                    else ("star" if int(row["origin_scope_code"]) == 1 else "planet")
+                ),
+                "origin_target_key": row["origin_target_key"],
+                "claim_mode": CLAIM_MODE_BY_CODE[int(row["claim_mode_code"])],
+            }
         result[int(row["system_id"])].append(value)
     _record_query(
         "system_tags", started, sum(len(values) for values in result.values())
@@ -463,6 +517,7 @@ def system_payload(con: sqlite3.Connection, system_id: int) -> dict[str, Any]:
         "schema_version": "spacegate.smart_tags_system.v1",
         "system_id": system_id,
         "smart_tags": tags,
+        "hero_tags": [row for row in tags if row.get("hero_assignment")],
         "source_summary": sources,
     }
 

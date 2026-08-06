@@ -1,0 +1,286 @@
+{
+  "schema_version": "spacegate.smart_tag_application_policies.v1",
+  "policy_id": "spacegate_public_tag_application",
+  "policy_version": "2026-08-06-v1",
+  "claim_grammar": {
+    "observed": {
+      "public_name": "Observed",
+      "marker": "O",
+      "meaning": "Directly observed evidence supports the claim."
+    },
+    "accepted": {
+      "public_name": "Accepted",
+      "marker": "",
+      "meaning": "Reviewed source evidence or accepted canonical structure supports the claim."
+    },
+    "derived": {
+      "public_name": "Derived",
+      "marker": "D",
+      "meaning": "A deterministic calculation from accepted inputs supports the claim."
+    },
+    "modeled": {
+      "public_name": "Model",
+      "marker": "M",
+      "meaning": "A named scientific model or screening policy supports the claim."
+    },
+    "likely": {
+      "public_name": "Likely",
+      "marker": "L",
+      "meaning": "Reviewed evidence favors the claim above a defined confidence threshold."
+    },
+    "candidate": {
+      "public_name": "Candidate",
+      "marker": "?",
+      "meaning": "Evidence makes the claim worth investigating but does not establish it."
+    },
+    "disputed": {
+      "public_name": "Disputed",
+      "marker": "!",
+      "meaning": "Material accepted evidence conflicts or the subject binding remains unresolved."
+    },
+    "contextual": {
+      "public_name": "Contextual",
+      "marker": "@",
+      "meaning": "The result depends on the observer, time, camera, or active session."
+    }
+  },
+  "application_profiles": {
+    "selected_stellar_class": {
+      "claim_mode": "evidence_bound",
+      "primary_scope": "star",
+      "evidence_requirements": ["selected stellar classification with object scope and lineage"],
+      "uncertainty_policy": "preserve the selected classification status and confidence",
+      "conflict_policy": "exclude ambiguous or quarantined subject bindings",
+      "rollup_policy": "member discovery only; retain the originating star",
+      "eligible_surfaces": ["object_badge", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "selected classification, subject binding, or evaluator version changes"
+    },
+    "accepted_system_architecture": {
+      "claim_mode": "accepted",
+      "primary_scope": "system",
+      "evidence_requirements": ["accepted canonical stellar membership count"],
+      "uncertainty_policy": "do not count candidates or unresolved members",
+      "conflict_policy": "defer when accepted containment is internally inconsistent",
+      "rollup_policy": "direct system claim",
+      "eligible_surfaces": ["system_root", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "accepted hierarchy or membership changes"
+    },
+    "derived_system_hierarchy": {
+      "claim_mode": "derived",
+      "primary_scope": "system",
+      "evidence_requirements": ["accepted hierarchy containing a nested stellar group"],
+      "uncertainty_policy": "describe accepted structure without claiming long term stability",
+      "conflict_policy": "quarantine malformed or multiply bound hierarchy nodes",
+      "rollup_policy": "direct system structure claim with relation lineage",
+      "eligible_surfaces": ["system_root", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "hierarchy projection or evaluator version changes"
+    },
+    "accepted_planet_host": {
+      "claim_mode": "accepted",
+      "primary_scope": "system",
+      "evidence_requirements": ["at least one confirmed, known, or published canonical planet"],
+      "uncertainty_policy": "candidate and false positive evidence does not satisfy the claim",
+      "conflict_policy": "defer unresolved host or component binding",
+      "rollup_policy": "direct system claim with planet objects retained",
+      "eligible_surfaces": ["system_root", "all_tags", "filter"],
+      "revisit_trigger": "planet lifecycle or host binding changes"
+    },
+    "derived_planet_orbit": {
+      "claim_mode": "derived",
+      "primary_scope": "planet",
+      "evidence_requirements": ["confirmed planet with selected orbital period and lineage"],
+      "uncertainty_policy": "the accepted interval must not straddle the evaluator threshold when bounds exist",
+      "conflict_policy": "exclude unresolved host bindings and conflicting selected facts",
+      "rollup_policy": "member discovery only; retain the originating planet",
+      "eligible_surfaces": ["planet_badge", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "selected period, uncertainty, lifecycle, host binding, or evaluator version changes"
+    },
+    "modeled_planet_screen": {
+      "claim_mode": "modeled",
+      "primary_scope": "planet",
+      "evidence_requirements": ["confirmed planet and selected stellar or orbital inputs required by the pinned screen"],
+      "uncertainty_policy": "screening intervals must remain distinguishable from habitability claims",
+      "conflict_policy": "exclude missing inputs and unresolved host bindings",
+      "rollup_policy": "member discovery only; retain the originating planet",
+      "eligible_surfaces": ["planet_badge", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "screen inputs, host binding, or model version changes"
+    },
+    "derived_planet_category": {
+      "claim_mode": "derived",
+      "primary_scope": "planet",
+      "evidence_requirements": ["confirmed planet with selected size or mass class and insolation class"],
+      "uncertainty_policy": "retain boundary ambiguity and never imply composition from a broad proxy",
+      "conflict_policy": "exclude unresolved category or host bindings",
+      "rollup_policy": "member discovery only; retain the originating planet",
+      "eligible_surfaces": ["planet_badge", "hierarchy", "all_tags", "filter", "hero_when_eligible"],
+      "revisit_trigger": "planet measurement, lifecycle, host binding, or category policy changes"
+    },
+    "distance_presentation": {
+      "claim_mode": "accepted",
+      "primary_scope": "system",
+      "evidence_requirements": ["selected public distance point estimate"],
+      "uncertainty_policy": "do not imply interval-aware boundary certainty until intervals are carried",
+      "conflict_policy": "exclude missing or nonphysical distances",
+      "rollup_policy": "direct presentation claim",
+      "eligible_surfaces": ["all_tags", "filter"],
+      "revisit_trigger": "selected distance, interval support, or band policy changes"
+    }
+  },
+  "hero_profiles": {
+    "none": {
+      "eligible": false,
+      "family": "none",
+      "base_interest": 0,
+      "rarity_weight": 0,
+      "specificity": 0,
+      "exclusive_group": "none"
+    },
+    "architecture_binary": {
+      "eligible": true,
+      "family": "architecture",
+      "base_interest": 38,
+      "rarity_weight": 5,
+      "specificity": 1,
+      "exclusive_group": "system_architecture"
+    },
+    "architecture_multiple": {
+      "eligible": true,
+      "family": "architecture",
+      "base_interest": 62,
+      "rarity_weight": 7,
+      "specificity": 2,
+      "exclusive_group": "system_architecture"
+    },
+    "architecture_hierarchical": {
+      "eligible": true,
+      "family": "architecture",
+      "base_interest": 78,
+      "rarity_weight": 8,
+      "specificity": 3,
+      "exclusive_group": "system_architecture"
+    },
+    "exceptional_stellar_low": {
+      "eligible": true,
+      "family": "exceptional_science",
+      "base_interest": 58,
+      "rarity_weight": 8,
+      "specificity": 2,
+      "exclusive_group": "stellar_class"
+    },
+    "exceptional_stellar_high": {
+      "eligible": true,
+      "family": "exceptional_science",
+      "base_interest": 82,
+      "rarity_weight": 10,
+      "specificity": 4,
+      "exclusive_group": "stellar_class"
+    },
+    "compact_general": {
+      "eligible": true,
+      "family": "exceptional_science",
+      "base_interest": 78,
+      "rarity_weight": 9,
+      "specificity": 3,
+      "exclusive_group": "compact_object"
+    },
+    "compact_specific": {
+      "eligible": true,
+      "family": "exceptional_science",
+      "base_interest": 96,
+      "rarity_weight": 10,
+      "specificity": 6,
+      "exclusive_group": "compact_object"
+    },
+    "planet_orbit": {
+      "eligible": true,
+      "family": "exceptional_science",
+      "base_interest": 82,
+      "rarity_weight": 8,
+      "specificity": 4,
+      "exclusive_group": "planet_orbit"
+    },
+    "planet_screen": {
+      "eligible": true,
+      "family": "planet_environment",
+      "base_interest": 58,
+      "rarity_weight": 4,
+      "specificity": 2,
+      "exclusive_group": "planet_environment"
+    },
+    "planet_category": {
+      "eligible": true,
+      "family": "planet_environment",
+      "base_interest": 64,
+      "rarity_weight": 6,
+      "specificity": 3,
+      "exclusive_group": "planet_environment"
+    },
+    "planet_category_temperate": {
+      "eligible": true,
+      "family": "planet_environment",
+      "base_interest": 76,
+      "rarity_weight": 7,
+      "specificity": 4,
+      "exclusive_group": "planet_environment"
+    }
+  },
+  "tag_bindings": {
+    "science:stellar.o": {"application_profile": "selected_stellar_class", "hero_profile": "exceptional_stellar_high"},
+    "science:stellar.b": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.a": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.f": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.g": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.k": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.m": {"application_profile": "selected_stellar_class", "hero_profile": "none"},
+    "science:stellar.l": {"application_profile": "selected_stellar_class", "hero_profile": "exceptional_stellar_low"},
+    "science:stellar.t": {"application_profile": "selected_stellar_class", "hero_profile": "exceptional_stellar_high"},
+    "science:stellar.y": {"application_profile": "selected_stellar_class", "hero_profile": "exceptional_stellar_high"},
+    "science:stellar.wolf_rayet": {"application_profile": "selected_stellar_class", "hero_profile": "exceptional_stellar_high"},
+    "science:stellar.white_dwarf": {"application_profile": "selected_stellar_class", "hero_profile": "compact_general"},
+    "science:stellar.neutron_star": {"application_profile": "selected_stellar_class", "hero_profile": "compact_general"},
+    "science:stellar.pulsar": {"application_profile": "selected_stellar_class", "hero_profile": "compact_specific"},
+    "science:stellar.magnetar": {"application_profile": "selected_stellar_class", "hero_profile": "compact_specific"},
+    "science:stellar.black_hole": {"application_profile": "selected_stellar_class", "hero_profile": "compact_specific"},
+    "science:system.one_known_star": {"application_profile": "accepted_system_architecture", "hero_profile": "none"},
+    "science:system.binary": {"application_profile": "accepted_system_architecture", "hero_profile": "architecture_binary"},
+    "science:system.multiple": {"application_profile": "accepted_system_architecture", "hero_profile": "architecture_multiple"},
+    "science:system.hierarchical": {"application_profile": "derived_system_hierarchy", "hero_profile": "architecture_hierarchical"},
+    "science:system.planet_host": {"application_profile": "accepted_planet_host", "hero_profile": "none"},
+    "science:planet.ultrashort_period": {"application_profile": "derived_planet_orbit", "hero_profile": "planet_orbit"},
+    "science:planet.habitable_zone_screen": {"application_profile": "modeled_planet_screen", "hero_profile": "planet_screen"},
+    "presentation:distance.nearby": {"application_profile": "distance_presentation", "hero_profile": "none"},
+    "presentation:distance.local_neighborhood": {"application_profile": "distance_presentation", "hero_profile": "none"},
+    "science:planet.hot_gas_giant": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"},
+    "science:planet.temperate_gas_giant": {"application_profile": "derived_planet_category", "hero_profile": "planet_category_temperate"},
+    "science:planet.cold_gas_giant": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"},
+    "science:planet.hot_neptunian": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"},
+    "science:planet.temperate_neptunian": {"application_profile": "derived_planet_category", "hero_profile": "planet_category_temperate"},
+    "science:planet.cold_neptunian": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"},
+    "science:planet.hot_terrestrial": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"},
+    "science:planet.temperate_terrestrial": {"application_profile": "derived_planet_category", "hero_profile": "planet_category_temperate"},
+    "science:planet.cold_terrestrial": {"application_profile": "derived_planet_category", "hero_profile": "planet_category"}
+  },
+  "proposal_feasibility": {
+    "stellar and compact class": {"activation_path": "deterministic", "available_inputs": ["selected component classification"], "required_inputs": ["object scoped classification lineage"], "expected_coverage": "inventory wide where a selected classification exists", "false_positive_risks": ["system value applied to a component", "assumed subtype presented as sourced"], "unresolved_scope": "ambiguous component bindings", "required_models": []},
+    "system architecture": {"activation_path": "deterministic", "available_inputs": ["accepted containment", "stellar member count"], "required_inputs": ["accepted canonical hierarchy"], "expected_coverage": "all canonical systems", "false_positive_risks": ["candidate member counted as canonical", "group node counted as a star"], "unresolved_scope": "quarantined hierarchy tails", "required_models": []},
+    "planet category": {"activation_path": "policy", "available_inputs": ["selected mass or radius", "selected insolation class"], "required_inputs": ["confirmed lifecycle", "resolved host", "pinned category policy"], "expected_coverage": "confirmed planets with sufficient measurements", "false_positive_risks": ["proxy mistaken for composition", "boundary uncertainty ignored"], "unresolved_scope": "planets without resolved hosts or sufficient measurements", "required_models": ["planet-category-v2"]},
+    "planet environment": {"activation_path": "policy", "available_inputs": ["selected stellar and orbital parameters"], "required_inputs": ["confirmed lifecycle", "resolved host", "pinned screen"], "expected_coverage": "measured subset of confirmed planets", "false_positive_risks": ["screen mistaken for habitability", "uncertainty interval crosses boundary"], "unresolved_scope": "missing inputs and circumbinary applicability", "required_models": ["habitable-zone-screen-v1"]},
+    "orbital distinctions": {"activation_path": "policy", "available_inputs": ["selected orbit evidence where present"], "required_inputs": ["quantity specific threshold", "reference plane", "uncertainty policy"], "expected_coverage": "bounded systems with accepted orbit solutions", "false_positive_risks": ["mixed orbit parameter sets", "undefined reference plane", "projection mistaken for geometry"], "unresolved_scope": "relations without coherent orbit sets", "required_models": []},
+    "orbital parameters": {"activation_path": "policy", "available_inputs": ["selected period and relation orbits"], "required_inputs": ["quantity specific applicability and bounds"], "expected_coverage": "bounded planets and stellar relations with selected parameters", "false_positive_risks": ["threshold crossed by uncertainty", "planet rule applied to stellar relation"], "unresolved_scope": "partial orbit sets", "required_models": []},
+    "temperature lines": {"activation_path": "policy", "available_inputs": ["selected luminosity", "render line models"], "required_inputs": ["pinned physical model", "applicability", "uncertainty policy"], "expected_coverage": "systems with adequate stellar luminosity inputs", "false_positive_risks": ["presentation line treated as observed structure"], "unresolved_scope": "multistar irradiation and missing luminosity", "required_models": ["formation-line policy"]},
+    "galactic reference frame": {"activation_path": "deterministic", "available_inputs": ["heliocentric Galactic coordinates"], "required_inputs": ["pinned frame", "origin", "boundary policy"], "expected_coverage": "all spatially resolved systems", "false_positive_risks": ["frame or epoch ambiguity"], "unresolved_scope": "objects without accepted positions", "required_models": []},
+    "equatorial observation": {"activation_path": "contextual", "available_inputs": ["equatorial coordinates"], "required_inputs": ["observer position", "time", "atmospheric policy"], "expected_coverage": "live session only", "false_positive_risks": ["observer free claim persisted as intrinsic"], "unresolved_scope": "observer and horizon assumptions", "required_models": ["observer-context-v1"]},
+    "observer and culture": {"activation_path": "contextual", "available_inputs": ["coordinates"], "required_inputs": ["observer context or reviewed cultural pack"], "expected_coverage": "live or selected cultural context only", "false_positive_risks": ["one culture presented as universal", "time dependent result persisted"], "unresolved_scope": "cultural attribution and observer inputs", "required_models": ["observer-context-v1"]},
+    "kinematics": {"activation_path": "policy", "available_inputs": ["selected astrometry and some radial velocities"], "required_inputs": ["frame", "velocity threshold", "uncertainty propagation"], "expected_coverage": "objects with adequate phase space evidence", "false_positive_risks": ["missing radial velocity treated as zero", "uncertain distance amplifies velocity"], "unresolved_scope": "incomplete phase space", "required_models": ["kinematics-policy"]},
+    "evolutionary stage": {"activation_path": "mixed", "available_inputs": ["source classifications", "selected physical parameters", "source models"], "required_inputs": ["stage authority policy", "model applicability", "component scope"], "expected_coverage": "source classified or model eligible stellar subset", "false_positive_risks": ["luminosity class confused with evolutionary state", "binary evolution ignored"], "unresolved_scope": "conflicting source stages and composite spectra", "required_models": ["stellar-evolution policy"]},
+    "luminosity class": {"activation_path": "mixed", "available_inputs": ["spectral classifications", "surface gravity", "luminosity"], "required_inputs": ["source versus inferred distinction", "calibration policy"], "expected_coverage": "spectroscopically classified or well constrained subset", "false_positive_risks": ["inferred class presented as observed", "subdwarf semantics flattened"], "unresolved_scope": "conflicting or incomplete classifications", "required_models": ["luminosity-class policy"]},
+    "explosive and variable events": {"activation_path": "mixed", "available_inputs": ["variability catalogs", "event literature", "compact object evidence"], "required_inputs": ["event versus source state", "accepted subtype", "time semantics"], "expected_coverage": "cataloged events and reviewed variable systems", "false_positive_risks": ["progenitor candidate labeled as observed event", "historical event applied to current star"], "unresolved_scope": "event host and subtype conflicts", "required_models": []},
+    "future remnant": {"activation_path": "aaa_adjudicated", "available_inputs": ["selected stellar parameters", "source evolution models"], "required_inputs": ["model family", "metallicity", "mass loss", "rotation", "binary state", "probability thresholds"], "expected_coverage": "reviewed high value targets only until a calibrated population model exists", "false_positive_risks": ["current mass treated as initial mass", "binary evolution ignored", "model outcome presented as destiny"], "unresolved_scope": "model disagreement and incomplete evolutionary history", "required_models": ["reviewed remnant outcome model"]},
+    "extended-object relation": {"activation_path": "mixed", "available_inputs": ["extended object geometry", "literature associations"], "required_inputs": ["accepted relation type", "distance and motion consistency where applicable"], "expected_coverage": "reviewed associations", "false_positive_risks": ["line of sight overlap treated as physical association"], "unresolved_scope": "large uncertain structures and distance conflicts", "required_models": []},
+    "emission signature": {"activation_path": "mixed", "available_inputs": ["band catalogs", "spectral indexes", "literature"], "required_inputs": ["band specific detection", "source association", "persistent versus transient state"], "expected_coverage": "matched sources with accepted detections", "false_positive_risks": ["nearby source confusion", "survey non-detection treated as inactivity"], "unresolved_scope": "beam size and counterpart ambiguity", "required_models": []},
+    "fusion and composition": {"activation_path": "mixed", "available_inputs": ["selected parameters", "abundances", "source models"], "required_inputs": ["model applicability", "direct versus inferred distinction"], "expected_coverage": "reviewed stellar subsets", "false_positive_risks": ["interior process claimed from surface abundance alone", "model phase overprecision"], "unresolved_scope": "binary products and model degeneracy", "required_models": ["stellar structure policy"]},
+    "distance presentation": {"activation_path": "deterministic", "available_inputs": ["selected public distance"], "required_inputs": ["pinned band boundaries"], "expected_coverage": "systems with selected distances", "false_positive_risks": ["boundary uncertainty hidden"], "unresolved_scope": "distance intervals are not yet in Public Read v2", "required_models": []},
+    "source reference": {"activation_path": "deterministic", "available_inputs": ["exact contribution lineage"], "required_inputs": ["accepted displayed contribution"], "expected_coverage": "systems with exact accepted source contributions", "false_positive_risks": ["catalog presence fanout", "source token interpreted as endorsement of every catalog field"], "unresolved_scope": "bounded alternative evidence not loaded on hot surfaces", "required_models": []},
+    "rim": {"activation_path": "deferred", "available_inputs": [], "required_inputs": ["RIM ownership", "moderation", "visibility", "versioning", "layer controls"], "expected_coverage": "none in the scientific registry", "false_positive_risks": ["fiction displayed as canonical science"], "unresolved_scope": "user and world layer semantics", "required_models": []}
+  }
+}

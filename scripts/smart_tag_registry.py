@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 
-REGISTRY_SCHEMA = "spacegate.smart_tag_registry.v1"
+REGISTRY_SCHEMA = "spacegate.smart_tag_registry.v2"
 DEFINITIONS_SCHEMA = "spacegate.smart_tag_definitions.v1"
-COMPILED_SCHEMA = "spacegate.smart_tag_registry_snapshot.v1"
+APPLICATION_POLICY_SCHEMA = "spacegate.smart_tag_application_policies.v1"
+COMPILED_SCHEMA = "spacegate.smart_tag_registry_snapshot.v2"
 KEY_RE = re.compile(r"^(science|presentation|evidence|source|rim):[a-z0-9_.-]+$")
 KNOWN_EVALUATORS = {
     "stellar_class_v1",
@@ -26,6 +27,23 @@ KNOWN_EVALUATORS = {
 }
 VALID_TARGET_TYPES = {"system", "star", "planet", "extended_object"}
 VALID_ROLLUPS = {"direct", "member_to_system", "none"}
+VALID_CLAIM_MODES = {
+    "observed",
+    "accepted",
+    "derived",
+    "modeled",
+    "likely",
+    "candidate",
+    "disputed",
+    "contextual",
+    "evidence_bound",
+}
+VALID_HERO_FAMILIES = {
+    "none",
+    "architecture",
+    "exceptional_science",
+    "planet_environment",
+}
 
 
 class TagRegistryError(ValueError):
@@ -39,6 +57,8 @@ class LoadedRegistry:
     proposal_inventory: dict[str, Any] | None
     legacy_token_inventory: dict[str, Any] | None
     source_presentation: dict[str, Any] | None
+    application_policies: dict[str, Any]
+    aaa_adjudication_schema: dict[str, Any]
     registry_hash: str
     source_files: tuple[Path, ...]
 
@@ -56,6 +76,12 @@ class LoadedRegistry:
             "proposal_inventory": self.proposal_inventory,
             "legacy_token_inventory": self.legacy_token_inventory,
             "source_presentation": self.source_presentation,
+            "claim_grammar": self.application_policies["claim_grammar"],
+            "application_policy": {
+                "policy_id": self.application_policies["policy_id"],
+                "policy_version": self.application_policies["policy_version"],
+            },
+            "aaa_adjudication_schema": self.aaa_adjudication_schema,
         }
 
 
@@ -131,6 +157,41 @@ def validate_definition(definition: dict[str, Any]) -> None:
         raise TagRegistryError(f"tag {tag_key} evaluator params must be an object")
     if definition.get("rollup") not in VALID_ROLLUPS:
         raise TagRegistryError(f"tag {tag_key} has invalid rollup")
+    application = definition.get("application")
+    if not isinstance(application, dict):
+        raise TagRegistryError(f"tag {tag_key} requires application semantics")
+    for field in (
+        "claim_mode",
+        "primary_scope",
+        "uncertainty_policy",
+        "conflict_policy",
+        "rollup_policy",
+        "revisit_trigger",
+    ):
+        if not str(application.get(field) or "").strip():
+            raise TagRegistryError(f"tag {tag_key} application requires {field}")
+    if application["claim_mode"] not in VALID_CLAIM_MODES:
+        raise TagRegistryError(f"tag {tag_key} has invalid claim mode")
+    if application["primary_scope"] not in VALID_TARGET_TYPES:
+        raise TagRegistryError(f"tag {tag_key} has invalid primary scope")
+    for field in ("evidence_requirements", "eligible_surfaces"):
+        values = application.get(field)
+        if not isinstance(values, list) or not values or any(
+            not str(value).strip() for value in values
+        ):
+            raise TagRegistryError(f"tag {tag_key} application requires {field}")
+    hero = definition.get("hero")
+    if not isinstance(hero, dict):
+        raise TagRegistryError(f"tag {tag_key} requires hero semantics")
+    if not isinstance(hero.get("eligible"), bool):
+        raise TagRegistryError(f"tag {tag_key} hero eligibility must be boolean")
+    if hero.get("family") not in VALID_HERO_FAMILIES:
+        raise TagRegistryError(f"tag {tag_key} has invalid hero family")
+    for field in ("base_interest", "rarity_weight", "specificity"):
+        if not isinstance(hero.get(field), (int, float)):
+            raise TagRegistryError(f"tag {tag_key} hero requires numeric {field}")
+    if not str(hero.get("exclusive_group") or "").strip():
+        raise TagRegistryError(f"tag {tag_key} hero requires exclusive_group")
     serialized = canonical_json(definition).decode("ascii")
     if re.search(r"\b(select|insert|update|delete|pragma|attach)\b", serialized, re.I):
         raise TagRegistryError(f"tag {tag_key} contains forbidden SQL-like content")
@@ -149,8 +210,52 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
         if not str(registry.get(field) or "").strip():
             raise TagRegistryError(f"registry requires {field}")
 
+    repo_root = registry_path.parents[2]
+    application_relative = registry.get("application_policies")
+    if not application_relative:
+        raise TagRegistryError("registry requires application_policies")
+    application_path = (repo_root / str(application_relative)).resolve(strict=True)
+    if repo_root not in application_path.parents:
+        raise TagRegistryError("application policy path escapes repository root")
+    application_policies = load_json(application_path)
+    if (
+        not isinstance(application_policies, dict)
+        or application_policies.get("schema_version") != APPLICATION_POLICY_SCHEMA
+    ):
+        raise TagRegistryError("unsupported smart-tag application policy schema")
+    for field in ("policy_id", "policy_version"):
+        if not str(application_policies.get(field) or "").strip():
+            raise TagRegistryError(f"application policies require {field}")
+    claim_grammar = application_policies.get("claim_grammar")
+    if not isinstance(claim_grammar, dict) or set(claim_grammar) != (
+        VALID_CLAIM_MODES - {"evidence_bound"}
+    ):
+        raise TagRegistryError("application policies require the complete claim grammar")
+    profiles = application_policies.get("application_profiles")
+    hero_profiles = application_policies.get("hero_profiles")
+    bindings = application_policies.get("tag_bindings")
+    if not all(isinstance(value, dict) for value in (profiles, hero_profiles, bindings)):
+        raise TagRegistryError("application policies require profiles and tag bindings")
+    adjudication_relative = registry.get("aaa_adjudication_schema")
+    if not adjudication_relative:
+        raise TagRegistryError("registry requires aaa_adjudication_schema")
+    adjudication_path = (repo_root / str(adjudication_relative)).resolve(strict=True)
+    if repo_root not in adjudication_path.parents:
+        raise TagRegistryError("AAA adjudication schema path escapes repository root")
+    aaa_adjudication_schema = load_json(adjudication_path)
+    if (
+        not isinstance(aaa_adjudication_schema, dict)
+        or aaa_adjudication_schema.get("$schema")
+        != "https://json-schema.org/draft/2020-12/schema"
+        or aaa_adjudication_schema.get("properties", {})
+        .get("schema_version", {})
+        .get("const")
+        != "spacegate.aaa_tag_adjudication.v1"
+    ):
+        raise TagRegistryError("unsupported AAA tag adjudication schema")
+
     definitions: list[dict[str, Any]] = []
-    files = [registry_path]
+    files = [registry_path, application_path, adjudication_path]
     for relative in registry.get("definition_files") or []:
         path = (registry_path.parent / str(relative)).resolve(strict=True)
         if registry_path.parent not in path.parents:
@@ -165,8 +270,29 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
         if not isinstance(rows, list):
             raise TagRegistryError(f"definitions must be a list: {path}")
         for definition in rows:
-            validate_definition(definition)
-            definitions.append(definition)
+            tag_key = str(definition.get("key") or "")
+            binding = bindings.get(tag_key)
+            if not isinstance(binding, dict):
+                raise TagRegistryError(f"tag {tag_key} has no application binding")
+            application_profile = str(binding.get("application_profile") or "")
+            hero_profile = str(binding.get("hero_profile") or "")
+            if application_profile not in profiles:
+                raise TagRegistryError(
+                    f"tag {tag_key} has unknown application profile {application_profile}"
+                )
+            if hero_profile not in hero_profiles:
+                raise TagRegistryError(
+                    f"tag {tag_key} has unknown hero profile {hero_profile}"
+                )
+            resolved = {
+                **definition,
+                "application_profile": application_profile,
+                "application": dict(profiles[application_profile]),
+                "hero_profile": hero_profile,
+                "hero": dict(hero_profiles[hero_profile]),
+            }
+            validate_definition(resolved)
+            definitions.append(resolved)
         files.append(path)
     if not definitions:
         raise TagRegistryError("registry contains no tag definitions")
@@ -174,6 +300,9 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
     if len(keys) != len(set(keys)):
         duplicates = sorted({key for key in keys if keys.count(key) > 1})
         raise TagRegistryError(f"duplicate tag definitions: {duplicates}")
+    unused_bindings = sorted(set(bindings) - set(keys))
+    if unused_bindings:
+        raise TagRegistryError(f"application bindings reference unknown tags: {unused_bindings}")
 
     proposal_path = registry_path.parent / "proposal_inventory.json"
     proposal_inventory = load_json(proposal_path) if proposal_path.is_file() else None
@@ -190,11 +319,32 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
                 or not str(row.get("reason") or "").strip()
             ):
                 raise TagRegistryError("invalid proposal inventory row")
+        feasibility = application_policies.get("proposal_feasibility")
+        if not isinstance(feasibility, dict):
+            raise TagRegistryError("application policies require proposal feasibility")
+        proposal_families = {str(row["family"]) for row in proposals}
+        if set(feasibility) != proposal_families:
+            missing = sorted(proposal_families - set(feasibility))
+            extra = sorted(set(feasibility) - proposal_families)
+            raise TagRegistryError(
+                f"proposal feasibility family mismatch: missing={missing}, extra={extra}"
+            )
+        required_feasibility = {
+            "activation_path",
+            "available_inputs",
+            "required_inputs",
+            "expected_coverage",
+            "false_positive_risks",
+            "unresolved_scope",
+            "required_models",
+        }
+        for family, policy in feasibility.items():
+            if not isinstance(policy, dict) or not required_feasibility <= set(policy):
+                raise TagRegistryError(f"proposal feasibility incomplete for {family}")
         files.append(proposal_path.resolve())
     legacy_token_inventory = None
     legacy_relative = registry.get("legacy_token_inventory")
     if legacy_relative:
-        repo_root = registry_path.parents[2]
         legacy_path = (repo_root / str(legacy_relative)).resolve(strict=True)
         if repo_root not in legacy_path.parents:
             raise TagRegistryError("legacy token inventory path escapes repository root")
@@ -221,7 +371,6 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
     source_presentation = None
     source_presentation_relative = registry.get("source_presentation")
     if source_presentation_relative:
-        repo_root = registry_path.parents[2]
         source_presentation_path = (
             repo_root / str(source_presentation_relative)
         ).resolve(strict=True)
@@ -250,6 +399,8 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
         "proposal_inventory": proposal_inventory,
         "legacy_token_inventory": legacy_token_inventory,
         "source_presentation": source_presentation,
+        "application_policies": application_policies,
+        "aaa_adjudication_schema": aaa_adjudication_schema,
     }
     return LoadedRegistry(
         registry=registry,
@@ -257,6 +408,8 @@ def load_registry(registry_path: Path) -> LoadedRegistry:
         proposal_inventory=proposal_inventory,
         legacy_token_inventory=legacy_token_inventory,
         source_presentation=source_presentation,
+        application_policies=application_policies,
+        aaa_adjudication_schema=aaa_adjudication_schema,
         registry_hash=sha256_bytes(canonical_json(normalized)),
         source_files=tuple(files),
     )
