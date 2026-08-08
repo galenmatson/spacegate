@@ -28,6 +28,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ## B) Current Production Stability
 
 - [x] Public deployment path active and reproducible
+- [x] Add and exercise a volume-identity-gated antiproton cold rollback tier;
+  preserve an exact checksummed July 17 rollback closure on `/data`, restore to
+  fast storage before activation, and recover 20.38 GB from root without
+  restarting or repointing production
 - [x] Promotion flow auto-scores coolness by default
 - [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
 - [x] Eclipsing support catalogs wired (DEBCat + TESS EB default-on; Kepler EB optional default-off)

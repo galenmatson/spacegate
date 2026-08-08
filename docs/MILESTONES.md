@@ -2922,7 +2922,8 @@ Goal:
   retaining the July 17 public build as immediate rollback.
 
 Status: active on antiproton; public soak is in progress and the July 17 build
-remains the immediate rollback.
+is retained as a verified cold rollback that must be restored to fast storage
+before activation.
 
 - `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
   into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
@@ -2965,6 +2966,11 @@ remains the immediate rollback.
   Playwright checks, 4K Bright rendering, and the progressive 1,000-ly canvas
   pass with zero compatibility fallbacks. Reports are retained under
   `state/reports/public_edge_deployment/20260726T2226Z_e7_24cb15211f430a37f199f462_full_public`.
+- The August 8 storage migration added a volume-identity-gated cold rollback
+  tier at `/data/spacegate`. The July 17 closure passed two independent content
+  verifications before its exact extracted build and archive were retired from
+  root. Root free space increased from 27,591,524,352 to 47,976,538,112 bytes;
+  the active pointer and healthy containers did not change.
 
 Success criteria:
 
@@ -2974,8 +2980,8 @@ Success criteria:
   compatibility fallback is disabled;
 - atomic activation, public API/browser/security gates, and rollback rehearsal
   pass;
-- the July 17 extracted build remains available until the public soak is
-  accepted.
+- the July 17 extracted build remains recoverable from a complete verified cold
+  snapshot until the public soak is accepted.
 
 ### M8.3e.1a. Simple Light Simulation Contrast Repair
 

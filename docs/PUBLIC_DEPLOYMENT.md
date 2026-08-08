@@ -117,11 +117,67 @@ Do not repeat the cleanup by pattern or delete the active archive.
 The August 6 candidate requires exactly 58,368,187,518 bytes free before
 staging, including the enforced 15-GiB post-stage reserve. A read-only preflight
 found 27,666,776,064 bytes free on the 102,888,095,744-byte root filesystem,
-leaving a 30,701,411,454-byte deficit. Both public containers remained healthy
-on `e7_24cb15211f430a37f199f462_full_public`; no current or rollback artifact was
-removed. Do not weaken the reserve or discard the served rollback to force this
-release. Expand antiproton to at least 160 GB total, preferably 200 GB for two
-modern releases plus operating reserve, then repeat the preflight.
+leaving a 30,701,411,454-byte deficit. Spacegate therefore added a separate
+200-GB ext4 data volume. The volume is mounted at `/data`, but active DuckDB,
+SQLite, tile, and scene reads remain on the faster root filesystem.
+
+On August 8, the inactive July 17 rollback was copied to the cold volume,
+inventoried, checksummed, independently verified, and only then retired from
+root. Root free space increased from 27,591,524,352 to 47,976,538,112 bytes.
+This improves operating reserve but does not yet satisfy the candidate's
+58,368,187,518-byte hot staging gate. The next release must use reviewed cold
+staging or another bounded transfer plan; do not weaken the reserve.
+
+## Edge Cold Rollback Tier
+
+`/data/spacegate` is a failure-contained cold tier for inactive rollback and
+staging artifacts. It is not a live database path. The tool requires all of:
+
+- `/data` is a distinct mounted filesystem;
+- `/data/.antiproton-data-volume-id` contains the expected volume UUID;
+- the marker and cold root reside on the same filesystem;
+- the hot and cold roots reside on different filesystems;
+- the requested build is not currently served.
+
+The retained July 17 snapshot is:
+
+```text
+/data/spacegate/rollbacks/20260717T0614Z_f452835_side/
+```
+
+It contains 4,838 build files totaling 12,887,145,223 bytes and the
+7,487,390,124-byte publication archive. Its logical SHA-256 is
+`ce80c3bdf63a8e533edcbfd55a352c9911e18aef859e5ec65415fa8f84d5a66c`.
+
+Verify it without changing runtime state:
+
+```bash
+python3 scripts/public_edge_cold_storage.py verify-snapshot \
+  --cold-root /data/spacegate \
+  --hot-state-dir /srv/spacegate/data \
+  --volume-id a243664c-231f-4cf8-8487-bb39f82d555d \
+  --build-id 20260717T0614Z_f452835_side
+```
+
+Cold rollback is deliberately not activated in place. Restore the verified
+build to the fast root before changing the served pointer:
+
+```bash
+python3 scripts/public_edge_cold_storage.py restore \
+  --cold-root /data/spacegate \
+  --hot-state-dir /srv/spacegate/data \
+  --volume-id a243664c-231f-4cf8-8487-bb39f82d555d \
+  --build-id 20260717T0614Z_f452835_side
+
+python3 scripts/public_edge_release.py rollback \
+  --build-id e7_24cb15211f430a37f199f462_full_public \
+  --state-dir /srv/spacegate/data
+```
+
+The restore enforces a 15-GiB free-space reserve and exact inventory equality.
+The rollback command accepts the deployed v1 activation record only because it
+predates Smart Tags and contains no prior Smart Tag pointer. A v1 record that
+claims Smart Tag state is rejected.
 
 ## Sync Code Without Restart
 

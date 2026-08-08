@@ -21,6 +21,7 @@ from typing import Any
 SCHEMA_VERSION = "spacegate.public_edge_release.v2"
 INSTALL_MARKER_SCHEMA = "spacegate.public_edge_install_marker.v1"
 ACTIVATION_SCHEMA = "spacegate.public_edge_activation.v2"
+LEGACY_ACTIVATION_SCHEMA = "spacegate.public_edge_activation.v1"
 BUILD_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,159}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 MINIMUM_FREE_BYTES = 15 * 1024**3
@@ -888,8 +889,17 @@ def command_rollback(args: argparse.Namespace) -> dict[str, Any]:
     activation_path = state / "deployments" / build_id / "activation.json"
     activation = load_json(activation_path)
     previous_raw = activation.get("previous_target")
-    if activation.get("schema_version") != ACTIVATION_SCHEMA or not previous_raw:
+    activation_schema = activation.get("schema_version")
+    if (
+        activation_schema not in {ACTIVATION_SCHEMA, LEGACY_ACTIVATION_SCHEMA}
+        or not previous_raw
+    ):
         raise ValueError("activation record has no rollback target")
+    if (
+        activation_schema == LEGACY_ACTIVATION_SCHEMA
+        and activation.get("previous_smart_tag_target") is not None
+    ):
+        raise ValueError("legacy activation record cannot restore Smart Tag state")
     previous = bounded_path(state / "out", Path(str(previous_raw)), must_exist=True)
     if not (previous / "core.duckdb").is_file():
         raise ValueError("rollback target is not a usable build")

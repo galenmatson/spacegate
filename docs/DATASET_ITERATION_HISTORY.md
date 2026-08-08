@@ -4675,6 +4675,28 @@ Representative commits:
   requirement, so Spacegate retained the active release and rollback instead of
   weakening the 15-GiB operating reserve.
 
+### 177) Antiproton Cold Rollback Migration Preserves Exact Recovery
+
+- A new 200-GB ext4 volume mounted at `/data` is designated for cold rollback
+  and staging artifacts. Active scientific databases, Public Read, map tiles,
+  and simulation scenes remain on the lower-latency root filesystem.
+- `public_edge_cold_storage.py` validates the mounted volume UUID, distinct
+  filesystem identity, inactive build status, bounded paths, complete file and
+  directory inventories, modes, byte counts, SHA-256 hashes, and a logical
+  manifest hash before any hot artifact can be retired.
+- The July 17 rollback snapshot contains 4,838 build files totaling
+  12,887,145,223 bytes plus its 7,487,390,124-byte publication archive. Two
+  independent cold verification passes agree on logical SHA-256
+  `ce80c3bdf63a8e533edcbfd55a352c9911e18aef859e5ec65415fa8f84d5a66c`.
+- Exact retirement increased root free space from 27,591,524,352 to
+  47,976,538,112 bytes. Production remained on
+  `e7_24cb15211f430a37f199f462_full_public`; API and web containers stayed
+  healthy, and public health and Castor search checks passed without a restart.
+- Cold recovery copies the verified extracted build back to fast storage under
+  a 15-GiB reserve before pointer rollback. The release tool also restores
+  compatibility with the deployed v1 activation record, but accepts a v1
+  record only when it carries no Smart Tag rollback state.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

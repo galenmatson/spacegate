@@ -112,6 +112,18 @@ intentional streamed staging, not retention of an incomplete evidentiary chain.
 Keep the previously served extracted build until activation, rollback testing,
 and public soak all pass.
 
+Antiproton may move an inactive rollback closure to the dedicated cold volume
+at `/data/spacegate/rollbacks/<build_id>/` only through
+`scripts/public_edge_cold_storage.py`. A cold snapshot is protected retention
+state, not a cleanup candidate. It must contain the complete extracted build,
+publication archive, per-file byte counts and SHA-256 hashes, directory modes,
+volume identity, and a logical manifest hash. `retire-hot` may remove only the
+two exact hot paths whose content matches a fully verified cold snapshot, and
+must reject the currently served build. Restore the extracted build to the fast
+state filesystem before rollback activation; never point the API at the cold
+volume. Do not remove a cold snapshot until a newer rollback has passed public
+soak and its own restore procedure is verified.
+
 The July 26 antiproton cleanup retired only unreferenced
 `20260717T0336Z_8bee500_side`, its archive, a stranded July 14 bootstrap cache
 archive, and unused BuildKit cache. It retained active

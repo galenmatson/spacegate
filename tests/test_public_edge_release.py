@@ -247,6 +247,39 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     assert not (smart_tag_target.parent / "current").exists()
 
 
+def test_release_rolls_back_legacy_activation_without_smart_tags(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    previous = state / "out" / "previous"
+    current = state / "out" / "current"
+    previous.mkdir(parents=True)
+    current.mkdir(parents=True)
+    (previous / "core.duckdb").write_text("previous", encoding="utf-8")
+    (current / "core.duckdb").write_text("current", encoding="utf-8")
+    (state / "served").mkdir()
+    (state / "served" / "current").symlink_to(current)
+    activation = state / "deployments" / "current" / "activation.json"
+    activation.parent.mkdir(parents=True)
+    activation.write_text(
+        json.dumps(
+            {
+                "schema_version": release.LEGACY_ACTIVATION_SCHEMA,
+                "build_id": "current",
+                "target": str(current),
+                "previous_target": str(previous),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = release.command_rollback(
+        type("Args", (), {"build_id": "current", "state_dir": state})()
+    )
+
+    assert result["status"] == "pass"
+    assert (state / "served" / "current").resolve() == previous.resolve()
+
 def test_release_rejects_path_escape(tmp_path: Path) -> None:
     manifest, _, _ = make_fixture(tmp_path)
     value = release.load_json(manifest)
