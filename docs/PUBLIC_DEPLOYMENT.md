@@ -190,7 +190,7 @@ running containers:
 cd /srv/spacegate/app
 scripts/deploy_antiproton.sh \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 3 \
+  --ssh-cooldown 15 \
   --sync-only
 ```
 
@@ -227,7 +227,7 @@ scripts/push_public_edge_release.sh \
   --remote-cold-root /data/spacegate \
   --cold-volume-id a243664c-231f-4cf8-8487-bb39f82d555d \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 3
+  --ssh-cooldown 15
 ```
 
 The helper:
@@ -281,7 +281,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
 
 scripts/deploy_antiproton.sh \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 3 \
+  --ssh-cooldown 15 \
   --skip-auto-score
 ```
 
@@ -333,7 +333,7 @@ soak is accepted.
 ## SSH Hygiene
 
 Use the private operator route, `IdentitiesOnly`, `BatchMode`, an eight-second
-connect timeout, and at least a two-second cooldown between independent SSH
+connect timeout, and a 15-second cooldown between independent SSH
 connections. Do not run SSH-heavy diagnostics in parallel. Avoid
 `docker compose config`, which can expose expanded secrets.
 

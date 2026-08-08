@@ -10,7 +10,7 @@ REMOTE_STATE_DIR="${SPACEGATE_DEPLOY_REMOTE_STATE_DIR:-/srv/spacegate/data}"
 REMOTE_COLD_ROOT="${SPACEGATE_DEPLOY_REMOTE_COLD_ROOT:-}"
 COLD_VOLUME_ID="${SPACEGATE_DEPLOY_COLD_VOLUME_ID:-}"
 SSH_KEY_PATH="${SPACEGATE_DEPLOY_SSH_KEY:-$HOME/.ssh/spacegate_antiproton}"
-SSH_COOLDOWN_SECONDS="${SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS:-3}"
+SSH_COOLDOWN_SECONDS="${SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS:-15}"
 MANIFEST=""
 DRY_RUN=0
 INSTALL_HOT=0
@@ -34,7 +34,7 @@ Options:
   --cold-volume-id UUID Expected cold volume identity marker
   --install-hot         Install verified cold stage onto fast state storage
   --ssh-key PATH        SSH private key
-  --ssh-cooldown SEC    Pause between SSH connections (default: 3)
+  --ssh-cooldown SEC    Pause between SSH connections (default: 15)
   --dry-run             Print and validate without remote writes
 USAGE
 }
