@@ -7,10 +7,13 @@ PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}"
 REMOTE="${SPACEGATE_DEPLOY_REMOTE:-sgdeploy@158.69.198.29}"
 REMOTE_APP_DIR="${SPACEGATE_DEPLOY_REMOTE_APP_DIR:-/srv/spacegate/app}"
 REMOTE_STATE_DIR="${SPACEGATE_DEPLOY_REMOTE_STATE_DIR:-/srv/spacegate/data}"
+REMOTE_COLD_ROOT="${SPACEGATE_DEPLOY_REMOTE_COLD_ROOT:-}"
+COLD_VOLUME_ID="${SPACEGATE_DEPLOY_COLD_VOLUME_ID:-}"
 SSH_KEY_PATH="${SPACEGATE_DEPLOY_SSH_KEY:-$HOME/.ssh/spacegate_antiproton}"
 SSH_COOLDOWN_SECONDS="${SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS:-3}"
 MANIFEST=""
 DRY_RUN=0
+INSTALL_HOT=0
 
 usage() {
   cat <<'USAGE'
@@ -26,6 +29,10 @@ Options:
   --remote HOST         SSH target
   --remote-app-dir PATH Remote app checkout
   --remote-state PATH   Remote Spacegate state root
+  --remote-cold-root PATH
+                        Verified cold volume application root
+  --cold-volume-id UUID Expected cold volume identity marker
+  --install-hot         Install verified cold stage onto fast state storage
   --ssh-key PATH        SSH private key
   --ssh-cooldown SEC    Pause between SSH connections (default: 3)
   --dry-run             Print and validate without remote writes
@@ -72,6 +79,9 @@ main() {
       --remote) REMOTE="$2"; shift 2 ;;
       --remote-app-dir) REMOTE_APP_DIR="$2"; shift 2 ;;
       --remote-state) REMOTE_STATE_DIR="$2"; shift 2 ;;
+      --remote-cold-root) REMOTE_COLD_ROOT="$2"; shift 2 ;;
+      --cold-volume-id) COLD_VOLUME_ID="$2"; shift 2 ;;
+      --install-hot) INSTALL_HOT=1; shift ;;
       --ssh-key) SSH_KEY_PATH="$2"; shift 2 ;;
       --ssh-cooldown) SSH_COOLDOWN_SECONDS="$2"; shift 2 ;;
       --dry-run) DRY_RUN=1; shift ;;
@@ -85,21 +95,43 @@ main() {
   }
   [[ -x "$PYTHON_BIN" ]] || { echo "Error: Python not found: $PYTHON_BIN" >&2; exit 1; }
   [[ -f "$SSH_KEY_PATH" ]] || { echo "Error: SSH key not found: $SSH_KEY_PATH" >&2; exit 1; }
+  if [[ -n "$REMOTE_COLD_ROOT" || -n "$COLD_VOLUME_ID" ]]; then
+    [[ -n "$REMOTE_COLD_ROOT" && -n "$COLD_VOLUME_ID" ]] || {
+      echo "Error: --remote-cold-root and --cold-volume-id must be used together." >&2
+      exit 1
+    }
+  fi
+  if [[ "$INSTALL_HOT" == "1" && -z "$REMOTE_COLD_ROOT" ]]; then
+    echo "Error: --install-hot requires a verified cold stage." >&2
+    exit 1
+  fi
   "$PYTHON_BIN" "$ROOT_DIR/scripts/public_edge_release.py" verify-source --manifest "$MANIFEST"
 
-  local build_id incoming remote_manifest
+  local build_id incoming remote_manifest stage_state capacity_root
   build_id="$(manifest_value build_id)"
-  incoming="$REMOTE_STATE_DIR/incoming/public-edge/$build_id"
+  if [[ -n "$REMOTE_COLD_ROOT" ]]; then
+    incoming="$REMOTE_COLD_ROOT/incoming/public-edge/$build_id"
+    stage_state="$REMOTE_COLD_ROOT/staged/public-edge"
+    capacity_root="$REMOTE_COLD_ROOT"
+  else
+    incoming="$REMOTE_STATE_DIR/incoming/public-edge/$build_id"
+    stage_state="$REMOTE_STATE_DIR"
+    capacity_root="$REMOTE_STATE_DIR"
+  fi
   remote_manifest="$incoming/release.json"
   echo "Release:       $build_id"
   echo "Remote:        $REMOTE"
   echo "Incoming root: $incoming"
+  echo "Staged state:  $stage_state"
   echo "Activation:    intentionally not performed"
 
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "Dry run: remote directory creation and staging commands are not executed."
   else
-    ssh_run "mkdir -p '$incoming'"
+    if [[ -n "$REMOTE_COLD_ROOT" ]]; then
+      ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_cold_storage.py verify-volume --cold-root '$REMOTE_COLD_ROOT' --hot-state-dir '$REMOTE_STATE_DIR' --volume-id '$COLD_VOLUME_ID'"
+    fi
+    ssh_run "mkdir -p '$incoming' '$stage_state'"
   fi
   sync_one "$MANIFEST" "$remote_manifest"
 
@@ -107,7 +139,7 @@ main() {
   local tags_source tags_name
   local required_free available_free
   required_free="$(manifest_value transfer.minimum_start_free_bytes)"
-  available_free="$(ssh_run "df -B1 --output=avail '$REMOTE_STATE_DIR' | tail -1 | tr -d '[:space:]'")"
+  available_free="$(ssh_run "df -B1 --output=avail '$capacity_root' | tail -1 | tr -d '[:space:]'")"
   if [[ ! "$available_free" =~ ^[0-9]+$ || "$available_free" -lt "$required_free" ]]; then
     echo "Error: remote staging reserve is insufficient." >&2
     echo "Required free bytes before transfer: $required_free" >&2
@@ -130,28 +162,38 @@ main() {
   echo "Transferring and staging scientific build..."
   sync_one "$core_source" "$incoming/$core_name"
   if [[ "$DRY_RUN" != "1" ]]; then
-    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-scientific --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming' && rm -f '$incoming/$core_name'"
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-scientific --manifest '$remote_manifest' --state-dir '$stage_state' --incoming-dir '$incoming' && rm -f '$incoming/$core_name'"
   fi
 
   echo "Transferring and staging public-read projection..."
   sync_one "$public_source" "$incoming/$public_name"
   if [[ "$DRY_RUN" != "1" ]]; then
-    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-public-read --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming'"
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-public-read --manifest '$remote_manifest' --state-dir '$stage_state' --incoming-dir '$incoming'"
   fi
 
   echo "Transferring and staging frozen simulation scenes..."
   sync_one "$scene_source" "$incoming/$scene_name"
   if [[ "$DRY_RUN" != "1" ]]; then
-    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-scenes --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming'"
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-scenes --manifest '$remote_manifest' --state-dir '$stage_state' --incoming-dir '$incoming'"
   fi
 
   echo "Transferring and staging Smart Tags..."
   sync_one "$tags_source" "$incoming/$tags_name"
   if [[ "$DRY_RUN" != "1" ]]; then
-    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-smart-tags --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR' --incoming-dir '$incoming'"
-    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py verify-installed --manifest '$remote_manifest' --state-dir '$REMOTE_STATE_DIR'"
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py stage-smart-tags --manifest '$remote_manifest' --state-dir '$stage_state' --incoming-dir '$incoming'"
+    ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py verify-installed --manifest '$remote_manifest' --state-dir '$stage_state'"
+    if [[ -n "$REMOTE_COLD_ROOT" ]]; then
+      ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py plan-install-from-state --manifest '$remote_manifest' --source-state-dir '$stage_state' --state-dir '$REMOTE_STATE_DIR'"
+      if [[ "$INSTALL_HOT" == "1" ]]; then
+        ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py install-from-state --manifest '$remote_manifest' --source-state-dir '$stage_state' --state-dir '$REMOTE_STATE_DIR'"
+      fi
+    fi
   fi
-  echo "Release staged but not activated: $build_id"
+  if [[ -n "$REMOTE_COLD_ROOT" && "$INSTALL_HOT" != "1" ]]; then
+    echo "Release verified on cold storage; hot install not requested: $build_id"
+  else
+    echo "Release staged but not activated: $build_id"
+  fi
 }
 
 main "$@"

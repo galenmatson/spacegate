@@ -125,8 +125,10 @@ On August 8, the inactive July 17 rollback was copied to the cold volume,
 inventoried, checksummed, independently verified, and only then retired from
 root. Root free space increased from 27,591,524,352 to 47,976,538,112 bytes.
 This improves operating reserve but does not yet satisfy the candidate's
-58,368,187,518-byte hot staging gate. The next release must use reviewed cold
-staging or another bounded transfer plan; do not weaken the reserve.
+58,368,187,518-byte hot install gate. The dual-root release path therefore
+stages and verifies the complete candidate on `/data` first, then installs it
+onto root only when a separate measured hot-capacity gate passes. Do not weaken
+the reserve.
 
 ## Edge Cold Rollback Tier
 
@@ -203,7 +205,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   sgdeploy@158.69.198.29 \
   "cd /srv/spacegate/app && \
    python3 scripts/public_edge_release.py configure-runtime-env \
-     --manifest /srv/spacegate/data/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
+     --manifest /data/spacegate/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
      --env-file .spacegate.local.env"
 ```
 
@@ -222,6 +224,8 @@ Run:
 scripts/push_public_edge_release.sh \
   --manifest /data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/smart-tags-v4/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/release.json \
   --remote sgdeploy@158.69.198.29 \
+  --remote-cold-root /data/spacegate \
+  --cold-volume-id a243664c-231f-4cf8-8487-bb39f82d555d \
   --ssh-key ~/.ssh/spacegate_antiproton \
   --ssh-cooldown 3
 ```
@@ -229,17 +233,35 @@ scripts/push_public_edge_release.sh \
 The helper:
 
 1. re-hashes every local source;
-2. checks remote free space and measured runtime settings;
-3. transfers the scientific archive with resumable `rsync`;
-4. verifies and extracts it into `out/<build_id>`;
-5. removes only that temporary incoming archive;
-6. transfers Search v2 directly into its versioned derived location;
-7. verifies and unpacks the frozen scene set;
-8. verifies and unpacks the Smart Tag hot and portable evidence artifacts;
-9. verifies the complete installed release.
+2. verifies the mounted cold-volume UUID and separate filesystem identity;
+3. checks cold-stage free space and measured runtime settings;
+4. transfers the scientific archive to `/data` with resumable `rsync`;
+5. verifies and extracts it into the cold staged state;
+6. removes only that temporary incoming archive;
+7. transfers and stages Search v2, frozen scenes, and Smart Tags on `/data`;
+8. verifies the complete cold release through the normal installed-release
+   contract;
+9. reports the exact missing hot bytes and 15-GiB reserve requirement.
 
 It deliberately does not change `served/current` or restart containers.
 Interrupted transfers retain rsync partial files and are safe to rerun.
+
+After the reported hot-capacity gate passes, install the verified release onto
+the fast state filesystem without activating it:
+
+```bash
+python3 scripts/public_edge_release.py install-from-state \
+  --manifest /data/spacegate/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
+  --source-state-dir /data/spacegate/staged/public-edge \
+  --state-dir /srv/spacegate/data
+```
+
+This operation re-verifies the cold release, copies each managed directory
+through a target-filesystem temporary path, reuses already verified units on a
+retry, verifies the resulting hot release, and preserves the cold stage. It
+fails before copying when hot free space cannot retain the complete missing
+closure plus 15 GiB. `--install-hot` may be added to the transfer helper only
+when that gate is already known to pass.
 
 ## Activation
 
@@ -254,7 +276,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   sgdeploy@158.69.198.29 \
   "cd /srv/spacegate/app && \
    python3 scripts/public_edge_release.py activate \
-     --manifest /srv/spacegate/data/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
+     --manifest /data/spacegate/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
      --state-dir /srv/spacegate/data"
 
 scripts/deploy_antiproton.sh \

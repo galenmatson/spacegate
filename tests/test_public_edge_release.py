@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import subprocess
 import tarfile
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -363,3 +364,53 @@ def test_verify_rejects_runtime_inaccessible_scene_cache(tmp_path: Path) -> None
 
     with pytest.raises(ValueError, match="not runtime-traversable"):
         release.command_verify_installed(args)
+
+
+def test_release_installs_verified_cold_state_to_hot_root(tmp_path: Path) -> None:
+    if not Path("/dev/shm").is_dir():
+        pytest.skip("cross-filesystem staging test requires /dev/shm")
+    manifest, source, build_id = make_fixture(tmp_path)
+    with tempfile.TemporaryDirectory(
+        prefix="spacegate-edge-stage-", dir="/dev/shm"
+    ) as temporary:
+        cold_state = Path(temporary) / "state"
+        incoming = Path(temporary) / "incoming"
+        cold_state.mkdir()
+        incoming.mkdir()
+        if cold_state.stat().st_dev == tmp_path.stat().st_dev:
+            pytest.skip("test roots are not on distinct filesystems")
+        value = release.validate_release(release.load_json(manifest))
+        for spec in value["artifacts"].values():
+            shutil.copy2(
+                Path(spec["source_path"]), incoming / spec["transfer_filename"]
+            )
+        args = stage_args(manifest, cold_state, incoming)
+        release.command_stage_scientific(args)
+        (incoming / value["artifacts"]["scientific_build"]["transfer_filename"]).unlink()
+        release.command_stage_public_read(args)
+        release.command_stage_scenes(args)
+        release.command_stage_smart_tags(args)
+        assert release.command_verify_installed(args)["status"] == "pass"
+
+        hot_state = tmp_path / "hot"
+        hot_state.mkdir()
+        install_args = type(
+            "Args",
+            (),
+            {
+                "manifest": manifest,
+                "source_state_dir": cold_state,
+                "state_dir": hot_state,
+            },
+        )()
+        plan = release.command_plan_install_from_state(install_args)
+        assert plan["status"] == "pass"
+        assert plan["required_copy_bytes"] > 0
+
+        installed = release.command_install_from_state(install_args)
+        assert installed["status"] == "pass"
+        assert installed["build_id"] == build_id
+        assert release.command_verify_installed(
+            type("Args", (), {"manifest": manifest, "state_dir": hot_state})()
+        )["status"] == "pass"
+        assert (cold_state / "out" / build_id / "core.duckdb").is_file()

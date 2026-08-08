@@ -124,6 +124,16 @@ state filesystem before rollback activation; never point the API at the cold
 volume. Do not remove a cold snapshot until a newer rollback has passed public
 soak and its own restore procedure is verified.
 
+Cold release stages live under `/data/spacegate/staged/public-edge` with their
+incoming release manifests under `/data/spacegate/incoming/public-edge`. A
+stage is protected while it is the accepted deployment candidate, supplies a
+hot install, or remains the only verified transfer copy. The release installer
+must reverify it before copying to hot storage and must preserve it until hot
+installation, activation, rollback rehearsal, and public verification pass.
+Incomplete incoming transfer files are resumable but are not rollback
+authority. Retire them only by exact release identity after the complete cold
+stage is verified.
+
 The July 26 antiproton cleanup retired only unreferenced
 `20260717T0336Z_8bee500_side`, its archive, a stranded July 14 bootstrap cache
 archive, and unused BuildKit cache. It retained active

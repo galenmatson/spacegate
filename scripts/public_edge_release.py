@@ -414,6 +414,34 @@ def require_reserve(path: Path, reserve: int = MINIMUM_FREE_BYTES) -> None:
         )
 
 
+def atomic_copy_artifact(
+    source: Path,
+    target: Path,
+    spec: dict[str, Any],
+    role: str,
+    *,
+    consume_source: bool = True,
+) -> bool:
+    """Install a verified file through a target-filesystem temporary path."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_file():
+        verify_artifact(target, spec, role)
+        if consume_source:
+            source.unlink(missing_ok=True)
+        return True
+    temporary = target.with_name(f".{target.name}.tmp.{os.getpid()}")
+    temporary.unlink(missing_ok=True)
+    try:
+        shutil.copy2(source, temporary)
+        verify_artifact(temporary, spec, role)
+        os.replace(temporary, target)
+        if consume_source:
+            source.unlink()
+    finally:
+        temporary.unlink(missing_ok=True)
+    return False
+
+
 def command_stage_scientific(args: argparse.Namespace) -> dict[str, Any]:
     release = validate_release(load_json(args.manifest.resolve(strict=True)))
     build_id = release["build_id"]
@@ -498,13 +526,12 @@ def command_stage_public_read(args: argparse.Namespace) -> dict[str, Any]:
     target_dir = state / "derived" / "public_read" / build_id
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / "public_read.sqlite"
-    if target.is_file():
-        verify_artifact(target, release["artifacts"]["public_read"], "public_read")
-        reused = True
-        incoming.unlink(missing_ok=True)
-    else:
-        os.replace(incoming, target)
-        reused = False
+    reused = atomic_copy_artifact(
+        incoming,
+        target,
+        release["artifacts"]["public_read"],
+        "public_read",
+    )
     atomic_json(target_dir / "manifest.json", release["public_read_manifest"])
     require_reserve(state)
     return {"status": "pass", "stage": "public_read", "reused": reused}
@@ -619,15 +646,12 @@ def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
     frozen = state / "derived" / "simulation_scenes" / build_id
     frozen.mkdir(parents=True, exist_ok=True)
     archive_target = frozen / "simulation_scenes.tar.gz"
-    if archive_target.is_file():
-        verify_artifact(
-            archive_target,
-            release["artifacts"]["simulation_scenes"],
-            "simulation_scenes",
-        )
-        incoming.unlink(missing_ok=True)
-    else:
-        os.replace(incoming, archive_target)
+    atomic_copy_artifact(
+        incoming,
+        archive_target,
+        release["artifacts"]["simulation_scenes"],
+        "simulation_scenes",
+    )
     atomic_json(frozen / "manifest.json", release["simulation_scene_manifest"])
     require_reserve(state)
     return {
@@ -747,13 +771,12 @@ def command_stage_smart_tags(args: argparse.Namespace) -> dict[str, Any]:
     archive_target = archive_dir / (
         f"{release['smart_tag_manifest']['registry_hash']}.tar.gz"
     )
-    if archive_target.is_file():
-        verify_artifact(
-            archive_target, release["artifacts"]["smart_tags"], "smart_tags"
-        )
-        incoming.unlink(missing_ok=True)
-    else:
-        os.replace(incoming, archive_target)
+    atomic_copy_artifact(
+        incoming,
+        archive_target,
+        release["artifacts"]["smart_tags"],
+        "smart_tags",
+    )
     require_reserve(state)
     verified = verify_smart_tag_install(release, target)
     return {
@@ -838,6 +861,158 @@ def verify_installed(release: dict[str, Any], state: Path) -> dict[str, Any]:
 def command_verify_installed(args: argparse.Namespace) -> dict[str, Any]:
     release = validate_release(load_json(args.manifest.resolve(strict=True)))
     return verify_installed(release, args.state_dir.resolve(strict=True))
+
+
+def tree_bytes(root: Path) -> int:
+    total = 0
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"staged release contains a symbolic link: {path}")
+        if path.is_file():
+            total += path.stat().st_size
+        elif not path.is_dir():
+            raise ValueError(f"staged release contains an unsupported file: {path}")
+    return total
+
+
+def atomic_copy_tree(source: Path, target: Path) -> bool:
+    if target.exists():
+        if not target.is_dir() or target.is_symlink():
+            raise ValueError(f"managed release target is not a directory: {target}")
+        return True
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(
+        tempfile.mkdtemp(prefix=f".{target.name}.install.", dir=target.parent)
+    )
+    staging.rmdir()
+    try:
+        shutil.copytree(source, staging, symlinks=False, copy_function=shutil.copy2)
+        reject_extracted_links(staging)
+        os.replace(staging, target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return False
+
+
+def staged_release_paths(
+    release: dict[str, Any], state: Path
+) -> list[tuple[str, Path]]:
+    build_id = release["build_id"]
+    tag_target = smart_tag_target(release, state)
+    return [
+        ("scientific_build", state / "out" / build_id),
+        ("public_read", state / "derived" / "public_read" / build_id),
+        (
+            "frozen_scenes",
+            state / "derived" / "simulation_scenes" / build_id,
+        ),
+        ("scene_cache", state / "cache" / "simulation_scenes" / build_id),
+        ("smart_tags", tag_target),
+    ]
+
+
+def split_install_plan(
+    release: dict[str, Any], source_state: Path, target_state: Path
+) -> dict[str, Any]:
+    units: list[dict[str, Any]] = []
+    required = 0
+    source_paths = staged_release_paths(release, source_state)
+    target_paths = staged_release_paths(release, target_state)
+    for (role, source), (target_role, target) in zip(
+        source_paths, target_paths, strict=True
+    ):
+        if role != target_role or not source.is_dir():
+            raise ValueError(f"staged release unit is missing: {role}")
+        size = tree_bytes(source)
+        reused = target.exists()
+        if not reused:
+            required += size
+        units.append(
+            {
+                "role": role,
+                "bytes": size,
+                "reused": reused,
+                "target": str(target),
+            }
+        )
+    source_tag = smart_tag_target(release, source_state)
+    target_tag = smart_tag_target(release, target_state)
+    archive_name = f"{release['smart_tag_manifest']['registry_hash']}.tar.gz"
+    source_archive = source_tag.parent / "archives" / archive_name
+    target_archive = target_tag.parent / "archives" / archive_name
+    if not source_archive.is_file():
+        raise ValueError("staged Smart Tag archive is missing")
+    archive_reused = target_archive.exists()
+    archive_bytes = source_archive.stat().st_size
+    if not archive_reused:
+        required += archive_bytes
+    units.append(
+        {
+            "role": "smart_tag_archive",
+            "bytes": archive_bytes,
+            "reused": archive_reused,
+            "target": str(target_archive),
+        }
+    )
+    available = free_bytes(target_state)
+    minimum = required + MINIMUM_FREE_BYTES
+    return {
+        "status": "pass" if available >= minimum else "insufficient",
+        "build_id": release["build_id"],
+        "required_copy_bytes": required,
+        "minimum_hot_free_bytes": minimum,
+        "available_hot_free_bytes": available,
+        "reserve_bytes": MINIMUM_FREE_BYTES,
+        "units": units,
+    }
+
+
+def command_plan_install_from_state(args: argparse.Namespace) -> dict[str, Any]:
+    release = validate_release(load_json(args.manifest.resolve(strict=True)))
+    source = args.source_state_dir.resolve(strict=True)
+    target = args.state_dir.resolve(strict=True)
+    if source.stat().st_dev == target.stat().st_dev:
+        raise ValueError("staged and hot release roots must use different filesystems")
+    return split_install_plan(release, source, target)
+
+
+def command_install_from_state(args: argparse.Namespace) -> dict[str, Any]:
+    release = validate_release(load_json(args.manifest.resolve(strict=True)))
+    source = args.source_state_dir.resolve(strict=True)
+    target = args.state_dir.resolve(strict=True)
+    if source.stat().st_dev == target.stat().st_dev:
+        raise ValueError("staged and hot release roots must use different filesystems")
+    verify_installed(release, source)
+    plan = split_install_plan(release, source, target)
+    if plan["status"] != "pass":
+        raise ValueError(
+            "hot install reserve violated: "
+            f"available={plan['available_hot_free_bytes']} "
+            f"required={plan['minimum_hot_free_bytes']}"
+        )
+    copied: list[str] = []
+    for (role, source_path), (_, target_path) in zip(
+        staged_release_paths(release, source),
+        staged_release_paths(release, target),
+        strict=True,
+    ):
+        if not atomic_copy_tree(source_path, target_path):
+            copied.append(role)
+    source_tag = smart_tag_target(release, source)
+    target_tag = smart_tag_target(release, target)
+    archive_name = f"{release['smart_tag_manifest']['registry_hash']}.tar.gz"
+    archive_reused = atomic_copy_artifact(
+        source_tag.parent / "archives" / archive_name,
+        target_tag.parent / "archives" / archive_name,
+        release["artifacts"]["smart_tags"],
+        "smart_tags",
+        consume_source=False,
+    )
+    if not archive_reused:
+        copied.append("smart_tag_archive")
+    verified = verify_installed(release, target)
+    require_reserve(target)
+    return {**verified, "copied_units": copied, "install_plan": plan}
 
 
 def atomic_symlink(link: Path, target: Path) -> None:
@@ -1051,6 +1226,16 @@ def parse_args() -> argparse.Namespace:
     verify.add_argument("--manifest", required=True, type=Path)
     verify.add_argument("--state-dir", required=True, type=Path)
     verify.set_defaults(handler=command_verify_installed)
+
+    for name, handler in (
+        ("plan-install-from-state", command_plan_install_from_state),
+        ("install-from-state", command_install_from_state),
+    ):
+        install = sub.add_parser(name)
+        install.add_argument("--manifest", required=True, type=Path)
+        install.add_argument("--source-state-dir", required=True, type=Path)
+        install.add_argument("--state-dir", required=True, type=Path)
+        install.set_defaults(handler=handler)
 
     activate = sub.add_parser("activate")
     activate.add_argument("--manifest", required=True, type=Path)

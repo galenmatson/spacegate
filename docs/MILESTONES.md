@@ -2971,6 +2971,10 @@ before activation.
   verifications before its exact extracted build and archive were retired from
   root. Root free space increased from 27,591,524,352 to 47,976,538,112 bytes;
   the active pointer and healthy containers did not change.
+- The release helper now supports a distinct cold staging state. It verifies
+  the complete four-artifact release on `/data`, computes actual missing hot
+  bytes, and preserves a 15-GiB reserve before an atomic, resumable copy to the
+  fast runtime state. Cold staging and hot activation remain separate actions.
 
 Success criteria:
 
