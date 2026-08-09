@@ -2746,6 +2746,8 @@ test.describe("public 3D map beta", () => {
     await expect(simulator).toBeVisible();
     await expect(simulator.locator("canvas")).toBeVisible({ timeout: 15000 });
     await expect(simulator.getByText("Loading System Simulation...")).toHaveCount(0);
+    await expect(simulator.locator("[data-stellar-token='u']")).toHaveCount(1);
+    await expect(simulator.locator("[data-stellar-token='m']")).toHaveCount(0);
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/Tau Bootis/i);
   });
 
