@@ -131,7 +131,7 @@ test.describe("public 3D map beta", () => {
     });
     await page.goto("/search", { waitUntil: "domcontentloaded" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
-    const expectedLabels = ["HELP", "ABT", "MAP", "SPT", "SRC"];
+    const expectedLabels = ["HELP", "ABT", "SPT", "SRC"];
     const headerBox = await page.locator(".site-header").boundingBox();
     expect(headerBox, "mission control header box").toBeTruthy();
     for (const label of expectedLabels) {
@@ -142,6 +142,7 @@ test.describe("public 3D map beta", () => {
       expect(box, `${label} header utility link box`).toBeTruthy();
       expect(box.y - headerBox.y, `${label} should sit in the mission control top strip`).toBeLessThan(32);
     }
+    await expect(page.locator(".surface-peer-nav").getByRole("link", { name: "Map" })).toBeVisible();
   });
 
   test("default route opens map-native Star Search controls", async ({ page }, testInfo) => {
@@ -196,7 +197,7 @@ test.describe("public 3D map beta", () => {
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-kind", "terrestrial");
     await expect(categoryIcons.nth(8)).toHaveAttribute("data-planet-temperature", "cold");
     await expect(planetCategoryToggles.nth(3)).toHaveAttribute("data-tag-key", "science:planet.hot_neptunian");
-    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("title", /^Hot Neptunian Planet\n.*intermediate/i);
+    await expect(planetCategoryToggles.nth(3)).toHaveAttribute("title", /^Hot Neptunian Planet\n[\s\S]*between terrestrial worlds and giants/i);
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");
@@ -253,7 +254,7 @@ test.describe("public 3D map beta", () => {
     await page.locator(".map-search-sort select").selectOption("distance");
     await expect(page.locator(".map-search-sort select")).toHaveValue("distance");
     await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator(".map-search-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
+    await expect(page.locator(".map-search-card").first().getByRole("button", { name: "Detail" })).toBeVisible();
     await expect(page.locator(".map-search-card").first().locator(".stellar-class-chip")).toHaveCount(1);
     await expect(page.locator(".map-search-card").first().locator(".system-object-badge-planet")).toHaveCount(13);
     await expect.poll(async () => {
@@ -287,6 +288,10 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimeQualityTier || ""),
       { timeout: 3000 }
     ).toMatch(/high|balanced|low/);
+    const resultScrollBeforePeek = await page.locator("[data-testid='map-star-search-results']").evaluate((node) => {
+      node.scrollTop = Math.min(48, node.scrollHeight - node.clientHeight);
+      return node.scrollTop;
+    });
     await page.locator(".map-search-card-actions .map-command-button.primary").first().click();
     const solDrill = page.locator("[data-testid='map-system-drill']");
     await expect(solDrill).toBeVisible();
@@ -297,7 +302,9 @@ test.describe("public 3D map beta", () => {
     await expect(solDrill.locator(".map-title-object-badges")).toHaveAttribute("data-visible-badge-count", "5");
     await expect(solDrill.locator(".map-title-badge-overflow")).toHaveText("+9");
     await expect(solDrill.locator(".map-system-drill-title-select")).toContainText("Sol");
-    await expect(page.locator("[data-testid='map-star-search-results']")).toHaveCount(0);
+    await expect(page.locator("[data-testid='map-star-search-results']")).toHaveCount(1);
+    await expect(page.locator("[data-testid='map-star-search-results']")).toHaveAttribute("data-results-hidden", "true");
+    await expect(page.locator("[data-testid='map-star-search-results']")).toBeHidden();
     await expect.poll(
       () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
       { timeout: 5000 }
@@ -306,16 +313,23 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
       { timeout: 3000 }
     ).toBe("1");
+    await solDrill.getByRole("button", { name: /^Close$/i }).click();
+    const restoredResults = page.locator("[data-testid='map-star-search-results']");
+    await expect(restoredResults).toBeVisible();
+    await expect(restoredResults).toHaveAttribute("data-results-hidden", "false");
+    await expect(page.locator("[data-testid='map-star-search-input']")).toHaveValue("Sol");
+    await expect(page.locator(".map-search-sort select")).toHaveValue("distance");
+    await expect.poll(() => restoredResults.evaluate((node) => node.scrollTop)).toBe(resultScrollBeforePeek);
   });
 
   test("broad planet category controls stay bounded and reach API search", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.locator(".map-canvas canvas").waitFor();
     const controls = page.locator(".map-search-planet-category");
-    await expect(controls).toHaveCount(6);
+    await expect(controls).toHaveCount(9);
     expect(await controls.evaluateAll((nodes) => nodes.every((node) => node.scrollWidth <= node.clientWidth + 1))).toBeTruthy();
 
-    const coldTerrestrial = controls.filter({ hasText: "Cold Terrestrial" });
+    const coldTerrestrial = page.locator('.map-search-planet-category[data-tag-key="science:planet.cold_terrestrial"]');
     await coldTerrestrial.scrollIntoViewIfNeeded();
     await coldTerrestrial.click();
     const requestPromise = page.waitForRequest((request) => (
@@ -798,7 +812,7 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop resize transport regression");
     let manifestRequests = 0;
     page.on("request", (request) => {
-      if (/\/map-tiles\/(?:index|radius-100\/manifest)\.json$/.test(new URL(request.url()).pathname)) {
+      if (/\/map-tiles\/(?:index|radius-\d+\/manifest)\.json$/.test(new URL(request.url()).pathname)) {
         manifestRequests += 1;
       }
     });
@@ -1453,6 +1467,99 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("flight");
+  });
+
+  test("same-system presentation controls survive Peek, Explorer, and Detail", async ({ page }) => {
+    await page.addInitScript(() => window.sessionStorage.clear());
+    await openMap(page);
+    await openMapPeekFromRecents(page);
+    let drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
+    await drill.locator("[data-testid='system-preview-scale-mode']").selectOption("log");
+    await drill.locator(".system-preview-speed select").selectOption("5000");
+    await drill.getByRole("button", { name: "Orbits On" }).click();
+    await drill.getByRole("button", { name: "Labels On" }).click();
+    await drill.getByRole("button", { name: "Explore", exact: true }).click();
+
+    drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
+    await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toHaveValue("log");
+    await expect(drill.locator(".system-preview-speed select")).toHaveValue("5000");
+    await expect(drill.getByRole("button", { name: "Orbits Off" })).toBeVisible();
+    await expect(drill.getByRole("button", { name: "Labels Off" })).toBeVisible();
+
+    await drill.getByRole("button", { name: "Detail", exact: true }).click();
+    await expect(page).toHaveURL(/\/systems\/\d+\?from=map/);
+    const detailPanel = page.locator("[data-testid='system-preview-panel']");
+    await expect(detailPanel.locator("[data-testid='system-preview-scale-mode']")).toHaveValue("log");
+    await expect(detailPanel.locator(".system-preview-speed select")).toHaveValue("5000");
+    await expect(detailPanel.getByRole("button", { name: "Orbits Off" })).toBeVisible();
+    await expect(detailPanel.getByRole("button", { name: "Labels Off" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to 3D map" })).toBeVisible();
+  });
+
+  test("System Page uses the reviewed wide envelope and explicit Catalog and Map peers", async ({ page }, testInfo) => {
+    const mobile = testInfo.project.name.includes("mobile");
+    if (!mobile) await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto("/systems/17784468", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-detail-v2")).toBeVisible();
+    const shell = page.locator(".app.system-route");
+    await expect(shell).toBeVisible();
+    const sizing = await shell.evaluate((node) => ({
+      width: node.getBoundingClientRect().width,
+      maxWidth: getComputedStyle(node).maxWidth,
+    }));
+    expect(sizing.maxWidth).toBe("1600px");
+    expect(sizing.width).toBeLessThanOrEqual(1600.5);
+    await expect(page.locator(".title-link-brand")).toHaveAttribute("href", "/search");
+    const peers = page.locator(".surface-peer-nav").first();
+    await expect(peers.getByRole("link", { name: "Catalog" })).toHaveAttribute("href", "/search");
+    await expect(peers.getByRole("link", { name: "Map" })).toHaveAttribute("href", "/map");
+    if (mobile) {
+      await expect(peers.locator(".surface-peer-label").first()).toBeHidden();
+      expect(sizing.width).toBeLessThanOrEqual(412);
+    }
+    expect(await page.locator(".system-story-card p").first().evaluate((node) => node.getBoundingClientRect().width)).toBeLessThan(850);
+  });
+
+  test("Search Results restore after Peek on desktop and mobile", async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const input = page.locator("[data-testid='map-star-search-input']");
+    await input.fill("Sol");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    const results = page.locator("[data-testid='map-star-search-results']");
+    await expect(results).toBeVisible();
+    await results.locator(".map-search-card").first().getByRole("button", { name: "Peek" }).click();
+    await expect(results).toHaveAttribute("data-results-hidden", "true");
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    await drill.getByRole("button", { name: /^Close$/i }).click();
+    await expect(results).toBeVisible();
+    await expect(results).toHaveAttribute("data-results-hidden", "false");
+    await expect(input).toHaveValue("Sol");
+  });
+
+  test("WISE metadata uses idle loading and preview uses near-viewport loading", async ({ page }) => {
+    const requested = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.includes("/infrared") || url.pathname.includes("/survey-images/client-event")) {
+        requested.push(url.pathname);
+      }
+    });
+    await page.goto("/systems/17788040", { waitUntil: "domcontentloaded" });
+    const panel = page.locator(".infrared-sky-panel");
+    await expect(panel).toBeAttached();
+    await expect.poll(
+      () => requested.filter((path) => /\/systems\/\d+\/infrared$/.test(path)).length,
+      { timeout: 8000 },
+    ).toBe(1);
+    await panel.scrollIntoViewIfNeeded();
+    const preview = panel.locator("img");
+    await expect(preview).toBeVisible({ timeout: 12000 });
+    await expect.poll(() => preview.evaluate((image) => image.naturalWidth)).toBeGreaterThan(100);
+    expect(requested.filter((path) => path.endsWith("/preview.png"))).toHaveLength(1);
+    await expect(panel).toContainText(/Cache/i);
   });
 
   test("system simulations and UI fonts do not depend on third-party font services", async ({ page }) => {
@@ -2948,7 +3055,7 @@ test.describe("public 3D map beta", () => {
     expect(nuScoComponents).toEqual(expect.arrayContaining(["AA", "AB", "AC", "B", "C", "DA", "DB"]));
     expect(stars).toHaveLength(7);
     const unresolvedAB = stars.find((star) => String(star.component || "").toUpperCase() === "AB");
-    expect(unresolvedAB?.spectral_class || null).toBeNull();
+    expect(unresolvedAB?.spectral_class).toBe("B");
     expect(unresolvedAB?.fields?.spectral_type_raw?.status).toBe("missing");
     expect(subsystems.map((subsystem) => String(subsystem.component || "").toUpperCase())).toEqual(expect.arrayContaining([
       "AB",

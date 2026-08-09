@@ -52,16 +52,26 @@ export async function fetchSystemDetail(systemId, params = {}) {
   return res.json();
 }
 
-export async function fetchSystemInfrared(systemId, params = {}) {
+export async function fetchSystemInfrared(systemId, params = {}, requestOptions = {}) {
   const query = new URLSearchParams(params);
   const suffix = query.toString() ? `?${query.toString()}` : "";
   const url = apiUrl(`/api/v1/systems/${systemId}/infrared${suffix}`);
-  const res = await fetch(url);
+  const res = await fetch(url, requestOptions);
   if (!res.ok) {
     const detail = await res.text();
     throw new Error(`Infrared imagery failed: ${res.status} ${detail}`);
   }
   return res.json();
+}
+
+export function recordSurveyImageEvent(event, systemId) {
+  const body = JSON.stringify({ event, system_id: Number(systemId) || null, provider: "irsa_wise_allwise" });
+  const url = apiUrl("/api/v1/survey-images/client-event");
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    return navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
+  }
+  fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+  return true;
 }
 
 export async function fetchSystemSimulationScene(systemId, params = {}) {

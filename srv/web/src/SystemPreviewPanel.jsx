@@ -11,6 +11,10 @@ import {
 } from "./SmartTag.jsx";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
+import {
+  readSimulationPresentationState,
+  writeSimulationPresentationState,
+} from "./simulationPresentationState.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const DEFAULT_SCENE_LABEL_TYPOGRAPHY = {
@@ -4447,7 +4451,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full", subjectTags = [] }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full", subjectTags = [], persistPresentationState = false }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4487,14 +4491,30 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       active = false;
     };
   }, [labelTypographyBase.primary]);
+  const presentationDefaults = useMemo(() => ({
+    scaleMode: normalizeScaleMode(defaultScaleMode),
+    speedMultiplier: 1,
+    showOrbits: true,
+    showHabitableZones: true,
+    showFormationLines: defaultFormationLineVisibility(),
+    showLabels: true,
+  }), [defaultScaleMode]);
+  const initialPresentation = useMemo(
+    () => (persistPresentationState
+      ? readSimulationPresentationState(systemId, presentationDefaults)
+      : presentationDefaults),
+    // A mounted panel represents one system. Route and drill transitions key it by system ID.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
   const [running, setRunning] = useState(Boolean(autoRun));
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
+  const [speedMultiplier, setSpeedMultiplier] = useState(initialPresentation.speedMultiplier);
   const [resetToken, setResetToken] = useState(0);
-  const [showOrbits, setShowOrbits] = useState(true);
-  const [showHabitableZones, setShowHabitableZones] = useState(true);
-  const [showFormationLines, setShowFormationLines] = useState(defaultFormationLineVisibility);
-  const [showLabels, setShowLabels] = useState(true);
-  const [scaleMode, setScaleMode] = useState(() => normalizeScaleMode(defaultScaleMode));
+  const [showOrbits, setShowOrbits] = useState(initialPresentation.showOrbits);
+  const [showHabitableZones, setShowHabitableZones] = useState(initialPresentation.showHabitableZones);
+  const [showFormationLines, setShowFormationLines] = useState(initialPresentation.showFormationLines);
+  const [showLabels, setShowLabels] = useState(initialPresentation.showLabels);
+  const [scaleMode, setScaleMode] = useState(initialPresentation.scaleMode);
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [pinnedReadoutPosition, setPinnedReadoutPosition] = useState(null);
@@ -4551,8 +4571,34 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   }, [captureFrame, systemId]);
 
   useEffect(() => {
-    setScaleMode(normalizeScaleMode(defaultScaleMode));
-  }, [defaultScaleMode, systemId]);
+    if (!persistPresentationState) {
+      setScaleMode(normalizeScaleMode(defaultScaleMode));
+    }
+  }, [defaultScaleMode, persistPresentationState, systemId]);
+
+  useEffect(() => {
+    if (!persistPresentationState) {
+      return;
+    }
+    writeSimulationPresentationState(systemId, {
+      scaleMode,
+      speedMultiplier,
+      showOrbits,
+      showHabitableZones,
+      showFormationLines,
+      showLabels,
+    }, presentationDefaults);
+  }, [
+    persistPresentationState,
+    presentationDefaults,
+    scaleMode,
+    showFormationLines,
+    showHabitableZones,
+    showLabels,
+    showOrbits,
+    speedMultiplier,
+    systemId,
+  ]);
 
   useEffect(() => {
     const closeLineMenu = (event) => {

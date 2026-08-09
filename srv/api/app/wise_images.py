@@ -7,14 +7,14 @@ import io
 import json
 import math
 import os
-import time
 from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 import numpy as np
 from PIL import Image
+
+from . import survey_image_cache
 
 try:
     from astropy.io import fits
@@ -27,6 +27,8 @@ WISE_ATTRIBUTION = "NASA/IPAC Infrared Science Archive (IRSA), WISE/AllWISE"
 DEFAULT_CACHE_LIMIT_BYTES = 4 * 1024 * 1024 * 1024
 DEFAULT_CUTOUT_ARCMIN = 8.0
 WISE_BAND_ORDER = ("W1", "W2", "W3")
+WISE_PROVIDER_ID = "irsa_wise_allwise"
+WISE_USER_AGENT = "Spacegate WISE image cache (https://spacegates.org/data)"
 
 
 def utc_now() -> str:
@@ -47,11 +49,14 @@ def cache_root(state_dir: Path) -> Path:
     configured = str(os.getenv("SPACEGATE_WISE_IMAGE_CACHE_DIR") or "").strip()
     if configured:
         return Path(configured)
+    shared_configured = str(os.getenv("SPACEGATE_SURVEY_IMAGE_CACHE_DIR") or "").strip()
+    if shared_configured:
+        return Path(shared_configured) / WISE_PROVIDER_ID
     prefer_bulk = str(os.getenv("SPACEGATE_WISE_IMAGE_CACHE_PREFER_BULK") or "").strip().lower()
     bulk_root = Path("/mnt/space/spacegate")
     if prefer_bulk in {"1", "true", "yes", "on"} and bulk_root.exists():
-        return bulk_root / "cache" / "wise_images"
-    return state_dir / "cache" / "wise_images"
+        return bulk_root / "cache" / "survey_images" / WISE_PROVIDER_ID
+    return state_dir / "cache" / "survey_images" / WISE_PROVIDER_ID
 
 
 def product_key(system_id: int, ra_deg: float, dec_deg: float, size_arcmin: float) -> str:
@@ -65,13 +70,18 @@ def product_paths(root: Path, key: str) -> Dict[str, Path]:
         "dir": shard,
         "metadata": shard / f"{key}.json",
         "png": shard / f"{key}.png",
+        "metadata_negative": shard / f"{key}.metadata.negative.json",
+        "preview_negative": shard / f"{key}.preview.negative.json",
     }
 
 
 def _json_url(url: str, *, timeout_s: float = 30.0) -> str:
-    request = Request(url, headers={"User-Agent": "Spacegate WISE image cache"})
-    with urlopen(request, timeout=timeout_s) as response:
-        return response.read().decode("utf-8", "replace")
+    return survey_image_cache.fetch_bytes(
+        url,
+        provider=WISE_PROVIDER_ID,
+        user_agent=WISE_USER_AGENT,
+        timeout_seconds=timeout_s,
+    ).decode("utf-8", "replace")
 
 
 def query_sia_products(ra_deg: float, dec_deg: float, radius_deg: float = 0.02) -> List[Dict[str, Any]]:
@@ -121,9 +131,12 @@ def _cutout_url(access_url: str, ra_deg: float, dec_deg: float, size_arcmin: flo
 
 def _download_cutout(access_url: str, ra_deg: float, dec_deg: float, size_arcmin: float) -> bytes:
     url = _cutout_url(access_url, ra_deg, dec_deg, size_arcmin)
-    request = Request(url, headers={"User-Agent": "Spacegate WISE image cache"})
-    with urlopen(request, timeout=60.0) as response:
-        return response.read()
+    return survey_image_cache.fetch_bytes(
+        url,
+        provider=WISE_PROVIDER_ID,
+        user_agent=WISE_USER_AGENT,
+        timeout_seconds=60.0,
+    )
 
 
 def _scale_array(data: np.ndarray) -> np.ndarray:
@@ -184,7 +197,12 @@ def _write_rgb_preview(
     rgb = np.clip(rgb * 255.0, 0, 255).astype(np.uint8)
     image = Image.fromarray(rgb)
     png_path.parent.mkdir(parents=True, exist_ok=True)
-    image.save(png_path)
+    temporary = png_path.with_name(f".{png_path.name}.{os.getpid()}.tmp")
+    try:
+        image.save(temporary, format="PNG")
+        os.replace(temporary, png_path)
+    finally:
+        temporary.unlink(missing_ok=True)
     return {
         "width": int(image.width),
         "height": int(image.height),
@@ -192,50 +210,20 @@ def _write_rgb_preview(
     }
 
 
-def _cache_size(root: Path) -> int:
-    if not root.exists():
-        return 0
-    total = 0
-    for path in root.rglob("*"):
-        try:
-            if path.is_file():
-                total += path.stat().st_size
-        except OSError:
-            continue
-    return total
-
-
 def enforce_cache_limit(root: Path, limit_bytes: int | None = None) -> Dict[str, Any]:
     limit = int(limit_bytes or cache_limit_bytes())
-    root.mkdir(parents=True, exist_ok=True)
-    files = []
-    total = 0
-    for path in root.rglob("*"):
-        try:
-            if path.is_file():
-                stat = path.stat()
-                total += stat.st_size
-                files.append((stat.st_mtime, stat.st_size, path))
-        except OSError:
-            continue
-    removed = 0
-    removed_bytes = 0
-    if total > limit:
-        for _, size, path in sorted(files):
-            if total <= limit:
-                break
-            try:
-                path.unlink()
-                removed += 1
-                removed_bytes += size
-                total -= size
-            except OSError:
-                continue
+    provider = survey_image_cache.enforce_oldest_first(root, limit)
+    shared_root = root.parent if root.name == WISE_PROVIDER_ID else root
+    shared = survey_image_cache.enforce_oldest_first(shared_root, DEFAULT_CACHE_LIMIT_BYTES)
     return {
-        "limit_bytes": limit,
-        "total_bytes": total,
-        "removed_files": removed,
-        "removed_bytes": removed_bytes,
+        "schema_version": "survey_image_cache_status_v1",
+        "provider": WISE_PROVIDER_ID,
+        **provider,
+        "shared_limit_bytes": shared["limit_bytes"],
+        "shared_total_bytes": shared["total_bytes"],
+        "shared_removed_files": shared["removed_files"],
+        "shared_removed_bytes": shared["removed_bytes"],
+        "metrics": survey_image_cache.metrics(WISE_PROVIDER_ID),
     }
 
 
@@ -251,48 +239,66 @@ def ensure_wise_metadata(
     root = cache_root(state_dir)
     key = product_key(system_id, ra, dec, size_arcmin)
     paths = product_paths(root, key)
-    if paths["metadata"].exists():
+    with survey_image_cache.coalesced(WISE_PROVIDER_ID, f"metadata:{key}") as waited:
+        if paths["metadata"].exists():
+            try:
+                metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
+                paths["metadata"].touch()
+                metadata["cache_status"] = "metadata_coalesced_hit" if waited else "metadata_hit"
+                survey_image_cache.record_cache(WISE_PROVIDER_ID, "metadata", True)
+                return metadata
+            except Exception:
+                paths["metadata"].unlink(missing_ok=True)
+        survey_image_cache.record_cache(WISE_PROVIDER_ID, "metadata", False)
+        survey_image_cache.raise_if_negative(paths["metadata_negative"], provider=WISE_PROVIDER_ID)
         try:
-            metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
-            metadata["cache_status"] = "metadata_hit"
-            return metadata
-        except Exception:
-            pass
-    products = query_sia_products(ra, dec)
-    band_products = choose_band_products(products)
-    metadata = {
-        "schema_version": "wise_image_product_v1",
-        "system_id": system_id,
-        "stable_object_key": system.get("stable_object_key"),
-        "display_name": system.get("display_name") or system.get("system_name"),
-        "center_ra_deg": ra,
-        "center_dec_deg": dec,
-        "cutout_size_arcmin": size_arcmin,
-        "collection": "wise_allwise",
-        "source_catalog": "irsa_wise_allwise",
-        "source_version": "AllWISE Atlas Images",
-        "bands": {
-            band: {
-                "access_url": row.get("access_url"),
-                "obs_id": row.get("obs_id"),
-                "s_pixel_scale": row.get("s_pixel_scale"),
-                "s_resolution": row.get("s_resolution"),
-                "source_url": row.get("access_url"),
+            products = query_sia_products(ra, dec)
+            band_products = choose_band_products(products)
+            metadata = {
+                "schema_version": "wise_image_product_v1",
+                "system_id": system_id,
+                "stable_object_key": system.get("stable_object_key"),
+                "display_name": system.get("display_name") or system.get("system_name"),
+                "center_ra_deg": ra,
+                "center_dec_deg": dec,
+                "cutout_size_arcmin": size_arcmin,
+                "collection": "wise_allwise",
+                "source_catalog": WISE_PROVIDER_ID,
+                "source_version": "AllWISE Atlas Images",
+                "bands": {
+                    band: {
+                        "access_url": row.get("access_url"),
+                        "obs_id": row.get("obs_id"),
+                        "s_pixel_scale": row.get("s_pixel_scale"),
+                        "s_resolution": row.get("s_resolution"),
+                        "source_url": row.get("access_url"),
+                    }
+                    for band, row in band_products.items()
+                },
+                "available_bands": sorted(band_products.keys()),
+                "attribution": WISE_ATTRIBUTION,
+                "license": "NASA/IPAC archive terms and source attribution apply.",
+                "retrieved_at": utc_now(),
+                "cache_key": key,
+                "preview_available": paths["png"].exists(),
+                "cache_status": "metadata_miss",
+                "policy": "IRSA WISE imagery is observational survey imagery, not an artist impression.",
             }
-            for band, row in band_products.items()
-        },
-        "available_bands": sorted(band_products.keys()),
-        "attribution": WISE_ATTRIBUTION,
-        "retrieved_at": utc_now(),
-        "cache_key": key,
-        "preview_available": paths["png"].exists(),
-        "cache_status": "metadata_miss",
-        "policy": "IRSA WISE imagery is observational survey imagery, not an artist impression.",
-    }
-    paths["dir"].mkdir(parents=True, exist_ok=True)
-    paths["metadata"].write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    enforce_cache_limit(root)
-    return metadata
+            survey_image_cache.atomic_write_text(
+                paths["metadata"],
+                json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+            )
+            survey_image_cache.clear_negative(paths["metadata_negative"])
+            enforce_cache_limit(root)
+            return metadata
+        except Exception as exc:
+            survey_image_cache.write_negative(
+                paths["metadata_negative"],
+                provider=WISE_PROVIDER_ID,
+                ttl_seconds=900,
+                error=exc,
+            )
+            raise
 
 
 def ensure_wise_preview(
@@ -305,33 +311,53 @@ def ensure_wise_preview(
     root = cache_root(state_dir)
     key = str(metadata["cache_key"])
     paths = product_paths(root, key)
-    if not paths["png"].exists():
-        band_products = {
-            band: {"access_url": info.get("access_url")}
-            for band, info in (metadata.get("bands") or {}).items()
-            if info.get("access_url")
-        }
-        if not band_products:
-            raise RuntimeError("No WISE image products are available for this system.")
-        render_info = _write_rgb_preview(
-            png_path=paths["png"],
-            band_products=band_products,
-            ra_deg=float(metadata["center_ra_deg"]),
-            dec_deg=float(metadata["center_dec_deg"]),
-            size_arcmin=float(metadata["cutout_size_arcmin"]),
-        )
-        metadata["preview_available"] = True
-        metadata["preview_generated_at"] = utc_now()
-        metadata["render_info"] = render_info
-        metadata["cache_status"] = "preview_generated"
-        paths["metadata"].write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-        enforce_cache_limit(root)
-    else:
-        try:
-            paths["png"].touch()
-            paths["metadata"].touch()
-        except OSError:
-            pass
-        metadata["preview_available"] = True
-        metadata["cache_status"] = "preview_hit"
+    with survey_image_cache.coalesced(WISE_PROVIDER_ID, f"preview:{key}") as waited:
+        if not paths["png"].exists():
+            survey_image_cache.record_cache(WISE_PROVIDER_ID, "preview", False)
+            survey_image_cache.raise_if_negative(paths["preview_negative"], provider=WISE_PROVIDER_ID)
+            try:
+                band_products = {
+                    band: {"access_url": info.get("access_url")}
+                    for band, info in (metadata.get("bands") or {}).items()
+                    if info.get("access_url")
+                }
+                if not band_products:
+                    raise RuntimeError("No WISE image products are available for this system.")
+                render_info = _write_rgb_preview(
+                    png_path=paths["png"],
+                    band_products=band_products,
+                    ra_deg=float(metadata["center_ra_deg"]),
+                    dec_deg=float(metadata["center_dec_deg"]),
+                    size_arcmin=float(metadata["cutout_size_arcmin"]),
+                )
+                metadata["preview_available"] = True
+                metadata["preview_generated_at"] = utc_now()
+                metadata["render_info"] = render_info
+                metadata["preview_sha256"] = hashlib.sha256(paths["png"].read_bytes()).hexdigest()
+                metadata["cache_status"] = "preview_generated"
+                survey_image_cache.atomic_write_text(
+                    paths["metadata"],
+                    json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+                )
+                survey_image_cache.clear_negative(paths["preview_negative"])
+                enforce_cache_limit(root)
+            except Exception as exc:
+                paths["png"].unlink(missing_ok=True)
+                survey_image_cache.write_negative(
+                    paths["preview_negative"],
+                    provider=WISE_PROVIDER_ID,
+                    ttl_seconds=3600,
+                    error=exc,
+                )
+                raise
+        else:
+            survey_image_cache.record_cache(WISE_PROVIDER_ID, "preview", True)
+            try:
+                paths["png"].touch()
+                paths["metadata"].touch()
+            except OSError:
+                pass
+            metadata["preview_available"] = True
+            metadata["preview_sha256"] = metadata.get("preview_sha256") or hashlib.sha256(paths["png"].read_bytes()).hexdigest()
+            metadata["cache_status"] = "preview_coalesced_hit" if waited else "preview_hit"
     return paths["png"], metadata

@@ -2155,6 +2155,9 @@ function FlightControls({
         mouseDrag.lastY = event.clientY;
         const totalMove = Math.hypot(event.clientX - mouseDrag.startX, event.clientY - mouseDrag.startY);
         mouseDrag.moved = mouseDrag.moved || totalMove > 5;
+        if (mouseDrag.moved && (mouseDrag.mode === "truck" || mouseDrag.mode === "orbit")) {
+          onRouteContext(null);
+        }
         if (mouseDrag.mode === "orbit" || ((event.buttons & 1) && (event.buttons & 2))) {
           mouseDrag.mode = "orbit";
           applyOrbitDelta(deltaX, deltaY);
@@ -2309,7 +2312,7 @@ function FlightControls({
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [applyLookDelta, applyOrbitDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget, updateCameraDataset]);
+  }, [applyLookDelta, applyOrbitDelta, camera, controlsEnabled, gl.domElement, onRouteContext, openRouteContext, selectPointerTarget, selectReticleTarget, updateCameraDataset]);
 
   useFrame((_, delta) => {
     if (focusRef.current) {
@@ -2903,8 +2906,10 @@ function MapStarSearchShell({
   onCloseResults,
   onSelectSystem,
   onExploreSystem,
+  onOpenDetail,
   results,
   resultsOpen,
+  resultsHidden = false,
   loading,
   error,
   hasMore,
@@ -3066,7 +3071,14 @@ function MapStarSearchShell({
       </aside>
 
       {resultsOpen && (
-        <section className="map-search-results" data-testid="map-star-search-results" aria-label="Star Search results">
+        <section
+          className={`map-search-results ${resultsHidden ? "is-hidden" : ""}`}
+          data-testid="map-star-search-results"
+          data-results-hidden={resultsHidden ? "true" : "false"}
+          aria-label="Star Search results"
+          aria-hidden={resultsHidden ? "true" : undefined}
+          inert={resultsHidden ? true : undefined}
+        >
           <div className="map-search-results-head">
             <div>
               <span className="map-panel-label">Results</span>
@@ -3141,7 +3153,7 @@ function MapStarSearchShell({
                     <div className="map-search-card-actions">
                       <button type="button" className="map-command-button primary" onClick={() => onSelectSystem(system)}>Peek</button>
                       <button type="button" className="map-command-button ghost" onClick={() => onExploreSystem(system)}>Explore</button>
-                      <Link className="map-command-button ghost" to={`/systems/${system.system_id}`}>Detail</Link>
+                      <button type="button" className="map-command-button ghost" onClick={() => onOpenDetail(system)}>Detail</button>
                     </div>
                   </div>
                 </article>
@@ -4819,6 +4831,16 @@ export default function StarMapPage({
             ))}
           </div>
           <div className="map-command-row">
+            <nav className="surface-peer-nav map-surface-peer-nav" aria-label="Explore Spacegate">
+              <Link className="surface-peer-link" to="/search" title="Browse the stellar catalog">
+                <span className="surface-peer-symbol" aria-hidden="true">CAT</span>
+                <span className="surface-peer-label">Catalog</span>
+              </Link>
+              <Link className="surface-peer-link active" to="/map" aria-current="page" title="Explore the 3D star map">
+                <span className="surface-peer-symbol" aria-hidden="true">MAP</span>
+                <span className="surface-peer-label">Map</span>
+              </Link>
+            </nav>
             <button
               type="button"
               className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
@@ -5136,14 +5158,14 @@ export default function StarMapPage({
         onCloseResults={closeMapSearchResults}
         onSelectSystem={(system) => {
           selectSearchSystem(system);
-          closeMapSearchResults();
         }}
         onExploreSystem={(system) => {
           selectSearchSystem(system, { explore: true, focus: true });
-          closeMapSearchResults();
         }}
+        onOpenDetail={openSystemDetail}
         results={mapSearchResults}
         resultsOpen={mapSearchResultsOpen}
+        resultsHidden={drillMode !== "flight"}
         loading={mapSearchLoading}
         error={mapSearchError}
         hasMore={mapSearchHasMore}
@@ -5571,6 +5593,7 @@ export default function StarMapPage({
                 onSceneLoaded={handleSimulationSceneLoaded}
                 defaultScaleMode={defaultScaleMode}
                 nameStyle={normalizeNameStyle(nameStyle)}
+                persistPresentationState
               />
             </React.Suspense>
           </div>

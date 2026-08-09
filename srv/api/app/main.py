@@ -7758,9 +7758,27 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
     }
 
 
+class SurveyImageClientEvent(BaseModel):
+    provider: str = Field(default=wise_images.WISE_PROVIDER_ID, max_length=64)
+    event: str = Field(max_length=40)
+    system_id: Optional[int] = None
+
+
+@app.post("/api/v1/survey-images/client-event", status_code=202)
+def survey_image_client_event(payload: SurveyImageClientEvent):
+    if payload.provider != wise_images.WISE_PROVIDER_ID:
+        raise HTTPException(status_code=422, detail="Unsupported survey image provider")
+    try:
+        wise_images.survey_image_cache.record_client_event(payload.provider, payload.event)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"accepted": True}
+
+
 @app.get("/api/v1/systems/{system_id}/infrared")
 def system_infrared_metadata(
     system_id: int,
+    response: Response,
     size_arcmin: float = Query(default=wise_images.DEFAULT_CUTOUT_ARCMIN, ge=1.0, le=30.0),
 ):
     with db.connection_scope() as con:
@@ -7790,24 +7808,29 @@ def system_infrared_metadata(
             size_arcmin=float(size_arcmin),
         )
     except Exception as exc:
+        negative_hit = isinstance(exc, wise_images.survey_image_cache.NegativeCacheHit)
         raise HTTPException(
-            status_code=502,
+            status_code=503 if negative_hit else 502,
             detail={
-                "code": "wise_image_metadata_unavailable",
+                "code": "wise_image_metadata_negative_cache" if negative_hit else "wise_image_metadata_unavailable",
                 "message": "IRSA WISE image metadata could not be retrieved.",
                 "details": {"system_id": system_id, "error": str(exc)[:500]},
             },
+            headers={"Retry-After": "900"} if negative_hit else None,
         ) from exc
     metadata["preview_url"] = (
         f"/api/v1/systems/{system_id}/infrared/preview.png?size_arcmin={float(size_arcmin):.3f}"
     )
     metadata["cache"] = wise_images.enforce_cache_limit(wise_images.cache_root(_state_dir()))
+    response.headers["Cache-Control"] = "private, max-age=300, stale-while-revalidate=3600"
+    response.headers["X-Spacegate-WISE-Cache"] = str(metadata.get("cache_status") or "unknown")
     return metadata
 
 
 @app.get("/api/v1/systems/{system_id}/infrared/preview.png")
 def system_infrared_preview(
     system_id: int,
+    request: Request,
     size_arcmin: float = Query(default=wise_images.DEFAULT_CUTOUT_ARCMIN, ge=1.0, le=30.0),
 ):
     with db.connection_scope() as con:
@@ -7837,19 +7860,25 @@ def system_infrared_preview(
             size_arcmin=float(size_arcmin),
         )
     except Exception as exc:
+        negative_hit = isinstance(exc, wise_images.survey_image_cache.NegativeCacheHit)
         raise HTTPException(
-            status_code=502,
+            status_code=503 if negative_hit else 502,
             detail={
-                "code": "wise_image_preview_unavailable",
+                "code": "wise_image_preview_negative_cache" if negative_hit else "wise_image_preview_unavailable",
                 "message": "IRSA WISE image preview could not be generated.",
                 "details": {"system_id": system_id, "error": str(exc)[:500]},
             },
+            headers={"Retry-After": "3600"} if negative_hit else None,
         ) from exc
+    etag = f'"{metadata.get("preview_sha256") or preview_path.stat().st_mtime_ns}"'
     headers = {
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
         "X-Spacegate-WISE-Cache": str(metadata.get("cache_status") or "unknown"),
         "X-Spacegate-WISE-Attribution": wise_images.WISE_ATTRIBUTION,
     }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
     return FileResponse(str(preview_path), media_type="image/png", headers=headers)
 
 

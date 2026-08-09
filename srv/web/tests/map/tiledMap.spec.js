@@ -49,9 +49,14 @@ for (const radius of [100, 250]) {
     if (radius === 250) {
       expect(await canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0))).toBeLessThan(80_000);
       await expect(canvas).toHaveAttribute("data-map-tile-lod-mode", "camera_blended_interest_spatial_v2");
+      const capabilityTier = await canvas.getAttribute("data-map-device-default-tier");
+      const expectedDensity = new Set(["enhanced_desktop", "enhanced_touch", "standard_desktop"])
+        .has(capabilityTier)
+        ? "balanced"
+        : "performance";
       await expect(canvas).toHaveAttribute(
         "data-map-density-mode",
-        testInfo.project.name.startsWith("mobile") ? "performance" : "balanced",
+        expectedDensity,
       );
       expect(await canvas.evaluate((node) => Number(node.dataset.mapDetailSystems || 0))).toBeGreaterThan(0);
       await expect.poll(() => canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0))).toBe(

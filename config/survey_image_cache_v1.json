@@ -1,0 +1,18 @@
+{
+  "schema_version": "survey_image_cache_contract_v1",
+  "shared_hard_cap_bytes": 4294967296,
+  "minimum_edge_free_bytes": 16106127360,
+  "eviction_policy": "oldest_accessed_unpinned_first",
+  "providers": {
+    "irsa_wise_allwise": {
+      "quota_bytes": 4294967296,
+      "priority": 100,
+      "pinning": "none",
+      "attribution_required": true,
+      "license_metadata_required": true,
+      "max_remote_concurrency": 2,
+      "minimum_remote_interval_seconds": 0.15
+    }
+  },
+  "admission_policy": "A new provider requires a reviewed quota inside the shared cap; providers do not receive independent disk budgets."
+}

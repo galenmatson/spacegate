@@ -11,6 +11,7 @@ import {
   fetchSystemDetail,
   fetchSystemInfrared,
   fetchSystems,
+  recordSurveyImageEvent,
 } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
@@ -178,7 +179,6 @@ const HEADER_SOURCE_LINK = "https://github.com/galenmatson/spacegate";
 const HEADER_LINKS = [
   { label: "HELP", href: HEADER_HELP_LINK, title: "How to use Coolstars", external: false },
   { label: "ABT", href: HEADER_ABOUT_LINK, title: "About this site", external: false },
-  { label: "MAP", href: "/map", title: "3D local star map", external: false },
   { label: "SPT", href: HEADER_SPONSOR_LINK, title: "Support this project", external: true },
   { label: "SRC", href: HEADER_SOURCE_LINK, title: "Source code", external: true },
   { label: "DATA", href: HEADER_DATA_LINK, title: "Source data", external: false },
@@ -366,6 +366,31 @@ function HeaderNavLinks({ className, linkClassName, includeLabels = null }) {
         )
       ))}
     </span>
+  );
+}
+
+function SurfacePeerNav({ activeSurface = "", className = "" }) {
+  return (
+    <nav className={`surface-peer-nav ${className}`.trim()} aria-label="Explore Spacegate">
+      <Link
+        to="/search"
+        className={`surface-peer-link ${activeSurface === "catalog" ? "active" : ""}`}
+        aria-current={activeSurface === "catalog" ? "page" : undefined}
+        title="Browse the stellar catalog"
+      >
+        <span className="surface-peer-symbol" aria-hidden="true">CAT</span>
+        <span className="surface-peer-label">Catalog</span>
+      </Link>
+      <Link
+        to="/map"
+        className={`surface-peer-link ${activeSurface === "map" ? "active" : ""}`}
+        aria-current={activeSurface === "map" ? "page" : undefined}
+        title="Explore the 3D star map"
+      >
+        <span className="surface-peer-symbol" aria-hidden="true">MAP</span>
+        <span className="surface-peer-label">Map</span>
+      </Link>
+    </nav>
   );
 }
 
@@ -2818,9 +2843,11 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
     return () => window.removeEventListener("pointerdown", closeMenu, true);
   }, []);
 
-  const titleTarget = location.pathname === "/search" || location.pathname === "/classic-search"
-    ? "/search"
-    : "/";
+  const isSystemRoute = /^\/systems\//.test(String(location.pathname || ""));
+  const activeSurface = location.pathname === "/search" || location.pathname === "/classic-search"
+    ? "catalog"
+    : "";
+  const titleTarget = activeSurface === "catalog" || isSystemRoute ? "/search" : "/";
   const headerMenu = (
     <details className="header-menu" ref={searchHeaderMenuRef}>
       <summary className="button ghost header-menu-button" aria-label="Header menu" title="Header menu">
@@ -2870,7 +2897,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
   );
 
   return (
-    <div className={`app ${isLcars ? "lcars-app" : ""}`}>
+    <div className={`app ${isLcars ? "lcars-app" : ""} ${isSystemRoute ? "system-route" : ""}`}>
       {isLcars && (
         <div className="lcars-topbar">
           <LcarsUtilityRail />
@@ -2953,6 +2980,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
           <div className="header-side">
             <div className="header-meta-row">
               <div className="header-actions">
+                <SurfacePeerNav activeSurface={activeSurface} />
                 {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
                 {!isLcars && headerMenu}
               </div>
@@ -4381,9 +4409,13 @@ function ProvenanceBlock({ provenance, grouping = null }) {
 function InfraredSkyView({ system, narrativeBlocks = [] }) {
   const [payload, setPayload] = React.useState(null);
   const [status, setStatus] = React.useState("idle");
+  const [previewStatus, setPreviewStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
-  const [shouldLoad, setShouldLoad] = React.useState(false);
+  const [previewNear, setPreviewNear] = React.useState(false);
   const panelRef = React.useRef(null);
+  const metadataInFlightRef = React.useRef(false);
+  const previewInFlightRef = React.useRef(false);
+  const previewRequestRef = React.useRef("");
 
   React.useEffect(() => {
     const node = panelRef.current;
@@ -4391,17 +4423,17 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
       return undefined;
     }
     if (typeof IntersectionObserver === "undefined") {
-      setShouldLoad(true);
+      setPreviewNear(true);
       return undefined;
     }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setShouldLoad(true);
+          setPreviewNear(true);
           observer.disconnect();
         }
       },
-      { rootMargin: "420px 0px" },
+      { rootMargin: `${Math.max(480, Math.round(window.innerHeight * 1.5))}px 0px` },
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -4410,36 +4442,62 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
   React.useEffect(() => {
     setPayload(null);
     setStatus("idle");
+    setPreviewStatus("idle");
     setError("");
-    setShouldLoad(false);
+    setPreviewNear(false);
+    previewRequestRef.current = "";
   }, [system?.system_id]);
 
   React.useEffect(() => {
-    if (!system?.system_id || !shouldLoad) {
+    if (!system?.system_id) {
       return undefined;
     }
     let active = true;
-    setStatus("loading");
-    setError("");
-    fetchSystemInfrared(system.system_id, { size_arcmin: "8" })
-      .then((nextPayload) => {
-        if (!active) {
-          return;
-        }
-        setPayload(nextPayload);
-        setStatus("ready");
-      })
-      .catch((exc) => {
-        if (!active) {
-          return;
-        }
-        setStatus("error");
-        setError(exc instanceof Error ? exc.message : "WISE imagery unavailable.");
-      });
+    let idleHandle = null;
+    const controller = new AbortController();
+    const loadMetadata = () => {
+      if (!active) return;
+      metadataInFlightRef.current = true;
+      recordSurveyImageEvent("metadata_started", system.system_id);
+      setStatus("loading");
+      setError("");
+      fetchSystemInfrared(system.system_id, { size_arcmin: "8" }, { signal: controller.signal })
+        .then((nextPayload) => {
+          metadataInFlightRef.current = false;
+          if (!active) return;
+          setPayload(nextPayload);
+          setStatus("ready");
+        })
+        .catch((exc) => {
+          metadataInFlightRef.current = false;
+          if (!active || exc?.name === "AbortError") return;
+          setStatus("error");
+          setError(exc instanceof Error ? exc.message : "WISE imagery unavailable.");
+        });
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      idleHandle = window.requestIdleCallback(loadMetadata, { timeout: 2400 });
+    } else {
+      idleHandle = window.setTimeout(loadMetadata, 900);
+    }
     return () => {
       active = false;
+      if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleHandle);
+      else window.clearTimeout(idleHandle);
+      if (metadataInFlightRef.current) {
+        recordSurveyImageEvent("metadata_abandoned", system.system_id);
+        metadataInFlightRef.current = false;
+      }
+      controller.abort();
     };
-  }, [shouldLoad, system?.system_id]);
+  }, [system?.system_id]);
+
+  React.useEffect(() => () => {
+    if (previewInFlightRef.current) {
+      recordSurveyImageEvent("preview_abandoned", system?.system_id);
+      previewInFlightRef.current = false;
+    }
+  }, [system?.system_id]);
 
   const bands = payload?.available_bands || [];
   const previewUrl = payload?.preview_url ? apiUrl(payload.preview_url) : "";
@@ -4447,6 +4505,14 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
     .filter(([, info]) => info?.source_url)
     .map(([band, info]) => ({ band, url: info.source_url }));
   const infraredNarrative = narrativeBlockByKind(narrativeBlocks, "infrared_view");
+
+  React.useEffect(() => {
+    if (!previewNear || !previewUrl || previewRequestRef.current === previewUrl) return;
+    previewRequestRef.current = previewUrl;
+    previewInFlightRef.current = true;
+    setPreviewStatus("loading");
+    recordSurveyImageEvent("preview_started", system?.system_id);
+  }, [previewNear, previewUrl, system?.system_id]);
 
   return (
     <section className="panel infrared-sky-panel" ref={panelRef}>
@@ -4475,7 +4541,7 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
         />
       </div>
       {status === "idle" && (
-        <div className="infrared-sky-placeholder">Infrared image products load when this panel enters view.</div>
+        <div className="infrared-sky-placeholder">Infrared image metadata is queued for an idle moment.</div>
       )}
       {status === "loading" && (
         <div className="infrared-sky-placeholder">Looking up WISE image products...</div>
@@ -4486,20 +4552,35 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
           <span>{error}</span>
         </div>
       )}
-      {status === "ready" && payload && (
+      {status === "ready" && payload && !previewNear && (
+        <div className="infrared-sky-placeholder">WISE metadata ready. The preview loads as this section approaches.</div>
+      )}
+      {status === "ready" && payload && previewNear && (
         <div className="infrared-sky-layout">
           <figure className="infrared-sky-frame">
             {previewUrl ? (
               <img
                 src={previewUrl}
                 alt={`WISE infrared sky cutout for ${systemDisplayName(system)}`}
-                loading="lazy"
+                loading="eager"
+                fetchPriority="low"
+                onLoad={() => {
+                  previewInFlightRef.current = false;
+                  setPreviewStatus("ready");
+                  recordSurveyImageEvent("preview_loaded", system.system_id);
+                }}
+                onError={() => {
+                  previewInFlightRef.current = false;
+                  setPreviewStatus("error");
+                  recordSurveyImageEvent("preview_failed", system.system_id);
+                }}
               />
             ) : (
               <div className="infrared-sky-placeholder">No preview available.</div>
             )}
             <figcaption>
               False-color WISE preview: W3 red, W2 green, W1 blue. Cutout {formatNumber(payload.cutout_size_arcmin, 1)} arcmin.
+              {previewStatus === "error" ? " Preview retrieval failed." : ""}
             </figcaption>
           </figure>
           <div className="infrared-sky-meta">
@@ -4825,12 +4906,14 @@ function SystemDetailPage({ buildId = "" }) {
 
         <React.Suspense fallback={<section className="panel system-preview-panel">Loading System Simulation...</section>}>
           <SystemPreviewPanel
+            key={String(system.system_id)}
             systemId={system.system_id}
             systemName={currentSystemDisplayName}
             snapshot={system.snapshot}
             defaultScaleMode={defaultScaleMode}
             nameStyle={nameStyle}
             subjectTags={subjectTags}
+            persistPresentationState
           />
         </React.Suspense>
 
