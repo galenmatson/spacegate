@@ -271,7 +271,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v8"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v12"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -1878,13 +1878,40 @@ def _component_or_core_member_display_name(component_name: Any, core_name: Any) 
     return core_text
 
 
-def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _preserve_unresolved_planet_host(node: Dict[str, Any], child_stars: List[Dict[str, Any]]) -> bool:
+    children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
+    has_direct_planet = any(
+        str(child.get("component_family") or child.get("component_type") or child.get("node_kind") or "")
+        == "planet"
+        for child in children
+    )
+    inferred_descendants_only = bool(child_stars) and all(
+        str(child.get("node_kind") or "") == "inferred_star_leaf" for child in child_stars
+    )
+    return (
+        str(node.get("core_object_type") or "") == "star"
+        and node.get("core_object_id") is not None
+        and has_direct_planet
+        and inferred_descendants_only
+    )
+
+
+def _iter_hierarchy_render_star_nodes(
+    node: Optional[Dict[str, Any]],
+    *,
+    expand_planet_host_keys: Optional[set[str]] = None,
+) -> List[Dict[str, Any]]:
     if not isinstance(node, dict):
         return []
     children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
     child_stars: List[Dict[str, Any]] = []
     for child in children:
-        child_stars.extend(_iter_hierarchy_render_star_nodes(child))
+        child_stars.extend(
+            _iter_hierarchy_render_star_nodes(
+                child,
+                expand_planet_host_keys=expand_planet_host_keys,
+            )
+        )
     component_type = str(node.get("component_type") or "")
     component_family = str(node.get("component_family") or "")
     node_kind = str(node.get("node_kind") or "")
@@ -1907,6 +1934,14 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
         is_star = False
     if not is_star:
         return child_stars
+    if (
+        _preserve_unresolved_planet_host(node, child_stars)
+        and str(node.get("stable_component_key") or "") not in (expand_planet_host_keys or set())
+    ):
+        # The planet is bound to this canonical star, not to a source-inferred
+        # descendant. Keep the selected host intact until component scope is
+        # resolved instead of fabricating a circumstellar or circumbinary orbit.
+        return [node]
     try:
         self_star_count = int(node.get("self_star_count") or 0)
     except Exception:
@@ -1918,21 +1953,118 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
     return child_stars if child_stars else [node]
 
 
-def _iter_hierarchy_subsystem_nodes(node: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _iter_hierarchy_subsystem_nodes(
+    node: Optional[Dict[str, Any]],
+    *,
+    expand_planet_host_keys: Optional[set[str]] = None,
+) -> List[Dict[str, Any]]:
     if not isinstance(node, dict):
         return []
     nodes: List[Dict[str, Any]] = []
     component_type = str(node.get("component_type") or node.get("component_family") or "")
+    component_family = str(node.get("component_family") or "")
     node_kind = str(node.get("node_kind") or "")
     stable_key = str(node.get("stable_component_key") or "")
+    children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
+    has_direct_planet = any(
+        str(child.get("component_family") or child.get("component_type") or child.get("node_kind") or "")
+        == "planet"
+        for child in children
+    )
+    is_expanded_stellar_host = (
+        (component_type == "star" or component_family == "star" or node_kind == "star")
+        and str(node.get("core_object_type") or "") == "star"
+        and node.get("core_object_id") is not None
+        and has_direct_planet
+        and len(
+            _iter_hierarchy_render_star_nodes(
+                node,
+                expand_planet_host_keys=expand_planet_host_keys,
+            )
+        ) >= 2
+    )
     if (
-        component_type == "subsystem" or node_kind == "subsystem"
+        component_type == "subsystem" or node_kind == "subsystem" or is_expanded_stellar_host
     ) and stable_key and not stable_key.startswith("synthetic:orbit:"):
         nodes.append(node)
-    for child in node.get("children") or []:
-        if isinstance(child, dict):
-            nodes.extend(_iter_hierarchy_subsystem_nodes(child))
+    for child in children:
+        nodes.extend(
+            _iter_hierarchy_subsystem_nodes(
+                child,
+                expand_planet_host_keys=expand_planet_host_keys,
+            )
+        )
     return nodes
+
+
+def _planet_host_keys_with_stellar_orbit_evidence(
+    node: Optional[Dict[str, Any]],
+    orbit_rows: List[Dict[str, Any]],
+) -> set[str]:
+    if not isinstance(node, dict):
+        return set()
+    accepted: set[str] = set()
+    children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
+    descendant_star_keys = {
+        _component_key_for_hierarchy_star_node(descendant)
+        for child in children
+        for descendant in _iter_hierarchy_render_star_nodes(child, expand_planet_host_keys=set())
+        if str(descendant.get("node_kind") or "") == "inferred_star_leaf"
+    }
+    descendant_star_keys.discard("")
+    if _preserve_unresolved_planet_host(
+        node,
+        [
+            descendant
+            for child in children
+            for descendant in _iter_hierarchy_render_star_nodes(child, expand_planet_host_keys=set())
+        ],
+    ):
+        has_stellar_orbit = any(
+            not _is_planetary_orbit_relation(orbit.get("relation_kind"))
+            and str(orbit.get("primary_component_key") or "") in descendant_star_keys
+            and str(orbit.get("secondary_component_key") or "") in descendant_star_keys
+            for orbit in orbit_rows
+        )
+        if has_stellar_orbit:
+            stable_key = str(node.get("stable_component_key") or "")
+            if stable_key:
+                accepted.add(stable_key)
+    for child in children:
+        accepted.update(_planet_host_keys_with_stellar_orbit_evidence(child, orbit_rows))
+    return accepted
+
+
+def _resolve_planet_host_render_target(
+    planet: Dict[str, Any],
+    *,
+    render_star_key_by_core_star_id: Dict[int, str],
+    equivalent_core_star_ids: Dict[int, set[int]],
+    render_group_key_by_core_star_id: Dict[int, str],
+    render_star_keys: List[str],
+) -> tuple[Optional[str], str]:
+    try:
+        host_star_id = int(planet.get("star_id"))
+    except Exception:
+        host_star_id = -1
+    if host_star_id >= 0:
+        host_key = render_star_key_by_core_star_id.get(host_star_id)
+        if host_key:
+            return host_key, "core.planets.star_id_to_render_star"
+        host_group_key = render_group_key_by_core_star_id.get(host_star_id)
+        if host_group_key:
+            return host_group_key, "core.planets.star_id_to_render_hierarchy_group"
+        for equivalent_star_id in sorted(equivalent_core_star_ids.get(host_star_id, set())):
+            host_key = render_star_key_by_core_star_id.get(equivalent_star_id)
+            if host_key:
+                return host_key, "core.planets.star_id_catalog_equivalent_to_render_star"
+            host_group_key = render_group_key_by_core_star_id.get(equivalent_star_id)
+            if host_group_key:
+                return host_group_key, "core.planets.star_id_catalog_equivalent_to_render_hierarchy_group"
+        return None, "core.planets.star_id_unrendered"
+    if len(render_star_keys) == 1:
+        return render_star_keys[0], "single_render_star_fallback"
+    return None, "missing_or_ambiguous_host"
 
 
 def _field_from_hierarchy_quick_fact(
@@ -2322,7 +2454,29 @@ def _render_scene_contract(
     render_stars: Dict[str, Dict[str, Any]] = {}
     rendered_core_star_ids: set[int] = set()
     rendered_display_names: set[str] = set()
-    hierarchy_star_nodes = _iter_hierarchy_render_star_nodes((hierarchy or {}).get("root"))
+    hierarchy_root = (hierarchy or {}).get("root")
+    expanded_planet_host_keys = _planet_host_keys_with_stellar_orbit_evidence(
+        hierarchy_root,
+        orbit_rows,
+    )
+    hierarchy_star_nodes = _iter_hierarchy_render_star_nodes(
+        hierarchy_root,
+        expand_planet_host_keys=expanded_planet_host_keys,
+    )
+    preserved_planet_host_render_keys = {
+        _component_key_for_hierarchy_star_node(node)
+        for node in hierarchy_star_nodes
+        if str(node.get("stable_component_key") or "") not in expanded_planet_host_keys
+        and _preserve_unresolved_planet_host(
+            node,
+            [
+                descendant
+                for child in (node.get("children") or [])
+                if isinstance(child, dict)
+                for descendant in _iter_hierarchy_render_star_nodes(child)
+            ],
+        )
+    }
     hierarchy_star_count = int(((hierarchy or {}).get("counts") or {}).get("stars") or 0)
     hierarchy_star_by_render_key = {
         render_key: node
@@ -3105,7 +3259,7 @@ def _render_scene_contract(
             (leaf_classifications.get(str(key)) for key in candidate_keys if key and leaf_classifications.get(str(key))),
             None,
         )
-        if stellar_leaf_rows and not leaf_row:
+        if stellar_leaf_rows and not leaf_row and render_key not in preserved_planet_host_render_keys:
             del render_stars[render_key]
             continue
         if not leaf_row:
@@ -3141,24 +3295,6 @@ def _render_scene_contract(
             source_star_id = -1
         if source_star_id >= 0 and source_star_id not in render_star_key_by_core_star_id:
             render_star_key_by_core_star_id[source_star_id] = str(render_key)
-
-    def resolve_planet_host_body_key(planet: Dict[str, Any]) -> tuple[Optional[str], str]:
-        try:
-            host_star_id = int(planet.get("star_id"))
-        except Exception:
-            host_star_id = -1
-        if host_star_id >= 0:
-            host_key = render_star_key_by_core_star_id.get(host_star_id)
-            if host_key:
-                return host_key, "core.planets.star_id_to_render_star"
-            for equivalent_star_id in sorted(equivalent_core_star_ids.get(host_star_id, set())):
-                host_key = render_star_key_by_core_star_id.get(equivalent_star_id)
-                if host_key:
-                    return host_key, "core.planets.star_id_catalog_equivalent_to_render_star"
-            return None, "core.planets.star_id_unrendered"
-        if len(render_stars) == 1:
-            return next(iter(render_stars.keys())), "single_render_star_fallback"
-        return None, "missing_or_ambiguous_host"
 
     def resolve_render_child_keys(component_key: str) -> List[str]:
         resolved_key = equivalent_render_component_key(component_key)
@@ -3228,6 +3364,7 @@ def _render_scene_contract(
     render_subsystems: List[Dict[str, Any]] = []
     rendered_subsystem_keys: set[str] = set()
     rendered_subsystem_leaf_sets: set[frozenset[str]] = set()
+    rendered_subsystem_key_by_leaf_set: Dict[frozenset[str], str] = {}
 
     for subsystem_key in sorted(
         orbit_group_leaf_component_keys_by_key,
@@ -3339,14 +3476,38 @@ def _render_scene_contract(
         )
         rendered_subsystem_keys.add(subsystem_key)
         rendered_subsystem_leaf_sets.add(child_set)
+        rendered_subsystem_key_by_leaf_set.setdefault(child_set, subsystem_key)
 
-    for node in _iter_hierarchy_subsystem_nodes((hierarchy or {}).get("root")):
-        subsystem_key = str(node.get("stable_component_key") or "")
-        if not subsystem_key or subsystem_key in rendered_subsystem_keys:
+    hierarchy_subsystem_nodes = _iter_hierarchy_subsystem_nodes(
+        hierarchy_root,
+        expand_planet_host_keys=expanded_planet_host_keys,
+    )
+    render_group_key_by_core_star_id: Dict[int, str] = {}
+    for node in hierarchy_subsystem_nodes:
+        source_subsystem_key = str(node.get("stable_component_key") or "")
+        subsystem_key = (
+            _component_key_for_hierarchy_star_node(node)
+            if str(node.get("core_object_type") or "") == "star"
+            else source_subsystem_key
+        )
+        if not source_subsystem_key:
             continue
-        child_body_keys = resolve_render_child_keys(subsystem_key) or hierarchy_descendant_render_star_keys(node)
+        child_body_keys = resolve_render_child_keys(source_subsystem_key) or hierarchy_descendant_render_star_keys(node)
         child_set = frozenset(child_body_keys)
-        if len(child_set) < 2 or child_set in rendered_subsystem_leaf_sets:
+        if len(child_set) < 2:
+            continue
+        try:
+            core_star_id = int(node.get("core_object_id")) if str(node.get("core_object_type") or "") == "star" else None
+        except Exception:
+            core_star_id = None
+        existing_group_key = rendered_subsystem_key_by_leaf_set.get(child_set)
+        if existing_group_key:
+            if core_star_id is not None:
+                render_group_key_by_core_star_id.setdefault(core_star_id, existing_group_key)
+            continue
+        if subsystem_key in rendered_subsystem_keys:
+            if core_star_id is not None:
+                render_group_key_by_core_star_id.setdefault(core_star_id, subsystem_key)
             continue
         display_name = str(node.get("display_name") or subsystem_key)
         component_label = node.get("catalog_component_label") or node.get("member_role") or node.get("component_type") or "subsystem"
@@ -3403,15 +3564,28 @@ def _render_scene_contract(
                 "fields": fields,
                 "source": {
                     "layer": "arm",
-                    "stable_component_key": subsystem_key,
+                    "stable_component_key": source_subsystem_key,
                     "source_catalog": node.get("source_catalog"),
                     "basis": "canonical_hierarchy_subsystem",
                 },
+                "fallback_subsystem": False,
                 "sort_index": len(render_subsystems),
             }
         )
         rendered_subsystem_keys.add(subsystem_key)
         rendered_subsystem_leaf_sets.add(child_set)
+        rendered_subsystem_key_by_leaf_set.setdefault(child_set, subsystem_key)
+        if core_star_id is not None:
+            render_group_key_by_core_star_id.setdefault(core_star_id, subsystem_key)
+
+    def resolve_planet_host_body_key(planet: Dict[str, Any]) -> tuple[Optional[str], str]:
+        return _resolve_planet_host_render_target(
+            planet,
+            render_star_key_by_core_star_id=render_star_key_by_core_star_id,
+            equivalent_core_star_ids=equivalent_core_star_ids,
+            render_group_key_by_core_star_id=render_group_key_by_core_star_id,
+            render_star_keys=list(render_stars),
+        )
 
     def render_body_mass_msun(body_key: str) -> Optional[float]:
         body = render_stars.get(body_key)

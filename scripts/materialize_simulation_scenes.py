@@ -16,7 +16,7 @@ from typing import Any, Iterable, Sequence
 
 import duckdb
 
-MATERIALIZER_VERSION = "simulation_scene_artifact_v8"
+MATERIALIZER_VERSION = "simulation_scene_artifact_v12"
 _SCENE_BUILDER = None
 _SCENE_WORKER_CONTEXT: dict[str, Any] = {}
 

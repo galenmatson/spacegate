@@ -561,7 +561,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
     await page.locator(".system-detail-v2 h1").click({ force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
-    await expect(page.locator(".system-search-topbar").getByRole("button", { name: "Map" })).toBeVisible();
+    await expect(page.locator(".system-search-topbar").getByRole("link", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Infrared View" })).toBeVisible();
@@ -1512,9 +1512,19 @@ test.describe("public 3D map beta", () => {
     expect(sizing.maxWidth).toBe("1600px");
     expect(sizing.width).toBeLessThanOrEqual(1600.5);
     await expect(page.locator(".title-link-brand")).toHaveAttribute("href", "/search");
-    const peers = page.locator(".surface-peer-nav").first();
+    await expect(page.locator(".site-header .surface-peer-nav")).toHaveCount(0);
+    const peers = page.locator(".system-search-topbar .surface-peer-nav");
     await expect(peers.getByRole("link", { name: "Catalog" })).toHaveAttribute("href", "/search");
     await expect(peers.getByRole("link", { name: "Map" })).toHaveAttribute("href", "/map");
+    const headerRegions = await page.locator(".site-header .header-subtitle, .site-header .header-actions").evaluateAll((nodes) => (
+      nodes.map((node) => node.getBoundingClientRect().toJSON())
+    ));
+    if (headerRegions.length === 2) {
+      const [subtitle, actions] = headerRegions;
+      const overlaps = subtitle.left < actions.right && subtitle.right > actions.left
+        && subtitle.top < actions.bottom && subtitle.bottom > actions.top;
+      expect(overlaps).toBeFalsy();
+    }
     if (mobile) {
       await expect(peers.locator(".surface-peer-label").first()).toBeHidden();
       expect(sizing.width).toBeLessThanOrEqual(412);
@@ -2711,6 +2721,32 @@ test.describe("public 3D map beta", () => {
       expect(rowKindsAndKeys.slice(hostIndex + 1, hostIndex + 1 + target.planetCount).every((row) => row.kind === "planet"))
         .toBeTruthy();
     }
+  });
+
+  test("Tau Bootis keeps the selected planet host intact when MSC descendants are unresolved", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "API contract plus desktop simulation smoke");
+    const resolved = await resolveGoldenSystem(page, { query: "Tau Bootis" });
+    expect(resolved?.system_id, "Tau Bootis system_id").toBeTruthy();
+    const sceneResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scene = await sceneResponse.json();
+    const stars = scene.render_scene?.bodies?.stars || [];
+    const planets = scene.render_scene?.bodies?.planets || [];
+    expect(stars).toHaveLength(2);
+    expect(planets).toHaveLength(1);
+    const planet = planets[0];
+    const host = stars.find((star) => String(star.render_key) === String(planet.host_body_key));
+    expect(host?.fields?.spectral_type_raw?.value).toBe("F7IV-V");
+    expect(planet.source?.host_resolution).toBe("core.planets.star_id_to_render_star");
+    const unknownCompanion = stars.find((star) => star.source?.star_id !== host?.source?.star_id);
+    expect(unknownCompanion?.fields?.stellar_leaf_display_class?.value).toBe("UNKNOWN");
+
+    await page.goto(`/systems/${resolved.system_id}`, { waitUntil: "domcontentloaded" });
+    const simulator = page.locator("[data-testid='system-preview-panel']").first();
+    await expect(simulator).toBeVisible();
+    await expect(simulator.locator("canvas")).toBeVisible({ timeout: 15000 });
+    await expect(simulator.getByText("Loading System Simulation...")).toHaveCount(0);
+    await expect(page.locator(".system-detail-v2 h1")).toContainText(/Tau Bootis/i);
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

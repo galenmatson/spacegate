@@ -10,13 +10,85 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 from app.main import (  # noqa: E402
     _apply_selected_leaf_body_class,
     _is_planetary_orbit_relation,
+    _iter_hierarchy_render_star_nodes,
+    _planet_host_keys_with_stellar_orbit_evidence,
     _overlay_stellar_leaf_classifications,
     _planet_orbit_solutions_by_stable_key,
+    _iter_hierarchy_subsystem_nodes,
+    _resolve_planet_host_render_target,
     _stellar_leaf_classification_lookup,
 )
 
 
 class StellarLeafOverlayTests(unittest.TestCase):
+    def test_expanded_canonical_stellar_host_is_a_render_group(self) -> None:
+        host = {
+            "stable_component_key": "canon:star:test",
+            "node_kind": "star",
+            "component_family": "star",
+            "component_type": "star",
+            "core_object_type": "star",
+            "core_object_id": 42,
+            "children": [
+                {"stable_component_key": "canon:leaf:msc:test:aa", "node_kind": "inferred_star_leaf", "component_family": "star", "component_type": "star", "self_star_count": 1},
+                {"stable_component_key": "canon:leaf:msc:test:ab", "node_kind": "inferred_star_leaf", "component_family": "star", "component_type": "star", "self_star_count": 1},
+                {"stable_component_key": "canon:planet:test", "node_kind": "planet", "component_family": "planet", "component_type": "planet", "self_star_count": 0},
+            ],
+        }
+
+        self.assertEqual(
+            _iter_hierarchy_subsystem_nodes(
+                host,
+                expand_planet_host_keys={"canon:star:test"},
+            ),
+            [host],
+        )
+
+    def test_planet_host_with_only_inferred_descendants_renders_as_selected_host(self) -> None:
+        host = {
+            "stable_component_key": "canon:star:test",
+            "node_kind": "star",
+            "component_family": "star",
+            "component_type": "star",
+            "core_object_type": "star",
+            "core_object_id": 42,
+            "children": [
+                {"stable_component_key": "canon:leaf:msc:test:aa", "node_kind": "inferred_star_leaf", "component_family": "star", "component_type": "star", "self_star_count": 1},
+                {"stable_component_key": "canon:leaf:msc:test:ab", "node_kind": "inferred_star_leaf", "component_family": "star", "component_type": "star", "self_star_count": 1},
+                {"stable_component_key": "canon:planet:test", "node_kind": "planet", "component_family": "planet", "component_type": "planet", "self_star_count": 0},
+            ],
+        }
+
+        stars = _iter_hierarchy_render_star_nodes(host)
+
+        self.assertEqual(stars, [host])
+
+        expanded = _planet_host_keys_with_stellar_orbit_evidence(
+            host,
+            [{
+                "relation_kind": "source_elementary_binary",
+                "primary_component_key": "comp:msc:wds:test:aa",
+                "secondary_component_key": "comp:msc:wds:test:ab",
+            }],
+        )
+        self.assertEqual(expanded, {"canon:star:test"})
+        self.assertEqual(
+            _iter_hierarchy_render_star_nodes(host, expand_planet_host_keys=expanded),
+            host["children"][:2],
+        )
+
+    def test_planet_host_resolves_to_expanded_hierarchy_group(self) -> None:
+        host_key, status = _resolve_planet_host_render_target(
+            {"star_id": 42},
+            render_star_key_by_core_star_id={},
+            equivalent_core_star_ids={},
+            render_group_key_by_core_star_id={42: "comp:star:canon:star:test"},
+            render_star_keys=["leaf:aa", "leaf:ab"],
+        )
+
+        self.assertEqual(host_key, "comp:star:canon:star:test")
+        self.assertEqual(status, "core.planets.star_id_to_render_hierarchy_group")
+
     def test_selected_white_dwarf_leaf_promotes_renderer_body_class(self) -> None:
         render_star = {
             "render_key": "comp:test:wd",

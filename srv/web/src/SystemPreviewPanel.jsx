@@ -580,6 +580,18 @@ function starClassProvenanceField(body) {
       ),
     };
   }
+  if (selectedLeafClassField?.value === "UNKNOWN") {
+    return {
+      ...selectedLeafClassField,
+      key: "spectral_class",
+      label: "Selected stellar class",
+      value: "U",
+      notes: (
+        selectedLeafClassField.notes
+        || "No component-specific stellar class has been selected; renderer color and size remain presentation priors."
+      ),
+    };
+  }
   if (spectralTypeField?.value) {
     const sourceTokens = stellarClassTokensFromText(spectralTypeField.value);
     return {
@@ -3717,6 +3729,13 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
     if (hostKey && layout.starPositions.has(hostKey)) {
       return placementForStarKey(hostKey);
+    }
+    if (hostKey && layout.groupCenters.has(hostKey)) {
+      const groupStarKeys = layout.hierarchyGroups.get(hostKey)?.starKeys || [];
+      return {
+        center: layout.groupCenters.get(hostKey),
+        groupKeys: groupKeysForStarKeys(groupStarKeys, layout),
+      };
     }
     if (hostKey) {
       const star = starsByKey.get(hostKey);

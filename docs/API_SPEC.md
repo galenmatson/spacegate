@@ -616,8 +616,13 @@ Contract notes:
   where available and `host_body_key` when that host resolves to a rendered
   star body. `source.host_resolution` records whether the linkage came from a
   direct `core.planets.star_id` match, a catalog-equivalent core star already
-  represented by a source-native render component, a singleton render-star
-  fallback, or remained missing/ambiguous. Planet render bodies are emitted in
+  represented by a source-native render component, an expanded canonical-host
+  hierarchy group, a singleton render-star fallback, or remained
+  missing/ambiguous. When a canonical planet host has only unresolved inferred
+  stellar descendants and no accepted stellar orbit connects them, scene
+  artifact v12 renders the selected host directly
+  rather than assigning the planet to an unproven descendant or barycenter.
+  Planet render bodies are emitted in
   orbital order by source semi-major axis when available, then by period, with
   `sort_index` rewritten to the final render order. They also include
   `fields.planet_visual_class`, a `render_scene` provenance field used for

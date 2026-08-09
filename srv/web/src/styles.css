@@ -6885,6 +6885,10 @@ main {
   pointer-events: auto;
 }
 
+.system-search-peers {
+  align-self: stretch;
+}
+
 .system-detail-error {
   margin-top: 14px;
 }

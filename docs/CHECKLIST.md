@@ -1043,6 +1043,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   v8, then render the A2 planet glyphs in System Hero/search object badges,
   Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy with a
   neutral unclassified fallback
+- [x] Keep System Page Catalog/Map peer navigation beside Search and remove the
+  duplicate global-header peer control that could overlap the subtitle
+- [x] Treat MSC relations explicitly marked planet, planetary, or exoplanet as
+  preserved context rather than stellar containment; account for all 13 MSC
+  relations, 25 MSC orbit rows, and one linked SB9 record through full compiler
+  build `5d25e2753b97a0a6de31d5dc` and an independent passing audit
+- [x] Add scene-v12 unresolved host-scope policy: keep a canonical planet host
+  intact when its only descendants are inferred and unbound, attach the planet
+  to that selected host, and keep explicit UNKNOWN leaf labels from being
+  replaced by visual M-class priors
+- [ ] Rebuild and freeze every policy-selected simulation scene under
+  `simulation_scene_artifact_v12` before deploying the Tau Bootis/general host
+  repair; verify deterministic archive coverage and refresh the edge release
 - [x] Add rendered star names to Peek/Explorer stellar glyph explanations,
   bound crowded title glyph runs with an inspectable overflow count, and give
   Explorer a structural header row and global-header-aware outer inset so

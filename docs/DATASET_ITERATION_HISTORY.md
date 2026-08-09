@@ -4743,6 +4743,30 @@ Representative commits:
   without turning survey imagery into canonical evidence or a required System
   Page dependency.
 
+### 180) Planetary MSC Relations No Longer Become Stellar Leaves
+
+- A Tau Bootis simulation audit traced an orphaned planet and false inferred
+  stellar pair to an MSC relation whose source comment was `Planet`. The same
+  defect class contained 13 MSC relations, not a named-system exception.
+- Component-scope policy and compiler v10 retain comments containing planet,
+  planetary, or exoplanet as `context_only_planetary_relation_evidence`.
+  Twenty-five associated MSC orbit rows and the one linked SB9 record retain
+  their exact lineage and source values as planetary context, but none can
+  become a selected stellar component, hierarchy edge, classification, or
+  simulation orbit.
+- Full production compilation completed in 24.1 seconds with peak RSS about
+  5.1 GiB. Build `5d25e2753b97a0a6de31d5dc` and its independent audit both
+  pass, accounting for 15,748 MSC relation claims with zero verification
+  failures.
+- Scene artifact v12 adds a second general safeguard. When a selected canonical
+  planet host has only unresolved inferred stellar descendants, the scene keeps
+  that host intact instead of guessing a descendant or barycenter. Tau Bootis
+  now renders its selected F7IV-V host and its unknown companion; tau Boo b is
+  attached directly to the F star. The companion may retain an M-like visual
+  material prior, but its scientific badge remains `U`.
+- The prior scene archive remains a rollback/stability artifact. It is rejected
+  by v12 runtime compatibility checks and must be regenerated before deployment.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -3250,9 +3250,22 @@ Goal:
   another major presentation surface.
 
 Status: complete locally on Photon as of 2026-08-09; not deployed to
-antiproton. This bounded presentation milestone follows the M8.3e.1a Simple
-Light repair and does not change selected science or reopen the renderer,
-Public Read, or Smart Tag architectures.
+antiproton. The initial bounded presentation milestone followed the M8.3e.1a
+Simple Light repair and did not change selected science or reopen Public Read
+or Smart Tag architectures.
+
+August 9 follow-up: System Page peer navigation now stays beside Search rather
+than competing with the subtitle in the global header. A Tau Bootis audit also
+found a general evidence-scope defect: MSC rows explicitly described as
+planetary companions could enter stellar relation selection. Component policy
+v10 retains all 13 such MSC relations, 25 linked MSC orbit rows, and one linked
+SB9 record as planetary context while excluding them from stellar hierarchy
+and simulation selection. Scene artifact v12 conservatively preserves an
+unresolved canonical planet host and resolves the planet to that selected host;
+it contains no named-system production branch. The full production component
+compiler and independent artifact audit pass on build
+`5d25e2753b97a0a6de31d5dc`. Pre-v12 frozen scene sets remain served stability
+artifacts and must be rebuilt under v12 before this follow-up can deploy.
 
 Accepted decisions:
 

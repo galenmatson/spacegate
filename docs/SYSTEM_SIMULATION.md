@@ -73,6 +73,12 @@ Already in place:
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components
+- when a canonical planet host has only source-inferred stellar descendants
+  and the planet has no accepted descendant-level binding, the renderer keeps
+  the selected canonical host intact. It does not guess that the planet is
+  circumstellar around one inferred leaf or circumbinary around their
+  barycenter. The source descendants remain inspectable hierarchy evidence
+  until their physical and planet-host scopes are resolved.
 - source object identity and accepted root-system membership are separate.
   Alpha Centauri / Proxima Centauri is the benchmark: Proxima remains the
   direct Gaia/source object and planet host for Proxima b/d while MSC/WDS
@@ -704,6 +710,15 @@ Success criteria:
   contract used by the map and filters. Missing category inputs remain the
   neutral `unclassified_planet` glyph. Older scene artifacts are rejected and
   must be regenerated rather than silently mixing display classifiers.
+- `simulation_scene_artifact_v12` adds conservative unresolved planet-host
+  scope handling and expanded hierarchy-group host resolution. It also keeps
+  an explicit selected `UNKNOWN` stellar leaf classification visible as `U`;
+  a presentation-only M-like material prior may still color an otherwise
+  unclassified sphere, but it cannot replace the scientific label. All older
+  frozen and runtime scene artifacts are incompatible and must be regenerated
+  before deployment. V12 narrows host preservation to cases without accepted
+  stellar orbit structure, so legitimate nested systems retain their group
+  motion.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the

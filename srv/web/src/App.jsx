@@ -369,7 +369,7 @@ function HeaderNavLinks({ className, linkClassName, includeLabels = null }) {
   );
 }
 
-function SurfacePeerNav({ activeSurface = "", className = "" }) {
+function SurfacePeerNav({ activeSurface = "", className = "", mapHref = "/map", onMapClick = null }) {
   return (
     <nav className={`surface-peer-nav ${className}`.trim()} aria-label="Explore Spacegate">
       <Link
@@ -382,7 +382,8 @@ function SurfacePeerNav({ activeSurface = "", className = "" }) {
         <span className="surface-peer-label">Catalog</span>
       </Link>
       <Link
-        to="/map"
+        to={mapHref}
+        onClick={onMapClick || undefined}
         className={`surface-peer-link ${activeSurface === "map" ? "active" : ""}`}
         aria-current={activeSurface === "map" ? "page" : undefined}
         title="Explore the 3D star map"
@@ -2980,7 +2981,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
           <div className="header-side">
             <div className="header-meta-row">
               <div className="header-actions">
-                <SurfacePeerNav activeSurface={activeSurface} />
+                {!isSystemRoute && <SurfacePeerNav activeSurface={activeSurface} />}
                 {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
                 {!isLcars && headerMenu}
               </div>
@@ -2999,7 +3000,9 @@ function HeaderSearchBar({
   setQuery,
   onSubmit,
   onClear,
-  onMap,
+  mapHref = "",
+  onMapClick = null,
+  showSurfacePeers = false,
   loading = false,
   autoFocus = false,
   catalogLayout = false,
@@ -3021,14 +3024,16 @@ function HeaderSearchBar({
         <button className="map-command-button primary" type="submit" disabled={loading}>
           {loading ? "Searching" : "Search"}
         </button>
+        {showSurfacePeers ? (
+          <SurfacePeerNav
+            className="system-search-peers"
+            mapHref={mapHref || "/map"}
+            onMapClick={onMapClick}
+          />
+        ) : null}
         <button type="button" className="map-command-button ghost" onClick={onClear} disabled={loading}>
           Clear
         </button>
-        {onMap ? (
-          <button className="map-command-button ghost" type="button" onClick={onMap} disabled={loading}>
-            Map
-          </button>
-        ) : null}
       </form>
     );
   }
@@ -3037,11 +3042,6 @@ function HeaderSearchBar({
       <button className="button compact search-submit-button" type="submit" disabled={loading}>
         {loading ? "Searching..." : "Search"}
       </button>
-      {onMap ? (
-        <button className="button ghost compact" type="button" onClick={onMap} disabled={loading}>
-          Map
-        </button>
-      ) : null}
       <label className="results-search-field">
         <span className="sr-only">Search systems</span>
         <input
@@ -3086,13 +3086,13 @@ function RouteHeaderSearchBar({ mapSystem = null, catalogLayout = false }) {
     navigate("/search");
   };
 
-  const onMap = mapSystem?.system_id
-    ? () => navigate(mapExploreHrefForSystem(mapSystem))
+  const isSystemRoute = /^\/systems\//.test(String(location.pathname || ""));
+  const handleMapClick = mapSystem?.system_id
+    ? (event) => {
+      event.preventDefault();
+      navigate(mapExploreHrefForSystem(mapSystem));
+    }
     : null;
-
-  const handleMap = () => {
-    onMap?.();
-  };
 
   return (
     <HeaderSearchBar
@@ -3100,7 +3100,9 @@ function RouteHeaderSearchBar({ mapSystem = null, catalogLayout = false }) {
       setQuery={setQuery}
       onSubmit={onSubmit}
       onClear={onClear}
-      onMap={onMap ? handleMap : null}
+      mapHref="/map"
+      onMapClick={handleMapClick}
+      showSurfacePeers={isSystemRoute}
       catalogLayout={catalogLayout}
     />
   );
