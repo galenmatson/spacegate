@@ -185,7 +185,7 @@ main() {
     if [[ -n "$REMOTE_COLD_ROOT" ]]; then
       ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py plan-install-from-state --manifest '$remote_manifest' --source-state-dir '$stage_state' --state-dir '$REMOTE_STATE_DIR'"
       if [[ "$INSTALL_HOT" == "1" ]]; then
-        ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py install-from-state --manifest '$remote_manifest' --source-state-dir '$stage_state' --state-dir '$REMOTE_STATE_DIR'"
+        ssh_run "cd '$REMOTE_APP_DIR' && python3 scripts/public_edge_release.py install-from-state --manifest '$remote_manifest' --source-state-dir '$stage_state' --state-dir '$REMOTE_STATE_DIR' --source-verification destination"
       fi
     fi
   fi

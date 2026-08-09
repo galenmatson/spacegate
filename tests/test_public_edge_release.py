@@ -414,3 +414,57 @@ def test_release_installs_verified_cold_state_to_hot_root(tmp_path: Path) -> Non
             type("Args", (), {"manifest": manifest, "state_dir": hot_state})()
         )["status"] == "pass"
         assert (cold_state / "out" / build_id / "core.duckdb").is_file()
+
+
+def test_destination_verified_install_does_not_reread_verified_cold_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if not Path("/dev/shm").is_dir():
+        pytest.skip("cross-filesystem staging test requires /dev/shm")
+    manifest, _, build_id = make_fixture(tmp_path)
+    with tempfile.TemporaryDirectory(
+        prefix="spacegate-edge-destination-", dir="/dev/shm"
+    ) as temporary:
+        cold_state = Path(temporary) / "state"
+        incoming = Path(temporary) / "incoming"
+        cold_state.mkdir()
+        incoming.mkdir()
+        if cold_state.stat().st_dev == tmp_path.stat().st_dev:
+            pytest.skip("test roots are not on distinct filesystems")
+        value = release.validate_release(release.load_json(manifest))
+        for spec in value["artifacts"].values():
+            shutil.copy2(
+                Path(spec["source_path"]), incoming / spec["transfer_filename"]
+            )
+        args = stage_args(manifest, cold_state, incoming)
+        release.command_stage_scientific(args)
+        release.command_stage_public_read(args)
+        release.command_stage_scenes(args)
+        release.command_stage_smart_tags(args)
+        assert release.command_verify_installed(args)["status"] == "pass"
+
+        hot_state = tmp_path / "hot-destination"
+        hot_state.mkdir()
+        calls: list[Path] = []
+        original_verify = release.verify_installed
+
+        def recording_verify(value: dict[str, object], state: Path):
+            calls.append(state)
+            return original_verify(value, state)
+
+        monkeypatch.setattr(release, "verify_installed", recording_verify)
+        install_args = type(
+            "Args",
+            (),
+            {
+                "manifest": manifest,
+                "source_state_dir": cold_state,
+                "state_dir": hot_state,
+                "source_verification": "destination",
+            },
+        )()
+        installed = release.command_install_from_state(install_args)
+        assert installed["status"] == "pass"
+        assert installed["build_id"] == build_id
+        assert installed["source_verification"] == "destination"
+        assert calls == [hot_state.resolve()]

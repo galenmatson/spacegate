@@ -982,7 +982,13 @@ def command_install_from_state(args: argparse.Namespace) -> dict[str, Any]:
     target = args.state_dir.resolve(strict=True)
     if source.stat().st_dev == target.stat().st_dev:
         raise ValueError("staged and hot release roots must use different filesystems")
-    verify_installed(release, source)
+    source_verification = getattr(args, "source_verification", "full")
+    if source_verification == "full":
+        verify_installed(release, source)
+    elif source_verification != "destination":
+        raise ValueError(
+            f"unsupported source verification mode: {source_verification!r}"
+        )
     plan = split_install_plan(release, source, target)
     if plan["status"] != "pass":
         raise ValueError(
@@ -1012,7 +1018,12 @@ def command_install_from_state(args: argparse.Namespace) -> dict[str, Any]:
         copied.append("smart_tag_archive")
     verified = verify_installed(release, target)
     require_reserve(target)
-    return {**verified, "copied_units": copied, "install_plan": plan}
+    return {
+        **verified,
+        "copied_units": copied,
+        "install_plan": plan,
+        "source_verification": source_verification,
+    }
 
 
 def atomic_symlink(link: Path, target: Path) -> None:
@@ -1235,6 +1246,17 @@ def parse_args() -> argparse.Namespace:
         install.add_argument("--manifest", required=True, type=Path)
         install.add_argument("--source-state-dir", required=True, type=Path)
         install.add_argument("--state-dir", required=True, type=Path)
+        if name == "install-from-state":
+            install.add_argument(
+                "--source-verification",
+                choices=("full", "destination"),
+                default="full",
+                help=(
+                    "full rechecks the staged source before copying; destination "
+                    "is for an already verified immutable stage and verifies the "
+                    "complete hot install before returning"
+                ),
+            )
         install.set_defaults(handler=handler)
 
     activate = sub.add_parser("activate")

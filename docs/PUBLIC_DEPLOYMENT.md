@@ -253,15 +253,21 @@ the fast state filesystem without activating it:
 python3 scripts/public_edge_release.py install-from-state \
   --manifest /data/spacegate/incoming/public-edge/20260804T1130Z_68fd99b_a2_planet_badges/release.json \
   --source-state-dir /data/spacegate/staged/public-edge \
-  --state-dir /srv/spacegate/data
+  --state-dir /srv/spacegate/data \
+  --source-verification destination
 ```
 
-This operation re-verifies the cold release, copies each managed directory
-through a target-filesystem temporary path, reuses already verified units on a
-retry, verifies the resulting hot release, and preserves the cold stage. It
-fails before copying when hot free space cannot retain the complete missing
-closure plus 15 GiB. `--install-hot` may be added to the transfer helper only
-when that gate is already known to pass.
+The transfer workflow has already fully verified the cold release. Destination
+verification avoids rereading the throttled cold volume solely to repeat those
+hashes: it copies each managed directory through a target-filesystem temporary
+path, rejects links, verifies every activation-critical artifact against the
+release manifest on fast storage, and preserves the cold stage. Activation
+repeats the installed-release verification. The default remains
+`--source-verification full` for stages without that prior verified workflow.
+The installer reuses already verified units on a retry and fails before copying
+when hot free space cannot retain the complete missing closure plus 15 GiB.
+`--install-hot` may be added to the transfer helper only when that gate is
+already known to pass.
 
 ## Activation
 
