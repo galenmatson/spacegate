@@ -3249,9 +3249,10 @@ Goal:
   imagery workflows behave as one legible public application before adding
   another major presentation surface.
 
-Status: accepted and queued. This is a bounded presentation milestone after
-M8.3e.1a Simple Light repair; it does not change selected science or reopen the
-renderer, Public Read, or Smart Tag architectures.
+Status: complete locally on Photon as of 2026-08-09; not deployed to
+antiproton. This bounded presentation milestone follows the M8.3e.1a Simple
+Light repair and does not change selected science or reopen the renderer,
+Public Read, or Smart Tag architectures.
 
 Accepted decisions:
 
@@ -3346,6 +3347,20 @@ Success criteria:
   materially increasing abandoned IRSA work or violating the edge disk floor;
 - cache and prefetch tests cover hit, miss, unavailable, negative-cache,
   coalesced, throttled, evicted, and stale/revalidated behavior.
+
+Verification checkpoint:
+
+- `docs/PUBLIC_UI_COHERENCE.md` records the navigation, state, layout, and
+  imagery contracts;
+- `docs/SIMULATION_INITIAL_RATE_REVIEW_2026-08-09.md` records the accepted
+  period distribution and the reviewed decision to retain `1x` for a newly
+  opened system rather than activate a misleading automatic policy;
+- `docs/SURVEY_IMAGE_CACHE.md` and `config/survey_image_cache_v1.json` define
+  the provider-neutral 4-GiB cache, 15-GiB edge reserve, WISE rate controls,
+  coalescing, negative caching, validation, and telemetry;
+- unit, API, Docker, desktop/mobile Playwright, 4K/ultrawide theme, canvas,
+  navigation continuity, and deterministic report gates pass against the
+  local Photon runtime at `https://10.0.0.12`.
 
 ### M8.3e.4. Mobile Public UI and Touch Reliability
 

@@ -688,6 +688,16 @@ Success criteria:
   a short selection debounce prevents rapid transient selections from starting
   scene assembly. This does not replace the need for prebuilt priority scenes,
   or the Public Read v2 singleton seed contract.
+- `simulation_presentation_session_v1` carries scale, rate, orbit/line, and
+  label visibility across Peek, Explorer, and Detail only when the stable
+  system ID is unchanged. It deliberately excludes running state, camera,
+  selected object, and elapsed simulation days. A different system starts at
+  current global defaults and `1x`.
+- `scripts/report_simulation_rate_policy.py` measures five-second fastest-planet
+  and sixty-second shortest/top-level stellar candidates from accepted render
+  periods. The August 9 review keeps automatic selection disabled because the
+  accepted period distribution spans many orders of magnitude; see
+  `docs/SIMULATION_INITIAL_RATE_REVIEW_2026-08-09.md`.
 - `simulation_scene_artifact_v8` adds the shared per-planet
   `planet_category_key` to rendered planet bodies. OBJECTS, Peek/Explorer
   titles, System Hero badges, and Stars and Hierarchy render the same A2 glyph

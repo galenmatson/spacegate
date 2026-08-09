@@ -1984,10 +1984,15 @@ Response 200:
   "preview_url": "/api/v1/systems/11026104/infrared/preview.png?size_arcmin=8.000",
   "policy": "IRSA WISE imagery is observational survey imagery, not an artist impression.",
   "cache": {
+    "schema_version": "survey_image_cache_status_v1",
+    "provider": "irsa_wise_allwise",
     "limit_bytes": 4294967296,
     "total_bytes": 1048576,
+    "shared_limit_bytes": 4294967296,
+    "shared_total_bytes": 1048576,
     "removed_files": 0,
-    "removed_bytes": 0
+    "removed_bytes": 0,
+    "metrics": {"metadata_hits": 1, "remote_requests": 0}
   }
 }
 ```
@@ -1999,6 +2004,10 @@ Notes:
   paths.
 - `502 wise_image_metadata_unavailable` means IRSA could not be queried or no
   parseable image products were available.
+- `503 wise_image_metadata_negative_cache` with `Retry-After` means a recent
+  bounded upstream failure is being suppressed to protect IRSA.
+- Metadata responses permit a short private browser cache and expose cache
+  outcome headers without filesystem paths.
 
 ### GET /systems/{system_id}/infrared/preview.png
 Returns a generated false-color PNG preview using AllWISE W3 as red, W2 as
@@ -2009,9 +2018,22 @@ Query params:
 
 Response:
 - `200 image/png` with cache headers when the preview exists or can be generated.
+- `304 Not Modified` when `If-None-Match` matches the preview content SHA-256
+  validator. Successful previews use one-day freshness and seven-day
+  stale-while-revalidate.
 - `409 missing_coordinates` if the system lacks RA/Dec.
 - `502 wise_image_preview_unavailable` if no usable image products are available
   or preview generation fails.
+- `503 wise_image_preview_negative_cache` with `Retry-After` while a recent
+  preview failure remains negatively cached.
+
+### POST /survey-images/client-event
+
+Accepts one bounded WISE lifecycle event (`metadata_started`,
+`metadata_abandoned`, `preview_started`, `preview_abandoned`, `preview_loaded`,
+or `preview_failed`) for provider-friendly operational accounting. The endpoint
+returns `202`, stores no visitor identity, and rejects unknown providers or
+events. Counters are process-local in v1.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

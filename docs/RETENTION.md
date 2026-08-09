@@ -1584,7 +1584,7 @@ not repo files.
 Default location:
 
 ```bash
-$SPACEGATE_STATE_DIR/cache/wise_images
+$SPACEGATE_STATE_DIR/cache/survey_images/irsa_wise_allwise
 ```
 
 Default cap:
@@ -1600,24 +1600,23 @@ SPACEGATE_WISE_IMAGE_CACHE_PREFER_BULK=1
 ```
 
 When bulk mode is enabled and `/mnt/space/spacegate` is mounted in the API
-container, the default cache root becomes:
+container, the default provider root becomes:
 
 ```text
-/mnt/space/spacegate/cache/wise_images
+/mnt/space/spacegate/cache/survey_images/irsa_wise_allwise
 ```
 
-Operators may set `SPACEGATE_WISE_IMAGE_CACHE_DIR` to an explicit path. A larger
-cap, such as 20-50 GB, is reasonable on `/mnt/space/spacegate` if the mount is
-healthy and the cache is treated as re-fetchable.
+Operators may set `SPACEGATE_SURVEY_IMAGE_CACHE_DIR` to the shared root or keep
+`SPACEGATE_WISE_IMAGE_CACHE_DIR` as an exact WISE provider-root override.
 
 The API enforces the cap opportunistically when WISE metadata/previews are
 requested. It removes oldest cached files first. Cache metadata must retain IRSA
 source URLs, retrieval timestamp, bands, cutout size, and attribution so lost
 previews can be regenerated or marked stale.
 
-M8.3g Wavelength View will supersede the WISE-only cache policy with one shared
-provider-aware survey-preview budget. Until that contract is implemented and
-measured, keep the public edge at the existing 4-GiB aggregate preview ceiling.
+M8.3e.3 establishes the shared provider-aware contract in
+`config/survey_image_cache_v1.json`. Keep the public edge at the existing 4-GiB
+aggregate preview ceiling.
 Additional visible, ultraviolet, X-ray, gamma-ray, radio, or deeper infrared
 providers must not each receive an additive multi-gigabyte allowance. The
 shared contract must retain provider/release/band/render identity, attribution,
@@ -1625,6 +1624,10 @@ license and citation metadata, cache validators, negative-result expiry,
 request-coalescing state, and sufficient metrics to audit upstream traffic.
 Bulk raw FITS or survey mirrors remain observation products, not public runtime
 cache entries, unless a later reviewed storage class explicitly permits them.
+Negative-cache markers and process telemetry are re-fetchable cache state. They
+may be removed with the provider cache, but served build, release, rollback,
+evidence, and unique observation artifacts remain protected. See
+`docs/SURVEY_IMAGE_CACHE.md`.
 
 ## Smart Tag Artifacts
 

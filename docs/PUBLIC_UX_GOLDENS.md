@@ -92,6 +92,18 @@ The Playwright map suite imports
   5,000x and 10,000x rates without overflowing desktop/mobile controls, and
   explains that static hierarchy placements without orbit solutions cannot be
   animated by increasing time.
+- Public UI coherence verifies that Map Search Results remain mounted, hidden,
+  and inert during Peek/Explorer, then restore the exact query, filters, sort,
+  pagination, and scroll position. Same-system presentation controls survive
+  Peek/Explorer/Detail while elapsed simulation time does not; a new system
+  starts at `1x`.
+- System Page layout checks cover the 1,600 CSS pixel outer envelope at desktop,
+  4K, and ultrawide widths while narrative text remains at most `76ch` wide.
+  Catalog and Map peer navigation, clean Catalog brand return, and contextual
+  Back to Map behavior remain keyboard and touch accessible in every theme.
+- WISE checks cover idle metadata, near-viewport preview loading, hit, miss,
+  negative cache, same-key coalescing, bounded retry/rate behavior, client
+  abandonment events, eviction, `ETag` validation, `304`, desktop, and mobile.
 - Fresh Star Map sessions expose the deterministic device-default tier in
   runtime diagnostics. Explicit radius URLs and saved density/star-style
   preferences take precedence; enhanced desktop, standard desktop, enhanced

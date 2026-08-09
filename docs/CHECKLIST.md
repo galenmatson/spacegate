@@ -1009,15 +1009,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Patch React Router to 7.18.2, rebuild and redeploy the public frontend,
   confirm the production dependency audit reports zero vulnerabilities, and
   repeat the public Map/Peek/Explorer and System Detail Chromium gates
-- [ ] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
+- [x] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
   review a 1,600-px System Page maximum across all themes while retaining
   readable narrative columns
-- [ ] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
+- [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`
-- [ ] Hide Search Results while Peek is active and restore the exact query,
+- [x] Hide Search Results while Peek is active and restore the exact query,
   filters, order, scroll position, and result set on close across desktop/mobile
-- [ ] Preserve same-system simulation scale, lines, labels, and speed through
+- [x] Preserve same-system simulation scale, lines, labels, and speed through
   Peek/Explorer/Detail session navigation; reset new systems to global defaults,
   keep `1x` as the default speed, and do not carry simulation epoch/elapsed time
 - [x] Keep simulator rate out of the global burger menu, enumerate local speed
@@ -1051,14 +1051,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   preserve the selected system name before allocating width to object glyphs
 - [x] Normalize `TAGS.md` into consistent section, tag, tooltip, and example
   structure without rewriting its description or definition prose
-- [ ] Measure accepted planet and stellar period distributions and visually
+- [x] Measure accepted planet and stellar period distributions and visually
   compare scene-aware initial-rate policies: fastest accepted planet near five
   seconds when present, and shortest versus top-level accepted stellar orbit for
   stellar-only multiples; never auto-tune from assumed/missing periods
-- [ ] Move WISE loading to idle metadata plus one-to-two-viewport preview
+- [x] Move WISE loading to idle metadata plus one-to-two-viewport preview
   prefetch, with same-key coalescing, negative caching, retry/backoff, provider-
   friendly bounds, browser validators, and hit/miss/latency/abandonment metrics
-- [ ] Define a shared capped survey-image cache contract before adding more
+- [x] Define a shared capped survey-image cache contract before adding more
   System Page imagery providers; retain the 4-GiB WISE cap and 15-GiB edge free-
   space floor until measured demand supports a reviewed change
 - [ ] Complete M8.3e.4 real-device mobile UI and touch reliability pass:

@@ -4724,6 +4724,25 @@ Representative commits:
   action mode, and the patched production dependency audit reports zero known
   vulnerabilities.
 
+### 179) Public UI Coherence Leaves Scientific Artifacts Unchanged
+
+- M8.3e.3 changes only presentation session state, navigation, WISE runtime
+  caching, and policy reports. CORE, ARM, DISC, RIM, Public Read, map tiles,
+  Smart Tag assignments, and frozen simulation scenes are not rebuilt or
+  mutated.
+- A read-only evaluator inspected 7,725 frozen priority scenes from
+  `e7_24cb15211f430a37f199f462_full_public`, accounting for 2,744 accepted
+  rendered planet periods and 9,071 accepted stellar periods. Assumed, missing,
+  unknown, ambiguous, and quarantined periods were excluded.
+- The period review does not activate new science or a new default. It records
+  candidate presentation rates and retains predictable `1x` for each newly
+  opened system.
+- WISE metadata and generated PNGs remain re-fetchable runtime products. The
+  provider-neutral v1 cache contract adds coalescing, bounded negative results,
+  retry/rate controls, shared-cap eviction, validators, and operational counts
+  without turning survey imagery into canonical evidence or a required System
+  Page dependency.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
