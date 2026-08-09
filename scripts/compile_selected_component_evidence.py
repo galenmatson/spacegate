@@ -389,12 +389,22 @@ def compile_msc(
                r.relation_kind,r.relation_scope,r.evidence_polarity,r.method,r.reference_raw,r.quality_json,
                CASE WHEN trim(r.left_identity_raw)=trim(r.right_identity_raw)
                       THEN 'invalid_self_relation_evidence'
+                    WHEN regexp_matches(
+                           lower(coalesce(json_extract_string(r.quality_json,'$.Comment'),'')),
+                           '(^|[^a-z])(exoplanet|planet|planetary)([^a-z]|$)'
+                         )
+                      THEN 'context_only_planetary_relation_evidence'
                     WHEN l.binding_status='accepted' AND rr.binding_status='accepted'
                           AND l.canonical_system_stable_object_key=rr.canonical_system_stable_object_key
                       THEN 'accepted_relation_evidence'
                     ELSE 'unresolved_endpoint_evidence' END,
                CASE WHEN trim(r.left_identity_raw)=trim(r.right_identity_raw)
                       THEN 'source relation has identical release-native endpoints'
+                    WHEN regexp_matches(
+                           lower(coalesce(json_extract_string(r.quality_json,'$.Comment'),'')),
+                           '(^|[^a-z])(exoplanet|planet|planetary)([^a-z]|$)'
+                         )
+                      THEN 'source comment identifies a planetary or possible planetary companion; retained as context and excluded from stellar containment'
                     WHEN l.binding_status<>'accepted' OR rr.binding_status<>'accepted'
                       THEN 'one or both release-scoped MSC endpoints are unresolved'
                     WHEN l.canonical_system_stable_object_key<>rr.canonical_system_stable_object_key
@@ -520,6 +530,7 @@ def compile_msc(
 
         CREATE TEMP TABLE msc_accepted_pair_candidates AS
         SELECT p.projected_relation_id,p.relation_evidence_id,
+               p.projection_status relation_projection_status,
                p.left_source_component_key,p.right_source_component_key,
                p.canonical_system_stable_object_key,ms.wds_id_raw,
                l.component_label_raw left_component_label,
@@ -529,7 +540,10 @@ def compile_msc(
         JOIN msc_component_entities r ON r.component_entity_id=p.right_component_entity_id
         JOIN msc_system_bindings ms
           ON ms.canonical_system_stable_object_key=p.canonical_system_stable_object_key
-        WHERE p.projection_status='accepted_relation_evidence';
+        WHERE p.projection_status IN (
+          'accepted_relation_evidence',
+          'context_only_planetary_relation_evidence'
+        );
 
         CREATE TEMP TABLE msc_orbit_table_candidates AS
         SELECT s.*,
@@ -538,6 +552,7 @@ def compile_msc(
                count(p.projected_relation_id) relation_candidate_count,
                min(p.projected_relation_id) projected_relation_id,
                min(p.relation_evidence_id) relation_evidence_id,
+               min(p.relation_projection_status) relation_projection_status,
                min(CASE WHEN lower(trim(p.left_component_label))=
                                   lower(trim(split_part(s.pair_label_raw,',',1)))
                         THEN p.left_source_component_key ELSE p.right_source_component_key END)
@@ -573,6 +588,8 @@ def compile_msc(
                CASE WHEN p.projection_status='accepted_relation_evidence'
                     THEN p.canonical_system_stable_object_key END,
                CASE WHEN p.projection_status='accepted_relation_evidence' THEN 'accepted'
+                    WHEN p.projection_status='context_only_planetary_relation_evidence'
+                      THEN 'context_only_planetary_relation'
                     WHEN p.projection_status='invalid_self_relation_evidence' THEN 'invalid_msc_relation'
                     ELSE 'unresolved_msc_relation' END,
                'source_record_relation_claim',p.projection_reason,{policy_sql}
@@ -601,6 +618,8 @@ def compile_msc(
                     WHEN NOT regexp_full_match(pair_label_raw,'[^,]+,[^,]+') THEN 'unparsed_pair'
                     WHEN relation_candidate_count=0 THEN 'missing_msc_relation'
                     WHEN relation_candidate_count>1 THEN 'ambiguous_msc_relation'
+                    WHEN relation_projection_status='context_only_planetary_relation_evidence'
+                      THEN 'context_only_planetary_relation'
                     ELSE 'accepted' END,
                'exact_wds_qualified_comma_pair',
                CASE WHEN pair_label_raw IS NULL
@@ -611,6 +630,8 @@ def compile_msc(
                       THEN 'no accepted MSC relation has the exact WDS-qualified endpoints'
                     WHEN relation_candidate_count>1
                       THEN 'multiple accepted MSC relations have the exact WDS-qualified endpoints'
+                    WHEN relation_projection_status='context_only_planetary_relation_evidence'
+                      THEN 'one MSC relation has the exact WDS-qualified endpoints but is retained only as planetary context'
                     ELSE 'one accepted MSC relation has the exact WDS-qualified endpoints' END,
                {policy_sql}
         FROM msc_orbit_table_candidates;
@@ -623,6 +644,8 @@ def compile_msc(
                       THEN {sql_literal(source['hierarchy_orbit_authority'])}
                     ELSE {sql_literal(source['orbit_table_authority'])} END authority_role,
                CASE WHEN b.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    WHEN b.binding_status='context_only_planetary_relation'
+                      THEN 'context_only_planetary_evidence'
                     ELSE 'unresolved_scope_evidence' END projection_status,
                b.binding_reason projection_reason,{policy_sql} policy_version
         FROM msc.orbital_solution_evidence o
@@ -654,6 +677,7 @@ def compile_msc(
         "relations_accepted": relation_counts.get("accepted_relation_evidence", 0),
         "relations_unresolved": relation_counts.get("unresolved_endpoint_evidence", 0),
         "relations_invalid_self": relation_counts.get("invalid_self_relation_evidence", 0),
+        "relations_planetary_context": relation_counts.get("context_only_planetary_relation_evidence", 0),
         "parameter_sets": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings").fetchone()[0]),
         "parameter_sets_bound": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
         "parameter_evidence": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection").fetchone()[0]),
@@ -668,6 +692,7 @@ def compile_msc(
         "orbital_solutions": int(con.execute("SELECT count(*) FROM msc_orbital_solution_projection").fetchone()[0]),
         "orbital_solutions_eligible": eligible("msc_orbital_solution_projection"),
         "orbits_unresolved_msc_relation": orbit_counts.get("unresolved_msc_relation", 0),
+        "orbits_planetary_context": orbit_counts.get("context_only_planetary_relation", 0),
         "orbits_invalid_msc_relation": orbit_counts.get("invalid_msc_relation", 0),
         "orbits_missing_msc_relation": orbit_counts.get("missing_msc_relation", 0),
         "orbits_ambiguous_msc_relation": orbit_counts.get("ambiguous_msc_relation", 0),
@@ -962,9 +987,9 @@ def compile_sb9(
         SELECT sha256(concat_ws('|',{source_id},source_record_id,'relation',{policy_sql})),
                source_record_id,sb9_relation_evidence_id,sb9_sequence,
                {source_id},{release_id},{evidence_build_id},candidate_count,
-               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+               CASE WHEN candidate_count=1 AND projection_status IN ('accepted_relation_evidence','context_only_planetary_relation_evidence')
                     THEN projected_relation_id END,
-               CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
+               CASE WHEN candidate_count=1 AND projection_status IN ('accepted_relation_evidence','context_only_planetary_relation_evidence')
                     THEN relation_evidence_id END,
                CASE WHEN candidate_count=1 AND projection_status='accepted_relation_evidence'
                     THEN left_source_component_key END,
@@ -975,12 +1000,16 @@ def compile_sb9(
                CASE WHEN candidate_count=0 THEN 'missing_reference'
                     WHEN candidate_count>1 THEN 'ambiguous_reference'
                     WHEN projection_status='accepted_relation_evidence' THEN 'accepted'
+                    WHEN projection_status='context_only_planetary_relation_evidence'
+                      THEN 'context_only_planetary_relation'
                     ELSE 'unresolved_msc_relation' END,
                {method},
                CASE WHEN candidate_count=0 THEN 'no MSC relation carries the exact SB9 sequence reference'
                     WHEN candidate_count>1 THEN 'multiple MSC relations carry the exact SB9 sequence reference'
                     WHEN projection_status='accepted_relation_evidence'
                       THEN 'one exact MSC SB9 sequence reference with two accepted component endpoints'
+                    WHEN projection_status='context_only_planetary_relation_evidence'
+                      THEN 'one exact MSC SB9 sequence reference retained only as planetary context'
                     ELSE 'the unique referenced MSC relation has unresolved or invalid endpoints' END,
                {policy_sql}
         FROM candidates;
@@ -1009,6 +1038,8 @@ def compile_sb9(
                b.canonical_system_stable_object_key,b.relation_binding_id,
                {sql_literal(source['parameter_authority'])} authority_role,
                CASE WHEN b.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    WHEN b.binding_status='context_only_planetary_relation'
+                      THEN 'context_only_planetary_evidence'
                     ELSE 'unresolved_scope_evidence' END projection_status,
                b.binding_reason projection_reason,{policy_sql} policy_version
         FROM sb9.stellar_parameter_evidence p
@@ -1028,6 +1059,8 @@ def compile_sb9(
                CASE WHEN r.binding_status='accepted'
                           AND p.component_scope IN ('primary','secondary')
                       THEN 'eligible_for_quantity_selection'
+                    WHEN r.binding_status='context_only_planetary_relation'
+                      THEN 'context_only_planetary_evidence'
                     ELSE 'unresolved_scope_evidence' END projection_status,
                r.binding_reason projection_reason,{policy_sql} policy_version
         FROM sb9.stellar_classification_evidence p
@@ -1038,6 +1071,8 @@ def compile_sb9(
                r.secondary_source_component_key,r.canonical_system_stable_object_key,
                {sql_literal(source['orbit_authority'])} authority_role,
                CASE WHEN r.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+                    WHEN r.binding_status='context_only_planetary_relation'
+                      THEN 'context_only_planetary_evidence'
                     ELSE 'unresolved_scope_evidence' END projection_status,
                r.binding_reason projection_reason,{policy_sql} policy_version
         FROM sb9.orbital_solution_evidence p
@@ -1056,14 +1091,19 @@ def compile_sb9(
         "relations_missing_reference": relation_counts.get("missing_reference", 0),
         "relations_ambiguous_reference": relation_counts.get("ambiguous_reference", 0),
         "relations_unresolved_msc": relation_counts.get("unresolved_msc_relation", 0),
+        "relations_planetary_context": relation_counts.get("context_only_planetary_relation", 0),
         "parameter_sets": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings").fetchone()[0]),
         "parameter_sets_eligible": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_sets_planetary_context": int(con.execute("SELECT count(*) FROM sb9_parameter_set_bindings WHERE binding_status='context_only_planetary_relation'").fetchone()[0]),
         "parameter_evidence": int(con.execute("SELECT count(*) FROM sb9_stellar_parameter_projection").fetchone()[0]),
         "parameter_evidence_eligible": eligible("sb9_stellar_parameter_projection"),
+        "parameter_evidence_planetary_context": int(con.execute("SELECT count(*) FROM sb9_stellar_parameter_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "classification_evidence": int(con.execute("SELECT count(*) FROM sb9_classification_projection").fetchone()[0]),
         "classification_evidence_eligible": eligible("sb9_classification_projection"),
+        "classification_evidence_planetary_context": int(con.execute("SELECT count(*) FROM sb9_classification_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "orbital_solutions": int(con.execute("SELECT count(*) FROM sb9_orbital_solution_projection").fetchone()[0]),
         "orbital_solutions_eligible": eligible("sb9_orbital_solution_projection"),
+        "orbital_solutions_planetary_context": int(con.execute("SELECT count(*) FROM sb9_orbital_solution_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
     }
     expected = {key.removeprefix("expected_"): int(value) for key, value in source["acceptance"].items()}
     if observed != expected:
@@ -2202,7 +2242,7 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "eligible_msc_photometry_without_targets": "SELECT count(*) FROM msc_photometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "eligible_msc_astrometry_without_targets": "SELECT count(*) FROM msc_astrometry_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "accepted_msc_orbits_without_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status='accepted' AND (msc_projected_relation_id IS NULL OR primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
-        "unaccepted_msc_orbits_with_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
+        "unaccepted_msc_orbits_with_targets": "SELECT count(*) FROM msc_orbit_solution_bindings WHERE binding_status NOT IN ('accepted','context_only_planetary_relation') AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL OR canonical_system_stable_object_key IS NOT NULL)",
         "eligible_msc_orbit_projections_without_bindings": "SELECT count(*) FROM msc_orbital_solution_projection WHERE projection_status='eligible_for_quantity_selection' AND orbit_binding_id IS NULL",
         "accepted_debcat_relations_without_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status='accepted' AND (primary_source_component_key IS NULL OR secondary_source_component_key IS NULL OR canonical_system_stable_object_key IS NULL)",
         "unaccepted_debcat_relations_with_component_targets": "SELECT count(*) FROM debcat_relation_bindings WHERE binding_status<>'accepted' AND (primary_source_component_key IS NOT NULL OR secondary_source_component_key IS NOT NULL)",

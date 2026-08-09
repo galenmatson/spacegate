@@ -162,14 +162,16 @@ def make_fixture(state: Path, policy_path: Path) -> None:
           ('m-self','m-self-source','msc_component','00001+0001:A','msc_component','00001+0001:A',
            'binary','pair','positive','test','ref','{"Comment":"SB9_3"}'),
           ('m-missing','m-missing-source','msc_component','99999+9999:A','msc_component','99999+9999:B',
-           'binary','pair','positive','test','ref','{"Comment":"SB9_3"}');
+           'binary','pair','positive','test','ref','{"Comment":"SB9_3"}'),
+          ('m-planet','m-planet-source','msc_component','00001+0001:A','msc_component','00001+0001:B',
+           'binary','pair','positive','test','ref','{"Comment":"possible planet"}');
         INSERT INTO orbital_solution_evidence VALUES
           ('m-o1','m-s1','{"P":"2.0","Punit":"d"}'),
           ('m-o2','m-self-source','{"P":"3.0","Punit":"d"}'),
           ('m-o3','m-missing-source','{"P":"4.0","Punit":"d"}');
         INSERT INTO source_records VALUES
           ('m-s1','msc_sys'),('m-self-source','msc_sys'),
-          ('m-missing-source','msc_sys'),('m-comp1','msc_comp');
+          ('m-missing-source','msc_sys'),('m-planet-source','msc_sys'),('m-comp1','msc_comp');
         INSERT INTO identifier_claim_evidence VALUES
           ('m-i-a','m-s1','msc_component','00001+0001:A','primary_endpoint'),
           ('m-i-b','m-s1','msc_component','00001+0001:B','secondary_endpoint'),
@@ -518,10 +520,11 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_components_accepted": 2,
                     "expected_components_missing": 2,
                     "expected_components_ambiguous": 0,
-                    "expected_relation_claims": 3,
+                    "expected_relation_claims": 4,
                     "expected_relations_accepted": 1,
                     "expected_relations_unresolved": 1,
                     "expected_relations_invalid_self": 1,
+                    "expected_relations_planetary_context": 1,
                     "expected_parameter_sets": 1,
                     "expected_parameter_sets_bound": 1,
                     "expected_parameter_evidence": 1,
@@ -536,6 +539,7 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_orbital_solutions": 3,
                     "expected_orbital_solutions_eligible": 1,
                     "expected_orbits_unresolved_msc_relation": 1,
+                    "expected_orbits_planetary_context": 0,
                     "expected_orbits_invalid_msc_relation": 1,
                     "expected_orbits_missing_msc_relation": 0,
                     "expected_orbits_ambiguous_msc_relation": 0,
@@ -599,14 +603,19 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_relations_missing_reference": 1,
                     "expected_relations_ambiguous_reference": 1,
                     "expected_relations_unresolved_msc": 0,
+                    "expected_relations_planetary_context": 0,
                     "expected_parameter_sets": 3,
                     "expected_parameter_sets_eligible": 2,
+                    "expected_parameter_sets_planetary_context": 0,
                     "expected_parameter_evidence": 3,
                     "expected_parameter_evidence_eligible": 2,
+                    "expected_parameter_evidence_planetary_context": 0,
                     "expected_classification_evidence": 3,
                     "expected_classification_evidence_eligible": 2,
+                    "expected_classification_evidence_planetary_context": 0,
                     "expected_orbital_solutions": 4,
                     "expected_orbital_solutions_eligible": 2,
+                    "expected_orbital_solutions_planetary_context": 0,
                 },
             },
             "orb6": {
@@ -782,6 +791,7 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     con = duckdb.connect(str(database), read_only=True)
     assert dict(con.execute("SELECT projection_status,count(*) FROM msc_relation_evidence_projection GROUP BY 1").fetchall()) == {
         "accepted_relation_evidence": 1,
+        "context_only_planetary_relation_evidence": 1,
         "invalid_self_relation_evidence": 1,
         "unresolved_endpoint_evidence": 1,
     }

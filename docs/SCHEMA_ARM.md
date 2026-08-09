@@ -105,7 +105,12 @@ Evidence Lake v2 staging rule:
   subsystem labels release-scoped keys without asserting that they are CORE
   stars. `msc_relation_evidence_projection` retains both independently bound
   endpoints and explicitly rejects source self-relations; it is evidence, not
-  hierarchy or containment. `msc_component_parameter_set_bindings` and the MSC
+  hierarchy or containment. Relations whose source comment identifies a
+  planet, possible planet, planetary companion, or exoplanet are retained as
+  `context_only_planetary_relation_evidence`; their MSC and linked SB9 orbit,
+  classification, and parameter rows remain auditable context but are not
+  eligible stellar hierarchy, classification, or orbit inputs.
+  `msc_component_parameter_set_bindings` and the MSC
   parameter, classification, photometry, and astrometry projections expose only
   exact WDS-scoped targets; relative separation is context-only.
   `msc_orbit_solution_bindings` accounts both hierarchy-table periods and the
