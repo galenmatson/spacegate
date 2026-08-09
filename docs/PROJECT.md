@@ -1027,17 +1027,15 @@ Notes:
 1. Observe the M8.3e public release under normal traffic, retain the July 17
    build and published artifacts, and review errors, latency, memory, cache, and
    scene-hit telemetry before accepting the soak.
-2. Reconcile the public-edge scene-permission hotfix into active feature work
-   and preserve the deployment reports.
-3. Complete Simple Light repair and the bounded M8.3e.3 public UI/simulation
-   coherence pass now that Smart Tags and the selected-fact contracts are
+2. Complete the bounded M8.3e.3 public UI/simulation coherence pass now that
+   Smart Tags, Simple Light, and the selected-fact contracts are deployed and
    stable.
-4. Implement the collapsed Public Evidence Inspector, then complete the M8.3g
+3. Implement the collapsed Public Evidence Inspector, then complete the M8.3g
    Wavelength View provider/capacity research and visible/infrared foundation.
-5. Implement one secure AAA evidence-portfolio vertical slice with source-text
+4. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-6. Build interactive source-attributed spectrum, light-curve, image, and
+5. Build interactive source-attributed spectrum, light-curve, image, and
    atmosphere-analysis labs with scientifically safe gamification after the
    evidence and Wavelength View contracts are stable.
 

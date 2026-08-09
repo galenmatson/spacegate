@@ -2927,12 +2927,11 @@ before activation.
 
 - `feature/public-read-architecture-v2` through `d4b90e7` is fast-forwarded
   into `master`, pushed, and tagged `m8.3e-local-accepted-20260726`.
-- React Router migrated from the v6 line to v7.18.1. This closes the
-  open-redirect/XSS range. npm still reports the newer RSC-action advisory,
-  but Spacegate ships Declarative Mode and no RSC/loaders/actions; the fully
-  patched 8.3 package is not yet available from npm. Production build, tile
-  tests, and the full container-backed map browser suite pass: 62 tests passed,
-  48 profile-specific tests were intentionally skipped, and none failed.
+- React Router migrated from the v6 line and was patched to v7.18.2. This
+  closes both the earlier open-redirect/XSS range and the later RSC-action
+  advisory. Spacegate ships Declarative Mode without RSC/loaders/actions, and
+  the patched production dependency audit reports zero known vulnerabilities.
+  Production build, tile tests, and the container-backed browser gates pass.
 - The versioned release manifest binds the 17,052,804,724-byte scientific
   archive, 16,455,413,760-byte Public Read SQLite projection, and
   80,752,521-byte/7,724-scene frozen set to exact build
@@ -3003,12 +3002,13 @@ Goal:
 - make every System Simulation surface legible in Simple Light without
   weakening the dark themes or changing scientific scene content.
 
-Status: locally verified on `feature/smart-tag-application-v1`. Production
-hotfix `b70bef6` remains the safe first-visit default, while the shared scene
-renderer now applies an explicit light-background contrast policy to labels,
-orbits, hierarchy guides, selection halos, HZ bands, formation lines, planets,
-stars, and subsystem markers. The same contract is used by Search Cards, Peek,
-Explorer, and System Page simulations.
+Status: deployed on antiproton in release
+`20260804T1130Z_68fd99b_a2_planet_badges`. Simple Dark remains the safe
+first-visit default, while the shared scene renderer applies an explicit
+light-background contrast policy to labels, orbits, hierarchy guides,
+selection halos, HZ bands, formation lines, planets, stars, and subsystem
+markers. The same contract is used by Search Cards, Peek, Explorer, and System
+Page simulations.
 
 Deliverables:
 
@@ -3050,8 +3050,10 @@ Goal:
   tag vocabulary, build-keyed assignments, shared accessible interaction,
   filtering, source context, and first educational concept routes.
 
-Status: locally accepted on `feature/smart-tags-v1`; no public deployment was
-performed.
+Status: deployed on antiproton in release
+`20260804T1130Z_68fd99b_a2_planet_badges` with required Smart Tags registry
+`79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13`.
+The public soak is in progress.
 
 Delivered:
 

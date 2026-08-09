@@ -994,10 +994,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   34,070,546,186 transfer bytes across scientific, Public Read, frozen scene,
   and Smart Tag v4 artifacts, with all four source roles passing checksums and
   identity gates
-- [ ] Expand antiproton storage and repeat the edge preflight before staging the
-  August 6 release. The 96-GB filesystem has 27,666,776,064 bytes free versus
-  the manifest's 58,368,187,518-byte minimum; retain the current release and
-  rollback rather than weakening the 15-GiB reserve
+- [x] Expand antiproton with a separate 200-GB `/data` volume, establish the
+  verified cold rollback/staging tier, pass the measured hot-install gate, and
+  activate the August release without weakening the 15-GiB reserve
 - [x] Reconcile the checked-in E5 source batch expectation from 26 to 27
   completed sources and register or remove the currently unknown selected
   source `standards.iau_2015_resolution_b3`
@@ -1007,10 +1006,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Reconcile the legacy derivation inventory's expected
   `planet_environment_badge_mask_v1` marker with the implemented v2 map policy
   and rerun the complete repository suite
-- [ ] Revisit React Router advisory `GHSA-qwww-vcr4-c8h2` when an upstream
-  nonbreaking patched release is available. Spacegate does not use the affected
-  RSC/action path; do not accept npm's current breaking downgrade solely to
-  silence the advisory
+- [x] Patch React Router to 7.18.2, rebuild and redeploy the public frontend,
+  confirm the production dependency audit reports zero vulnerabilities, and
+  repeat the public Map/Peek/Explorer and System Detail Chromium gates
 - [ ] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
   review a 1,600-px System Page maximum across all themes while retaining
   readable narrative columns
