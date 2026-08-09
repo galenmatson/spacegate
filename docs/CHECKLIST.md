@@ -35,6 +35,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add a dual-root public release path that transfers and fully verifies a
   candidate on the volume-identity-gated cold tier, then atomically installs
   managed runtime units onto fast storage only after the 15-GiB reserve gate
+- [x] Activate and publicly verify the August 4 Smart Tags v4 release on
+  antiproton; retain the July Public Read projection as a checksum-verified cold
+  bind mount and preserve the recorded rollback target through the public soak
 - [x] Promotion flow auto-scores coolness by default
 - [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
 - [x] Eclipsing support catalogs wired (DEBCat + TESS EB default-on; Kepler EB optional default-off)

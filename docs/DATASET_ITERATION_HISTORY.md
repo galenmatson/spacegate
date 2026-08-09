@@ -4697,6 +4697,33 @@ Representative commits:
   compatibility with the deployed v1 activation record, but accepts a v1
   record only when it carries no Smart Tag rollback state.
 
+### 178) August Smart Tags Release Passes The Dual-Root Public Gate
+
+- On August 9, 2026, antiproton activated
+  `20260804T1130Z_68fd99b_a2_planet_badges` with Smart Tags registry
+  `79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13`.
+  Cold staging, the measured hot-capacity gate, six-unit installation, complete
+  destination verification, and activation verification all passed before the
+  public pointer changed.
+- The prior 16,455,413,760-byte Public Read projection was copied to the cold
+  rollback tier and verified against SHA-256
+  `0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`
+  before its build-keyed hot path became a persistent bind mount. This preserves
+  exact rollback while leaving the faster root volume for the active runtime.
+- Public verification covered accepted and deferred TIC/TOI semantics, Search
+  v2, Smart Tag attachment, Sol and Castor summaries, hierarchy and simulation
+  scenes, all four map radii, Map to Peek to Explorer, and System Detail. Both
+  containers remained healthy and their recent logs contained no errors.
+- The hot installer gained an explicit destination-verification mode for a
+  release already fully verified on cold storage. It avoids a redundant slow
+  source rehash, still verifies every installed byte, and leaves activation's
+  independent full verification intact. The default remains full source and
+  destination verification.
+- React Router was patched from 7.18.1 to 7.18.2 after the deployment audit
+  identified the RSC CSRF advisory. Spacegate does not use the affected RSC
+  action mode, and the patched production dependency audit reports zero known
+  vulnerabilities.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -56,9 +56,10 @@ The verified transfer is 34,070,546,186 bytes. The manifest is:
 /data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/smart-tags-v4/79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13/release.json
 ```
 
-`verify-source` passes all four roles. This release is not deployed. Code was
-synchronized without restart, but the currently served July release remains
-active until the edge disk gate can retain rollback safety.
+`verify-source` passes all four roles. The release was activated on August 9,
+2026 after the cold-stage, hot-install, and rollback-capacity gates passed.
+The July release remains recoverable through its verified cold closure and a
+bind-mounted copy of its Public Read projection.
 
 ## Runtime Contract
 
@@ -124,11 +125,34 @@ SQLite, tile, and scene reads remain on the faster root filesystem.
 On August 8, the inactive July 17 rollback was copied to the cold volume,
 inventoried, checksummed, independently verified, and only then retired from
 root. Root free space increased from 27,591,524,352 to 47,976,538,112 bytes.
-This improves operating reserve but does not yet satisfy the candidate's
-58,368,187,518-byte hot install gate. The dual-root release path therefore
-stages and verifies the complete candidate on `/data` first, then installs it
-onto root only when a separate measured hot-capacity gate passes. Do not weaken
-the reserve.
+That migration improved operating reserve but did not by itself satisfy the
+candidate's 58,368,187,518-byte hot install gate. The dual-root release path
+therefore staged and verified the complete candidate on `/data` first, then
+installed it onto root only after the separate measured hot-capacity gate
+passed. Future releases must retain the same reserve discipline.
+
+On August 9, the retained July Public Read projection was copied to
+`/data/spacegate/rollbacks`, verified against SHA-256
+`0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`,
+and bind mounted at its original build-keyed path. The candidate hot gate then
+passed with 64,445,337,600 bytes available against 58,372,127,313 bytes
+required. All six managed runtime units passed destination verification before
+activation, and activation repeated the full verification. After the image
+rebuild, root retains about 20 GB free and `/data` retains about 122 GB free.
+
+The public acceptance smoke resolved accepted and deferred TIC/TOI identities,
+attached Smart Tags registry
+`79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13`,
+loaded Sol and Castor summaries, hierarchy, and simulation scenes, and matched
+all 100, 250, 500, and 1,000-ly tile manifests to the active build. Chromium
+checks passed the Map to Peek to Explorer workflow and the live System Detail
+simulation. The API and web containers were healthy with no recent error logs.
+
+The cold stage is already fully hashed and release verified. For `--install-hot`,
+the transfer wrapper therefore uses `--source-verification destination`: it
+copies the immutable cold units and performs complete destination verification
+instead of re-reading the slow cold volume twice. Direct operator use defaults
+to `full`; activation always performs another full hot verification.
 
 ## Edge Cold Rollback Tier
 

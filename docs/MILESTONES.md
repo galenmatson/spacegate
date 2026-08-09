@@ -2975,6 +2975,12 @@ before activation.
   the complete four-artifact release on `/data`, computes actual missing hot
   bytes, and preserves a 15-GiB reserve before an atomic, resumable copy to the
   fast runtime state. Cold staging and hot activation remain separate actions.
+- On August 9, release `20260804T1130Z_68fd99b_a2_planet_badges` passed the
+  measured hot gate, complete destination and activation verification, atomic
+  promotion, Docker health, public API/search/tag/hierarchy/scene/tile checks,
+  and desktop Chromium Map and Detail workflows. The prior Public Read
+  projection remains checksum verified and bind mounted from the cold rollback
+  tier; the previous extracted build remains the recorded rollback target.
 
 Success criteria:
 
@@ -2986,6 +2992,9 @@ Success criteria:
   pass;
 - the July 17 extracted build remains recoverable from a complete verified cold
   snapshot until the public soak is accepted.
+
+Status: achieved for the August 9 activation; retain the rollback closure until
+the public soak is accepted.
 
 ### M8.3e.1a. Simple Light Simulation Contrast Repair
 
