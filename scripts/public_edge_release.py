@@ -551,16 +551,18 @@ def safe_scene_member(member: tarfile.TarInfo) -> PurePosixPath:
 
 
 def make_public_scene_cache_readable(target: Path) -> None:
-    """Keep immutable public scene payloads readable by the runtime container."""
-    target.chmod(0o755)
+    """Keep staged scenes readable and their runtime-cache directory writable."""
+    target.chmod(0o2775)
     for path in target.iterdir():
         if path.is_file():
-            path.chmod(0o644)
+            path.chmod(0o664)
 
 
 def verify_public_scene_cache_readable(target: Path) -> None:
     if target.stat().st_mode & 0o005 != 0o005:
         raise ValueError("installed simulation scene cache is not runtime-traversable")
+    if target.stat().st_mode & 0o020 != 0o020:
+        raise ValueError("installed simulation scene cache is not group-writable")
     for path in target.iterdir():
         if path.is_file() and path.stat().st_mode & 0o004 != 0o004:
             raise ValueError(

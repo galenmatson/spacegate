@@ -95,6 +95,10 @@ under `cache/simulation_scenes/` remains regenerable and may be evicted by its
 bounded cache policy; the frozen archive is an immutable deployment artifact
 and follows projection retention. Warming is an independently resumable admin
 job and is not part of the scientific compiler critical path.
+Installed build cache directories retain shared-group write access because the
+API may add dynamically assembled scenes beside the prebuilt set. A failed
+runtime cache write is operationally visible but must not invalidate a scene
+that was assembled successfully.
 The accepted M8.3e v7 set contains 7,724 scenes in an 80,752,521-byte archive
 with SHA-256
 `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`;

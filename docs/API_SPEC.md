@@ -382,10 +382,13 @@ not persist generated assumptions and does not promote Agency output.
 Runtime may serve a prebuilt compressed scene artifact from
 `disc/simulation_scenes/` before falling back to in-process cache or live
 assembly. The JSON contract is unchanged. Responses expose
-`X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, `coalesced`, or
-`miss` for diagnostics. `prebuilt` covers immutable build artifacts and
-compatible build-keyed runtime artifacts; `coalesced` means another request
-assembled the same cold scene and this request reused its result.
+`X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, `coalesced`,
+`miss`, or `miss-write-failed` for diagnostics. `prebuilt` covers immutable
+build artifacts and compatible build-keyed runtime artifacts; `coalesced`
+means another request assembled the same cold scene and this request reused its
+result. `miss-write-failed` means live assembly succeeded but the optional
+runtime artifact could not be persisted. The valid scene is still returned;
+cache storage failure must not turn a successful scientific read into HTTP 500.
 
 Prebuilt artifacts are compatible only with the current renderer contract. If
 an artifact lacks required current diagnostics, such as

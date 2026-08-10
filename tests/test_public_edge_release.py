@@ -220,9 +220,9 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     assert verified["status"] == "pass"
     assert verified["scene_count"] == 1
     scene_cache = state / "cache" / "simulation_scenes" / build_id
-    assert scene_cache.stat().st_mode & 0o777 == 0o755
-    assert (scene_cache / "manifest.json").stat().st_mode & 0o777 == 0o644
-    assert (scene_cache / "system_7.json.gz").stat().st_mode & 0o777 == 0o644
+    assert scene_cache.stat().st_mode & 0o7777 == 0o2775
+    assert (scene_cache / "manifest.json").stat().st_mode & 0o777 == 0o664
+    assert (scene_cache / "system_7.json.gz").stat().st_mode & 0o777 == 0o664
     smart_tag_target = (
         state
         / "derived"

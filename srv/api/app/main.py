@@ -7,6 +7,7 @@ import gzip
 import grp
 import hashlib
 import json
+import logging
 import math
 import os
 import pwd
@@ -93,6 +94,7 @@ from .utils import (
 
 
 app = FastAPI(title="Spacegate API", version="0.1")
+LOGGER = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
 SUPPORTED_SEARCH_SORTS = {
@@ -7600,13 +7602,28 @@ def system_simulation_scene(
             )
             _simulation_scene_cache_set(cache_build_id, system_id, payload)
             if normalized_name_style == "public_full":
-                _write_simulation_scene_runtime_artifact(
-                    build_id,
-                    system_id,
-                    payload,
-                    name_style=normalized_name_style,
-                )
-            response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
+                try:
+                    _write_simulation_scene_runtime_artifact(
+                        build_id,
+                        system_id,
+                        payload,
+                        name_style=normalized_name_style,
+                    )
+                except OSError as exc:
+                    LOGGER.warning(
+                        "Simulation scene %s for build %s was generated but its "
+                        "optional runtime cache write failed: %s",
+                        system_id,
+                        build_id,
+                        exc,
+                    )
+                    response.headers["X-Spacegate-Simulation-Scene-Cache"] = (
+                        "miss-write-failed"
+                    )
+                else:
+                    response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
+            else:
+                response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
             return payload
         finally:
             if leader:

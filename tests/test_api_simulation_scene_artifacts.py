@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+from fastapi import Response
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "srv" / "api"))
@@ -132,6 +134,44 @@ def test_runtime_scene_name_styles_use_separate_artifacts(
         9,
         name_style="source_technical",
     ) == technical_path.resolve()
+
+
+def test_scene_response_survives_optional_runtime_cache_write_failure(
+    monkeypatch,
+) -> None:
+    payload = _scene("candidate-build")
+    completed: list[tuple[str, int]] = []
+    monkeypatch.setattr(main.db, "build_id", lambda: "candidate-build")
+    monkeypatch.setattr(main, "_simulation_scene_artifact_path", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main, "_projected_singleton_simulation_scene", lambda *_, **__: None
+    )
+    monkeypatch.setattr(main, "_simulation_scene_cache_get", lambda *_, **__: None)
+    monkeypatch.setattr(main, "_simulation_scene_cache_set", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main, "_simulation_scene_build_role", lambda *_, **__: (True, object())
+    )
+    monkeypatch.setattr(
+        main,
+        "_simulation_scene_build_complete",
+        lambda build_id, system_id: completed.append((build_id, system_id)),
+    )
+    monkeypatch.setattr(
+        main, "_system_simulation_scene_payload", lambda *_, **__: payload
+    )
+
+    def fail_write(*_, **__) -> None:
+        raise PermissionError("read-only runtime cache")
+
+    monkeypatch.setattr(main, "_write_simulation_scene_runtime_artifact", fail_write)
+    response = Response()
+
+    assert main.system_simulation_scene(9, response, "public_full") == payload
+    assert (
+        response.headers["X-Spacegate-Simulation-Scene-Cache"]
+        == "miss-write-failed"
+    )
+    assert completed == [("candidate-build:public_full", 9)]
 
 
 def test_simulation_prefers_selected_luminosity_and_preserves_derivation_status() -> None:
