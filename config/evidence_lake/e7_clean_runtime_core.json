@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_core_policy.v1",
-  "policy_version": "2026-07-23.e7-clean-runtime-core.6",
-  "compiler_version": "e7_clean_runtime_core_compiler_v1",
+  "policy_version": "2026-08-09.e7-clean-runtime-core.7",
+  "compiler_version": "e7_clean_runtime_core_compiler_v2",
   "rules": {
     "open_stability_databases": false,
     "preserve_api_core_schema": true,
@@ -20,9 +20,9 @@
       "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
     },
     "clean_science": {
-      "build_id": "3b459ede84873e3adfeeec43",
-      "relative_path": "derived/evidence_lake_v2/clean_science/3b459ede84873e3adfeeec43",
-      "manifest_sha256": "add050acfcfc942ac7d3689f0b5d2905dda964372dc295f19a399af0b91e453b"
+      "build_id": "c30fd4236d98d0df676f44bd",
+      "relative_path": "derived/evidence_lake_v2/clean_science/c30fd4236d98d0df676f44bd",
+      "manifest_sha256": "7c474c084cc9ef291d6b9cc0a8909d0fc4c28be7929a63598b424013e8a6d65a"
     },
     "clean_clusters": {
       "build_id": "171d3096b5cd7ad5f53a016b",
@@ -33,6 +33,11 @@
       "build_id": "c203e4f451890660ec02086a",
       "relative_path": "derived/evidence_lake_v2/clean_extended_objects/c203e4f451890660ec02086a",
       "manifest_sha256": "da6c9843abd755ca86a3b7463bb2d271ac6cfc360f3e5a311a72c7ecc54dd866"
+    },
+    "selected_hierarchy": {
+      "build_id": "75197558b76a7a448be4029f",
+      "relative_path": "derived/evidence_lake_v2/selected_hierarchy/75197558b76a7a448be4029f",
+      "manifest_sha256": "4278492afd7ab32bc81a56b31efdffe95dc7c9c8fba112ae11a7a5068e5f99a2"
     }
   },
   "planet_classification": {

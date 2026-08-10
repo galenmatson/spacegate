@@ -14,6 +14,20 @@ from pathlib import Path
 
 import duckdb
 
+
+DEFAULT_MAX_DISTANCE_LY = 1000.0
+
+
+def resolve_trim_beyond_ly(
+    trim_beyond_ly: float | None,
+    *,
+    max_distance_ly: float,
+) -> float:
+    """Keep the requested radius complete unless a trim boundary is explicit."""
+    if trim_beyond_ly is None:
+        return float(max_distance_ly)
+    return float(trim_beyond_ly)
+
 TESS_CANONICAL_PROJECTION_VERSION = "tess_canonical_arm_projection_v1"
 TESS_PROJECTION_TABLES = {
     "tess_target_identity",
@@ -1271,9 +1285,17 @@ def main() -> None:
         default="",
     )
     parser.add_argument("--slice-build-id", help="Explicit output build id.", default="")
-    parser.add_argument("--max-distance-ly", type=float, default=1000.0)
+    parser.add_argument("--max-distance-ly", type=float, default=DEFAULT_MAX_DISTANCE_LY)
     parser.add_argument("--min-parallax-over-error", type=float, default=5.0)
-    parser.add_argument("--trim-beyond-ly", type=float, default=500.0)
+    parser.add_argument(
+        "--trim-beyond-ly",
+        type=float,
+        default=None,
+        help=(
+            "Explicit distance beyond which --trim-spectral applies. "
+            "Defaults to --max-distance-ly so the requested sphere remains complete."
+        ),
+    )
     parser.add_argument("--trim-spectral", default="M,L,UNKNOWN")
     args = parser.parse_args()
 
@@ -1302,7 +1324,10 @@ def main() -> None:
         slice_build_id=slice_build_id,
         max_distance_ly=float(args.max_distance_ly),
         min_parallax_over_error=float(args.min_parallax_over_error),
-        trim_beyond_ly=float(args.trim_beyond_ly),
+        trim_beyond_ly=resolve_trim_beyond_ly(
+            args.trim_beyond_ly,
+            max_distance_ly=float(args.max_distance_ly),
+        ),
         trim_spectral=trim_spectral,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))

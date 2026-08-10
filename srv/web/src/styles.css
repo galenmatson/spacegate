@@ -4551,7 +4551,7 @@ body {
 }
 
 .header-brand {
-  flex: 0 1 auto;
+  flex: 1 1 520px;
   min-width: 0;
   text-align: left;
 }
@@ -4559,15 +4559,15 @@ body {
 .header-brand-line {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: nowrap;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 8px 14px;
   min-width: 0;
 }
 
 .header-side {
-  flex: 1 1 720px;
-  min-width: min(100%, 520px);
+  flex: 0 0 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -6883,10 +6883,6 @@ main {
   margin-bottom: 14px;
   overflow: visible;
   pointer-events: auto;
-}
-
-.system-search-peers {
-  align-self: stretch;
 }
 
 .system-detail-error {

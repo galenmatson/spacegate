@@ -369,7 +369,7 @@ function HeaderNavLinks({ className, linkClassName, includeLabels = null }) {
   );
 }
 
-function SurfacePeerNav({ activeSurface = "", className = "", mapHref = "/map", onMapClick = null }) {
+function SurfacePeerNav({ activeSurface = "", className = "" }) {
   return (
     <nav className={`surface-peer-nav ${className}`.trim()} aria-label="Explore Spacegate">
       <Link
@@ -382,8 +382,7 @@ function SurfacePeerNav({ activeSurface = "", className = "", mapHref = "/map", 
         <span className="surface-peer-label">Catalog</span>
       </Link>
       <Link
-        to={mapHref}
-        onClick={onMapClick || undefined}
+        to="/map"
         className={`surface-peer-link ${activeSurface === "map" ? "active" : ""}`}
         aria-current={activeSurface === "map" ? "page" : undefined}
         title="Explore the 3D star map"
@@ -2981,8 +2980,10 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
           <div className="header-side">
             <div className="header-meta-row">
               <div className="header-actions">
-                {!isSystemRoute && <SurfacePeerNav activeSurface={activeSurface} />}
-                {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
+                <SurfacePeerNav activeSurface={activeSurface} />
+                {showSearchLink && (
+                  <Link to="/search" className="map-hud-button header-search-command">Search</Link>
+                )}
                 {!isLcars && headerMenu}
               </div>
             </div>
@@ -3000,9 +3001,6 @@ function HeaderSearchBar({
   setQuery,
   onSubmit,
   onClear,
-  mapHref = "",
-  onMapClick = null,
-  showSurfacePeers = false,
   loading = false,
   autoFocus = false,
   catalogLayout = false,
@@ -3024,13 +3022,6 @@ function HeaderSearchBar({
         <button className="map-command-button primary" type="submit" disabled={loading}>
           {loading ? "Searching" : "Search"}
         </button>
-        {showSurfacePeers ? (
-          <SurfacePeerNav
-            className="system-search-peers"
-            mapHref={mapHref || "/map"}
-            onMapClick={onMapClick}
-          />
-        ) : null}
         <button type="button" className="map-command-button ghost" onClick={onClear} disabled={loading}>
           Clear
         </button>
@@ -3061,7 +3052,7 @@ function HeaderSearchBar({
   );
 }
 
-function RouteHeaderSearchBar({ mapSystem = null, catalogLayout = false }) {
+function RouteHeaderSearchBar({ catalogLayout = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
@@ -3086,23 +3077,12 @@ function RouteHeaderSearchBar({ mapSystem = null, catalogLayout = false }) {
     navigate("/search");
   };
 
-  const isSystemRoute = /^\/systems\//.test(String(location.pathname || ""));
-  const handleMapClick = mapSystem?.system_id
-    ? (event) => {
-      event.preventDefault();
-      navigate(mapExploreHrefForSystem(mapSystem));
-    }
-    : null;
-
   return (
     <HeaderSearchBar
       query={query}
       setQuery={setQuery}
       onSubmit={onSubmit}
       onClear={onClear}
-      mapHref="/map"
-      onMapClick={handleMapClick}
-      showSurfacePeers={isSystemRoute}
       catalogLayout={catalogLayout}
     />
   );
@@ -4652,7 +4632,7 @@ function ExtendedObjectDetailPage({ buildId = "" }) {
   }
   if (error || !data?.object) {
     return (
-      <Layout buildId={buildId} showSearchLink={false}>
+      <Layout buildId={buildId}>
         <RouteHeaderSearchBar catalogLayout />
         <div className="panel system-detail-error">
           <h2>Catalog object not found</h2>
@@ -4809,7 +4789,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (loading) {
     return (
-      <Layout buildId={buildId} showSearchLink={false}>
+      <Layout buildId={buildId}>
         <div className="panel">Loading system details...</div>
       </Layout>
     );
@@ -4817,7 +4797,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (error || !data) {
     return (
-      <Layout buildId={buildId} showSearchLink={false}>
+      <Layout buildId={buildId}>
         <RouteHeaderSearchBar catalogLayout />
         <div className="panel system-detail-error">
           <h2>System not found</h2>
@@ -4849,8 +4829,8 @@ function SystemDetailPage({ buildId = "" }) {
     .reduce((total, subject) => total + (subject?.tags?.length || 0), 0);
 
   return (
-    <Layout showSearchLink={false} buildId={buildId}>
-      <RouteHeaderSearchBar mapSystem={system} catalogLayout />
+    <Layout buildId={buildId}>
+      <RouteHeaderSearchBar catalogLayout />
       <section className="detail system-detail-v2">
         {fromMap && (
           <div className="map-return-banner">

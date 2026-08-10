@@ -3254,18 +3254,20 @@ antiproton. The initial bounded presentation milestone followed the M8.3e.1a
 Simple Light repair and did not change selected science or reopen Public Read
 or Smart Tag architectures.
 
-August 9 follow-up: System Page peer navigation now stays beside Search rather
-than competing with the subtitle in the global header. A Tau Bootis audit also
-found a general evidence-scope defect: MSC rows explicitly described as
-planetary companions could enter stellar relation selection. Component policy
-v10 retains all 13 such MSC relations, 25 linked MSC orbit rows, and one linked
-SB9 record as planetary context while excluding them from stellar hierarchy
-and simulation selection. Scene artifact v12 conservatively preserves an
-unresolved canonical planet host and resolves the planet to that selected host;
-it contains no named-system production branch. The full production component
-compiler and independent artifact audit pass on build
-`5d25e2753b97a0a6de31d5dc`. Pre-v12 frozen scene sets remain served stability
-artifacts and must be rebuilt under v12 before this follow-up can deploy.
+August 9 follow-up: Catalog, Map, and Search again occupy the common global
+header cluster on the System Page instead of moving into the search bar or
+competing with the subtitle. A Tau Bootis audit also found two general
+evidence-scope defects: MSC rows explicitly described as planetary companions
+could enter stellar selection, and the permanent hierarchy had case-folded
+source component labels such as leaf `Ab` and group `AB`. Component policy v11
+retains all 13 planetary relations and their linked values as context while
+making none selectable as stellar science. The new selected-hierarchy compiler
+preserves every canonical node and edge, then removes only unsupported
+source-derived leaves and empty source groups. Its scientific A/B accounts for
+94 nodes and edges across 55 WDS systems with zero canonical inventory delta.
+All public consumers now rebuild from that one active hierarchy rather than
+repairing only simulation scenes. No production transform contains a named
+system condition. See `docs/SELECTED_HIERARCHY_AB_2026-08-09.md`.
 
 Accepted decisions:
 
@@ -3359,7 +3361,12 @@ Success criteria:
 - WISE imagery is normally ready before its section becomes visible, without
   materially increasing abandoned IRSA work or violating the edge disk floor;
 - cache and prefetch tests cover hit, miss, unavailable, negative-cache,
-  coalesced, throttled, evicted, and stale/revalidated behavior.
+  coalesced, throttled, evicted, and stale/revalidated behavior;
+- every selected-evidence or active-hierarchy change compares accepted and
+  candidate inventory, stable keys, hierarchy, class badges, orbit endpoints,
+  Public Read summaries, map artifacts, and simulation scenes before promotion;
+- an unexplained population or cross-surface delta blocks promotion even when a
+  named-system golden improves.
 
 Verification checkpoint:
 
@@ -3371,6 +3378,14 @@ Verification checkpoint:
 - `docs/SURVEY_IMAGE_CACHE.md` and `config/survey_image_cache_v1.json` define
   the provider-neutral 4-GiB cache, 15-GiB edge reserve, WISE rate controls,
   coalescing, negative caching, validation, and telemetry;
+- selected-hierarchy candidate `75197558b76a7a448be4029f` is materialized as
+  full public build `e7_524b4c016779a77bc9780053_full_public`. Public Read
+  materialized all 14,141 required hierarchy bundles with zero failures, map
+  verification passed exact 100/250/500/1,000-ly membership, and scene artifact
+  v12 materialized and froze all 7,719 required scenes with zero failures;
+- the retained-versus-candidate Public Read scientific A/B gate passes every
+  inventory, stable identity, classification lineage, hierarchy-dependent
+  presentation, and immutable planet/system check before local promotion;
 - unit, API, Docker, desktop/mobile Playwright, 4K/ultrawide theme, canvas,
   navigation continuity, and deterministic report gates pass against the
   local Photon runtime at `https://10.0.0.12`.

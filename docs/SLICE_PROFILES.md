@@ -286,7 +286,12 @@ Measurement tooling:
 3. Build halo complement from the (`galaxy`, `core`) pair:
    - `scripts/build_halo.sh --galaxy-build-id <galaxy_build_id> --core-build-id <core_build_id>`
 4. For canonical-build benchmarking without re-running the full canonical emitter:
-   - `scripts/ingest/build_public_slice.py --build-id <canonical_build_id>`
+   - complete requested sphere: `scripts/ingest/build_public_slice.py --build-id <canonical_build_id> --max-distance-ly 1000`
+   - intentionally trimmed profile: add explicit `--trim-beyond-ly <ly> --trim-spectral <classes>` and record those values in the review report
+
+The public-slice helper does not implicitly trim inside `--max-distance-ly`.
+Population reduction is an explicit profile decision because an unnoticed trim
+can otherwise look like an unrelated scientific inventory regression.
 
 ## Known Constraint (Current Builds)
 

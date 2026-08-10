@@ -1,24 +1,24 @@
 {
   "schema_version": "spacegate.e7_stellar_orbit_endpoint_bridge_policy.v4",
-  "policy_version": "2026-07-24.e7-stellar-orbit-endpoint-bridge.4",
+  "policy_version": "2026-08-09.e7-stellar-orbit-endpoint-bridge.5",
   "compiler_version": "e7_stellar_orbit_endpoint_bridge_compiler_v4",
   "inputs": {
     "selected_orbits": {
-      "build_id": "131d37fd3cdaa3867ff8337b",
-      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/131d37fd3cdaa3867ff8337b",
-      "manifest_sha256": "5f4095e195b070eb0f2b95b2a8db7a08a40e41395f61ece531f794cbceb09eb0"
+      "build_id": "4314f3eea85f22a9ffd45ba5",
+      "relative_path": "derived/evidence_lake_v2/stellar_orbit_runtime/4314f3eea85f22a9ffd45ba5",
+      "manifest_sha256": "6293331bf311b652f9d53fc42a94d0173e1524ed3cbd728203c1febf084b93ec"
     },
     "selected_components": {
-      "build_id": "67fea5f99500b57419ebdeb0",
-      "relative_path": "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0",
-      "manifest_sha256": "2e51b20b63351c4312947b592d9b5a147254c4bcdee35db130191be0e20204df",
-      "database_sha256": "dfbe081f2a5a024d31110276c3d6180349829e4502492829d13ddc180649116a"
+      "build_id": "d1704688e1c34017c6441e2b",
+      "relative_path": "derived/evidence_lake_v2/selected_components/d1704688e1c34017c6441e2b",
+      "manifest_sha256": "347217e70c284511621e83483d690fb8d6ea1603c55d667032223e8a3ca33d29",
+      "database_sha256": "caac65188ddfa43896146f6a4cdbdf91398671300f7094a915745f904e01aff3"
     },
     "clean_runtime_core": {
-      "build_id": "85e89d41dd1258e2f3015a7a",
-      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/85e89d41dd1258e2f3015a7a",
-      "manifest_sha256": "d52a80f6bb934c1582c0976152f169d55e5d412addcf7f624e97cfcefbe6572f",
-      "hierarchy_sha256": "ad3e34a8f1ca4b170a2669fc60c25e4e5b453d1410623fdb5b296f66a45a3223"
+      "build_id": "1c6155f8e905f85a938ebf7e",
+      "relative_path": "derived/evidence_lake_v2/clean_runtime_core/1c6155f8e905f85a938ebf7e",
+      "manifest_sha256": "bc832d97a1b703643a872ee37d0550e605227df9ef1caaeba8f17d226840c61e",
+      "hierarchy_sha256": "a0bd0917545bbef767f7284e0c932b24e2f188b005926f5bd92fdc30e9683c58"
     }
   },
   "rules": {
@@ -34,21 +34,21 @@
     "simulation_requires_selected_solution_or_source_relation_period": true
   },
   "acceptance": {
-    "endpoints": 22396,
-    "endpoints_accepted": 20749,
-    "endpoints_missing_runtime_leaf": 1235,
+    "endpoints": 22374,
+    "endpoints_accepted": 20701,
+    "endpoints_missing_runtime_leaf": 1255,
     "endpoints_ambiguous_source_case": 0,
-    "relations": 11250,
-    "relations_runtime_eligible": 9817,
-    "relations_one_endpoint_unresolved": 1208,
-    "relations_both_endpoints_unresolved": 224,
-    "preferred_relations": 1959,
-    "preferred_relations_runtime_eligible": 1606,
-    "preferred_relations_one_endpoint_unresolved": 327,
+    "relations": 11239,
+    "relations_runtime_eligible": 9782,
+    "relations_one_endpoint_unresolved": 1230,
+    "relations_both_endpoints_unresolved": 226,
+    "preferred_relations": 1953,
+    "preferred_relations_runtime_eligible": 1596,
+    "preferred_relations_one_endpoint_unresolved": 331,
     "preferred_relations_both_endpoints_unresolved": 26,
     "containment_promotions": 0,
-    "group_endpoints_accepted": 5073,
-    "group_memberships": 10146,
-    "preferred_or_source_period_relations_runtime_eligible": 9775
+    "group_endpoints_accepted": 5062,
+    "group_memberships": 10124,
+    "preferred_or_source_period_relations_runtime_eligible": 9741
   }
 }

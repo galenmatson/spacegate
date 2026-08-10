@@ -49,9 +49,10 @@ Already in place:
   source-backed direct orbits, source-backed group/barycenter orbits,
   DERIVED Kepler presentation estimates, ASSUMED visual orbit fields, and
   two-star visual-binary fallbacks.
-- `render_scene_v0.2` reconciles body lists against canonical hierarchy when
-  hierarchy exposes richer physical membership than direct core rows or ARM
-  orbit endpoints alone
+- `render_scene_v0.2` reconciles body lists against the active selected
+  hierarchy when it exposes richer accepted physical membership than direct
+  core rows or ARM orbit endpoints alone. Permanent source-derived hierarchy
+  identity is not independently authoritative for renderer membership.
 - the first browser renderer uses the hierarchy tree for stable visual cluster
   centers and hosts nested planets around their render host/body group
 - hosted planet orbit guides and bodies inherit the full containing host-group

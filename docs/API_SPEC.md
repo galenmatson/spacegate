@@ -588,8 +588,11 @@ Contract notes:
   unavailable or the live preview fails to initialize.
 - `render_scene` is an additive renderer-ready view over the source payload.
   It uses direct core rows and ARM orbit endpoints first, then reconciles
-  renderer-ready bodies against canonical hierarchy when hierarchy exposes
+  renderer-ready bodies against the active selected hierarchy when it exposes
   nested stars or planets not present in the direct selected-system body lists.
+  Permanent hierarchy identity is filtered through selected relation evidence;
+  a historical source leaf cannot independently create a public star badge or
+  rendered body.
   Single-star render bodies may use a system proper-name/common-name alias for
   display while preserving the canonical star key; `source.display_name_basis`
   identifies whether the rendered label came from a system alias or core row.
@@ -1740,7 +1743,8 @@ excluded from this hot response.
 Returns the accepted presentation-ready hierarchy from a verified bundle or the
 singleton hierarchy projection. Missing required bundles fail visibly during
 the post-warming production phase; they are not replaced with invented
-containment.
+containment. The bundle, system summary, stellar badge overlay, map artifact,
+and simulation scene must all share the same active selected-hierarchy lineage.
 
 ### GET /systems/{system_id}/scene-seed
 

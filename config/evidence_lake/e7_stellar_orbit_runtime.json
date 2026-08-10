@@ -1,12 +1,12 @@
 {
   "schema_version": "spacegate.e7_stellar_orbit_runtime_policy.v2",
-  "policy_version": "2026-07-22.e7-stellar-orbit-runtime.2",
+  "policy_version": "2026-08-09.e7-stellar-orbit-runtime.3",
   "compiler_version": "e7_stellar_orbit_runtime_compiler_v2",
   "input": {
-    "build_id": "67fea5f99500b57419ebdeb0",
-    "relative_path": "derived/evidence_lake_v2/selected_components/67fea5f99500b57419ebdeb0",
-    "manifest_sha256": "2e51b20b63351c4312947b592d9b5a147254c4bcdee35db130191be0e20204df",
-    "database_sha256": "dfbe081f2a5a024d31110276c3d6180349829e4502492829d13ddc180649116a"
+    "build_id": "d1704688e1c34017c6441e2b",
+    "relative_path": "derived/evidence_lake_v2/selected_components/d1704688e1c34017c6441e2b",
+    "manifest_sha256": "347217e70c284511621e83483d690fb8d6ea1603c55d667032223e8a3ca33d29",
+    "database_sha256": "caac65188ddfa43896146f6a4cdbdf91398671300f7094a915745f904e01aff3"
   },
   "rules": {
     "open_stability_databases": false,
@@ -31,13 +31,13 @@
     "msc_orb"
   ],
   "acceptance": {
-    "selected_relations": 11250,
-    "selected_solutions": 17170,
-    "msc_solutions": 14939,
+    "selected_relations": 11239,
+    "selected_solutions": 17145,
+    "msc_solutions": 14915,
     "orb6_solutions": 1159,
-    "sb9_solutions": 1052,
+    "sb9_solutions": 1051,
     "debcat_solutions": 20,
-    "preferred_simulation_solutions": 1959,
+    "preferred_simulation_solutions": 1953,
     "deferred_sbx_solutions": 3043,
     "deferred_gaia_nss_solutions": 56617,
     "deferred_tess_eb_solutions": 2228,

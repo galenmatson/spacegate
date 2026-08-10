@@ -168,21 +168,31 @@ def make_fixture(state: Path, policy_path: Path) -> None:
         INSERT INTO orbital_solution_evidence VALUES
           ('m-o1','m-s1','{"P":"2.0","Punit":"d"}'),
           ('m-o2','m-self-source','{"P":"3.0","Punit":"d"}'),
-          ('m-o3','m-missing-source','{"P":"4.0","Punit":"d"}');
+          ('m-o3','m-missing-source','{"P":"4.0","Punit":"d"}'),
+          ('m-o4','m-planet-source','{"P":"5.0","Punit":"d"}');
         INSERT INTO source_records VALUES
           ('m-s1','msc_sys'),('m-self-source','msc_sys'),
           ('m-missing-source','msc_sys'),('m-planet-source','msc_sys'),('m-comp1','msc_comp');
         INSERT INTO identifier_claim_evidence VALUES
           ('m-i-a','m-s1','msc_component','00001+0001:A','primary_endpoint'),
           ('m-i-b','m-s1','msc_component','00001+0001:B','secondary_endpoint'),
+          ('m-i-pa','m-planet-source','msc_component','00001+0001:A','source_component'),
           ('m-i-ma','m-missing-source','msc_component','99999+9999:A','primary_endpoint'),
           ('m-i-mb','m-missing-source','msc_component','99999+9999:B','secondary_endpoint'),
           ('m-i-source','m-comp1','msc_component','00001+0001:A','source_component');
-        INSERT INTO stellar_parameter_sets VALUES ('m-ps1','m-comp1','00001+0001:A');
-        INSERT INTO stellar_parameter_evidence VALUES ('m-p1','m-ps1','m-comp1','mass');
-        INSERT INTO stellar_classification_evidence VALUES ('m-c1','m-comp1','00001+0001:A');
-        INSERT INTO photometry_extinction_evidence VALUES ('m-ph1','m-comp1');
-        INSERT INTO astrometry_distance_evidence VALUES ('m-a1','m-comp1');
+        INSERT INTO stellar_parameter_sets VALUES
+          ('m-ps1','m-comp1','00001+0001:A'),
+          ('m-ps-planet','m-planet-source','00001+0001:A');
+        INSERT INTO stellar_parameter_evidence VALUES
+          ('m-p1','m-ps1','m-comp1','mass'),
+          ('m-p-planet','m-ps-planet','m-planet-source','mass');
+        INSERT INTO stellar_classification_evidence VALUES
+          ('m-c1','m-comp1','00001+0001:A'),
+          ('m-c-planet','m-planet-source','00001+0001:A');
+        INSERT INTO photometry_extinction_evidence VALUES
+          ('m-ph1','m-comp1'),('m-ph-planet','m-planet-source');
+        INSERT INTO astrometry_distance_evidence VALUES
+          ('m-a1','m-comp1'),('m-a-planet','m-planet-source');
         """
     )
     con.close()
@@ -525,21 +535,27 @@ def make_fixture(state: Path, policy_path: Path) -> None:
                     "expected_relations_unresolved": 1,
                     "expected_relations_invalid_self": 1,
                     "expected_relations_planetary_context": 1,
-                    "expected_parameter_sets": 1,
+                    "expected_parameter_sets": 2,
                     "expected_parameter_sets_bound": 1,
-                    "expected_parameter_evidence": 1,
+                    "expected_parameter_sets_planetary_context": 1,
+                    "expected_parameter_sets_planetary_context_unresolved": 0,
+                    "expected_parameter_evidence": 2,
                     "expected_parameter_evidence_eligible": 1,
                     "expected_parameter_evidence_context_only": 0,
-                    "expected_classification_evidence": 1,
+                    "expected_parameter_evidence_planetary_context": 1,
+                    "expected_classification_evidence": 2,
                     "expected_classification_evidence_eligible": 1,
-                    "expected_photometry_evidence": 1,
+                    "expected_classification_evidence_planetary_context": 1,
+                    "expected_photometry_evidence": 2,
                     "expected_photometry_evidence_eligible": 1,
-                    "expected_astrometry_evidence": 1,
+                    "expected_photometry_evidence_planetary_context": 1,
+                    "expected_astrometry_evidence": 2,
                     "expected_astrometry_evidence_eligible": 1,
-                    "expected_orbital_solutions": 3,
+                    "expected_astrometry_evidence_planetary_context": 1,
+                    "expected_orbital_solutions": 4,
                     "expected_orbital_solutions_eligible": 1,
                     "expected_orbits_unresolved_msc_relation": 1,
-                    "expected_orbits_planetary_context": 0,
+                    "expected_orbits_planetary_context": 1,
                     "expected_orbits_invalid_msc_relation": 1,
                     "expected_orbits_missing_msc_relation": 0,
                     "expected_orbits_ambiguous_msc_relation": 0,
@@ -801,10 +817,21 @@ def test_component_scope_accounting_and_determinism(tmp_path: Path) -> None:
     assert con.execute(
         "SELECT count(*) FROM msc_photometry_projection WHERE projection_status='eligible_for_quantity_selection'"
     ).fetchone()[0] == 1
+    for table in (
+        "msc_stellar_parameter_projection",
+        "msc_classification_projection",
+        "msc_photometry_projection",
+        "msc_astrometry_projection",
+    ):
+        assert con.execute(
+            f"SELECT count(*) FROM {table} WHERE source_record_id='m-planet-source' "
+            "AND projection_status='context_only_planetary_evidence'"
+        ).fetchone()[0] == 1
     assert dict(con.execute(
         "SELECT binding_status,count(*) FROM msc_orbit_solution_bindings GROUP BY 1"
     ).fetchall()) == {
         "accepted": 1,
+        "context_only_planetary_relation": 1,
         "invalid_msc_relation": 1,
         "unresolved_msc_relation": 1,
     }

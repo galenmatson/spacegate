@@ -70,6 +70,22 @@ def metadata(con: duckdb.DuckDBPyConnection, alias: str) -> dict[str, str]:
     }
 
 
+def accepted_supplements_disabled(
+    build_metadata: dict[str, str],
+    *,
+    accepted_supplement_count: int,
+) -> bool:
+    """Recognize both legacy ingest and clean-runtime inventory contracts."""
+    explicit = build_metadata.get("accepted_supplements_enabled")
+    if explicit is not None:
+        return explicit == "0" and accepted_supplement_count == 0
+    return (
+        build_metadata.get("build_kind") == "e7_clean_runtime_core"
+        and build_metadata.get("stability_database_opened") == "0"
+        and accepted_supplement_count == 0
+    )
+
+
 def stable_key_delta(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -271,10 +287,10 @@ def main() -> int:
     checks = {
         "canonical_planet_count_unchanged": candidate_counts["planets"] == baseline_counts["planets"],
         "candidate_accepted_supplements_zero": candidate_supplements == 0,
-        "candidate_accepted_supplements_disabled": candidate_metadata.get(
-            "accepted_supplements_enabled"
-        )
-        == "0",
+        "candidate_accepted_supplements_disabled": accepted_supplements_disabled(
+            candidate_metadata,
+            accepted_supplement_count=candidate_supplements,
+        ),
         "candidate_identifier_orphans_zero": candidate_identifier_orphans == 0,
         "candidate_tic_collisions_zero": candidate_tic_collisions == 0,
         "candidate_sequential_legacy_system_keys_zero": candidate_sequential_legacy_system_keys

@@ -416,6 +416,13 @@ def compile_msc(
         JOIN msc_component_entities rr ON rr.source_component_raw=r.right_identity_raw
         LEFT JOIN source_orbits o USING(source_record_id);
 
+        CREATE TEMP TABLE msc_planetary_source_records AS
+        SELECT source_record_id,min(projected_relation_id) projected_relation_id,
+               min(projection_reason) projection_reason
+        FROM msc_relation_evidence_projection
+        WHERE projection_status='context_only_planetary_relation_evidence'
+        GROUP BY source_record_id;
+
         INSERT INTO msc_component_parameter_set_bindings
         SELECT sha256(concat_ws('|',{source_id},p.parameter_set_id,{policy_sql})),
                p.parameter_set_id,p.source_record_id,{source_id},{release_id},
@@ -424,18 +431,30 @@ def compile_msc(
                CASE WHEN e.binding_status='accepted' THEN e.source_component_key END,
                CASE WHEN e.binding_status='accepted'
                     THEN e.canonical_system_stable_object_key END,
-               coalesce(e.binding_status,'missing'),
-               coalesce(e.binding_reason,'no release-scoped MSC component identity exists'),
+               CASE WHEN context.source_record_id IS NOT NULL AND e.binding_status='accepted'
+                      THEN 'context_only_planetary_relation'
+                    WHEN context.source_record_id IS NOT NULL
+                      THEN 'context_only_planetary_relation_unresolved_scope'
+                    ELSE coalesce(e.binding_status,'missing') END,
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN context.projection_reason
+                    ELSE coalesce(e.binding_reason,'no release-scoped MSC component identity exists') END,
                {policy_sql}
         FROM msc.stellar_parameter_sets p
         LEFT JOIN msc_component_entities e
-          ON e.source_component_raw=p.component_scope;
+          ON e.source_component_raw=p.component_scope
+        LEFT JOIN msc_planetary_source_records context USING(source_record_id);
 
         CREATE TABLE msc_stellar_parameter_projection AS
         SELECT p.*,b.parameter_set_binding_id,b.component_entity_id,
                b.target_scope,b.target_key,b.canonical_system_stable_object_key,
                {parameter_authority} authority_role,
-               CASE WHEN b.binding_status='accepted'
+               CASE WHEN b.binding_status IN (
+                           'context_only_planetary_relation',
+                           'context_only_planetary_relation_unresolved_scope'
+                         )
+                      THEN 'context_only_planetary_evidence'
+                    WHEN b.binding_status='accepted'
                           AND p.quantity_key IN ({context_quantities})
                       THEN 'context_only_evidence'
                     WHEN b.binding_status='accepted'
@@ -453,14 +472,19 @@ def compile_msc(
                     THEN e.canonical_system_stable_object_key END
                  canonical_system_stable_object_key,
                {sql_literal(source['classification_authority'])} authority_role,
-               CASE WHEN e.binding_status='accepted' THEN 'eligible_for_quantity_selection'
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN 'context_only_planetary_evidence'
+                    WHEN e.binding_status='accepted' THEN 'eligible_for_quantity_selection'
                     ELSE 'unresolved_scope_evidence' END projection_status,
-               coalesce(e.binding_reason,'no release-scoped MSC component identity exists')
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN context.projection_reason
+                    ELSE coalesce(e.binding_reason,'no release-scoped MSC component identity exists') END
                  projection_reason,
                {policy_sql} policy_version
         FROM msc.stellar_classification_evidence p
         LEFT JOIN msc_component_entities e
-          ON e.source_component_raw=p.component_scope;
+          ON e.source_component_raw=p.component_scope
+        LEFT JOIN msc_planetary_source_records context USING(source_record_id);
 
         CREATE TEMP TABLE msc_source_component_claims AS
         SELECT source_record_id,count(DISTINCT identifier_raw) component_candidate_count,
@@ -477,10 +501,14 @@ def compile_msc(
                     THEN e.canonical_system_stable_object_key END
                  canonical_system_stable_object_key,
                {sql_literal(source['photometry_authority'])} authority_role,
-               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN 'context_only_planetary_evidence'
+                    WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
                       THEN 'eligible_for_quantity_selection'
                     ELSE 'unresolved_scope_evidence' END projection_status,
-               CASE WHEN c.component_candidate_count IS NULL
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN context.projection_reason
+                    WHEN c.component_candidate_count IS NULL
                       THEN 'source record has no release-scoped source-component claim'
                     WHEN c.component_candidate_count<>1
                       THEN 'source record has multiple release-scoped source-component claims'
@@ -490,7 +518,8 @@ def compile_msc(
         FROM msc.photometry_extinction_evidence p
         LEFT JOIN msc_source_component_claims c USING(source_record_id)
         LEFT JOIN msc_component_entities e
-          ON e.source_component_raw=c.component_scope;
+          ON e.source_component_raw=c.component_scope
+        LEFT JOIN msc_planetary_source_records context USING(source_record_id);
 
         CREATE TABLE msc_astrometry_projection AS
         SELECT p.*,c.component_candidate_count,e.component_entity_id,
@@ -500,10 +529,14 @@ def compile_msc(
                     THEN e.canonical_system_stable_object_key END
                  canonical_system_stable_object_key,
                {sql_literal(source['astrometry_authority'])} authority_role,
-               CASE WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN 'context_only_planetary_evidence'
+                    WHEN c.component_candidate_count=1 AND e.binding_status='accepted'
                       THEN 'eligible_for_quantity_selection'
                     ELSE 'unresolved_scope_evidence' END projection_status,
-               CASE WHEN c.component_candidate_count IS NULL
+               CASE WHEN context.source_record_id IS NOT NULL
+                      THEN context.projection_reason
+                    WHEN c.component_candidate_count IS NULL
                       THEN 'source record has no release-scoped source-component claim'
                     WHEN c.component_candidate_count<>1
                       THEN 'source record has multiple release-scoped source-component claims'
@@ -513,7 +546,8 @@ def compile_msc(
         FROM msc.astrometry_distance_evidence p
         LEFT JOIN msc_source_component_claims c USING(source_record_id)
         LEFT JOIN msc_component_entities e
-          ON e.source_component_raw=c.component_scope;
+          ON e.source_component_raw=c.component_scope
+        LEFT JOIN msc_planetary_source_records context USING(source_record_id);
 
         CREATE TEMP TABLE msc_orbit_subjects AS
         WITH identifiers AS (
@@ -680,15 +714,21 @@ def compile_msc(
         "relations_planetary_context": relation_counts.get("context_only_planetary_relation_evidence", 0),
         "parameter_sets": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings").fetchone()[0]),
         "parameter_sets_bound": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted'").fetchone()[0]),
+        "parameter_sets_planetary_context": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='context_only_planetary_relation'").fetchone()[0]),
+        "parameter_sets_planetary_context_unresolved": int(con.execute("SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='context_only_planetary_relation_unresolved_scope'").fetchone()[0]),
         "parameter_evidence": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection").fetchone()[0]),
         "parameter_evidence_eligible": eligible("msc_stellar_parameter_projection"),
         "parameter_evidence_context_only": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='context_only_evidence'").fetchone()[0]),
+        "parameter_evidence_planetary_context": int(con.execute("SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "classification_evidence": int(con.execute("SELECT count(*) FROM msc_classification_projection").fetchone()[0]),
         "classification_evidence_eligible": eligible("msc_classification_projection"),
+        "classification_evidence_planetary_context": int(con.execute("SELECT count(*) FROM msc_classification_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "photometry_evidence": int(con.execute("SELECT count(*) FROM msc_photometry_projection").fetchone()[0]),
         "photometry_evidence_eligible": eligible("msc_photometry_projection"),
+        "photometry_evidence_planetary_context": int(con.execute("SELECT count(*) FROM msc_photometry_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "astrometry_evidence": int(con.execute("SELECT count(*) FROM msc_astrometry_projection").fetchone()[0]),
         "astrometry_evidence_eligible": eligible("msc_astrometry_projection"),
+        "astrometry_evidence_planetary_context": int(con.execute("SELECT count(*) FROM msc_astrometry_projection WHERE projection_status='context_only_planetary_evidence'").fetchone()[0]),
         "orbital_solutions": int(con.execute("SELECT count(*) FROM msc_orbital_solution_projection").fetchone()[0]),
         "orbital_solutions_eligible": eligible("msc_orbital_solution_projection"),
         "orbits_unresolved_msc_relation": orbit_counts.get("unresolved_msc_relation", 0),
@@ -2235,7 +2275,8 @@ def verify(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         "duplicate_msc_parameter_set_binding_ids": "SELECT count(*)-count(DISTINCT parameter_set_binding_id) FROM msc_component_parameter_set_bindings",
         "duplicate_msc_orbit_binding_ids": "SELECT count(*)-count(DISTINCT orbit_binding_id) FROM msc_orbit_solution_bindings",
         "accepted_msc_parameter_sets_without_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status='accepted' AND (component_entity_id IS NULL OR target_key IS NULL OR canonical_system_stable_object_key IS NULL)",
-        "unaccepted_msc_parameter_sets_with_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status<>'accepted' AND target_key IS NOT NULL",
+        "unaccepted_msc_parameter_sets_with_targets": "SELECT count(*) FROM msc_component_parameter_set_bindings WHERE binding_status NOT IN ('accepted','context_only_planetary_relation') AND target_key IS NOT NULL",
+        "planetary_context_msc_fields_selectable": "SELECT (SELECT count(*) FROM msc_stellar_parameter_projection p JOIN msc_component_parameter_set_bindings b USING(parameter_set_binding_id) WHERE b.binding_status LIKE 'context_only_planetary_relation%' AND p.projection_status='eligible_for_quantity_selection') + (SELECT count(*) FROM msc_classification_projection p JOIN msc_relation_evidence_projection r USING(source_record_id) WHERE r.projection_status='context_only_planetary_relation_evidence' AND p.projection_status='eligible_for_quantity_selection') + (SELECT count(*) FROM msc_photometry_projection p JOIN msc_relation_evidence_projection r USING(source_record_id) WHERE r.projection_status='context_only_planetary_relation_evidence' AND p.projection_status='eligible_for_quantity_selection') + (SELECT count(*) FROM msc_astrometry_projection p JOIN msc_relation_evidence_projection r USING(source_record_id) WHERE r.projection_status='context_only_planetary_relation_evidence' AND p.projection_status='eligible_for_quantity_selection')",
         "eligible_msc_parameters_without_targets": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",
         "selectable_msc_relative_separations": "SELECT count(*) FROM msc_stellar_parameter_projection WHERE quantity_key='separation_from_main_component' AND projection_status='eligible_for_quantity_selection'",
         "eligible_msc_classifications_without_targets": "SELECT count(*) FROM msc_classification_projection WHERE projection_status='eligible_for_quantity_selection' AND target_key IS NULL",

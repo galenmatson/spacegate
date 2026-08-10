@@ -1512,10 +1512,11 @@ test.describe("public 3D map beta", () => {
     expect(sizing.maxWidth).toBe("1600px");
     expect(sizing.width).toBeLessThanOrEqual(1600.5);
     await expect(page.locator(".title-link-brand")).toHaveAttribute("href", "/search");
-    await expect(page.locator(".site-header .surface-peer-nav")).toHaveCount(0);
-    const peers = page.locator(".system-search-topbar .surface-peer-nav");
+    const peers = page.locator(".site-header .surface-peer-nav");
     await expect(peers.getByRole("link", { name: "Catalog" })).toHaveAttribute("href", "/search");
     await expect(peers.getByRole("link", { name: "Map" })).toHaveAttribute("href", "/map");
+    await expect(page.locator(".site-header").getByRole("link", { name: "Search" })).toHaveAttribute("href", "/search");
+    await expect(page.locator(".system-search-topbar .surface-peer-nav")).toHaveCount(0);
     const headerRegions = await page.locator(".site-header .header-subtitle, .site-header .header-actions").evaluateAll((nodes) => (
       nodes.map((node) => node.getBoundingClientRect().toJSON())
     ));
@@ -2727,11 +2728,34 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "API contract plus desktop simulation smoke");
     const resolved = await resolveGoldenSystem(page, { query: "Tau Bootis" });
     expect(resolved?.system_id, "Tau Bootis system_id").toBeTruthy();
+    expect([...(resolved.stellar_class_badges || [])].sort()).toEqual(["F", "UNKNOWN"]);
+    const detailResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}`);
     const sceneResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}/simulation-scene`);
+    expect(detailResponse.ok()).toBeTruthy();
     expect(sceneResponse.ok()).toBeTruthy();
+    const detail = await detailResponse.json();
     const scene = await sceneResponse.json();
     const stars = scene.render_scene?.bodies?.stars || [];
     const planets = scene.render_scene?.bodies?.planets || [];
+    const hierarchyClasses = [];
+    const visit = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (node.stellar_leaf_classification?.classification_value) {
+        hierarchyClasses.push(node.stellar_leaf_classification.classification_value);
+      }
+      (node.children || []).forEach(visit);
+    };
+    visit(detail.hierarchy?.root);
+    const detailClasses = (detail.stellar_leaf_classifications || []).map(
+      (row) => row.classification_value,
+    );
+    const sceneClasses = stars.map(
+      (star) => star.stellar_leaf_classification?.classification_value || "UNKNOWN",
+    );
+    expect([...detailClasses].sort()).toEqual(["F", "UNKNOWN"]);
+    expect([...hierarchyClasses].sort()).toEqual(["F", "UNKNOWN"]);
+    expect([...sceneClasses].sort()).toEqual(["F", "UNKNOWN"]);
+    expect([...(detail.system?.stellar_class_badges || [])].sort()).toEqual(["F", "UNKNOWN"]);
     expect(stars).toHaveLength(2);
     expect(planets).toHaveLength(1);
     const planet = planets[0];
@@ -2748,6 +2772,10 @@ test.describe("public 3D map beta", () => {
     await expect(simulator.getByText("Loading System Simulation...")).toHaveCount(0);
     await expect(simulator.locator("[data-stellar-token='u']")).toHaveCount(1);
     await expect(simulator.locator("[data-stellar-token='m']")).toHaveCount(0);
+    await expect(
+      simulator.locator("[data-testid='system-preview-object-list'] [data-object-kind='star']"),
+    ).toHaveCount(2);
+    await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(2);
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/Tau Bootis/i);
   });
 

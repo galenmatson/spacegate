@@ -1783,6 +1783,25 @@ auditable descendant leaves for benchmark systems where MSC/WDS evidence
 supports them. These leaves remain ARM/canonical-hierarchy support evidence;
 they are not silently promoted into flat `core.stars` rows.
 
+### Active selected hierarchy
+
+Permanent hierarchy identity records which source-native leaves and groups were
+materialized at identity-compilation time. Public consumers do not treat that
+historical materialization as proof that every source relation remains an
+accepted stellar relation. `scripts/compile_e7_selected_hierarchy.py` compiles a
+versioned active hierarchy from the permanent graph and current selected
+component evidence.
+
+The compiler preserves every canonical system, star, planet, and canonical
+containment edge. It requires each `msc_inferred_leaf` to have a currently
+accepted, exact WDS-scoped, case-valid leaf endpoint. MSC case remains semantic:
+`Ab` can denote a stellar leaf while `AB` denotes a group, and the latter cannot
+support the former through case folding. Unsupported source-derived leaves and
+groups made empty by their removal remain documented in the scientific A/B; the
+source claims remain in the evidence lake. The compatibility filename remains
+`canonical_hierarchy.duckdb`, but its runtime contents are this active selected
+projection.
+
 If MSC retrieval/cook fails:
 - ingest must fail
 - promotion must not proceed

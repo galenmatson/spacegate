@@ -1043,19 +1043,27 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   v8, then render the A2 planet glyphs in System Hero/search object badges,
   Peek/Explorer titles, simulation OBJECTS, and Stars and Hierarchy with a
   neutral unclassified fallback
-- [x] Keep System Page Catalog/Map peer navigation beside Search and remove the
-  duplicate global-header peer control that could overlap the subtitle
+- [x] Keep System Page Catalog/Map/Search peer navigation in the same global
+  header cluster used by the 3D Map; do not move those links into the System
+  Page search bar or allow them to overlap the subtitle
 - [x] Treat MSC relations explicitly marked planet, planetary, or exoplanet as
-  preserved context rather than stellar containment; account for all 13 MSC
-  relations, 25 MSC orbit rows, and one linked SB9 record through full compiler
-  build `5d25e2753b97a0a6de31d5dc` and an independent passing audit
-- [x] Add scene-v12 unresolved host-scope policy: keep a canonical planet host
-  intact when its only descendants are inferred and unbound, attach the planet
-  to that selected host, and keep explicit UNKNOWN leaf labels from being
-  replaced by visual M-class priors
-- [ ] Rebuild and freeze every policy-selected simulation scene under
-  `simulation_scene_artifact_v12` before deploying the Tau Bootis/general host
-  repair; verify deterministic archive coverage and refresh the edge release
+  preserved context rather than stellar selection; component policy v11 also
+  makes their linked parameter and classification evidence nonselectable and
+  passes a full compiler plus independent audit
+- [x] Compile an active selected hierarchy from permanent identity plus selected
+  relation evidence; preserve all canonical nodes and edges, distinguish MSC
+  leaf `Ab` from group `AB`, prune only unsupported source leaves/groups, and
+  account for all 94 removals across 55 WDS systems
+- [x] Prove the full 1,000-ly public slice retains exactly 5,869,091 systems,
+  5,874,636 stars, 6,311 planets, and every stable system/star/planet key; make
+  within-radius trimming explicit rather than an implicit 500-ly CLI default
+- [x] Rebuild Public Read, map tiles, all 14,141 required hierarchy bundles, and
+  all 7,719 policy-selected simulation scenes from the active hierarchy; verify
+  Tau Bootis and representative controls agree across map, detail, hierarchy,
+  OBJECTS, and simulation before local Photon promotion
+- [x] Require scientific inventory and cross-surface A/B review for future
+  selected-evidence or hierarchy changes; a named golden alone cannot authorize
+  an unexplained system-wide delta
 - [x] Add rendered star names to Peek/Explorer stellar glyph explanations,
   bound crowded title glyph runs with an inspectable overflow count, and give
   Explorer a structural header row and global-header-aware outer inset so

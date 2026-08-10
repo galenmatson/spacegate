@@ -110,7 +110,8 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if any(rules.get(key) is not expected for key, expected in required_rules.items()):
         raise ValueError("unsafe clean runtime CORE rules")
     required_inputs = {
-        "clean_foundation", "clean_science", "clean_clusters", "clean_extended_objects"
+        "clean_foundation", "clean_science", "clean_clusters",
+        "clean_extended_objects", "selected_hierarchy",
     }
     if set(policy.get("inputs") or {}) != required_inputs:
         raise ValueError("clean runtime CORE inputs are incomplete")
@@ -907,6 +908,7 @@ def update_hierarchy_metadata(
     build_id: str,
     policy: dict[str, Any],
     foundation_build_id: str,
+    selected_hierarchy_build_id: str,
 ) -> None:
     con = duckdb.connect(str(hierarchy_path))
     try:
@@ -918,6 +920,7 @@ def update_hierarchy_metadata(
                 ("build_kind", "e7_clean_runtime_core"),
                 ("policy_version", policy["policy_version"]),
                 ("foundation_build_id", foundation_build_id),
+                ("selected_hierarchy_build_id", selected_hierarchy_build_id),
                 ("stability_database_opened", "0"),
             ],
         )
@@ -965,8 +968,8 @@ def compile_runtime_core(
         for name in foundation_names
     }
     hierarchy_db = timing.run(
-        "verify_foundation_hierarchy",
-        lambda: product_path(inputs["clean_foundation"], "canonical_hierarchy.duckdb"),
+        "verify_selected_hierarchy",
+        lambda: product_path(inputs["selected_hierarchy"], "canonical_hierarchy.duckdb"),
     )
     science_db = timing.run(
         "verify_clean_science",
@@ -1077,6 +1080,7 @@ def compile_runtime_core(
                 build_id,
                 policy,
                 inputs["clean_foundation"]["build_id"],
+                inputs["selected_hierarchy"]["build_id"],
             ),
         )
         products.update(

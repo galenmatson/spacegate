@@ -1,0 +1,26 @@
+{
+  "schema_version": "spacegate.e7_selected_hierarchy_policy.v1",
+  "policy_version": "2026-08-09.e7-selected-hierarchy.1",
+  "compiler_version": "e7_selected_hierarchy_compiler_v1",
+  "inputs": {
+    "clean_foundation": {
+      "build_id": "9c2d08086275ead386f71bf7",
+      "relative_path": "derived/evidence_lake_v2/clean_foundation/9c2d08086275ead386f71bf7",
+      "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0"
+    },
+    "selected_components": {
+      "build_id": "d1704688e1c34017c6441e2b",
+      "relative_path": "derived/evidence_lake_v2/selected_components/d1704688e1c34017c6441e2b",
+      "manifest_sha256": "347217e70c284511621e83483d690fb8d6ea1603c55d667032223e8a3ca33d29"
+    }
+  },
+  "rules": {
+    "preserve_all_canonical_nodes": true,
+    "preserve_all_canonical_edges": true,
+    "require_accepted_relation_for_msc_inferred_leaf": true,
+    "preserve_component_case_until_role_interpretation": true,
+    "uppercase_multi_component_labels_are_groups": true,
+    "prune_empty_source_groups": true,
+    "allow_named_object_conditions": false
+  }
+}

@@ -134,3 +134,8 @@ def test_optional_legacy_planet_tables_do_not_block_clean_core() -> None:
         assert con.execute("select * from planet_status_history").fetchall() == [(7,)]
     finally:
         con.close()
+
+
+def test_public_slice_does_not_implicitly_trim_inside_requested_radius() -> None:
+    assert MODULE.resolve_trim_beyond_ly(None, max_distance_ly=1000.0) == 1000.0
+    assert MODULE.resolve_trim_beyond_ly(500.0, max_distance_ly=1000.0) == 500.0

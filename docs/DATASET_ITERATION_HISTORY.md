@@ -4767,6 +4767,54 @@ Representative commits:
 - The prior scene archive remains a rollback/stability artifact. It is rejected
   by v12 runtime compatibility checks and must be regenerated before deployment.
 
+### 181) Active Hierarchy Replaces Scene Only Repair
+
+- Cross-surface review showed that the initial scene safeguard was incomplete:
+  Tau Bootis could render two stars while its map label and frozen hierarchy
+  still advertised three. The defect was architectural, not Tau specific.
+- Component policy v11 makes all values carried by the 13 MSC planetary relation
+  rows context only. The compiler retains the exact source records, parameters,
+  classifications, orbits, comments, and lineage but cannot select them as
+  stellar facts.
+- Selected-hierarchy build `75197558b76a7a448be4029f` overlays current relation
+  selection on permanent hierarchy identity. It preserves all 11,750,038
+  canonical nodes and 5,877,545 canonical edges, removes 94 unsupported
+  source-derived nodes and their edges across 55 WDS systems, and reports zero
+  duplicates, orphans, missing endpoints, or empty source groups.
+- The removal ledger classifies 22 planetary-context leaves, two planetary
+  leaves involved in a case-fold collision, 27 group labels previously presented
+  as leaves, 40 nodes without a selected relation endpoint, and three empty
+  source groups. No canonical inventory row is removed and no named-system
+  condition exists.
+- The full candidate public slice retains exactly 5,869,091 systems, 5,874,636
+  stars, 6,311 planets, 1,026,480 aliases, and 12,768,410 search terms. The
+  accepted-versus-candidate science comparison reports zero inventory or stable
+  key delta. A discarded, unserved preview exposed an implicit 500-ly trim;
+  public-slice defaults now keep the entire requested radius unless trimming is
+  explicitly requested.
+- A selection-contract change is not promotable from a named golden alone.
+  Inventory, hierarchy, classification badges, orbit endpoints, Public Read,
+  map artifacts, and simulation scenes must agree in the same A/B review.
+- The reusable Public Read v2 A/B gate compares the retained and candidate
+  projections before bundle or scene promotion. The accepted candidate removes
+  91 reviewed inferred leaf badges, retains three canonical stars after their
+  overlay rows become unnecessary, surfaces 12 existing canonical stars in
+  nested overlays, and upgrades 157 unchanged badge identities through general
+  MSC, SB9, and DEBCat classification policies. Immutable system and planet
+  science, star and search hashes, and public inventory counts are unchanged.
+- Full public build `e7_524b4c016779a77bc9780053_full_public` completed the
+  cross-surface repair. Its 14,141 hierarchy bundles passed with zero failures
+  in 3,275.2 seconds. Its 7,719 policy-selected scene-v12 artifacts passed with
+  zero failures in 2,839.5 seconds and froze into an 80,643,691-byte archive.
+  Exact map membership passed at 100, 250, 500, and 1,000 ly. The build verifier,
+  65 focused compiler/API tests, and desktop/mobile browser checks passed after
+  atomic local Photon promotion.
+- Tau Bootis is now a diagnostic example rather than a production exception:
+  map/search, System Page, hierarchy, OBJECTS, and the frozen scene all expose
+  two stellar members with selected classes `F` and `UNKNOWN`. Tau Boo b binds
+  to the F star through its permanent host identity. No named-system condition
+  participates in compilation or rendering.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

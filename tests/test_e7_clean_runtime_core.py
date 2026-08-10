@@ -21,7 +21,8 @@ def test_checked_in_policy_is_fail_closed() -> None:
     assert policy["rules"]["open_stability_databases"] is False
     assert policy["rules"]["cluster_membership_creates_containment"] is False
     assert set(policy["inputs"]) == {
-        "clean_foundation", "clean_science", "clean_clusters", "clean_extended_objects"
+        "clean_foundation", "clean_science", "clean_clusters", "clean_extended_objects",
+        "selected_hierarchy",
     }
 
 
