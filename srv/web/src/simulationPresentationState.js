@@ -3,6 +3,13 @@ const STORAGE_KEY = "spacegate.systemSimulation.presentation.v1";
 const VALID_SCALE_MODES = new Set(["structure", "true_orbits", "true_bodies", "log"]);
 const VALID_SPEEDS = new Set([0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000]);
 
+export const SIMULATION_SCALE_MODE_OPTIONS = Object.freeze([
+  Object.freeze({ value: "structure", label: "Structured", detail: "Best for understanding system structure. It preserves hierarchy readability and prevents common overlaps, but body sizes and orbit spacing are presentation-scaled." }),
+  Object.freeze({ value: "true_orbits", label: "Orbit", detail: "Best for comparing orbital distances. It preserves linear semi-major-axis ratios where practical, while shrinking bodies toward readable markers so inner orbits are not swallowed." }),
+  Object.freeze({ value: "true_bodies", label: "Body", detail: "Best for comparing body-size contrast. It makes stars and planets more honest relative to each other, but orbital distances remain compressed for inspection." }),
+  Object.freeze({ value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." }),
+]);
+
 function booleanOr(value, fallback) {
   return typeof value === "boolean" ? value : Boolean(fallback);
 }

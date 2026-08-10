@@ -1188,6 +1188,9 @@
   display: grid;
   gap: 10px;
   width: min(236px, calc(100vw - 36px));
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 11px;
   border: 1px solid var(--map-hud-border);
   border-radius: 8px;

@@ -467,8 +467,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map label-density adaptation that admits more labels in sparse camera
   fields and fades lower-priority labels harder when the field is crowded
 - [x] Add two-layer 3D map stellar point rendering with bright cores,
-  spectral halos, and persisted `Discovery`/`Realistic` Star Style modes
-  documented as presentation-only visual policy
+  spectral halos, and persisted `Discovery`/`Natural Color` Star Style modes
+  documented as presentation-only visual policy; retain `realistic` only as
+  the compatibility storage key
 - [ ] Design configurable Star Search-on-map controls: tight sidebar filters,
   top search, recent systems, dual-handle ranges for viewpoint distance, star
   count, planet count, and coolness, habitable-zone toggle with explanatory
@@ -1101,6 +1102,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Define a shared capped survey-image cache contract before adding more
   System Page imagery providers; retain the 4-GiB WISE cap and 15-GiB edge free-
   space floor until measured demand supports a reviewed change
+- [x] Complete the bounded pre-AAA UI polish pass: use plain public labels for
+  deterministic narration and simulator data layers, expose Star Style help on
+  touch and keyboard paths, add accessible names to abbreviated map commands,
+  and contain the settings menu on short mobile viewports without changing
+  science, APIs, or immutable artifacts
 - [ ] Complete M8.3e.4 real-device mobile UI and touch reliability pass:
   reproduce the Pixel Android Detail-navigation failure, prevent menu/overlay
   obstruction, prefer touched visible labels over background Gaia points, and

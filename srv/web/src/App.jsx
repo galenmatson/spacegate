@@ -1966,31 +1966,64 @@ function narrativeBlockByKind(blocks = [], kind) {
   return (Array.isArray(blocks) ? blocks : []).find((block) => String(block?.block_kind || "") === kind) || null;
 }
 
+function narrativeStatusPresentation(status) {
+  const key = String(status || "").trim().toLowerCase();
+  const presentations = {
+    deterministic_fallback: {
+      label: "Spacegate Summary",
+      title: "A deterministic summary assembled from the selected public facts. It is not AI-authored narration.",
+    },
+    reviewed: {
+      label: "Reviewed",
+      title: "This narrative has completed Spacegate's evidence and editorial review.",
+    },
+    reviewed_agent: {
+      label: "Reviewed Narration",
+      title: "This AI-assisted narrative has completed Spacegate's evidence and editorial review.",
+    },
+  };
+  return presentations[key] || {
+    label: formatCatalogObjectType(key || "Narrative"),
+    title: "Narrative publication status.",
+  };
+}
+
 function SystemNarrativeScaffold({ system, stars, planets, hierarchy, narrativeBlocks = [] }) {
   const apiBlocks = Array.isArray(narrativeBlocks) ? narrativeBlocks.filter((block) => block?.title && (block?.body_text || block?.body_markdown)) : [];
   if (apiBlocks.length > 0) {
     return (
       <section className="system-story-grid" aria-label="System narrative">
-        {apiBlocks.map((block, index) => (
-          <article
-            className={`panel system-story-card ${index === 0 ? "system-story-card-primary" : ""}`}
-            key={`${block.block_kind || block.title}-${index}`}
-          >
-            <span className="system-story-kicker">
-              {formatText(block.title)}
-              {block.status ? <span className="system-story-status">{formatText(block.status)}</span> : null}
-            </span>
-            {index === 0 ? <h2>{formatText(systemDisplayName(system))}</h2> : null}
-            <p>{formatText(block.body_text || block.body_markdown)}</p>
-            {Array.isArray(block.concept_slugs) && block.concept_slugs.length > 0 ? (
-              <div className="system-story-concepts" aria-label={`${block.title} concept hooks`}>
-                {block.concept_slugs.slice(0, 5).map((slug) => (
-                  <span key={`${block.block_kind}-${slug}`}>{String(slug).replaceAll("-", " ")}</span>
-                ))}
-              </div>
-            ) : null}
-          </article>
-        ))}
+        {apiBlocks.map((block, index) => {
+          const statusPresentation = block.status ? narrativeStatusPresentation(block.status) : null;
+          return (
+            <article
+              className={`panel system-story-card ${index === 0 ? "system-story-card-primary" : ""}`}
+              key={`${block.block_kind || block.title}-${index}`}
+            >
+              <span className="system-story-kicker">
+                {formatText(block.title)}
+                {statusPresentation ? (
+                  <span
+                    className="system-story-status"
+                    title={statusPresentation.title}
+                    aria-label={`${statusPresentation.label}. ${statusPresentation.title}`}
+                  >
+                    {statusPresentation.label}
+                  </span>
+                ) : null}
+              </span>
+              {index === 0 ? <h2>{formatText(systemDisplayName(system))}</h2> : null}
+              <p>{formatText(block.body_text || block.body_markdown)}</p>
+              {Array.isArray(block.concept_slugs) && block.concept_slugs.length > 0 ? (
+                <div className="system-story-concepts" aria-label={`${block.title} concept hooks`}>
+                  {block.concept_slugs.slice(0, 5).map((slug) => (
+                    <span key={`${block.block_kind}-${slug}`}>{String(slug).replaceAll("-", " ")}</span>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </section>
     );
   }

@@ -12,6 +12,7 @@ import {
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
 import {
+  SIMULATION_SCALE_MODE_OPTIONS as SCALE_MODE_OPTIONS,
   readSimulationPresentationState,
   writeSimulationPresentationState,
 } from "./simulationPresentationState.js";
@@ -36,12 +37,6 @@ const LIGHT_SCENE_CONTRAST = Object.freeze({
 const SceneContrastContext = React.createContext(DARK_SCENE_CONTRAST);
 const SIM_DAYS_PER_SECOND = 0.7;
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
-const SCALE_MODE_OPTIONS = [
-  { value: "structure", label: "Structured", detail: "Best for understanding system structure. It preserves hierarchy readability and prevents common overlaps, but body sizes and orbit spacing are presentation-scaled." },
-  { value: "true_orbits", label: "Orbit", detail: "Best for comparing orbital distances. It preserves linear semi-major-axis ratios where practical, while shrinking bodies toward readable markers so inner orbits are not swallowed." },
-  { value: "true_bodies", label: "Body", detail: "Best for comparing body-size contrast. It makes stars and planets more honest relative to each other, but orbital distances remain compressed for inspection." },
-  { value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." },
-];
 const SYSTEM_SIMULATION_TITLE = "Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.";
 const INLINE_SUBJECT_TAG_EXCLUDES = Object.freeze([
   ...OBJECT_BADGE_TAG_CATEGORIES,
@@ -464,6 +459,18 @@ function createPlanetTexture(seed, kind) {
 
 function statusLabel(status) {
   return String(status || "missing").toUpperCase();
+}
+
+function publicSceneLayerLabel(value) {
+  const key = String(value || "").trim().toLowerCase();
+  const labels = {
+    core: "Catalog science",
+    arm: "Evidence science",
+    disc: "Presentation",
+    rim: "Worldbuilding",
+    render_scene: "Simulation model",
+  };
+  return labels[key] || "Source unavailable";
 }
 
 async function copyTextToClipboard(value) {
@@ -4314,7 +4321,7 @@ function PinnedReadout({ object, onClose, position = null, onPositionChange = nu
       >
         <div>
           <strong>{object.name}</strong>
-          <span>{object.kind} - {String(object.sourceLayer || "unknown").toUpperCase()}</span>
+          <span>{compactPolicyLabel(object.kind, "Object")} - {publicSceneLayerLabel(object.sourceLayer)}</span>
         </div>
         <button
           type="button"

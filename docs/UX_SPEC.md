@@ -69,10 +69,12 @@ Map overlays:
   they do not change science-layer coordinates.
 - Star Style is a presentation preference. `Discovery` subtly emphasizes
   high-coolness, planet-hosting, multistar, and nearby systems to encourage
-  exploration. `Realistic` reduces that guidance and uses physically motivated,
-  lightly tinted stellar colors. `Bright` increases core and halo visibility
-  for large/high-resolution displays. None of these modes changes science-layer
-  facts.
+  exploration. `Natural Color` reduces that guidance and uses physically
+  motivated, lightly tinted stellar colors while preserving map visibility; it
+  is not an apparent-brightness simulation. `Bright` increases core and halo
+  visibility for large/high-resolution displays. None of these modes changes
+  science-layer facts. The compatibility storage key for `Natural Color`
+  remains `realistic` so existing visitor preferences continue to work.
 - Representative stellar-class badges are an independently persisted map-menu
   preference. Disabling them retains the same bounded label set and star style.
 

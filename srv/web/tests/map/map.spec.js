@@ -539,6 +539,7 @@ test.describe("public 3D map beta", () => {
     await expect(pinnedReadout).toBeVisible();
     const readoutTitle = pinnedReadout.locator(".system-preview-pinned-title");
     await expect(readoutTitle).toBeVisible();
+    await expect(readoutTitle).not.toContainText(/render_scene|\bCORE\b|\bARM\b/i);
     const beforeDragBox = await pinnedReadout.boundingBox();
     const titleBox = await readoutTitle.boundingBox();
     expect(beforeDragBox, "pinned readout before drag box").toBeTruthy();
@@ -561,13 +562,16 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
     await page.locator(".system-detail-v2 h1").click({ force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
-    await expect(page.locator(".system-search-topbar").getByRole("link", { name: "Map" })).toBeVisible();
+    await expect(page.locator(".site-header .surface-peer-nav").getByRole("link", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Infrared View" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What We Know" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What Remains Uncertain" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Further Exploration" })).toBeVisible();
+    await expect(page.locator(".system-story-status").first()).toHaveText("Spacegate Summary");
+    await expect(page.locator(".system-story-status").first()).toHaveAttribute("title", /not AI-authored narration/i);
+    await expect(page.locator(".system-story-status").first()).toHaveAttribute("aria-label", /Spacegate Summary.*not AI-authored narration/i);
     await expect(page.locator(".system-story-card", { hasText: "Future AAA Narrative Slot" })).toHaveCount(0);
     await expect(page.locator(".system-glance-strip")).toContainText(/Distance from Sol/i);
     await expect(page.locator(".hierarchy-panel h3")).toHaveText("Stars and Hierarchy");
@@ -929,7 +933,7 @@ test.describe("public 3D map beta", () => {
     const canvas = page.locator(".map-canvas canvas");
     await expect(menu).toBeVisible();
     await expect(page.locator(".map-fullscreen-command")).toBeVisible();
-    const homeButton = page.getByRole("button", { name: "SOL" });
+    const homeButton = page.getByRole("button", { name: "Return to Sol" });
     await expect(homeButton).toBeVisible();
     await homeButton.click();
     await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
@@ -950,9 +954,12 @@ test.describe("public 3D map beta", () => {
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
+    await expect(scaleSelect.locator("option[value='structure']")).toHaveAttribute("title", /system structure/i);
+    await expect(menu.locator("#map-default-scale-help")).toContainText(/hierarchy readability/i);
     await expect(nameStyleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
     await expect(starRenderSelect).toBeVisible();
+    await expect(starRenderSelect.locator("option[value='realistic']")).toHaveText("Natural Color");
     await expect(classBadgesSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
     await expect(menu.locator("[data-testid='map-grid-overlay-toggle']")).toHaveCount(0);
@@ -962,6 +969,7 @@ test.describe("public 3D map beta", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
 
     await starRenderSelect.selectOption("realistic");
+    await expect(menu.locator("#map-star-render-mode-help")).toContainText(/not an apparent-brightness simulation/i);
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("realistic");
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.mapStarRenderMode || ""),
@@ -2204,6 +2212,29 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("flight");
+  });
+
+  test("short mobile viewports keep the map menu contained and scrollable", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only menu containment check");
+    await page.setViewportSize({ width: 360, height: 640 });
+    await openMap(page, "/map?radius=100");
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").tap();
+    const panel = menu.locator(".map-header-menu-panel");
+    await expect(panel).toBeVisible();
+    const metrics = await panel.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        bottom: rect.bottom,
+        viewportHeight: window.innerHeight,
+        scrollHeight: node.scrollHeight,
+        clientHeight: node.clientHeight,
+        overflowY: getComputedStyle(node).overflowY,
+      };
+    });
+    expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+    expect(metrics.overflowY).toBe("auto");
   });
 
   test("system detail renders live simulation preview", async ({ page }, testInfo) => {

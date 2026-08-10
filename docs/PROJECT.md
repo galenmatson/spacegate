@@ -50,9 +50,11 @@ scenes passed the 6-vCPU/12-GiB capacity gate and public deployment checks. The
 July 17 build remains the published rollback while the release soaks. Photon
 serves the later hierarchy-coherence build
 `e7_524b4c016779a77bc9780053_full_public` for local verification. Smart Tags are
-deployed; a secure, citation-backed, reviewed AI Astronomy Agency vertical
-slice remains the next investigation foundation after bounded housekeeping and
-mobile reliability work.
+deployed. After the bounded storage and presentation closeout and formal
+public-soak review, the next investigation foundation is a secure,
+citation-backed, reviewed AI Astronomy Agency vertical slice. Real-device
+mobile reliability remains an independent public UX milestone and is not a
+reason to weaken or postpone the Agency's security and evaluation foundation.
 
 Smart Tag application is now an explicit DISC policy layered over immutable
 assignments. Reviewed claim modes and originating-object scope govern what may

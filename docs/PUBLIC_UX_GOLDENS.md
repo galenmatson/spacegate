@@ -109,6 +109,14 @@ The Playwright map suite imports
   preferences take precedence; enhanced desktop, standard desktop, enhanced
   touch, and constrained profiles select their documented bounded
   radius/density/style defaults without rendering a screen-space grid.
+- Map-menu parity keeps the stored `realistic` preference compatible while
+  presenting that mode as `Natural Color`, exposes the active style and default
+  simulation-scale explanations without hover, and gives abbreviated map
+  commands complete accessible names. A 360-by-640 regression check keeps the
+  expanded settings menu within the viewport with bounded internal scrolling.
+- System-page narration parity presents deterministic fallback blocks as
+  `Spacegate Summary` rather than exposing machine status tokens, while pinned
+  simulator readouts translate storage layers into plain public language.
 - Future M8.3g Wavelength View goldens must cover aligned visible/infrared
   fields for high-proper-motion, saturated, crowded, ordinary, ultracool,
   compact, and extended targets; discrete wavelength stops, missing coverage,

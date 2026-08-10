@@ -747,10 +747,10 @@ Delivered baseline:
 - orientation contract documented: scene up is canonical `z_helio_ly` mapped
   onto Three.js Y and is not a galactic-north claim
 - two-layer GPU point rendering for the stellar cloud, with circular bright
-  core sprites, spectral halo sprites, and persisted `Discovery`/`Realistic`
-  Star Style modes. Discovery emphasis is browser presentation only and must
-  never be interpreted as physical luminosity or written back into science
-  layers.
+  core sprites, spectral halo sprites, and persisted `Discovery`/`Natural
+  Color` Star Style modes. Natural Color retains the `realistic` compatibility
+  value. Discovery emphasis is browser presentation only and must never be
+  interpreted as physical luminosity or written back into science layers.
 
 Remaining pilot polish:
 
@@ -3436,6 +3436,13 @@ Verification checkpoint:
 - the retained-versus-candidate Public Read scientific A/B gate passes every
   inventory, stable identity, classification lineage, hierarchy-dependent
   presentation, and immutable planet/system check before local promotion;
+- the August 10 pre-AAA presentation closeout renames the public `Realistic`
+  map style to the more accurate `Natural Color` while retaining its stored
+  compatibility key, replaces raw narrative and simulation-layer identifiers
+  with plain public language, exposes active style help to touch and keyboard
+  users, adds accessible names to abbreviated map commands, and keeps the
+  expanded settings menu scrollable inside short mobile viewports without
+  changing scientific data, API payloads, or artifact identity;
 - unit, API, Docker, desktop/mobile Playwright, 4K/ultrawide theme, canvas,
   navigation continuity, and deterministic report gates pass against the
   local Photon runtime at `https://10.0.0.12`.

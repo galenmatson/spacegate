@@ -42,6 +42,7 @@ import {
 } from "./stellarClassTags.jsx";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 import { useSmartTagDefinition } from "./SmartTag.jsx";
+import { SIMULATION_SCALE_MODE_OPTIONS as SYSTEM_SCALE_MODE_OPTIONS } from "./simulationPresentationState.js";
 
 const DEFAULT_MAP_RADIUS_LY = 500;
 const MONOLITHIC_DIAGNOSTIC_RADIUS_LY = 100;
@@ -83,12 +84,6 @@ const MAP_UTILITY_LINKS = [
 ];
 const MAP_VISIBLE_UTILITY_LABELS = new Set(["HELP", "DATA"]);
 const MAP_MENU_UTILITY_LABELS = new Set(["ABT", "SPT", "SRC"]);
-const SYSTEM_SCALE_MODE_OPTIONS = [
-  { value: "structure", label: "Structured" },
-  { value: "true_orbits", label: "Orbit" },
-  { value: "true_bodies", label: "Body" },
-  { value: "log", label: "Log" },
-];
 const SYSTEM_SCALE_MODE_IDS = new Set(SYSTEM_SCALE_MODE_OPTIONS.map((option) => option.value));
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
@@ -252,8 +247,8 @@ const STAR_RENDER_MODES = {
   },
   realistic: {
     id: "realistic",
-    label: "Realistic",
-    title: "Prioritizes physically motivated star color and brightness.",
+    label: "Natural Color",
+    title: "Uses physically motivated stellar colors while preserving map visibility. This is not an apparent-brightness simulation.",
   },
 };
 const STAR_RENDER_MODE_OPTIONS = Object.values(STAR_RENDER_MODES);
@@ -4844,6 +4839,7 @@ export default function StarMapPage({
             <button
               type="button"
               className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
+              aria-label={mapSearchOpen ? "Close map search" : "Open map search"}
               aria-pressed={mapSearchOpen}
               data-testid="map-search-toggle"
               onClick={toggleMapSearch}
@@ -4855,6 +4851,7 @@ export default function StarMapPage({
               className="map-hud-button"
               onClick={jumpHomeToSol}
               title="Return to Sol"
+              aria-label="Return to Sol"
             >
               SOL
             </button>
@@ -4865,6 +4862,7 @@ export default function StarMapPage({
               aria-pressed={minimalMode}
               onClick={enterMinimalMode}
               title="Minimal map interface (M)"
+              aria-label="Enter minimal map interface"
             >
               MIN
             </button>
@@ -4872,6 +4870,7 @@ export default function StarMapPage({
               <button
                 type="button"
                 className="map-hud-button primary"
+                aria-label={`Explore ${formatName(selectedSystem.display_name || selectedSystem.canonical_name)}`}
                 onClick={() => {
                   setDrillMode("explore");
                   setFocusToken((value) => value + 1);
@@ -4881,7 +4880,13 @@ export default function StarMapPage({
               </button>
             )}
             {fullscreenAvailable && (
-              <button type="button" className="map-hud-button map-fullscreen-command" onClick={toggleFullscreen}>
+              <button
+                type="button"
+                className="map-hud-button map-fullscreen-command"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Exit fullscreen map" : "Open fullscreen map"}
+                title={isFullscreen ? "Exit fullscreen map" : "Open fullscreen map"}
+              >
                 {isFullscreen ? "Exit" : "Full"}
               </button>
             )}
@@ -4934,11 +4939,15 @@ export default function StarMapPage({
                     value={normalizeStarRenderMode(starRenderMode)}
                     onChange={(event) => setStarRenderMode(normalizeStarRenderMode(event.target.value))}
                     data-testid="map-star-render-mode-select"
+                    aria-describedby="map-star-render-mode-help"
                   >
                     {STAR_RENDER_MODE_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id} title={option.title}>{option.label}</option>
                     ))}
                   </select>
+                  <small id="map-star-render-mode-help" className="map-menu-note">
+                    {STAR_RENDER_MODES[normalizeStarRenderMode(starRenderMode)]?.title}
+                  </small>
                 </label>
                 <label className="map-menu-field map-radius-select">
                   <span>Map Radius</span>
@@ -4984,11 +4993,15 @@ export default function StarMapPage({
                     value={normalizeSystemScaleMode(defaultScaleMode)}
                     onChange={(event) => setDefaultScaleMode(normalizeSystemScaleMode(event.target.value))}
                     data-testid="map-default-scale-select"
+                    aria-describedby="map-default-scale-help"
                   >
                     {SYSTEM_SCALE_MODE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value} title={option.detail}>{option.label}</option>
                     ))}
                   </select>
+                  <small id="map-default-scale-help" className="map-menu-note">
+                    {SYSTEM_SCALE_MODE_OPTIONS.find((option) => option.value === normalizeSystemScaleMode(defaultScaleMode))?.detail}
+                  </small>
                 </label>
                 <label className="map-menu-field map-name-style-select">
                   <span>Name Style</span>
