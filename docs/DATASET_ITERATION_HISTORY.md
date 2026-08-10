@@ -4851,6 +4851,20 @@ Representative commits:
   is under
   `/data/spacegate/state/reports/storage_housekeeping/20260810/`.
 
+### 183) Temperature Guides No Longer Rescale System Geometry
+
+- Formation-line visibility had been included in the shared scene scale domain.
+  Enabling a distant methane, carbon monoxide, or nitrogen boundary therefore
+  made existing planets and habitable zones visibly contract even though no
+  scientific or camera input had changed.
+- The renderer now derives its stable planet/HZ scale domain only from planets
+  and habitable-zone bounds. Temperature guides use that same unchanged mapping,
+  so a distant guide can extend beyond the current framing but cannot move or
+  resize the scene it is meant to explain.
+- The habitable-zone label moved from the far side of the band along the default
+  camera axis to its lateral midpoint, preventing its projection from landing on
+  the host star. Canvas diagnostics and browser coverage lock both policies.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

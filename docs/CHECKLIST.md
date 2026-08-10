@@ -534,6 +534,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Normalize habitable-zone display scaling against rendered HZ bounds as
   well as planets, and make True Bodies planet radii use Earth-to-Sun scale
   relative to star meshes
+- [x] Keep System Simulation orbit and habitable-zone geometry invariant when
+  temperature lines are toggled, and anchor the HZ label visibly on its band
 - [x] Advance animated preview bodies by mean anomaly with a Kepler solve for
   true anomaly before placement, keeping full N-body propagation out of scope
 - [x] Add WebGL capability fallback from the Live System Preview to the

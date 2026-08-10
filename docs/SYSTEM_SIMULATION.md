@@ -637,6 +637,11 @@ Success criteria:
   aids. Their readouts expose luminosity, inner/outer AU bounds, planet-plane
   alignment basis, and broad-flux basis from the render-scene calculations
   while avoiding click/drag handlers that could block camera controls.
+- temperature and condensation-line toggles never participate in the shared
+  planet/HZ scale domain. Enabling a distant guide may place it outside the
+  current camera framing, but it cannot resize planets, orbits, or overlays
+  already being inspected. HZ labels occupy the lateral midpoint of their band
+  rather than its far side along the default camera axis.
 - default object labels use mipmapped canvas-text sprites with dark outlines,
   screen-size scaling, and browser-visible `sceneLabelRenderer` and
   `planetLabelAnchorPolicy` diagnostics.

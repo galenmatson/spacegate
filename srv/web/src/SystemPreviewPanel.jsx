@@ -3207,6 +3207,8 @@ function SceneMotionMetrics({
   habitableZoneMaxPlaneInclinationDeg = 0,
   habitableZoneParentPlaneCount = 0,
   habitableZonePlanetPlaneCount = 0,
+  orbitScaleDomainAu = 0,
+  activeFormationLineCount = 0,
   starClassStatusCounts = {},
   scaleMode = "structure",
   collisionAdjustedStarCount = 0,
@@ -3289,6 +3291,9 @@ function SceneMotionMetrics({
     gl.domElement.dataset.habitableZoneParentPlaneCount = String(habitableZoneParentPlaneCount || 0);
     gl.domElement.dataset.habitableZoneBinaryPlaneCount = String(habitableZoneParentPlaneCount || 0);
     gl.domElement.dataset.habitableZonePlanetPlaneCount = String(habitableZonePlanetPlaneCount || 0);
+    gl.domElement.dataset.orbitScaleDomainAu = Number.isFinite(Number(orbitScaleDomainAu)) ? Number(orbitScaleDomainAu).toFixed(6) : "";
+    gl.domElement.dataset.activeFormationLineCount = String(activeFormationLineCount || 0);
+    gl.domElement.dataset.habitableZoneLabelPolicy = "ring_midpoint_lateral_v2";
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
@@ -3315,6 +3320,8 @@ function SceneMotionMetrics({
     habitableZoneMaxPlaneInclinationDeg,
     habitableZoneParentPlaneCount,
     habitableZonePlanetPlaneCount,
+    orbitScaleDomainAu,
+    activeFormationLineCount,
     labelCount,
     spectralLabelCount,
     massWeightedGroupMotionCount,
@@ -3502,7 +3509,7 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
   }, [innerRadiusRaw, outerRadiusRaw, scaleMode]);
   const innerPoints = useMemo(() => sampledOrbitPoints(innerRadius, 0, planeInclinationRad, 192), [innerRadius, planeInclinationRad]);
   const outerPoints = useMemo(() => sampledOrbitPoints(outerRadius, 0, planeInclinationRad, 192), [outerRadius, planeInclinationRad]);
-  const labelPosition = useMemo(() => orbitalPosition(-Math.PI / 2, (innerRadius + outerRadius) / 2, 0, planeInclinationRad), [innerRadius, outerRadius, planeInclinationRad]);
+  const labelPosition = useMemo(() => orbitalPosition(0, (innerRadius + outerRadius) / 2, 0, planeInclinationRad), [innerRadius, outerRadius, planeInclinationRad]);
   const hoverPayload = useMemo(() => (bounds ? habitableZoneHoverPayload(star, bounds) : null), [star, bounds]);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
 
@@ -3686,16 +3693,13 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     .map((star) => habitableZoneBoundsAu(star)?.outerAu)
     .filter((value) => Number.isFinite(value) && value > 0);
   const activeFormationLineKeys = FORMATION_LINE_ORDER.filter((key) => showFormationLines?.[key]);
-  const formationLineAuValues = activeFormationLineKeys.flatMap((key) => (
-    displayStars
-      .map((star) => formationLineRadiusAu(star, FORMATION_LINE_TYPES[key]))
-      .filter((value) => Number.isFinite(value) && value > 0)
-  ));
+  // Presentation overlays must not change the geometry they are explaining.
+  // Formation lines may extend beyond the current camera framing, but toggling
+  // one never rescales planets, orbits, or habitable zones already on screen.
   const maxOrbit = Math.max(
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
     ...hzOuterAuValues,
-    ...formationLineAuValues,
   );
   const displayPlanets = useMemo(() => (
     applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, activeScaleMode)
@@ -3816,6 +3820,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
         habitableZoneParentPlaneCount={showHabitableZones ? habitableZoneParentPlaneCount : 0}
         habitableZonePlanetPlaneCount={showHabitableZones ? habitableZonePlanetPlaneCount : 0}
+        orbitScaleDomainAu={maxOrbit}
+        activeFormationLineCount={activeFormationLineKeys.length}
         starClassStatusCounts={starClassStatusCounts}
         scaleMode={activeScaleMode}
         collisionAdjustedStarCount={collisionScale.adjustedCount}

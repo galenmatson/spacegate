@@ -2283,12 +2283,28 @@ test.describe("public 3D map beta", () => {
     const lineMenu = page.locator(".system-preview-line-menu");
     await expect(lineMenu).toBeVisible();
     await expect(lineMenu.locator("summary")).toContainText(/Lines/i);
+    const orbitScaleDomainBeforeLines = await sharedClockCanvas.evaluate((canvas) => canvas.dataset.orbitScaleDomainAu || "");
+    expect(Number(orbitScaleDomainBeforeLines)).toBeGreaterThan(0);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.habitableZoneLabelPolicy || ""),
+      { timeout: 3000 }
+    ).toBe("ring_midpoint_lateral_v2");
     await lineMenu.locator("summary").click();
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".system-preview-toggle", { hasText: "Vapor Off" })).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("title", /Water Freeze Line.*deg F/);
     await page.locator(".system-preview-toggle", { hasText: "Snow Off" }).click();
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow On" })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.orbitScaleDomainAu || ""),
+      { timeout: 3000 }
+    ).toBe(orbitScaleDomainBeforeLines);
+    await page.locator(".system-preview-toggle", { hasText: "CH4/CO Off" }).click();
+    await expect(page.locator(".system-preview-toggle", { hasText: "CH4/CO On" })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.orbitScaleDomainAu || ""),
+      { timeout: 3000 }
+    ).toBe(orbitScaleDomainBeforeLines);
     await page.locator(".system-preview-toggle", { hasText: "HZ On" }).click();
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ Off" })).toHaveAttribute("aria-pressed", "false");
     await lineMenu.locator("summary").click();
