@@ -756,6 +756,15 @@ Success criteria:
   seconds, and two normalized archive passes reproduced the same
   80,752,521-byte artifact with SHA-256
   `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`.
+- The August 10 public refresh regenerated the exact active 7,724-system policy
+  under artifact v12 with zero failures in 2,812.452 seconds using 12 workers.
+  The selected compressed scene payloads occupy 80,466,908 bytes. Independent
+  freezes validated all scenes in about 3.84 seconds each and produced the same
+  80,781,616-byte archive with SHA-256
+  `2c79fca84ee72890cfde6a7ad9a9d2149d800c51860ad1b486860bd4d028a06b`.
+  Antiproton installed this build-matched scene closure atomically and now
+  serves policy-selected scenes as `prebuilt` without visitor-triggered
+  regeneration.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to

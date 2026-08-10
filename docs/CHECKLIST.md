@@ -54,6 +54,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Activate and publicly verify the August 4 Smart Tags v4 release on
   antiproton; retain the July Public Read projection as a checksum-verified cold
   bind mount and preserve the recorded rollback target through the public soak
+- [x] Regenerate all 7,724 active Public Read full scenes under
+  `simulation_scene_artifact_v12`, prove two byte-identical frozen archives,
+  and atomically refresh only the public scene closure on antiproton while
+  retaining the v8 cache and archive as an explicit rollback set
 - [x] Promotion flow auto-scores coolness by default
 - [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
 - [x] Eclipsing support catalogs wired (DEBCat + TESS EB default-on; Kepler EB optional default-off)

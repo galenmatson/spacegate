@@ -1720,3 +1720,24 @@ Retain the preceding verified v2 hash
 `80a761ba3eb2fff23f339e172275b668f25cade40c26921d93241bd1edc635ec`
 as immediate rollback until a later public release and rollback drill accept
 the v3 artifact.
+
+## Public Simulation Scene Refreshes
+
+Frozen public simulation scenes are reproducible presentation artifacts, but a
+served scene closure and its immediate verified predecessor are deployment and
+rollback state. Protect the active build's cache manifest and payloads, frozen
+archive and manifest, release manifest, activation record, and most recent
+successful `deployments/<build_id>/scene-refreshes/<timestamp>/` rollback
+closure through the public soak. Failed refresh histories may be proposed only
+after confirming that their backups are duplicates of another protected
+closure and that no activation or incident record references them.
+
+The August 10 v12 refresh for build
+`20260804T1130Z_68fd99b_a2_planet_badges` is active with archive SHA-256
+`2c79fca84ee72890cfde6a7ad9a9d2149d800c51860ad1b486860bd4d028a06b`.
+Protect its prior v8 cache and frozen archive at deployment history
+`20260810T231809Z` until the scene refresh soak is accepted. Photon also retains
+the two clean v12 freeze roots under
+`/space/spacegate/scene-refresh-20260810-v12/`; one duplicate may be proposed
+through a reviewed dry run after branch acceptance and public soak, while the
+canonical archive, reports, release manifest, and immediate rollback remain.

@@ -61,6 +61,20 @@ The verified transfer is 34,070,546,186 bytes. The manifest is:
 The July release remains recoverable through its verified cold closure and a
 bind-mounted copy of its Public Read projection.
 
+On August 10, 2026 the active release received a scene-only contract refresh.
+The scientific archive, Public Read projection, and Smart Tag hashes above did
+not change. The active frozen scene artifact is now:
+
+| Artifact | Bytes | SHA-256 | Contract |
+| --- | ---: | --- | --- |
+| Frozen scenes | 80,781,616 | `2c79fca84ee72890cfde6a7ad9a9d2149d800c51860ad1b486860bd4d028a06b` | `simulation_scene_artifact_v12` |
+
+Its build-matched release manifest is:
+
+```text
+/data/spacegate/state/releases/20260804T1130Z_68fd99b_a2_planet_badges/scene-refresh-v12/2c79fca84ee72890cfde6a7ad9a9d2149d800c51860ad1b486860bd4d028a06b/release.json
+```
+
 ## Runtime Contract
 
 The accepted 6-vCPU/12-GiB capacity campaign requires:
@@ -322,6 +336,21 @@ installed release and updates the existing activation record without changing
 `deployments/<build_id>/scene-refreshes/<timestamp>/` as the explicit rollback
 closure. A scene refresh does not restart the API because artifact lookup
 precedes the in-process scene cache.
+
+The small release manifest is always transferred with content checksumming.
+Do not combine rsync's append mode with manifest updates: two regenerated JSON
+files can have the same length and timestamp granularity while containing
+different metadata. The scene archive remains resumable with append verification.
+
+The August 10 refresh retained the previous v8 closure at:
+
+```text
+/srv/spacegate/data/deployments/20260804T1130Z_68fd99b_a2_planet_badges/scene-refreshes/20260810T231809Z/
+```
+
+Full installed verification passed with 19,946,283,008 bytes free. Public
+sample requests returned `X-Spacegate-Simulation-Scene-Cache: prebuilt`, and
+the desktop Chromium Map to Peek to Explore workflow passed.
 
 ## Activation
 

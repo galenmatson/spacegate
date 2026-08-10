@@ -71,7 +71,10 @@ main() {
 
   ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes -o BatchMode=yes \
     -o ConnectTimeout=8 "$REMOTE" "mkdir -p '$incoming'"
-  rsync -ah --partial --append-verify --info=progress2,stats2 \
+  # Release metadata is small and may be regenerated with the same size and
+  # timestamp granularity. Require content comparison so a corrected manifest
+  # can never be mistaken for the already staged copy.
+  rsync -ah --checksum --info=progress2,stats2 \
     -e "ssh -i $(printf '%q' "$SSH_KEY_PATH") -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8" \
     "$MANIFEST" "$REMOTE:$remote_manifest"
   rsync -ah --partial --append-verify --info=progress2,stats2 \

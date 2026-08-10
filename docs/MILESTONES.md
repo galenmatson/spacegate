@@ -3030,6 +3030,16 @@ before activation.
   and desktop Chromium Map and Detail workflows. The prior Public Read
   projection remains checksum verified and bind mounted from the cold rollback
   tier; the previous extracted build remains the recorded rollback target.
+- On August 10, the active build's complete 7,724-system `full_scene` policy
+  was regenerated under `simulation_scene_artifact_v12` in 2,812.452 seconds
+  with zero failures. Two independent freezes produced the same 80,781,616-byte
+  archive and SHA-256
+  `2c79fca84ee72890cfde6a7ad9a9d2149d800c51860ad1b486860bd4d028a06b`.
+  The scene-only release path replaced the cache and frozen scene closure
+  without changing the scientific, Public Read, Smart Tag, or served-build
+  identities. Full installed verification, public prebuilt-cache headers, and
+  the Chromium Map to Peek to Explore workflow passed. The previous v8 scene
+  closure remains under the deployment's scene-refresh history for rollback.
 
 Success criteria:
 
