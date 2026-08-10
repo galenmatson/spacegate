@@ -12,6 +12,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -20,7 +22,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_clean_clusters.json"
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_OUTPUT = Path("/mnt/space/spacegate/e7-clean-clusters")
+DEFAULT_OUTPUT = bulk_path("e7-clean-clusters")
 
 
 def utc_now() -> str:

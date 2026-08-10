@@ -16,6 +16,8 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -3064,7 +3066,7 @@ def compile_selected_facts(
     artifact_root.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{build_id}.", dir=artifact_root))
     database = staging / "selected_facts.duckdb"
-    temp_directory = (temp_directory or Path("/mnt/space/spacegate/e5-selection-spill")).resolve()
+    temp_directory = (temp_directory or bulk_path("e5-selection-spill")).resolve()
     temp_directory.mkdir(parents=True, exist_ok=True)
     timing_report_path = (
         report_path.with_name(f"{report_path.stem}_timing.json")

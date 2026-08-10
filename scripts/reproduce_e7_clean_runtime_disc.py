@@ -8,13 +8,15 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 from verify_e7_clean_runtime_disc import load_object, verify
 
 
-DEFAULT_PRIMARY_ROOT = Path("/mnt/space/spacegate/e7-clean-runtime-disc")
-DEFAULT_REPRO_ROOT = Path("/mnt/space/spacegate/e7-clean-runtime-disc-reproduction")
+DEFAULT_PRIMARY_ROOT = bulk_path("e7-clean-runtime-disc")
+DEFAULT_REPRO_ROOT = bulk_path("e7-clean-runtime-disc-reproduction")
 
 
 def compare(primary_dir: Path, reproduction_dir: Path) -> dict[str, Any]:

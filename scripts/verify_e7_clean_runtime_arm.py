@@ -9,12 +9,14 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
 
 
-DEFAULT_ARTIFACT_ROOT = Path("/mnt/space/spacegate/e7-clean-runtime-arm")
+DEFAULT_ARTIFACT_ROOT = bulk_path("e7-clean-runtime-arm")
 SCIENCE_TABLES = {
     "selected_planet_parameters",
     "selected_stellar_astrometry",

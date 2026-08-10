@@ -13,6 +13,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -21,7 +23,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e5_system_placement_policies.json"
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH = bulk_root()
 SELECTED_PLACEMENT_QUANTITIES = (
     "ra_deg",
     "dec_deg",

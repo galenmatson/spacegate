@@ -8,6 +8,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from storage_paths import bulk_path
+
 from compile_e7_clean_clusters import (
     DEFAULT_POLICY,
     DEFAULT_STATE,
@@ -22,7 +24,7 @@ def main() -> int:
     parser.add_argument("--reference", type=Path, required=True)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
-    parser.add_argument("--scratch-parent", type=Path, default=Path("/mnt/space/spacegate/e7-clean-cluster-reproduction"))
+    parser.add_argument("--scratch-parent", type=Path, default=bulk_path("e7-clean-cluster-reproduction"))
     parser.add_argument("--report", type=Path, default=DEFAULT_STATE / "reports/evidence_lake_v2/e7_clean_clusters_reproduction.json")
     args = parser.parse_args()
     reference = read_json(args.reference / "manifest.json")

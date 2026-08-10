@@ -15,6 +15,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any, Callable
 
 import duckdb
@@ -26,8 +28,8 @@ from materialize_stellar_leaf_classifications import spectral_class_sql
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_clean_science.json"
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_FOUNDATION_ROOT = Path("/mnt/space/spacegate/e7-clean-foundation")
-DEFAULT_OUTPUT_ROOT = Path("/mnt/space/spacegate/e7-clean-science")
+DEFAULT_FOUNDATION_ROOT = bulk_path("e7-clean-foundation")
+DEFAULT_OUTPUT_ROOT = bulk_path("e7-clean-science")
 VALID_CLASSES = (
     "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WR", "WD",
     "NS", "PULSAR", "MAGNETAR", "BLACK HOLE", "UNKNOWN",

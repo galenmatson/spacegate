@@ -16,7 +16,7 @@ PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}"
 EVIDENCE_REGISTRY_GATE="${SPACEGATE_EVIDENCE_REGISTRY_GATE:-1}"
 EVIDENCE_REPORT_DIR="$STATE_DIR/reports/evidence_lake_v2"
 DOWNLOAD_DIR="${SPACEGATE_DL_ROOT:-$(dirname "$STATE_DIR")/dl}"
-BULK_DIR="${SPACEGATE_BULK_DIR:-/mnt/space/spacegate}"
+BULK_DIR="${SPACEGATE_BULK_DIR:-/space/spacegate}"
 
 now_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"

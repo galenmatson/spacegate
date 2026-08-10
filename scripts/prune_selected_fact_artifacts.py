@@ -8,6 +8,8 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 from prune_evidence_lake_artifacts import (
@@ -27,7 +29,7 @@ from prune_evidence_lake_artifacts import (
 DEFAULT_STATE = Path("/data/spacegate/state")
 CONTRACT = "spacegate.selected_fact_artifact_retention.v1"
 AUDIT_CONTRACT = "spacegate.selected_fact_artifact_audit.v1"
-DEFAULT_SPILL = Path("/mnt/space/spacegate/e5-selection-spill")
+DEFAULT_SPILL = bulk_path("e5-selection-spill")
 
 
 def report_references(

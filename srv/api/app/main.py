@@ -10685,6 +10685,7 @@ def _list_agent_eval_reports(state_dir: Path, limit: int = 12) -> Dict[str, Any]
 
 def _agency_status_payload() -> Dict[str, Any]:
     state_dir = _state_dir().resolve()
+    bulk_root = Path(os.getenv("SPACEGATE_BULK_DIR", "/data/bulk")).expanduser()
     core_db_path = Path(db.get_db_path()).resolve()
     disc_db_path = core_db_path.with_name("disc.duckdb")
     arm_db_path = core_db_path.with_name("arm.duckdb")
@@ -10714,14 +10715,14 @@ def _agency_status_payload() -> Dict[str, Any]:
             "core_db_path": str(core_db_path),
             "disc_db_path": str(disc_db_path),
             "arm_db_path": str(arm_db_path),
-            "bulk_archive_root": "/mnt/space/spacegate/agent_archive",
+            "bulk_archive_root": str(bulk_root / "agent_archive"),
         },
         "workflow_stages": AGENCY_WORKFLOW_STAGES,
         "storage_model": {
             "hot_layer": "admin operational rows for active dossiers, source files, extraction sets, findings, and journal entries",
             "disc_materialization": "disc remains the future/public materialized citation, factsheet, exposition, and evidence-link layer",
             "proposal_layer": "arm proposal/overlay rows for accepted supplemental science and adjudication candidates",
-            "cold_archive": "/mnt/space/spacegate/agent_archive for compressed dossier packages and bulky source snapshots",
+            "cold_archive": "active bulk archive for compressed dossiers and bulky source snapshots; lineage remains in hot state",
             "core_policy": "agents never write directly to core",
         },
         "readiness": {
@@ -11396,7 +11397,7 @@ def _runtime_status_payload() -> Dict[str, Any]:
             "description": "Current promoted immutable build symlink/directory.",
         },
         "bulk_research_root": {
-            "path": Path(bulk_env or "/mnt/space/spacegate"),
+            "path": Path(bulk_env or "/data/bulk"),
             "expected_type": "dir",
             "require_writable": True,
             "env_key": "SPACEGATE_BULK_DIR",

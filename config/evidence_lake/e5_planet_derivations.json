@@ -15,7 +15,7 @@
   },
   "foundation": {
     "build_id": "9c2d08086275ead386f71bf7",
-    "path": "/mnt/space/spacegate/e7-clean-foundation/9c2d08086275ead386f71bf7",
+    "path": "/space/spacegate/e7-clean-foundation/9c2d08086275ead386f71bf7",
     "manifest_sha256": "361da1107170fc4a6707250926a338ee0c4abf52164e76eed4ac5bf2f79949d0",
     "database": "clean_core_foundation.duckdb",
     "database_sha256": "124c4fc949a2a1a8d4bcd908b520a2c0b10fc185611af478b59789734306ada6"

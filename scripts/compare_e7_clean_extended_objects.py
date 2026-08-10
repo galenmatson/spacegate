@@ -7,6 +7,8 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -113,7 +115,7 @@ def main() -> None:
     args = parser.parse_args()
     report = compare(
         args.state_dir / "out" / args.stability_build_id / "core.duckdb",
-        Path("/mnt/space/spacegate/e7-clean-extended-objects") / args.clean_build_id / "clean_extended_objects.duckdb",
+        bulk_path("e7-clean-extended-objects") / args.clean_build_id / "clean_extended_objects.duckdb",
     )
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.report:

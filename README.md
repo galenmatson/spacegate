@@ -70,6 +70,10 @@ for a practical full E0-E7 build. See
 [`docs/BUILD_STORAGE_REQUIREMENTS.md`](docs/BUILD_STORAGE_REQUIREMENTS.md) for
 measured artifacts, peak scratch, and capacity tiers. Place
 `SPACEGATE_STATE_DIR` on a separate volume from the root for source builds.
+Builder hosts should also follow
+[`docs/STORAGE_ARCHITECTURE.md`](docs/STORAGE_ARCHITECTURE.md): keep hot state
+on internal NVMe, use `/space/spacegate` as the active bulk/compiler tier on
+Photon, and reserve network storage for verified immutable archives.
   
 ### For production deployments, standard Linux locations are recommended:
   - /srv/spacegate            # web and api servers
@@ -87,7 +91,7 @@ Spacegate host-side tooling after root editor saves. Keep `spacegate.env`
 On Photon, source `/srv/spacegate/photon.env` before host-side Spacegate tasks.
 The active development/build state is under `/data/spacegate/state` on the
 `/data` volume; bulk research documents, papers, OCR text, and other large
-dossier cache material should live under `/mnt/space/spacegate` when that mount
+dossier cache material should live under `/space/spacegate` when that mount
 is available, with hashes and metadata kept in Spacegate state.
 
 ## Quickstart (from scratch)

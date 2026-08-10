@@ -13,12 +13,14 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_clean_runtime_bundle.json"
-DEFAULT_OUTPUT_ROOT = Path("/mnt/space/spacegate/e7-clean-runtime-bundle")
+DEFAULT_OUTPUT_ROOT = bulk_path("e7-clean-runtime-bundle")
 DEFAULT_STATE = Path("/data/spacegate/state")
 PRODUCT_NAMES = {
     "core": {"core.duckdb", "canonical_hierarchy.duckdb"},

@@ -1979,8 +1979,8 @@ Before large acquisition or a full build:
   published, referenced, or unique-source artifacts
 - set explicit raw, typed, build, report, and product-cache storage budgets
 - keep durable source snapshots on reliable internal storage or backed up;
-  `/mnt/space/spacegate` is suitable for bulk document/product caches but not as
-  the only copy of irreplaceable inputs
+  `/space/spacegate` is the active bulk document/product cache and compiler tier,
+  but not the only copy of irreplaceable inputs
 - keep spectra, light curves, and imagery out of hot served databases; store
   product indexes and bounded caches instead
 

@@ -16,8 +16,9 @@ Primary product goals:
 
 ## Current Direction
 Spacegate now operates on a Gaia-first canonical core with deterministic
-canonical reduction, explicit ARM evidence/hierarchy/orbit support, a public
-100 ly 3D map, simulation-first system pages, and Star Search v2. AT-HYG is no
+canonical reduction, explicit ARM evidence/hierarchy/orbit support, a tiled
+public 3D map through 1,000 ly, simulation-first system pages, and Star Search
+v2. AT-HYG is no
 longer a canonical inventory source; its remaining role is transitional alias
 and compatibility enrichment.
 
@@ -32,18 +33,26 @@ collectors and cookers are compatibility/reproduction paths, not authoritative
 refresh entrypoints.
 
 Photon retains active compiler and served generations on fast local storage.
+Hot state remains under `/data/spacegate`, while the 4 TB internal NVMe at
+`/space/spacegate` is the default active bulk, compiler, reproduction, and
+research tier. The older USB SSD is a legacy/secondary sequential tier, not a
+default dependency. Storage roles and measured performance are recorded in
+`docs/STORAGE_ARCHITECTURE.md`.
 Verified superseded immutable generations may move to the dedicated Proton cold
 tier only through manifest-first copy, independent destination hashing, atomic
 archive publication, and a separately reviewed local retirement. The cold tier
 is not compiler scratch or a transparent runtime dependency.
 
 The measured Public Read v2 consumer architecture is active on antiproton as
-build `e7_24cb15211f430a37f199f462_full_public`. Search, bounded system
+build `20260804T1130Z_68fd99b_a2_planet_badges`. Search, bounded system
 projections, hierarchy bundles, singleton seeds, and policy-selected frozen
 scenes passed the 6-vCPU/12-GiB capacity gate and public deployment checks. The
-July 17 build remains the immediate rollback while the release soaks. Smart
-Tags and a secure, citation-backed, reviewed AI Astronomy Agency vertical slice
-are the next presentation and investigation foundations.
+July 17 build remains the published rollback while the release soaks. Photon
+serves the later hierarchy-coherence build
+`e7_524b4c016779a77bc9780053_full_public` for local verification. Smart Tags are
+deployed; a secure, citation-backed, reviewed AI Astronomy Agency vertical
+slice remains the next investigation foundation after bounded housekeeping and
+mobile reliability work.
 
 Smart Tag application is now an explicit DISC policy layered over immutable
 assignments. Reviewed claim modes and originating-object scope govern what may
@@ -82,6 +91,7 @@ Operational runbook:
 
 - ingest failure recovery + runtime tuning: `docs/INGEST_RECOVERY.md`
 - evidence-lake redesign: `docs/EVIDENCE_LAKE_V2.md`
+- storage placement and measured tiers: `docs/STORAGE_ARCHITECTURE.md`
 - 3D map runtime: `docs/3D_MAP.md`
 - system simulation contract: `docs/SYSTEM_SIMULATION.md`
 
@@ -644,7 +654,7 @@ Required runtime notes:
 - antiproton public-host specifics (TLS, nginx, auth, deployment)
 - photon development/build specifics
   - source `/srv/spacegate/photon.env` before host-side Spacegate tasks
-  - keep bulky research/source-document cache under `/mnt/space/spacegate`
+  - keep bulky research/source-document cache under `/space/spacegate`
     when mounted; keep auditable metadata and hashes in internal state
 - proton fallback/reference specifics only where still relevant
 
@@ -1027,9 +1037,8 @@ Notes:
 1. Observe the M8.3e public release under normal traffic, retain the July 17
    build and published artifacts, and review errors, latency, memory, cache, and
    scene-hit telemetry before accepting the soak.
-2. Complete the bounded M8.3e.3 public UI/simulation coherence pass now that
-   Smart Tags, Simple Light, and the selected-fact contracts are deployed and
-   stable.
+2. Complete the bounded real-device M8.3e.4 mobile UI and touch reliability
+   pass without reopening scientific selection logic.
 3. Implement the collapsed Public Evidence Inspector, then complete the M8.3g
    Wavelength View provider/capacity research and visible/infrared foundation.
 4. Implement one secure AAA evidence-portfolio vertical slice with source-text

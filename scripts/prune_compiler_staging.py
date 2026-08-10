@@ -24,6 +24,7 @@ CONTRACT = "spacegate.compiler_staging_retention.v1"
 STAGING_NAME = re.compile(r"^\.[0-9a-f]{24}\.[A-Za-z0-9_-]+$")
 ALLOWED_ROOTS = (
     Path("/data/spacegate/state"),
+    Path("/space/spacegate"),
     Path("/mnt/space/spacegate"),
 )
 
@@ -47,9 +48,13 @@ def inspect(root: Path, name: str, minimum_age_minutes: float) -> dict[str, Any]
         raise ValueError(f"candidate escapes compiler artifact root: {name}")
     if (candidate / "manifest.json").exists():
         raise ValueError(f"manifest-bearing artifact is protected: {name}")
-    databases = sorted(candidate.rglob("*.duckdb"))
-    if not databases:
-        raise ValueError(f"candidate has no compiler database payload: {name}")
+    payloads = sorted(
+        path
+        for suffix in ("*.duckdb", "*.parquet", "*.arrow")
+        for path in candidate.rglob(suffix)
+    )
+    if not payloads:
+        raise ValueError(f"candidate has no recognized compiler payload: {name}")
     identity = tree_identity(candidate)
     if any(row["kind"] == "symlink" for row in identity):
         raise ValueError(f"candidate contains symlinks: {name}")
@@ -72,7 +77,7 @@ def inspect(root: Path, name: str, minimum_age_minutes: float) -> dict[str, Any]
         "name": name,
         "path": str(candidate),
         "artifact_state": "interrupted_manifestless_compiler_staging",
-        "database_files": [str(path.relative_to(candidate)) for path in databases],
+        "payload_files": [str(path.relative_to(candidate)) for path in payloads],
         "allocated_bytes": allocated_bytes(candidate),
         "age_seconds": round(age_seconds, 3),
         "tree_entry_count": len(identity),

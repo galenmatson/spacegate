@@ -10,6 +10,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -17,7 +19,7 @@ import duckdb
 import compile_extended_identity_seed as compiler
 
 
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH = bulk_root()
 
 
 def audit(policy_path: Path, manifest_path: Path) -> dict[str, Any]:

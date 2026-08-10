@@ -11,6 +11,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -18,7 +20,7 @@ import duckdb
 import compile_e7_stellar_orbit_runtime as compiler
 
 
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH = bulk_root()
 PRODUCTS = {
     "selected_stellar_orbit_relations.parquet": "relations",
     "selected_stellar_orbit_solutions.parquet": "solutions",

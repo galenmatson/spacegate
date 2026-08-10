@@ -10,8 +10,8 @@
     "disc": "30280c152441804f449d86b3",
     "bundle": "39b7386d4524ce5b1ff2729f"
   },
-  "bundle_manifest": "/mnt/space/spacegate/e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json",
-  "arm_manifest": "/mnt/space/spacegate/e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json",
+  "bundle_manifest": "/space/spacegate/e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json",
+  "arm_manifest": "/space/spacegate/e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json",
   "reports": {
     "classification_ab": "/data/spacegate/reports/evidence_lake_v2/e7_runtime_classification_ab_abf25120_2026-07-23.json",
     "planet_cutover_ab": "/data/spacegate/reports/evidence_lake_v2/e7_planet_derivation_cutover_ab_2026-07-23.json",

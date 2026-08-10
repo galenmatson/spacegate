@@ -13,6 +13,8 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -623,7 +625,7 @@ def compile_shadow_build(
         return manifest["report"]
 
     staging = Path(tempfile.mkdtemp(prefix=f".{build_id}.", dir=out_root))
-    temp_directory = (temp_directory or Path("/mnt/space/spacegate/e6-shadow-spill")).resolve()
+    temp_directory = (temp_directory or bulk_path("e6-shadow-spill")).resolve()
     temp_directory.mkdir(parents=True, exist_ok=True)
     try:
         recorder.run(

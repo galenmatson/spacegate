@@ -33,7 +33,25 @@ def test_inspect_accepts_old_manifestless_database_staging(
     row = MODULE.inspect(root, candidate.name, 60)
 
     assert row["artifact_state"] == "interrupted_manifestless_compiler_staging"
-    assert row["database_files"] == ["work.duckdb"]
+    assert row["payload_files"] == ["work.duckdb"]
+
+
+def test_inspect_accepts_parquet_only_staging(monkeypatch, tmp_path: Path) -> None:
+    allowed = tmp_path / "spacegate"
+    root = allowed / "family"
+    candidate = root / ".0123456789abcdef01234567.fixture"
+    candidate.mkdir(parents=True)
+    (candidate / "rows.parquet").write_bytes(b"fixture")
+    old = 1_600_000_000
+    os.utime(candidate / "rows.parquet", (old, old))
+    os.utime(candidate, (old, old))
+    monkeypatch.setattr(MODULE, "ALLOWED_ROOTS", (allowed,))
+    monkeypatch.setattr(MODULE, "open_processes", lambda _: [])
+
+    row = MODULE.inspect(root, candidate.name, 60)
+
+    assert row["artifact_state"] == "interrupted_manifestless_compiler_staging"
+    assert row["payload_files"] == ["rows.parquet"]
 
 
 def test_inspect_rejects_manifest_bearing_artifact(

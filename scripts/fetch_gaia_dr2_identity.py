@@ -432,6 +432,7 @@ def main() -> int:
             (final / "snapshot_report.json").read_text(encoding="utf-8")
         )
         publish_manifest(state_dir, final, snapshot_report)
+        staging.unlink(missing_ok=True)
         print(f"Gaia DR2 identity snapshot already complete: {final}")
         return 0
     work.mkdir(parents=True, exist_ok=True)

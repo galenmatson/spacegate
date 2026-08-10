@@ -272,7 +272,7 @@ Deliverables:
   and observation-time metadata
 - explicit product families for light curves, target pixels, data validation,
   TCE summaries, and useful high-level science products
-- bounded lazy cache policy with bulk storage under `/mnt/space/spacegate`
+- bounded lazy cache policy with bulk storage under `/space/spacegate`
 - evidence-packet hooks for the AI Astronomy Agency
 
 Acceptance gates:

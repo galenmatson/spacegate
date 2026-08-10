@@ -123,6 +123,9 @@ def validate_policy(
         str(policy.get("deployed_public_build") or ""),
         str(policy.get("immediate_rollback_build") or ""),
     }
+    output_protected.update(
+        str(value) for value in policy.get("additional_protected_builds", [])
+    )
     if "" in output_protected:
         raise ValueError("served/deployed/rollback roots must all be explicit")
     for name in output_protected:
@@ -171,7 +174,7 @@ def build_plan(
             protect_names.update(release_members)
         if name == "state_output_generations" and protect_names != output_protected:
             raise ValueError(
-                "state-output family must exactly match served/deployed/rollback roots"
+                "state-output family must exactly match all protected output roots"
             )
         for child in sorted(root.iterdir()):
             if child.is_symlink() or not child.is_dir():

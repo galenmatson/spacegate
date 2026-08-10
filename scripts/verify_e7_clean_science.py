@@ -9,12 +9,14 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
 
 
-DEFAULT_ROOT = Path("/mnt/space/spacegate/e7-clean-science")
+DEFAULT_ROOT = bulk_path("e7-clean-science")
 DEFAULT_POLICY = Path(__file__).resolve().parents[1] / "config/evidence_lake/e7_clean_science.json"
 
 

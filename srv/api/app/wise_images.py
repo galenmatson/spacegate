@@ -53,7 +53,7 @@ def cache_root(state_dir: Path) -> Path:
     if shared_configured:
         return Path(shared_configured) / WISE_PROVIDER_ID
     prefer_bulk = str(os.getenv("SPACEGATE_WISE_IMAGE_CACHE_PREFER_BULK") or "").strip().lower()
-    bulk_root = Path("/mnt/space/spacegate")
+    bulk_root = Path(os.getenv("SPACEGATE_BULK_DIR", "/data/bulk"))
     if prefer_bulk in {"1", "true", "yes", "on"} and bulk_root.exists():
         return bulk_root / "cache" / "survey_images" / WISE_PROVIDER_ID
     return state_dir / "cache" / "survey_images" / WISE_PROVIDER_ID

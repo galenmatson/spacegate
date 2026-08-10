@@ -123,6 +123,61 @@ Remaining hardening backlog:
   effectively root-equivalent and should eventually become a narrower deploy
   control path if practical
 
+### M0.6. Photon Storage Tier Reorganization
+
+Status: completed August 10, 2026.
+
+Goal:
+
+- make storage placement reflect measured device behavior, recover working
+  headroom, and remove orphaned build material without weakening the evidence
+  chain or rollback posture.
+
+Deliverables:
+
+- benchmark `/data`, `/space`, the legacy USB SSD, and Proton NFS with bounded
+  sequential, small I/O, and metadata workloads;
+- establish `/space/spacegate` as the shared host/container active bulk root;
+- migrate legacy bulk generations with checksum verification and atomic state
+  link updates before retiring the USB copy;
+- refresh served, deployed, rollback, and additional protected generation
+  identities in the fail-closed retention policy;
+- retire exact-identified interrupted compiler trees and unused Docker build
+  cache with machine reports;
+- inventory checkout-local, broken-link, empty, temporary, and superseded
+  artifacts and either remove them through a reviewed contract or record an
+  explicit reason for retention;
+- leave raw, typed, identity, evidence-set, served, published, rollback, and
+  unique observation products protected;
+- document storage roles, capacity gates, measured performance, migration,
+  rollback, and ongoing hygiene.
+
+Exit criteria:
+
+- active compilers and containers resolve the internal NVMe bulk root;
+- every migrated source file is checksum accounted for before source retirement;
+- no active state link targets the legacy USB root;
+- normal containers and scientific verification remain healthy;
+- storage reports and repository documentation are current;
+- the project can begin the next product or AAA milestone from a clean branch.
+
+Closeout:
+
+- bounded benchmarks established the internal NVMe roles: `/data` remains the
+  hot state and runtime tier, while `/space/spacegate` is the active bulk,
+  compiler, reproduction, research, and cache tier;
+- 769.2 GB of allocated legacy bulk data was copied from the USB SSD and passed
+  a complete independent checksum comparison before 65 active links were
+  retargeted and the verified source tree was retired;
+- every remaining hot output generation is protected by the fail-closed policy,
+  while two superseded 48.4 GB generations were checksummed into the Proton
+  immutable archive before local retirement;
+- exact policy reports account for interrupted compiler trees, rejected builds,
+  stale rollback data, download archives, checkout residue, Docker cache and
+  images, Gaia staging leaks, broken links, and retained artifacts;
+- normal Photon containers, API health, scientific tests, frontend builds, and
+  dependency audits passed against the new path contract.
+
 ### M1. Gaia Core Backbone Pilot (Completed)
 
 Goal:
@@ -577,7 +632,7 @@ Deliverables:
 - Evidence Portfolio journal surface where each agent step is captured as a plain-language, linkable, source-backed entry
 - Agency source allowlist management backed by repo defaults, runtime JSON
   overrides, source enabled/disabled state, and restore/version controls
-- bulk research/source-document storage rooted at `/mnt/space/spacegate`, with durable hashes and references in admin/disc state
+- bulk research/source-document storage rooted at `/space/spacegate`, with durable hashes and references in admin/disc state
 
 Success criteria:
 
@@ -1194,20 +1249,15 @@ July 17, 2026 catalog-wide follow-up:
   evidence families. These should land as one evidence bundle before another
   full canonical rebuild, not as one-field rebuilds.
 
-### M8.3c. Evidence Lake v2 (Current Main Quest)
+### M8.3c. Evidence Lake v2 (Completed Scientific Foundation)
 
-Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
-registered E3 acquisition completed July 20, 2026; accepted E4 release set v5 is
-pinned; E5 selected-fact v17, component-scope v9, and compact-identity v1 are
-accepted unserved artifacts. Corrected E6 v7 shadow, scientific A/B,
-reproduction, public slice, map tiles, bounded simulation/API/search, and
-production-equivalent tile/browser evidence pass. Clean runtime CORE v2 is
-independently verified and reproduced; E7 operator review remains in progress.
-The fail-closed completion audit passes 124 checkpoint checks and reports five
-open E7 gates rather than declaring the compiler cut over. The independently
-regenerable E5 planet-derivation shard now closes the declared semimajor-axis,
-insolation, and equilibrium-temperature implementation gap in 4.4 seconds;
-downstream clean runtime artifacts have not yet been rebuilt with it.
+Status: completed and reconciled through E7. The release-scoped registry, raw
+and typed lake, identity graph, domain evidence, selected-fact compiler,
+scientific A/B build, local promotion/rollback drill, and legacy retirement
+gates passed. Public Read v2 and the later hierarchy-coherence build consume the
+promoted Evidence Lake products. Retained predecessor generations remain
+rollback or reproducibility references under the explicit storage policy, not
+active scientific authority.
 
 Goal:
 

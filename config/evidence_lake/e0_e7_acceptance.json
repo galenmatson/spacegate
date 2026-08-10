@@ -1,14 +1,15 @@
 {
   "schema_version": "spacegate.evidence_lake_acceptance_contract.v1",
-  "contract_version": "2026-08-06.e0-e7-acceptance.20",
+  "contract_version": "2026-08-10.e0-e7-acceptance.21",
   "candidate_build_id": "e7_39b7386d4524ce5b1ff2729f_public",
   "shadow_build_id": "39b7386d4524ce5b1ff2729f",
   "artifact_roots": {
-    "bulk": "/mnt/space/spacegate",
+    "bulk": "/space/spacegate",
     "data": "/data/spacegate"
   },
   "additional_report_roots": [
-    "/data/spacegate/reports/evidence_lake_v2"
+    "/data/spacegate/reports/evidence_lake_v2",
+    "/data/spacegate/state/reports/storage_housekeeping/20260810/retention"
   ],
   "report_checks": [
     {
@@ -685,12 +686,7 @@
     {"root": "data", "path": "e7-clean-runtime-core/85e89d41dd1258e2f3015a7a/manifest.json"},
     {"root": "bulk", "path": "e7-clean-runtime-arm/abf25120b71bc71689790959/manifest.json"},
     {"root": "data", "path": "e7-clean-runtime-disc/30280c152441804f449d86b3/manifest.json"},
-    {"root": "bulk", "path": "e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json"},
-    "out/e7_39b7386d4524ce5b1ff2729f_public/core.duckdb",
-    "out/e7_39b7386d4524ce5b1ff2729f_public/arm.duckdb",
-    "out/e7_39b7386d4524ce5b1ff2729f_public/disc.duckdb",
-    "out/e7_39b7386d4524ce5b1ff2729f_public/canonical_hierarchy.duckdb",
-    "out/e7_39b7386d4524ce5b1ff2729f_public/map_tiles/index.json"
+    {"root": "bulk", "path": "e7-clean-runtime-bundle/39b7386d4524ce5b1ff2729f/manifest.json"}
   ],
   "retired_artifacts": [
     {
@@ -740,6 +736,36 @@
       "retired_at": "2026-07-24",
       "reason": "Superseded E7 public candidate was independently archived and retired after the corrected E7 candidate passed.",
       "evidence_report": "storage_archive_retirement_20260724.json"
+    },
+    {
+      "path": "out/e7_39b7386d4524ce5b1ff2729f_public/core.duckdb",
+      "retired_at": "2026-08-10",
+      "reason": "Superseded unserved Evidence Lake candidate was checksummed into the Proton immutable archive before local retirement.",
+      "evidence_report": "state_output_archive_retirement.json"
+    },
+    {
+      "path": "out/e7_39b7386d4524ce5b1ff2729f_public/arm.duckdb",
+      "retired_at": "2026-08-10",
+      "reason": "Superseded unserved Evidence Lake candidate was checksummed into the Proton immutable archive before local retirement.",
+      "evidence_report": "state_output_archive_retirement.json"
+    },
+    {
+      "path": "out/e7_39b7386d4524ce5b1ff2729f_public/disc.duckdb",
+      "retired_at": "2026-08-10",
+      "reason": "Superseded unserved Evidence Lake candidate was checksummed into the Proton immutable archive before local retirement.",
+      "evidence_report": "state_output_archive_retirement.json"
+    },
+    {
+      "path": "out/e7_39b7386d4524ce5b1ff2729f_public/canonical_hierarchy.duckdb",
+      "retired_at": "2026-08-10",
+      "reason": "Superseded unserved Evidence Lake candidate was checksummed into the Proton immutable archive before local retirement.",
+      "evidence_report": "state_output_archive_retirement.json"
+    },
+    {
+      "path": "out/e7_39b7386d4524ce5b1ff2729f_public/map_tiles/index.json",
+      "retired_at": "2026-08-10",
+      "reason": "Superseded unserved Evidence Lake candidate was checksummed into the Proton immutable archive before local retirement.",
+      "evidence_report": "state_output_archive_retirement.json"
     }
   ],
   "open_gates": []

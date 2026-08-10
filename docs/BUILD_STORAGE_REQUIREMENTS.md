@@ -54,6 +54,11 @@ than the marketed drive size.
   **3 TB or more total usable capacity**, preferably split between a fast
   internal active tier and a separately failure-contained cold/archive tier.
 
+Photon now has approximately 3.6 TiB usable at `/space` in addition to its
+existing internal system/data NVMe. The August 10, 2026 benchmark makes
+`/space/spacegate` the active bulk and compiler root. See
+`docs/STORAGE_ARCHITECTURE.md` for measured throughput and placement rules.
+
 A nominal 1 TB drive is not sufficient for a full current Evidence Lake build.
 The compiler must fail preflight rather than depend on optimistic cleanup while
 a build is running.
@@ -109,8 +114,10 @@ Measurement sources on Photon:
 
 - Fast internal NVMe: active raw/typed inputs, compiler databases, current
   candidates, hot reports, and served runtime artifacts.
-- Fast local bulk storage: disposable compiler spill and large active research
-  products when its reliability is acceptable for regenerable data.
+- Fast local bulk storage at `/space/spacegate`: compiler generations, spill,
+  reproductions, observation caches, and large active research products.
+- Legacy USB storage at `/mnt/space/spacegate`: migration source or bounded
+  sequential secondary storage only; it is not the default active bulk root.
 - Cold/archive storage: verified immutable superseded generations and
   re-fetchable research material. Archive transfer requires content manifests,
   destination verification, atomic publication, and a separate reviewed local

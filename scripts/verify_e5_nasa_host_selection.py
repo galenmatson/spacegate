@@ -11,6 +11,8 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any, Iterator
 
 import duckdb
@@ -436,7 +438,7 @@ def main() -> int:
     parser.add_argument(
         "--work-dir",
         type=Path,
-        default=Path("/mnt/space/spacegate/e5-nasa-host-verification"),
+        default=bulk_path("e5-nasa-host-verification"),
     )
     parser.add_argument(
         "--report",

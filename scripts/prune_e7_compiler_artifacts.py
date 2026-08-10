@@ -8,6 +8,8 @@ import json
 import re
 import shutil
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 from prune_evidence_lake_artifacts import (
@@ -22,7 +24,7 @@ from prune_evidence_lake_artifacts import (
 
 
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_BULK = Path("/mnt/space/spacegate")
+DEFAULT_BULK = bulk_root()
 CONTRACT = "spacegate.e7_compiler_retention.v1"
 BUILD_ID = re.compile(r"^[0-9a-f]{24}$")
 PUBLIC_BUILD = re.compile(

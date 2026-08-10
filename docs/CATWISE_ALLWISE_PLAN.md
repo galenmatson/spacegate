@@ -99,7 +99,7 @@ Initial policy:
 - keep the cache capped and retention-managed; default target should be a few
   GiB, not an unbounded image mirror
 - store generated web images outside the repo, preferably under
-  `/mnt/space/spacegate` for larger caches or `/data/spacegate/state` for
+  `/space/spacegate` for larger caches or `/data/spacegate/state` for
   smaller presentation artifacts
 - preserve source URL, collection, band, center, cutout size, retrieval time,
   and required attribution metadata
@@ -150,7 +150,7 @@ Add a script that inspects available IRSA/AWS/NERSC product manifests and emits:
 - expected compressed and expanded size
 - available columns
 - viable filter columns
-- recommended local cache path under `/mnt/space/spacegate` or `/data/spacegate`
+- recommended local cache path under `/space/spacegate` or `/data/spacegate`
 
 Output:
 
@@ -233,7 +233,7 @@ Only after Phase 3:
 Recommended defaults:
 
 - keep full survey bulk artifacts off the root filesystem
-- prefer `/mnt/space/spacegate/catalogs/wise` for large raw/cache artifacts if
+- prefer `/space/spacegate/catalogs/wise` for large raw/cache artifacts if
   the USB SSD is mounted and healthy
 - keep only filtered/cooked candidate artifacts under `/data/spacegate/state`
 - make full CatWISE/AllWISE downloads opt-in

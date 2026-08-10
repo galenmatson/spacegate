@@ -13,6 +13,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -21,7 +23,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_tess_runtime.json"
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_OUTPUT_ROOT = Path("/mnt/space/spacegate/e7-tess-runtime")
+DEFAULT_OUTPUT_ROOT = bulk_path("e7-tess-runtime")
 PRODUCTS = (
     "tess_target_identity",
     "tess_missing_object_audit",

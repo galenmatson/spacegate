@@ -589,7 +589,7 @@ These rows remain useful after publication because:
 - accepted overlays must keep their supporting references
 - stale detection needs the prior dossier state
 
-### Push cold to `/mnt/space`
+### Push bulk research to `/space`
 
 - archived dossier packages
 - extracted text snippets beyond what is needed inline for review
@@ -598,7 +598,7 @@ These rows remain useful after publication because:
 
 Recommended root:
 
-- `/mnt/space/spacegate/agent_archive/`
+- `/space/spacegate/agent_archive/`
 
 ### Do not retain forever
 
@@ -624,7 +624,7 @@ If you also archive compressed dossier packages with excerpts and review notes:
 
 - roughly 10-60 KB compressed per object is plausible for text-heavy dossiers
 - 100k dossiers would likely land in the low single-digit GB range up to several GB
-- 1M dossiers would likely move into the tens of GB range, which is feasible on `/mnt/space` but not a great fit for hot `/data`
+- 1M dossiers would likely move into the tens of GB range, which is feasible on `/space` but not a great fit for hot `/data`
 
 Conclusion:
 
@@ -691,7 +691,7 @@ Recommended tracked conditions:
 
 ### Infrastructure / retention
 
-- agent archive path unavailable or offline (`/mnt/space` disconnected)
+- agent archive path unavailable or offline (`/space` unavailable)
 - hot `/data` usage crosses warning/error thresholds
 - cold archive usage crosses warning/error thresholds
 - stale dossiers or source archives exceed retention targets

@@ -7,12 +7,14 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
 
 
-DEFAULT_ARTIFACT_ROOT = Path("/mnt/space/spacegate/e7-clean-runtime-core")
+DEFAULT_ARTIFACT_ROOT = bulk_path("e7-clean-runtime-core")
 EXPECTED_TABLES = {
     "aliases", "build_metadata", "compact_objects", "eclipsing_binaries",
     "extended_object_aliases", "extended_object_identifiers",

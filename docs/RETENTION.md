@@ -79,14 +79,14 @@ without running `ANALYZE` or `VACUUM INTO`; repeated refreshes must retain the
 same SQLite SHA-256. The accepted M8.3e projection is 16,455,413,760 bytes with
 SHA-256
 `0748a315ece80813c3349d4e8cc3495fbd0ffeb67745ba2aa3c225acc60e621f`.
-The fail-closed idempotence investigation retained
+The fail-closed idempotence investigation initially retained
 `public_read.rollback.pre-idempotent-refresh-20260725.sqlite` as a diagnostic
-rollback. It is not a different scientific authority and becomes a reviewed
-whole-file retention candidate only after the final capacity/deployment
-decision; never remove the accepted pre-Public-Read rollback in the same action.
-The accepted M8.3e capacity decision is now recorded. The diagnostic variant may
-be proposed in a future retention dry-run after branch reconciliation and
-rollback re-verification; it was not removed during M8.3e.
+rollback. It was not a different scientific authority. After the final
+capacity decision, public deployment, and rollback verification, the August 10
+storage checkpoint retired that exact file and manifest with recorded SHA-256
+values. The accepted pre-Public-Read rollback remains and was deliberately not
+removed in the same action. The machine retirement report is under
+`state/reports/storage_housekeeping/20260810/retention/`.
 
 Frozen simulation-scene sets live under
 `$SPACEGATE_STATE_DIR/derived/simulation_scenes/<build_id>/`. Keep every frozen
@@ -142,7 +142,7 @@ recompute live served/download pointers and must not repeat these names by
 pattern.
 
 E7 timed-pipeline logs live under
-`/mnt/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries
+`/space/spacegate/e7-build-runs/<run_id>/`; their atomic machine summaries
 live under
 `$SPACEGATE_STATE_DIR/reports/evidence_lake_v2/e7_build_runs/<run_id>.json`.
 Retain runs cited by the canonical performance report, the accepted promotion,
@@ -450,7 +450,7 @@ authorized whole-artifact removal of independently failed provisional builds
 accepted checkpoint and every raw/typed input remain protected.
 
 Large local compiles may set `SPACEGATE_E4_TEMP_DIRECTORY` to an operator-owned
-scratch root such as `/mnt/space/spacegate/tmp/evidence_lake_v2/e4_spill`.
+scratch root such as `/space/spacegate/tmp/evidence_lake_v2/e4_spill`.
 DuckDB spill there is disposable execution state, never an evidence artifact;
 the compiler assigns a build-specific directory and removes it after closing the
 database. A spill tree left by a crash must still be associated with a dead
@@ -683,8 +683,14 @@ Large research/document material should not live under repo paths or inside
 Photon default bulk root:
 
 ```bash
-SPACEGATE_BULK_DIR=/mnt/space/spacegate
+SPACEGATE_BULK_DIR=/space/spacegate
 ```
+
+The August 10, 2026 storage migration copied the former USB root
+`/mnt/space/spacegate` into this internal NVMe root with a full checksum pass
+before state links were retargeted. Older sections and machine reports may name
+the former path because it records where those generations were originally
+built; the relative generation path now resolves under `/space/spacegate`.
 
 Use this root for:
 
@@ -698,7 +704,7 @@ Use this root for:
 Recommended layout:
 
 ```text
-/mnt/space/spacegate/
+/space/spacegate/
   research/
     sources/
     papers/
@@ -712,12 +718,13 @@ Recommended layout:
 
 Container deployments should bind-mount `$SPACEGATE_BULK_DIR` into the API
 container at the same path. If this mount is absent, Admin Runtime will report
-the bulk root as missing from the container even when the host USB filesystem is
+the bulk root as missing from the container even when the host filesystem is
 mounted correctly.
 
-The USB-backed `/mnt/space` drive is large and fast but less trustworthy than
-internal NVMe. Anything required for auditability must have durable metadata in
-Spacegate state or generated databases:
+The internal NVMe at `/space` is the active bulk tier. The USB-backed
+`/mnt/space` tree is a legacy migration source and optional sequential
+secondary tier. Anything required for auditability must still have durable
+metadata in Spacegate state or generated databases:
 
 - canonical URL
 - source domain and trust tier
@@ -726,7 +733,7 @@ Spacegate state or generated databases:
 - local cache path
 - transform/prompt/model versions where applicable
 
-If `/mnt/space` content is lost, Spacegate should be able to identify missing
+If regenerable bulk content is lost, Spacegate should be able to identify missing
 attachments and re-fetch or mark dossiers stale from metadata.
 
 ### TESS source snapshots
@@ -751,7 +758,9 @@ different target set.
 Docker data and model caches are intentionally outside the Spacegate build
 retention script:
 
-- Docker data root: `/data/docker`
+- Docker control data root: `/data/docker`
+- Docker 29 containerd snapshot layers: root-backed `/var/lib/containerd` on
+  Photon despite the reported Docker data root; account with `docker system df`
 - model weights/caches: `/data/models`
 
 Clean Docker image/container/build-cache slag with Docker-native tools after
@@ -789,7 +798,7 @@ sudo scripts/normalize_state_permissions.sh --apply
   than manual edits inside immutable build directories.
 - Large clean-reproduction builds may use
   `verify_scientific_evidence_reproduction.py --scratch-parent` on
-  `/mnt/space/spacegate/evidence-lake-reproduction`. Only disposable verifier
+  `/space/spacegate/evidence-lake-reproduction`. Only disposable verifier
   scratch belongs there: accepted manifests and evidence databases remain on
   internal storage, the report must record `scratch_removed=true`, and a failed
   verifier must be inspected before its scratch tree is removed.
@@ -960,7 +969,7 @@ by an E6/E7 report or rollback, its pinned E4 release set and all transitive E4
 shards, the E2 identity graph, and the canonical stability reference. A failed
 staging directory may be considered only after no compiler process is active;
 use an exact candidate dry run before deletion. DuckDB spill under
-`/mnt/space/spacegate/e5-selection-spill` is temporary and may be removed only
+`/space/spacegate/e5-selection-spill` is temporary and may be removed only
 after the compiler exits and the accepted artifact/report are verified.
 The active E5 checkpoint is `0a57f778ce13de1c2c800103`; its compile,
 deterministic Parquet exports, manifest, independent audit, clean-reproduction,
@@ -1145,7 +1154,7 @@ and public candidate `out/e6_95e7af54d69f3d9602d81e5b_public` supersede v6 as
 the current E7 review candidate but do not make v6 disposable. Both generations
 and their referenced E5 artifacts remain protected through local promotion and
 rollback acceptance.
-Reproduction scratch is created under `/mnt/space/spacegate` and
+Reproduction scratch is created under `/space/spacegate` and
 removed after the comparison, whether it passes or fails.
 
 Earlier E6 experiments `e6_878b7fc1d46108f4180df8d5_shadow` and
@@ -1599,11 +1608,11 @@ Optional bulk-storage mode:
 SPACEGATE_WISE_IMAGE_CACHE_PREFER_BULK=1
 ```
 
-When bulk mode is enabled and `/mnt/space/spacegate` is mounted in the API
+When bulk mode is enabled and `/space/spacegate` is mounted in the API
 container, the default provider root becomes:
 
 ```text
-/mnt/space/spacegate/cache/survey_images/irsa_wise_allwise
+/space/spacegate/cache/survey_images/irsa_wise_allwise
 ```
 
 Operators may set `SPACEGATE_SURVEY_IMAGE_CACHE_DIR` to the shared root or keep

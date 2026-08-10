@@ -8,6 +8,8 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -19,7 +21,7 @@ import verify_e7_clean_runtime_core as verifier
 DEFAULT_REPORT = Path(
     "/data/spacegate/state/reports/evidence_lake_v2/e7_clean_runtime_core_reproduction.json"
 )
-DEFAULT_SCRATCH_ROOT = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH_ROOT = bulk_root()
 
 
 def logical_signatures(database: Path) -> dict[str, dict[str, int]]:

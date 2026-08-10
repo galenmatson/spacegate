@@ -2,7 +2,7 @@
   "schema_version": "spacegate.e7_timed_pipeline.v1",
   "pipeline_id": "evidence_lake_v2_e7_corrected_candidate_2026-07-23",
   "state_dir": "/data/spacegate/state",
-  "artifact_root": "/mnt/space/spacegate",
+  "artifact_root": "/space/spacegate",
   "artifact_roots": {
     "data": "/data/spacegate"
   },

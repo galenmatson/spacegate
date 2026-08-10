@@ -39,7 +39,7 @@
     "identity_rule": "Observation-target scope is a provenance-bearing edge and never implies physical-object identity or canonical containment."
   },
   "cache_contract": {
-    "bulk_root": "/mnt/space/spacegate/observation_cache",
+    "bulk_root": "/space/spacegate/observation_cache",
     "durable_index_root": "/data/spacegate/state/typed/evidence_lake_v2",
     "ledger_root": "/data/spacegate/state/reports/evidence_lake_v2/observation_cache",
     "maximum_gib": 500,

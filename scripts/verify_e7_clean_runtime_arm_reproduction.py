@@ -12,6 +12,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -112,7 +114,7 @@ def main() -> int:
     parser.add_argument("--artifact-root", type=Path, default=compiler.DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--policy", type=Path, default=compiler.DEFAULT_POLICY)
     parser.add_argument("--state-dir", type=Path, default=compiler.DEFAULT_STATE)
-    parser.add_argument("--scratch-parent", type=Path, default=Path("/mnt/space/spacegate"))
+    parser.add_argument("--scratch-parent", type=Path, default=bulk_root())
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     args = parser.parse_args()
     report = reproduce(

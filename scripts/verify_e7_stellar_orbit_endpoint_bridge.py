@@ -6,11 +6,13 @@ from __future__ import annotations
 import argparse,json,resource,shutil,tempfile,time
 from datetime import datetime,timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 import duckdb
 import compile_e7_stellar_orbit_endpoint_bridge as compiler
 
-DEFAULT_SCRATCH=Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH=bulk_root()
 PRODUCTS={
   "stellar_orbit_endpoint_bindings.parquet":"endpoints",
   "stellar_orbit_group_memberships.parquet":"group_memberships",

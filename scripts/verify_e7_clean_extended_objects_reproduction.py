@@ -11,6 +11,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import compile_e7_clean_extended_objects as compiler
@@ -88,7 +90,7 @@ def main() -> None:
     parser.add_argument("--state-dir", type=Path, default=compiler.DEFAULT_STATE)
     parser.add_argument("--artifact-root", type=Path, default=compiler.DEFAULT_OUTPUT)
     parser.add_argument("--build-id", required=True)
-    parser.add_argument("--scratch-parent", type=Path, default=Path("/mnt/space/spacegate"))
+    parser.add_argument("--scratch-parent", type=Path, default=bulk_root())
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     args = parser.parse_args()
     report = reproduce(

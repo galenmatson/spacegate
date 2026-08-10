@@ -14,6 +14,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -22,7 +24,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_stellar_orbit_endpoint_bridge.json"
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_OUTPUT = Path("/mnt/space/spacegate/e7-stellar-orbit-endpoint-bridge")
+DEFAULT_OUTPUT = bulk_path("e7-stellar-orbit-endpoint-bridge")
 
 
 def load_object(path: Path) -> dict[str, Any]:

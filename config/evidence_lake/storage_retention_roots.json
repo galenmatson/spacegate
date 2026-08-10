@@ -1,9 +1,12 @@
 {
   "schema_version": "spacegate.storage_retention_roots.v1",
-  "policy_version": "2026-07-24.evidence-preserving-reset.1",
-  "served_build": "e7_24cb15211f430a37f199f462_full_public",
-  "deployed_public_build": "20260717T0614Z_f452835_side",
-  "immediate_rollback_build": "e7_39b7386d4524ce5b1ff2729f_public",
+  "policy_version": "2026-08-10.internal-nvme-and-current-roots.1",
+  "served_build": "e7_524b4c016779a77bc9780053_full_public",
+  "deployed_public_build": "20260804T1130Z_68fd99b_a2_planet_badges",
+  "immediate_rollback_build": "e7_24cb15211f430a37f199f462_full_public",
+  "additional_protected_builds": [
+    "20260717T0614Z_f452835_side"
+  ],
   "protected_evidence_release_sets": [
     "5a1ccc6c67d9a27d4aeddc08",
     "6c19de054e9b807674c37d3c"
@@ -14,8 +17,9 @@
       "root": "$STATE_DIR/out",
       "protected_names": [
         "20260717T0614Z_f452835_side",
+        "20260804T1130Z_68fd99b_a2_planet_badges",
         "e7_24cb15211f430a37f199f462_full_public",
-        "e7_39b7386d4524ce5b1ff2729f_public"
+        "e7_524b4c016779a77bc9780053_full_public"
       ]
     },
     {

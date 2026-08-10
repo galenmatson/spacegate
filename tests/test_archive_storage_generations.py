@@ -49,6 +49,29 @@ def test_evidence_release_members_are_union_of_pinned_sets(tmp_path: Path) -> No
     }
 
 
+def test_additional_output_builds_are_protected(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    bulk = tmp_path / "bulk"
+    for build in ("served", "deployed", "rollback", "published"):
+        (state / "out" / build).mkdir(parents=True)
+    (state / "served").mkdir()
+    (state / "served/current").symlink_to(state / "out/served")
+    (state / "raw").mkdir()
+    bulk.mkdir()
+    policy = {
+        "schema_version": "spacegate.storage_retention_roots.v1",
+        "served_build": "served",
+        "deployed_public_build": "deployed",
+        "immediate_rollback_build": "rollback",
+        "additional_protected_builds": ["published"],
+        "excluded_roots": ["$STATE_DIR/raw"],
+    }
+
+    protected, _ = policy_module.validate_policy(policy, state, bulk)
+
+    assert protected == {"served", "deployed", "rollback", "published"}
+
+
 def test_content_manifest_is_location_and_mtime_independent(tmp_path: Path) -> None:
     source = tmp_path / "source"
     copied = tmp_path / "copied"

@@ -9,6 +9,8 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -16,7 +18,7 @@ import duckdb
 import compile_permanent_identity_vocabulary as compiler
 
 
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH = bulk_root()
 
 
 def audit(

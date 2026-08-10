@@ -8,6 +8,8 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any, Callable
 
 import duckdb
@@ -20,7 +22,7 @@ DEFAULT_REPORT = Path(
     "/data/spacegate/state/reports/evidence_lake_v2/"
     "e5_gaia_variability_selection_verification.json"
 )
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate/e5-focused-verification")
+DEFAULT_SCRATCH = bulk_path("e5-focused-verification")
 
 
 def selected_source(policy: dict[str, Any]) -> dict[str, Any]:

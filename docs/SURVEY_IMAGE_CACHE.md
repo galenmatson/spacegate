@@ -34,7 +34,7 @@ $SPACEGATE_STATE_DIR/cache/survey_images/irsa_wise_allwise/
 Bulk mode uses:
 
 ```text
-/mnt/space/spacegate/cache/survey_images/irsa_wise_allwise/
+/space/spacegate/cache/survey_images/irsa_wise_allwise/
 ```
 
 ## Provider Protection
@@ -79,4 +79,3 @@ A provider must declare source identity, attribution, license, bands or energy
 range, cache key inputs, quota, priority, concurrency, request interval,
 negative TTL, and validator behavior. Provider failure must degrade only its
 own panel. No provider may become a required dependency for System Detail.
-

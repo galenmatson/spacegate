@@ -3471,7 +3471,7 @@ def _snapshot_control_summary(
     percent = round((processed / requested) * 100, 1) if requested > 0 and processed > 0 else 0
     output_parent = output_path.parent if output_path.name else output_path
     bulk_raw = os.getenv("SPACEGATE_BULK_DIR", "").strip()
-    bulk_path = Path(bulk_raw).expanduser() if bulk_raw else Path("/mnt/space/spacegate")
+    bulk_path = Path(bulk_raw).expanduser() if bulk_raw else Path("/data/bulk")
     storage = {
         "output_root": str(output_path),
         "output_size_bytes": output_size,

@@ -11,6 +11,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import duckdb
@@ -18,7 +20,7 @@ import duckdb
 import compile_e7_tess_runtime as compiler
 
 
-DEFAULT_SCRATCH = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH = bulk_root()
 REQUIRED_COLUMNS = {
     "tess_target_identity": {
         "tess_identity_id", "tic_id", "resolution_status", "star_id", "system_id",

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from prune_evidence_lake_artifacts import file_hash, stable_hash, utc_now, write_json
+from storage_paths import bulk_root, cold_archive_root
 from storage_generation_policy import (
     build_plan,
     inspect_tree,
@@ -24,9 +25,9 @@ from storage_generation_policy import (
 
 
 DEFAULT_STATE = Path("/data/spacegate/state")
-DEFAULT_BULK = Path("/mnt/space/spacegate")
+DEFAULT_BULK = bulk_root()
 DEFAULT_POLICY = Path("config/evidence_lake/storage_retention_roots.json")
-DEFAULT_ARCHIVE = Path("/mnt/proton/spacegate-archive/v1")
+DEFAULT_ARCHIVE = cold_archive_root()
 DEFAULT_HOST_ID = "photon"
 DEFAULT_RESERVE_BYTES = 100 * 1024**3
 DRY_RUN_CONTRACT = "spacegate.storage_archive_dry_run.v1"
@@ -339,6 +340,9 @@ def retire_copy(
         str(policy["deployed_public_build"]),
         str(policy["immediate_rollback_build"]),
     }
+    protected.update(
+        str(value) for value in policy.get("additional_protected_builds", [])
+    )
 
     journal: dict[str, Any]
     if report_path.exists():

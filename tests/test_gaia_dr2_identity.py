@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -9,6 +10,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import fetch_gaia_dr2_identity as forward_module  # noqa: E402
+import fetch_gaia_dr2_identity_reverse as reverse_module  # noqa: E402
 from fetch_gaia_dr2_identity import target_ids, validate_tap_csv  # noqa: E402
 from fetch_gaia_dr2_identity_reverse import (  # noqa: E402
     build_reverse_target_set,
@@ -106,3 +109,76 @@ def test_reverse_collector_discovers_forward_snapshot_from_manifest(tmp_path: Pa
     )
 
     assert default_forward_chunks(tmp_path) == chunks
+
+
+@pytest.mark.parametrize(
+    ("module", "snapshot_parent", "snapshot_prefix", "builder_name"),
+    [
+        (
+            forward_module,
+            "gaia_dr2_identity",
+            "target_union_",
+            "build_target_set",
+        ),
+        (
+            reverse_module,
+            "gaia_dr2_identity_reverse",
+            "reverse_union_",
+            "build_reverse_target_set",
+        ),
+    ],
+)
+def test_existing_snapshot_removes_regenerated_staging_target(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    module: object,
+    snapshot_parent: str,
+    snapshot_prefix: str,
+    builder_name: str,
+) -> None:
+    target_hash = "a" * 64
+    final = (
+        tmp_path
+        / "raw"
+        / snapshot_parent
+        / "snapshots"
+        / f"{snapshot_prefix}{target_hash[:16]}"
+    )
+    final.mkdir(parents=True)
+    (final / "snapshot_report.json").write_text("{}", encoding="utf-8")
+
+    def build_staging(_: Path, output: Path) -> dict[str, str]:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("generated staging\n", encoding="utf-8")
+        return {"target_set_sha256": target_hash}
+
+    monkeypatch.setattr(module, builder_name, build_staging)
+    monkeypatch.setattr(module, "publish_manifest", lambda *_: None)
+    if module is forward_module:
+        args = SimpleNamespace(
+            state_dir=tmp_path,
+            typed_report=tmp_path / "typed.json",
+            chunk_size=10_000,
+            workers=1,
+            timeout_s=1,
+            retries=1,
+            max_records=1,
+            targets_only=False,
+        )
+        staging = tmp_path / "tmp" / "gaia_dr2_identity_targets.csv"
+    else:
+        args = SimpleNamespace(
+            state_dir=tmp_path,
+            forward_chunks=tmp_path / "chunks",
+            chunk_size=10_000,
+            workers=1,
+            timeout_s=1,
+            retries=1,
+            max_records=1,
+            targets_only=False,
+        )
+        staging = tmp_path / "tmp" / "gaia_dr3_identity_targets.csv"
+    monkeypatch.setattr(module, "parse_args", lambda: args)
+
+    assert module.main() == 0
+    assert not staging.exists()

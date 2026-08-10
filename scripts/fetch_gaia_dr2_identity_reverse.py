@@ -222,6 +222,7 @@ def main() -> int:
     if final.exists():
         report = json.loads((final / "snapshot_report.json").read_text(encoding="utf-8"))
         publish_manifest(state_dir, final, report)
+        staging.unlink(missing_ok=True)
         print(f"Gaia reverse identity snapshot already complete: {final}")
         return 0
     work.mkdir(parents=True, exist_ok=True)

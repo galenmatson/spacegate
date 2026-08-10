@@ -7,6 +7,8 @@ import argparse
 import shutil
 import tempfile
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 from compile_selected_facts import (
@@ -87,7 +89,7 @@ def main() -> int:
     parser.add_argument(
         "--scratch-parent",
         type=Path,
-        default=Path("/mnt/space/spacegate/e5-selected-fact-reproduction"),
+        default=bulk_path("e5-selected-fact-reproduction"),
     )
     parser.add_argument(
         "--performance-report",

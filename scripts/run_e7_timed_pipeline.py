@@ -15,12 +15,14 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config/evidence_lake/e7_timed_pipeline.json"
-DEFAULT_RUN_ROOT = Path("/mnt/space/spacegate/e7-build-runs")
+DEFAULT_RUN_ROOT = bulk_path("e7-build-runs")
 DEFAULT_REPORT_ROOT = Path("/data/spacegate/state/reports/evidence_lake_v2/e7_build_runs")
 FORBIDDEN_COMMAND_FRAGMENTS = (
     "antiproton",

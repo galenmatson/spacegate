@@ -9,6 +9,8 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import audit_e6_shadow_build as auditor
@@ -19,7 +21,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE = Path("/data/spacegate/state")
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e6_shadow_build.json"
-DEFAULT_WORK_ROOT = Path("/mnt/space/spacegate/e6-reproduction")
+DEFAULT_WORK_ROOT = bulk_path("e6-reproduction")
 
 
 def table_logical_hash(database: Path, table: str, scratch: Path) -> dict[str, Any]:

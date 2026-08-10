@@ -9,12 +9,14 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_root
 from typing import Any
 
 import compile_permanent_identity_seed as compiler
 
 
-DEFAULT_SCRATCH_PARENT = Path("/mnt/space/spacegate")
+DEFAULT_SCRATCH_PARENT = bulk_root()
 
 
 def utc_now() -> str:

@@ -13,6 +13,22 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Dataset iteration history documented (`docs/DATASET_ITERATION_HISTORY.md`)
 - [x] Admin control plane + audit trail baseline
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
+- [x] Benchmark Photon hot state, internal bulk NVMe, USB SSD, and Proton NFS
+  with bounded sequential, small-I/O, and metadata tests; record the measured
+  tier decision in `docs/STORAGE_ARCHITECTURE.md`
+- [x] Centralize host-side bulk paths and default new compiler, reproduction,
+  research, and survey-cache work to `/space/spacegate`
+- [x] Refresh the fail-closed generation policy to protect the actual local
+  served build, public build, immediate local rollback, and published rollback
+- [x] Retire nine exact-identified interrupted compiler staging trees and prune
+  unused Docker BuildKit cache without touching images or running containers
+- [x] Complete checksum-verified USB-to-internal-NVMe bulk migration, atomically
+  retarget active state links, and retire the verified legacy source copy
+- [x] Resolve or explicitly account for checkout-local Gaia acquisition residue,
+  historical broken links, empty scratch directories, superseded output
+  generations, and retained capacity-test containers
+- [x] Run post-migration compiler-path, API, container, storage-reserve, and
+  repository cleanliness verification; publish the housekeeping closeout report
 - [x] Admin dataset slicer panel (preview + policy-driven sliced rebuild action)
 - [x] Catalog contribution + overlap report generation and Admin Dataset visualization
 - [x] Admin v2 Runtime workspace with redacted config/secret diagnostics
@@ -349,7 +365,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   12-build/24-report policy
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
 - [x] Logged database build wrapper preserves build exit status and host state-dir environment (`scripts/build_database_logged.sh`)
-- [x] Photon generous retention and bulk research storage policy documented (`/mnt/space/spacegate`)
+- [x] Photon retention and bulk research storage policy documented; active
+  bulk moved from legacy `/mnt/space/spacegate` to `/space/spacegate`
 - [x] Public antiproton deployment runbook documents sliced DB publish, activation, SSH cooldown, verification, and rollback (`docs/PUBLIC_DEPLOYMENT.md`)
 - [x] API Docker runtime runs non-root with generated-state permission normalization
 - [x] API Docker runtime drops capabilities, blocks privilege escalation, and uses a read-only root filesystem with explicit tmpfs scratch mounts
@@ -1233,7 +1250,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   machine-readable report and document the single-rebuild evidence bundle in
   `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
 
-### E1. Evidence Lake v2 (Current Main Quest)
+### E1. Evidence Lake v2 (Completed Scientific Foundation)
 
 - [x] Accept Evidence Lake v2 as the main-quest replacement for the narrower
   Catalog Evidence Utilization v2 rebuild and document the architecture in

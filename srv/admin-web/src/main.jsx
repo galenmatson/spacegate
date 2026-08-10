@@ -4575,7 +4575,7 @@ function AgencyScreen({ csrf, openObjectDiagnostics, requestedDossier }) {
               ["Hot rows", data.storage_model?.hot_layer || "admin operational dossier, source, extraction, finding, and journal rows"],
               ["Disc materialization", data.storage_model?.disc_materialization || "future public citation/factsheet/exposition surfaces"],
               ["Proposal layer", data.storage_model?.proposal_layer || "arm proposal and accepted overlay rows"],
-              ["Cold archive", data.storage_model?.cold_archive || "/mnt/space/spacegate/agent_archive"],
+              ["Bulk archive", data.storage_model?.cold_archive || "active bulk dossier and source archive"],
               ["Core policy", data.storage_model?.core_policy || "agents never write directly to core"],
             ]}
           />

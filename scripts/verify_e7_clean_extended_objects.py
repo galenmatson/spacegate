@@ -9,12 +9,14 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
 
 
-DEFAULT_ROOT = Path("/mnt/space/spacegate/e7-clean-extended-objects")
+DEFAULT_ROOT = bulk_path("e7-clean-extended-objects")
 
 
 def load_object(path: Path) -> dict[str, Any]:

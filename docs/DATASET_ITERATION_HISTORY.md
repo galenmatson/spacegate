@@ -4815,6 +4815,42 @@ Representative commits:
   to the F star through its permanent host identity. No named-system condition
   participates in compilation or rendering.
 
+### 182) Photon Storage Tiers Follow Measured Workloads
+
+- Bounded benchmarks measured sequential, 4 KiB, and metadata behavior on the
+  hot `/data` NVMe, the new `/space` NVMe, the legacy USB SSD, and the Proton NFS
+  archive. The resulting contract keeps hot state and served runtime data on
+  `/data`, moves active bulk compiler and research work to `/space/spacegate`,
+  limits the USB device to optional bounded sequential use, and keeps Proton out
+  of database, compiler, cache, and runtime request paths.
+- The legacy USB bulk tree contained 23,999 entries and 769,295,290,368 allocated
+  bytes. An additive copy to the internal NVMe was followed by a separate full
+  checksum comparison with zero differences. Sixty-five exact state links were
+  then retargeted from a frozen candidate set, normal containers were rebuilt,
+  and the source tree was retired only after API, mount, process, and link checks
+  proved it inactive.
+- A shared path module now defaults host compilers and reproduction tools to
+  `/space/spacegate`; Docker receives the same explicit path through the private
+  host environment. Empty environment values cannot accidentally resolve to the
+  checkout. Historical paths remain in this ledger as provenance, not active
+  configuration.
+- Conservative cleanup removed nine interrupted compiler trees, checkout-local
+  Gaia acquisition residue already preserved in the immutable source lake, two
+  rejected or obsolete Public Read artifacts, two superseded download mirrors,
+  stale Gaia identity staging files, unused BuildKit cache, retired capacity
+  containers, and exact unused images. A staging early-return bug was corrected
+  so accepted Gaia identity snapshots no longer leave regenerated temporary CSVs.
+- Two unserved superseded output generations totaling 48,449,031,233 logical
+  bytes were copied to the Proton immutable archive, independently verified, and
+  then retired locally. The served build, current local build, immediate
+  rollback, July published rollback, raw and typed lake, permanent identity,
+  scientific evidence sets, reports, and unique products remain protected.
+- After cleanup, `/data` has about 294 GB free, `/space` about 2.9 TB, the USB
+  device is effectively empty, and the Proton archive has about 439 GB free.
+  The complete benchmark, migration, checksum, archive, and retirement evidence
+  is under
+  `/data/spacegate/state/reports/storage_housekeeping/20260810/`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

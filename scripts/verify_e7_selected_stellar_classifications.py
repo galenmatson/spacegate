@@ -9,6 +9,8 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -16,7 +18,7 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config/evidence_lake/e7_selected_stellar_classifications.json"
-DEFAULT_ROOT = Path("/mnt/space/spacegate/e7-selected-stellar-classifications")
+DEFAULT_ROOT = bulk_path("e7-selected-stellar-classifications")
 
 
 def load_object(path: Path) -> dict[str, Any]:

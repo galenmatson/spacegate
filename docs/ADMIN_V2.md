@@ -690,14 +690,15 @@ Use these locations by default on Photon:
 - `$SPACEGATE_STATE_DIR` (`/data/spacegate/state` on Photon, set by
   `/srv/spacegate/photon.env`; containers may see this mounted at `/data`):
   builds, reports, admin DB, jobs, reproducible generated artifacts
-- `$SPACEGATE_BULK_DIR` (`/mnt/space/spacegate` on Photon): bulk research
+- `$SPACEGATE_BULK_DIR` (`/space/spacegate` on Photon): bulk research
   material, archived papers, retrieved source documents, OCR/intermediate text,
   large dossier attachments, and reusable science-document cache
 - `/data/models`: model weights and inference caches shared across projects
 - `/srv/spacegate`: repo checkouts and host-local config
 
-The USB-backed `/mnt/space/spacegate` is large and fast but less trustworthy
-than internal storage. Anything there that matters to scientific traceability
+The internal NVMe-backed `/space/spacegate` is the active bulk tier. The older
+USB-backed `/mnt/space/spacegate` is a legacy/secondary tier. Anything in bulk
+storage that matters to scientific traceability
 must be referenced by metadata stored in `disc`/admin state with hashes,
 retrieval timestamps, and source URLs. The cache can be regenerated or repaired
 from those records.

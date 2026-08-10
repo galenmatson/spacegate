@@ -18,6 +18,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+from storage_paths import bulk_path
 from typing import Any
 
 import duckdb
@@ -27,8 +29,8 @@ from astropy.io.votable import parse_single_table
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config" / "evidence_lake" / "targeted_wise_acquisition.json"
 DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/state"))
-FOUNDATION_ROOT = Path("/mnt/space/spacegate/e7-clean-foundation")
-SCIENCE_ROOT = Path("/mnt/space/spacegate/e7-clean-science")
+FOUNDATION_ROOT = bulk_path("e7-clean-foundation")
+SCIENCE_ROOT = bulk_path("e7-clean-science")
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 
 
