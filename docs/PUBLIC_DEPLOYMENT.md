@@ -293,6 +293,36 @@ when hot free space cannot retain the complete missing closure plus 15 GiB.
 `--install-hot` may be added to the transfer helper only when that gate is
 already known to pass.
 
+## Scene-Only Contract Refresh
+
+Renderer and hierarchy repairs may advance the simulation-scene materializer
+without changing the active scientific, Public Read, or Smart Tag artifacts.
+Do not let the public edge regenerate the policy set through visitor requests,
+and do not retransmit the complete release merely to replace this bounded
+presentation artifact.
+
+Regenerate the exact active build and exact Public Read `full_scene` policy on
+Photon, freeze it twice to separate output roots, and require identical archive
+hashes. Create an updated full release manifest that references the unchanged
+three artifacts and the new frozen scene archive. Release validation requires
+the scene manifest version to match the API's authoritative contract.
+
+Transfer and install only the scene closure with:
+
+```bash
+scripts/push_public_scene_refresh.sh --manifest /path/to/updated/release.json
+```
+
+The helper verifies the local scene source, transfers the updated manifest and
+scene archive, confirms that the build is currently active, extracts and hashes
+every scene in a target-filesystem staging directory, and atomically replaces
+only the build-keyed cache and frozen scene closure. It then verifies the full
+installed release and updates the existing activation record without changing
+`served/current`. The prior cache and frozen archive are retained under
+`deployments/<build_id>/scene-refreshes/<timestamp>/` as the explicit rollback
+closure. A scene refresh does not restart the API because artifact lookup
+precedes the in-process scene cache.
+
 ## Activation
 
 After staging has passed, activate the release and rebuild the public containers

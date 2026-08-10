@@ -13,9 +13,17 @@ import time
 from pathlib import Path
 from typing import Any
 
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "srv" / "api"))
+
+from app.simulation_scene_contract import (  # noqa: E402
+    SIMULATION_SCENE_ARTIFACT_VERSION as SCENE_MATERIALIZER_VERSION,
+)
+
 
 FREEZER_VERSION = "simulation_scene_freezer_v1"
-SCENE_MATERIALIZER_VERSION = "simulation_scene_artifact_v12"
 
 
 def canonical_json(value: Any) -> bytes:

@@ -63,9 +63,12 @@ def make_scenes(path: Path, build_id: str) -> dict[str, object]:
     }
     embedded = {
         "schema_version": "spacegate.simulation_scene_frozen_set.v1",
+        "freezer_version": "simulation_scene_freezer_v1",
         "build_id": build_id,
+        "scene_materializer_version": release.SIMULATION_SCENE_ARTIFACT_VERSION,
         "required_count": 1,
         "scene_count": 1,
+        "total_scene_bytes": len(scene),
         "entries": [entry],
     }
     with tarfile.open(path, "w:gz") as archive:
@@ -195,6 +198,16 @@ def stage_args(manifest: Path, state: Path, incoming: Path) -> object:
     )()
 
 
+def test_release_rejects_stale_scene_materializer_version(tmp_path: Path) -> None:
+    manifest, _source, _build_id = make_fixture(tmp_path)
+    value = json.loads(manifest.read_text(encoding="utf-8"))
+    value["simulation_scene_manifest"]["scene_materializer_version"] = (
+        "simulation_scene_artifact_v8"
+    )
+    with pytest.raises(ValueError, match="simulation-scene manifest is incompatible"):
+        release.validate_release(value)
+
+
 def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     manifest, source, build_id = make_fixture(tmp_path)
     state = tmp_path / "state"
@@ -246,6 +259,43 @@ def test_release_stages_activates_and_rolls_back(tmp_path: Path) -> None:
     assert rolled_back["status"] == "pass"
     assert (state / "served" / "current").resolve() == previous.resolve()
     assert not (smart_tag_target.parent / "current").exists()
+
+
+def test_active_scene_refresh_is_atomic_and_retains_rollback(
+    tmp_path: Path,
+) -> None:
+    manifest, source, build_id = make_fixture(tmp_path)
+    state = tmp_path / "state"
+    incoming = state / "incoming"
+    incoming.mkdir(parents=True)
+    for spec in release.load_json(manifest)["artifacts"].values():
+        shutil.copy2(Path(spec["source_path"]), incoming / spec["transfer_filename"])
+    args = stage_args(manifest, state, incoming)
+    release.command_stage_scientific(args)
+    release.command_stage_public_read(args)
+    release.command_stage_scenes(args)
+    release.command_stage_smart_tags(args)
+    release.command_activate(
+        type("Args", (), {"manifest": manifest, "state_dir": state})()
+    )
+
+    shutil.copy2(source / "simulation_scenes.tar.gz", incoming)
+    refreshed = release.command_refresh_scenes(args)
+
+    assert refreshed["refreshed"] is True
+    assert refreshed["scene_count"] == 1
+    rollback = Path(refreshed["rollback_path"])
+    assert (rollback / "cache" / "system_7.json.gz").is_file()
+    assert (rollback / "frozen" / "simulation_scenes.tar.gz").is_file()
+    activation = release.load_json(
+        state / "deployments" / build_id / "activation.json"
+    )
+    assert activation["scene_refresh"]["scene_count"] == 1
+    assert (
+        activation["scene_refresh"]["scene_materializer_version"]
+        == release.SIMULATION_SCENE_ARTIFACT_VERSION
+    )
+    release.command_verify_installed(args)
 
 
 def test_release_rolls_back_legacy_activation_without_smart_tags(

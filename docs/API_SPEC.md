@@ -405,6 +405,10 @@ database. A served-build artifact must never satisfy a shadow/candidate request,
 even when its renderer version and system ID match. Runtime-cache artifacts
 carry the same materialization version, build identity, and output-mode contract
 as immutable build artifacts.
+The API, materializer, freezer, and edge release verifier share one
+authoritative materializer version. An edge manifest containing another scene
+version is not deployable, even if its archive hashes and scene counts are
+internally consistent.
 
 ARM diagnostics may include `stellar_orbit_group_memberships`. The scene
 assembler resolves each group through its recorded descendant leaf keys before

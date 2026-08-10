@@ -16,7 +16,13 @@ from typing import Any, Iterable, Sequence
 
 import duckdb
 
-MATERIALIZER_VERSION = "simulation_scene_artifact_v12"
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "srv" / "api"))
+
+from app.simulation_scene_contract import (  # noqa: E402
+    SIMULATION_SCENE_ARTIFACT_VERSION as MATERIALIZER_VERSION,
+)
+
 _SCENE_BUILDER = None
 _SCENE_WORKER_CONTEXT: dict[str, Any] = {}
 

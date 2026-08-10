@@ -760,6 +760,13 @@ Success criteria:
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to
   live assembly until scenes are regenerated for the served build.
+- The API, materializer, freezer, and public release verifier import one
+  authoritative materializer version from
+  `srv/api/app/simulation_scene_contract.py`. A public release whose frozen
+  scene manifest names another version is rejected before staging or
+  activation. Runtime scene-cache writes remain optional performance work: a
+  write failure is reported, but an otherwise valid assembled scene is still
+  returned.
 - Star Search and map search now use explicit preview tiers:
   - Tier 0: summary fields only.
   - Tier 1: `lightweight_singleton`, a client-rendered singleton preview for

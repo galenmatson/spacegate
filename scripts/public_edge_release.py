@@ -11,11 +11,19 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tarfile
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "srv" / "api"))
+
+from app.simulation_scene_contract import (  # noqa: E402
+    SIMULATION_SCENE_ARTIFACT_VERSION,
+)
 
 
 SCHEMA_VERSION = "spacegate.public_edge_release.v2"
@@ -170,6 +178,8 @@ def validate_release(value: dict[str, Any]) -> dict[str, Any]:
     if (
         not isinstance(scenes, dict)
         or scenes.get("build_id") != build_id
+        or scenes.get("scene_materializer_version")
+        != SIMULATION_SCENE_ARTIFACT_VERSION
         or (scenes.get("verification") or {}).get("status") != "pass"
         or scenes.get("required_count") != scenes.get("scene_count")
     ):
@@ -360,6 +370,21 @@ def command_verify_source(args: argparse.Namespace) -> dict[str, Any]:
         "status": "pass",
         "build_id": release["build_id"],
         "verified_roles": sorted(release["artifacts"]),
+    }
+
+
+def command_verify_scene_source(args: argparse.Namespace) -> dict[str, Any]:
+    release = validate_release(load_json(args.manifest.resolve(strict=True)))
+    verify_artifact(
+        source_path(release, "simulation_scenes"),
+        release["artifacts"]["simulation_scenes"],
+        "simulation_scenes",
+    )
+    return {
+        "status": "pass",
+        "build_id": release["build_id"],
+        "scene_materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+        "verified_roles": ["simulation_scenes"],
     }
 
 
@@ -570,6 +595,79 @@ def verify_public_scene_cache_readable(target: Path) -> None:
             )
 
 
+def scene_archive_manifest(release: dict[str, Any]) -> dict[str, Any]:
+    manifest = release["simulation_scene_manifest"]
+    return {
+        key: manifest[key]
+        for key in (
+            "schema_version",
+            "freezer_version",
+            "scene_materializer_version",
+            "build_id",
+            "required_count",
+            "scene_count",
+            "total_scene_bytes",
+            "entries",
+        )
+    }
+
+
+def extract_scene_cache(
+    release: dict[str, Any],
+    incoming: Path,
+    cache_root: Path,
+) -> tuple[Path, int]:
+    cache_root.mkdir(parents=True, exist_ok=True)
+    staging = Path(
+        tempfile.mkdtemp(prefix=f".{release['build_id']}.refresh.", dir=cache_root)
+    )
+    expected_entries = {
+        str(row["path"]): row
+        for row in release["simulation_scene_manifest"].get("entries") or []
+    }
+    installed = 0
+    try:
+        with tarfile.open(incoming, mode="r:gz") as archive:
+            members = archive.getmembers()
+            paths = [safe_scene_member(member) for member in members]
+            if len(paths) != len(set(paths)):
+                raise ValueError("scene archive contains duplicate members")
+            embedded = archive.extractfile("manifest.json")
+            if embedded is None:
+                raise ValueError("scene archive lacks embedded manifest")
+            embedded_manifest = json.loads(embedded.read())
+            if canonical_json(embedded_manifest) != canonical_json(
+                scene_archive_manifest(release)
+            ):
+                raise ValueError("embedded scene manifest does not match release")
+            for member in members:
+                path = safe_scene_member(member)
+                if path == PurePosixPath("manifest.json"):
+                    continue
+                source = archive.extractfile(member)
+                if source is None:
+                    raise ValueError(f"unable to read scene member: {member.name}")
+                content = source.read()
+                spec = expected_entries.get(path.as_posix())
+                if (
+                    spec is None
+                    or len(content) != spec["bytes"]
+                    or hashlib.sha256(content).hexdigest() != spec["sha256"]
+                ):
+                    raise ValueError(f"scene member verification failed: {member.name}")
+                (staging / path.name).write_bytes(content)
+                installed += 1
+        if installed != release["simulation_scene_manifest"]["scene_count"]:
+            raise ValueError("installed scene count does not match release")
+        atomic_json(staging / "manifest.json", release["simulation_scene_manifest"])
+        make_public_scene_cache_readable(staging)
+        verify_public_scene_cache_readable(staging)
+        return staging, installed
+    except Exception:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+
+
 def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
     release = validate_release(load_json(args.manifest.resolve(strict=True)))
     build_id = release["build_id"]
@@ -662,6 +760,112 @@ def command_stage_scenes(args: argparse.Namespace) -> dict[str, Any]:
         "scene_count": installed,
         "reused": reused,
     }
+
+
+def command_refresh_scenes(args: argparse.Namespace) -> dict[str, Any]:
+    release_path = args.manifest.resolve(strict=True)
+    release = validate_release(load_json(release_path))
+    build_id = release["build_id"]
+    state = args.state_dir.resolve(strict=True)
+    served = (state / "served" / "current").resolve(strict=True)
+    if served != (state / "out" / build_id).resolve(strict=True):
+        raise ValueError("scene refresh build is not the active scientific build")
+    incoming = incoming_path(
+        release,
+        "simulation_scenes",
+        args.incoming_dir.resolve(strict=True),
+    )
+    verify_artifact(
+        incoming,
+        release["artifacts"]["simulation_scenes"],
+        "simulation_scenes",
+    )
+    require_reserve(state)
+
+    cache_root = state / "cache" / "simulation_scenes"
+    cache_target = cache_root / build_id
+    frozen_root = state / "derived" / "simulation_scenes"
+    frozen_target = frozen_root / build_id
+    if not cache_target.is_dir() or not frozen_target.is_dir():
+        raise ValueError("active release lacks its current frozen scene closure")
+
+    cache_staging, installed = extract_scene_cache(release, incoming, cache_root)
+    frozen_root.mkdir(parents=True, exist_ok=True)
+    frozen_staging = Path(
+        tempfile.mkdtemp(prefix=f".{build_id}.refresh.", dir=frozen_root)
+    )
+    refresh_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    history = (
+        state
+        / "deployments"
+        / build_id
+        / "scene-refreshes"
+        / refresh_stamp
+    )
+    history.mkdir(parents=True, exist_ok=False)
+    cache_backup = history / "cache"
+    frozen_backup = history / "frozen"
+    cache_swapped = False
+    frozen_swapped = False
+    try:
+        shutil.copy2(incoming, frozen_staging / "simulation_scenes.tar.gz")
+        atomic_json(
+            frozen_staging / "manifest.json",
+            release["simulation_scene_manifest"],
+        )
+        os.replace(cache_target, cache_backup)
+        cache_swapped = True
+        os.replace(cache_staging, cache_target)
+        os.replace(frozen_target, frozen_backup)
+        frozen_swapped = True
+        os.replace(frozen_staging, frozen_target)
+
+        verified = verify_installed(release, state)
+        activation_path = state / "deployments" / build_id / "activation.json"
+        activation = load_json(activation_path)
+        previous_release_sha = activation.get("release_manifest_sha256")
+        activation["release_manifest_sha256"] = sha256_file(release_path)
+        activation["scene_refresh"] = {
+            "refreshed_at_utc": utc_now(),
+            "scene_materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+            "scene_count": installed,
+            "previous_release_manifest_sha256": previous_release_sha,
+            "rollback_path": str(history),
+        }
+        atomic_json(activation_path, activation)
+        atomic_json(
+            history / "refresh.json",
+            {
+                "schema_version": "spacegate.public_scene_refresh.v1",
+                "status": "pass",
+                "build_id": build_id,
+                "refreshed_at_utc": utc_now(),
+                "scene_materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+                "scene_count": installed,
+                "previous_release_manifest_sha256": previous_release_sha,
+                "release_manifest_sha256": sha256_file(release_path),
+                "replacement_archive": release["artifacts"]["simulation_scenes"],
+            },
+        )
+        require_reserve(state)
+        return {
+            **verified,
+            "refreshed": True,
+            "scene_count": installed,
+            "scene_materializer_version": SIMULATION_SCENE_ARTIFACT_VERSION,
+            "rollback_path": str(history),
+        }
+    except Exception:
+        if frozen_swapped:
+            shutil.rmtree(frozen_target, ignore_errors=True)
+            os.replace(frozen_backup, frozen_target)
+        if cache_swapped:
+            shutil.rmtree(cache_target, ignore_errors=True)
+            os.replace(cache_backup, cache_target)
+        raise
+    finally:
+        shutil.rmtree(cache_staging, ignore_errors=True)
+        shutil.rmtree(frozen_staging, ignore_errors=True)
 
 
 def safe_smart_tag_member(
@@ -1223,6 +1427,10 @@ def parse_args() -> argparse.Namespace:
     verify_source.add_argument("--manifest", required=True, type=Path)
     verify_source.set_defaults(handler=command_verify_source)
 
+    verify_scene_source = sub.add_parser("verify-scene-source")
+    verify_scene_source.add_argument("--manifest", required=True, type=Path)
+    verify_scene_source.set_defaults(handler=command_verify_scene_source)
+
     for command, handler in (
         ("stage-scientific", command_stage_scientific),
         ("stage-public-read", command_stage_public_read),
@@ -1239,6 +1447,12 @@ def parse_args() -> argparse.Namespace:
     verify.add_argument("--manifest", required=True, type=Path)
     verify.add_argument("--state-dir", required=True, type=Path)
     verify.set_defaults(handler=command_verify_installed)
+
+    refresh_scenes = sub.add_parser("refresh-scenes")
+    refresh_scenes.add_argument("--manifest", required=True, type=Path)
+    refresh_scenes.add_argument("--state-dir", required=True, type=Path)
+    refresh_scenes.add_argument("--incoming-dir", required=True, type=Path)
+    refresh_scenes.set_defaults(handler=command_refresh_scenes)
 
     for name, handler in (
         ("plan-install-from-state", command_plan_install_from_state),

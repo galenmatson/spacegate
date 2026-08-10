@@ -99,6 +99,11 @@ Installed build cache directories retain shared-group write access because the
 API may add dynamically assembled scenes beside the prebuilt set. A failed
 runtime cache write is operationally visible but must not invalidate a scene
 that was assembled successfully.
+An atomic scene-only public refresh retains the superseded cache and frozen
+archive under the build's deployment record until the replacement passes
+public cold/warm and browser checks. That rollback closure is small but remains
+protected until the subsequent public soak is accepted and its exact manifest
+and hashes are recorded for retirement.
 The accepted M8.3e v7 set contains 7,724 scenes in an 80,752,521-byte archive
 with SHA-256
 `519ac2c7951a791bdd2b9cae2b7142475a42c706348e8bb14d2c8dedb5aeba9c`;
