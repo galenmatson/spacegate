@@ -109,3 +109,4 @@ def test_focus_graph_keeps_planet_under_host_and_root_bounds() -> None:
     star_focus = graph["nodes"]["focus:body:star:a"]
     assert "focus:planet:planet:b" in star_focus["child_focus_keys"]
     assert star_focus["physical_bounds"]["radius_au"] > 1.0
+    assert star_focus["physical_bounds"]["available_overlay_radius_au"] > star_focus["physical_bounds"]["radius_au"]

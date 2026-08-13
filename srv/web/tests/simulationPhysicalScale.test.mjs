@@ -7,6 +7,7 @@ import {
   formatAuDistance,
   formatLightTravelTime,
   formatMetricDistance,
+  layoutBoundedIndicators,
   niceScaleLength,
   sceneUnitsPerAu,
 } from "../src/simulationPhysicalScale.js";
@@ -41,4 +42,16 @@ test("scale ruler uses 1-2-5 steps", () => {
   assert.equal(niceScaleLength(37), 20);
   assert.equal(niceScaleLength(7.4), 5);
   assert.equal(niceScaleLength(0.18), 0.1);
+});
+
+test("scale beacons are bounded and collision managed", () => {
+  const laidOut = layoutBoundedIndicators([
+    { focusKey: "a", unresolved: true, x: 200, y: 120, viewportWidth: 400, viewportHeight: 240 },
+    { focusKey: "b", unresolved: true, x: 202, y: 121, viewportWidth: 400, viewportHeight: 240 },
+    { focusKey: "c", offscreen: true, x: 390, y: 220, viewportWidth: 400, viewportHeight: 240 },
+  ]);
+  assert.equal(laidOut.length, 3);
+  assert.ok(Math.abs(laidOut[0].displayY - laidOut[1].displayY) >= 30);
+  assert.ok(laidOut[2].displayX <= 328);
+  assert.ok(laidOut[2].displayY <= 212);
 });

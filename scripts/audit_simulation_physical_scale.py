@@ -139,22 +139,58 @@ def _target_report(base_url: str, query: str) -> dict[str, Any]:
     }
 
 
+def _contract_checks(report: dict[str, Any]) -> dict[str, int]:
+    contracts = report.get("contracts") or {}
+    orbits = report.get("orbits") or []
+    root_bounds = (report.get("physical_contract") or {}).get("root_bounds") or {}
+    return {
+        "physical_scale_schema_mismatch": int(contracts.get("physical_scale") != "simulation_physical_scale_v1"),
+        "focus_graph_schema_mismatch": int(contracts.get("focus_graph") != "simulation_focus_graph_v1"),
+        "visual_scale_schema_mismatch": int(contracts.get("visual_scale") != "visual_scale_v2"),
+        "missing_root_physical_bound": int(_number(root_bounds.get("radius_au")) is None),
+        "orbit_contract_missing": sum(int(not isinstance(item.get("physical_extent"), dict)) for item in orbits),
+        "physical_orbit_missing_axis": sum(
+            int(
+                (item.get("physical_extent") or {}).get("applicability") == "physical"
+                and _number((((item.get("physical_extent") or {}).get("semi_major_axis_au") or {}).get("value"))) is None
+            )
+            for item in orbits
+        ),
+        "unavailable_orbit_has_axis": sum(
+            int(
+                (item.get("physical_extent") or {}).get("applicability") == "unavailable"
+                and _number((((item.get("physical_extent") or {}).get("semi_major_axis_au") or {}).get("value"))) is not None
+            )
+            for item in orbits
+        ),
+        "presentation_radius_not_excluded": sum(
+            int((item.get("physical_extent") or {}).get("presentation_radius_excluded") is not True)
+            for item in orbits
+        ),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="https://10.0.0.12")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--label", required=True)
     parser.add_argument("--target", action="append", dest="targets")
+    parser.add_argument("--require-contract", action="store_true")
     args = parser.parse_args()
     targets = args.targets or DEFAULT_TARGETS
     reports = [_target_report(args.base_url, target) for target in targets]
+    if args.require_contract:
+        for report in reports:
+            report["checks"] = _contract_checks(report)
+            report["status"] = "pass" if report.get("status") == "ok" and not any(report["checks"].values()) else "fail"
     output = {
         "schema_version": "spacegate.simulation_physical_scale_audit.v1",
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "label": args.label,
         "base_url": args.base_url,
         "targets": reports,
-        "status": "pass" if all(item.get("status") == "ok" for item in reports) else "fail",
+        "status": "pass" if all(item.get("status") in {"ok", "pass"} for item in reports) else "fail",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n", encoding="utf-8")

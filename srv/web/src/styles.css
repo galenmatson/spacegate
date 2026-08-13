@@ -10476,7 +10476,7 @@ main {
   position: absolute;
   right: 10px;
   bottom: 10px;
-  z-index: 5;
+  z-index: 45;
   display: grid;
   gap: 8px;
   width: min(320px, calc(100% - 20px));
@@ -10720,6 +10720,19 @@ main {
   white-space: nowrap;
 }
 
+.system-preview-scale-beacon {
+  border-style: dashed;
+  border-color: color-mix(in srgb, #ffd166 66%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ffd166 12%, transparent), 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.system-preview-scale-beacon .system-preview-edge-arrow {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #ffd166;
+  border-radius: 50%;
+}
+
 .system-preview-edge-indicator small {
   color: #a9bed0;
   font-size: 0.52rem;
@@ -10727,7 +10740,7 @@ main {
 
 .system-preview-scale-lens {
   position: absolute;
-  z-index: 38;
+  z-index: 48;
   width: 280px;
   height: 200px;
   overflow: hidden;

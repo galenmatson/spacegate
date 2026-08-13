@@ -125,3 +125,25 @@ export function physicalOrbitAxis(orbit) {
   return finitePositive(extent?.semi_major_axis_au?.value);
 }
 
+export function layoutBoundedIndicators(indicators, limit = 5) {
+  const candidates = (indicators || []).filter((item) => item?.offscreen || item?.unresolved).slice(0, limit);
+  const placed = [];
+  for (const item of candidates) {
+    const width = Math.max(160, Number(item.viewportWidth) || 640);
+    const height = Math.max(120, Number(item.viewportHeight) || 360);
+    const baseX = Math.min(width - 72, Math.max(72, Number(item.x) || width / 2));
+    const baseY = Math.min(height - 28, Math.max(28, Number(item.y) || height / 2));
+    const offsets = [0, -34, 34, -68, 68, -102, 102];
+    const offset = offsets.find((value) => {
+      const y = Math.min(height - 28, Math.max(28, baseY + value));
+      return placed.every((other) => Math.abs(other.displayX - baseX) >= 136 || Math.abs(other.displayY - y) >= 30);
+    });
+    if (offset === undefined) continue;
+    placed.push({
+      ...item,
+      displayX: baseX,
+      displayY: Math.min(height - 28, Math.max(28, baseY + offset)),
+    });
+  }
+  return placed;
+}

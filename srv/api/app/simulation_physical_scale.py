@@ -372,7 +372,7 @@ def build_focus_graph(
     }
     nodes: Dict[str, Dict[str, Any]] = {}
 
-    def compile_node(tree_key: str, parent_focus_key: Optional[str]) -> tuple[str, float, str]:
+    def compile_node(tree_key: str, parent_focus_key: Optional[str]) -> tuple[str, float, str, float]:
         node = tree_nodes.get(tree_key) or {}
         node_type = str(node.get("node_type") or "unknown")
         focus_key = f"focus:{tree_key}"
@@ -380,7 +380,9 @@ def build_focus_graph(
         child_focus_keys = [item[0] for item in child_results]
         child_radii = [item[1] for item in child_results]
         child_statuses = [item[2] for item in child_results]
+        child_overlay_radii = [item[3] for item in child_results]
         radius = max(child_radii, default=0.0)
+        available_overlay_radius = max(child_overlay_radii, default=radius)
         status = "complete" if child_results and all(value == "complete" for value in child_statuses) else "partial"
         basis = "recursive_child_bounds"
         object_key = None
@@ -389,6 +391,7 @@ def build_focus_graph(
             object_key = str(node.get("body_key") or "") or None
             neighborhood = neighborhoods.get(object_key or "", {})
             radius = float(neighborhood.get("base_radius_au") or 0.0)
+            available_overlay_radius = max(radius, float(neighborhood.get("max_overlay_radius_au") or 0.0))
             status = "complete" if radius > 0 else "identity_only"
             basis = "host_planets_and_habitable_zone"
         elif orbit_key:
@@ -397,6 +400,10 @@ def build_focus_graph(
             own_radius = _positive_float((extent.get("apoapsis_extent_au") or {}).get("value"))
             if own_radius is not None:
                 radius = max(radius, own_radius + max(child_radii, default=0.0))
+                available_overlay_radius = max(
+                    available_overlay_radius,
+                    own_radius + max(child_overlay_radii, default=0.0),
+                )
                 status = "complete" if extent.get("completeness") == "complete" and all(value == "complete" for value in child_statuses) else "partial"
                 basis = "physical_orbit_apoapsis_plus_child_bounds"
             else:
@@ -421,14 +428,15 @@ def build_focus_graph(
                 "status": status,
                 "basis": basis,
                 "includes_active_overlays": False,
+                "available_overlay_radius_au": round(available_overlay_radius, 9) if available_overlay_radius > 0 else None,
             },
             "supported_actions": ["select", "focus", "lens"] + (["fit_system"] if node_type == "root" else ["parent"]),
         }
-        return focus_key, radius, status
+        return focus_key, radius, status, available_overlay_radius
 
     root_tree_key = str(simulation_tree.get("root_node_key") or "")
     if root_tree_key and root_tree_key in tree_nodes:
-        root_focus_key, _, _ = compile_node(root_tree_key, None)
+        root_focus_key, _, _, _ = compile_node(root_tree_key, None)
     else:
         root_focus_key = "focus:root:system"
         nodes[root_focus_key] = {
@@ -441,7 +449,13 @@ def build_focus_graph(
             "object_key": None,
             "orbit_key": None,
             "leaf_body_keys": sorted(neighborhoods),
-            "physical_bounds": {"radius_au": None, "status": "unavailable", "basis": "simulation_tree_unavailable"},
+            "physical_bounds": {
+                "radius_au": None,
+                "status": "unavailable",
+                "basis": "simulation_tree_unavailable",
+                "includes_active_overlays": False,
+                "available_overlay_radius_au": None,
+            },
             "supported_actions": ["select", "fit_system"],
         }
 
@@ -473,6 +487,8 @@ def build_focus_graph(
                 "radius_au": round(axis, 9) if axis is not None else None,
                 "status": "complete" if axis is not None else "unavailable",
                 "basis": "planet_semi_major_axis",
+                "includes_active_overlays": False,
+                "available_overlay_radius_au": round(axis, 9) if axis is not None else None,
             },
             "supported_actions": ["select", "focus", "lens", "parent"],
         }

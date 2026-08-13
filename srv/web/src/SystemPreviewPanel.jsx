@@ -23,6 +23,7 @@ import {
   focusKeyForPayload,
   focusNode,
   focusRadiusAu,
+  layoutBoundedIndicators,
   niceScaleLength,
   physicalOrbitAxis,
   physicalScaleReadout,
@@ -1051,21 +1052,24 @@ function orbitHoverPayload(orbit) {
   }
   const guideField = orbitGuideProvenanceField(orbit);
   const physicalExtent = orbit.physical_extent || {};
+  const coherence = physicalExtent.coherence || {};
   const physicalAxisField = physicalExtent.semi_major_axis_au || fieldRecord(orbit.fields, "semi_major_axis_au");
   const physicalStatusField = {
     key: "physical_scale_status",
     label: "Physical scale",
     value: physicalExtent.applicability === "physical"
       ? (physicalExtent.completeness === "complete" ? "Physical extent" : "Physical axis; eccentricity incomplete")
-      : "Physical extent unavailable",
+      : (coherence.status === "rejected" ? "Source axis rejected" : "Physical extent unavailable"),
     unit: null,
-    status: physicalExtent.applicability === "physical" ? (physicalAxisField?.status || "derived") : "missing",
+    status: physicalExtent.applicability === "physical" ? (physicalAxisField?.status || "derived") : (coherence.status === "rejected" ? "ambiguous" : "missing"),
     layer: physicalAxisField?.layer || "render_scene",
     basis: physicalExtent.axis_basis || "physical_extent_contract_unavailable",
     generator_version: physicalExtent.policy_version,
     notes: physicalExtent.applicability === "physical"
       ? "This axis can participate in the system-wide linear AU view."
-      : "The simulator will not substitute a projected separation or presentation radius as a physical orbit axis.",
+      : (coherence.status === "rejected"
+        ? `The accepted period and stored axis imply an implausible total mass (${formatNumber(coherence.implied_total_mass_msun, 2)} solar masses), so this axis is excluded from physical scaling.`
+        : "The simulator will not substitute a projected separation or presentation radius as a physical orbit axis."),
   };
   return {
     kind: String(orbit.relation_kind || "Orbit"),
@@ -3178,6 +3182,28 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
+function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false }) {
+  const { gl } = useThree();
+  const lastSampleRef = React.useRef(0);
+  useFrame(({ clock }) => {
+    if (clock.elapsedTime - lastSampleRef.current < 0.5) return;
+    lastSampleRef.current = clock.elapsedTime;
+    const canvas = gl.domElement;
+    canvas.dataset.webglContextCount = "1";
+    canvas.dataset.lensUsesSharedContext = lensOpen ? "true" : "false";
+    canvas.dataset.rendererGeometries = String(gl.info.memory.geometries || 0);
+    canvas.dataset.rendererTextures = String(gl.info.memory.textures || 0);
+    canvas.dataset.rendererPrograms = String(gl.info.programs?.length || 0);
+    canvas.dataset.rendererDrawCalls = String(gl.info.render.calls || 0);
+    canvas.dataset.rendererTriangles = String(gl.info.render.triangles || 0);
+    canvas.dataset.physicalFocusKey = String(focusKey || "");
+    canvas.dataset.physicalFocusNodeCount = String(Object.keys(focusGraph?.nodes || {}).length);
+    canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
+    canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
+  });
+  return null;
+}
+
 function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest = null, targetRegistryRef = null }) {
   const { camera, gl, invalidate } = useThree();
   const controlsRef = React.useRef(null);
@@ -3345,7 +3371,7 @@ function ViewportScaleReporter({ enabled = false, sceneUnitsPerAU = null, target
   return null;
 }
 
-function NavigationTargetReporter({ targets = [], targetRegistryRef = null, onChange = null }) {
+function NavigationTargetReporter({ targets = [], targetRegistryRef = null, sceneUnitsPerAU = null, onChange = null }) {
   const { camera, size } = useThree();
   const lastSampleRef = React.useRef(0);
   const lastSignatureRef = React.useRef("");
@@ -3360,13 +3386,25 @@ function NavigationTargetReporter({ targets = [], targetRegistryRef = null, onCh
       const rawX = behind ? -ndc.x : ndc.x;
       const rawY = behind ? -ndc.y : ndc.y;
       const offscreen = behind || Math.abs(rawX) > 0.86 || Math.abs(rawY) > 0.8;
+      const distance = Math.max(0.001, camera.position.distanceTo(world));
+      const verticalWorld = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov || 43) / 2) * distance;
+      const worldPerPixel = verticalWorld / Math.max(1, size.height);
+      const radiusScene = Number(target.radiusAu) * Number(sceneUnitsPerAU);
+      const projectedRadiusPx = Number.isFinite(radiusScene) && radiusScene > 0
+        ? radiusScene / Math.max(0.000001, worldPerPixel)
+        : null;
+      const unresolved = !offscreen && projectedRadiusPx !== null && projectedRadiusPx < 14;
       const scale = Math.max(1, Math.abs(rawX) / 0.86, Math.abs(rawY) / 0.8);
       return {
         ...target,
         offscreen,
+        unresolved,
+        projectedRadiusPx,
         x: ((rawX / scale + 1) / 2) * size.width,
         y: ((1 - rawY / scale) / 2) * size.height,
         angleDeg: Math.atan2(rawY, rawX) * 180 / Math.PI,
+        viewportWidth: size.width,
+        viewportHeight: size.height,
       };
     }).filter(Boolean);
     const signature = projected.map((item) => `${item.focusKey}:${item.offscreen ? 1 : 0}:${item.x.toFixed(0)}:${item.y.toFixed(0)}`).join("|");
@@ -4439,6 +4477,16 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       key: subsystem.render_key || subsystem.source?.stable_component_key || `subsystem-${idx}`,
     }))
   ), [scene]);
+  const compressedPhysicalRoot = useMemo(() => {
+    if (activeScaleMode !== PHYSICAL_SCALE_MODE || focusKey !== focusGraph?.root_focus_key) return false;
+    const nodes = Object.values(focusGraph?.nodes || {});
+    const rootRadius = Number(focusGraph?.nodes?.[focusGraph.root_focus_key]?.physical_bounds?.radius_au);
+    const childRadii = nodes
+      .filter((node) => node.focus_key !== focusGraph.root_focus_key)
+      .map((node) => Number(node.physical_bounds?.radius_au))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    return Number.isFinite(rootRadius) && rootRadius > 0 && childRadii.some((value) => rootRadius / value >= 100);
+  }, [activeScaleMode, focusGraph, focusKey]);
 
   return (
     <SceneContrastContext.Provider value={contrast}>
@@ -4451,6 +4499,13 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       >
         {!transparentBackground && <color attach="background" args={[contrast.background]} />}
         <WebGLContextGuard onContextLost={onContextLost} />
+        <RendererResourceMetrics
+          lensOpen={Boolean(lensState?.open)}
+          focusGraph={focusGraph}
+          focusKey={focusKey}
+          sceneUnitsPerAU={physicalUnitsPerAu}
+          compressedPhysicalRoot={compressedPhysicalRoot}
+        />
         <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
         <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
         <ViewportScaleReporter
@@ -4460,14 +4515,16 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           focusTargetId={focusRequest?.targetId || ""}
           onChange={onScaleReport}
         />
-        <NavigationTargetReporter targets={navigationTargets} targetRegistryRef={targetRegistryRef} onChange={onNavigationTargetsChange} />
-        <ScaleLensRenderer
-          enabled={Boolean(lensState?.open)}
-          targetId={lensState?.targetId || ""}
-          targetRegistryRef={targetRegistryRef}
-          spanScene={lensState?.spanScene || 2.6}
-          rect={lensRect}
-        />
+        <NavigationTargetReporter targets={navigationTargets} targetRegistryRef={targetRegistryRef} sceneUnitsPerAU={physicalUnitsPerAu} onChange={onNavigationTargetsChange} />
+        {lensState?.open ? (
+          <ScaleLensRenderer
+            enabled
+            targetId={lensState?.targetId || ""}
+            targetRegistryRef={targetRegistryRef}
+            spanScene={lensState?.spanScene || 2.6}
+            rect={lensRect}
+          />
+        ) : null}
         <CanvasHoverRaycaster onHover={onHover} />
         <SceneLabelTypographyContext.Provider value={labelTypography}>
           <PreviewObjects
@@ -4485,7 +4542,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
             showOrbits={showOrbits}
             showHabitableZones={showHabitableZones}
             showFormationLines={showFormationLines}
-            showLabels={showLabels}
+            showLabels={showLabels && !compressedPhysicalRoot}
             selectedObjectId={selectedObjectId}
             targetRegistryRef={targetRegistryRef}
             onHover={onHover}
@@ -4755,7 +4812,7 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
   if (!physical) {
     return (
       <div className="system-preview-scale-note" data-testid="system-preview-scale-note">
-        {scaleMode === "log" ? "Logarithmic distance - equal screen spacing is not equal AU" : "Schematic distance - presentation scaled for readability"}
+        {scaleMode === "log" ? "Nonlinear display - local orbits and hierarchy guides use separate log transforms; there is no common AU ruler" : "Schematic distance - presentation scaled for readability"}
       </div>
     );
   }
@@ -4778,7 +4835,7 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
   );
 }
 
-function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey }) {
+function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = null, canBack = false }) {
   const nodes = focusGraphNodes(focusGraph);
   const active = nodes[focusKey] || nodes[focusGraph?.root_focus_key];
   if (!active) return null;
@@ -4790,6 +4847,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey }) {
   return (
     <nav className="system-preview-focus-nav" aria-label="System scale navigation" data-testid="system-preview-focus-nav">
       <button type="button" onClick={() => onFocusKey(focusGraph.root_focus_key)} title="Fit the complete system">Fit System</button>
+      <button type="button" onClick={onBack} disabled={!canBack} title="Return to the previous scale view">Back</button>
       <button type="button" onClick={() => active.parent_focus_key && onFocusKey(active.parent_focus_key)} disabled={!active.parent_focus_key} title="Move outward one scale level">Parent</button>
       <button type="button" onClick={() => previous && onFocusKey(previous)} disabled={!previous} aria-label="Previous subsystem">Prev</button>
       <div className="system-preview-focus-breadcrumb">
@@ -4806,17 +4864,18 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey }) {
 }
 
 function OffscreenIndicators({ indicators = [], onSelect, onFocus }) {
-  const visible = indicators.filter((item) => item.offscreen).slice(0, 5);
+  const visible = layoutBoundedIndicators(indicators, 5);
   return visible.map((item) => (
     <button
       key={item.focusKey}
       type="button"
-      className="system-preview-edge-indicator"
-      style={{ left: `${item.x}px`, top: `${item.y}px`, "--indicator-angle": `${-item.angleDeg}deg` }}
+      className={`system-preview-edge-indicator${item.unresolved ? " system-preview-scale-beacon" : ""}`}
+      style={{ left: `${item.displayX}px`, top: `${item.displayY}px`, "--indicator-angle": `${-item.angleDeg}deg` }}
       onClick={() => onSelect?.(item)}
       onDoubleClick={() => onFocus?.(item.focusKey)}
-      title={`${item.label}. Select and recenter; double click to focus.`}
-      aria-label={`${item.label}, offscreen. Select and recenter or activate Focus.`}
+      title={`${item.label}. ${item.unresolved ? "This region is below the readable scale of the current view. " : ""}Select and recenter; double click to focus.`}
+      aria-label={`${item.label}, ${item.unresolved ? "unresolved at this scale" : "offscreen"}. Select and recenter or activate Focus.`}
+      data-testid={item.unresolved ? "system-preview-scale-beacon" : "system-preview-offscreen-indicator"}
     >
       <span className="system-preview-edge-arrow" aria-hidden="true" />
       <strong>{item.label}</strong>
@@ -4825,7 +4884,7 @@ function OffscreenIndicators({ indicators = [], onSelect, onFocus }) {
   ));
 }
 
-function ScaleLensOverlay({ lens, onClose, onFocus, onZoom, onRectChange }) {
+function ScaleLensOverlay({ lens, onClose, onOpenMain, onReset, onPin, onZoom, onRectChange }) {
   const ref = React.useRef(null);
   const dragRef = React.useRef(null);
   const position = lens?.position || { x: 16, y: 66 };
@@ -4838,6 +4897,22 @@ function ScaleLensOverlay({ lens, onClose, onFocus, onZoom, onRectChange }) {
     observer.observe(node);
     return () => observer.disconnect();
   }, [onRectChange, position.x, position.y]);
+  useEffect(() => {
+    if (!lens?.open) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose?.();
+    };
+    const handlePointerDown = (event) => {
+      if (lens.pinned || ref.current?.contains(event.target) || event.target?.closest?.("[data-lens-control='true']")) return;
+      onClose?.();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [lens?.open, lens?.pinned, onClose]);
   if (!lens?.open) return null;
   const startDrag = (event) => {
     if (event.button !== 0) return;
@@ -4865,7 +4940,9 @@ function ScaleLensOverlay({ lens, onClose, onFocus, onZoom, onRectChange }) {
         <span>{physicalScaleReadout(lens.spanAu)?.primary || "Local view"}</span>
         <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onZoom(-1)} aria-label="Zoom lens out">-</button>
         <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onZoom(1)} aria-label="Zoom lens in">+</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onFocus}>Open</button>
+        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onReset}>Focus</button>
+        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onPin} aria-pressed={Boolean(lens.pinned)}>{lens.pinned ? "Pinned" : "Pin"}</button>
+        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onOpenMain}>Open</button>
         <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close scale lens">x</button>
       </header>
     </section>
@@ -4937,6 +5014,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [showLabels, setShowLabels] = useState(initialPresentation.showLabels);
   const [scaleMode, setScaleMode] = useState(initialPresentation.scaleMode);
   const [focusKey, setFocusKey] = useState("");
+  const [focusHistory, setFocusHistory] = useState([]);
   const [focusRequest, setFocusRequest] = useState(null);
   const [scaleReport, setScaleReport] = useState(null);
   const [navigationProjection, setNavigationProjection] = useState([]);
@@ -5077,6 +5155,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setPinnedObject(null);
     setPinnedReadoutPosition(null);
     setFocusKey("");
+    setFocusHistory([]);
     setFocusRequest(null);
     setScaleReport(null);
     setNavigationProjection([]);
@@ -5141,7 +5220,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const issueFocusRequest = useCallback((nextFocusKey, { enter = true, preserveDistance = false } = {}) => {
     const node = focusNodes[nextFocusKey];
     if (!node) return false;
-    if (enter) setFocusKey(nextFocusKey);
+    if (enter) {
+      if (activeFocusKey && activeFocusKey !== nextFocusKey) {
+        setFocusHistory((current) => [...current.slice(-15), activeFocusKey]);
+      }
+      setFocusKey(nextFocusKey);
+    }
     focusSequenceRef.current += 1;
     setFocusRequest({
       token: `${systemId}:${focusSequenceRef.current}`,
@@ -5151,7 +5235,14 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       preserveDistance,
     });
     return true;
-  }, [activeScaleMode, focusNodes, systemId]);
+  }, [activeFocusKey, activeScaleMode, focusNodes, systemId]);
+  const returnToPreviousFocus = useCallback(() => {
+    const previous = focusHistory[focusHistory.length - 1];
+    if (!previous || !focusNodes[previous]) return;
+    issueFocusRequest(previous, { enter: false });
+    setFocusKey(previous);
+    setFocusHistory((current) => current.slice(0, -1));
+  }, [focusHistory, focusNodes, issueFocusRequest]);
   const focusKeyForObject = useCallback((payload) => {
     const exact = focusKeyForPayload(focusGraph, payload);
     if (exact) return exact;
@@ -5172,7 +5263,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     const node = focusNodes[nextKey];
     if (!node) return;
     if (activeScaleMode !== PHYSICAL_SCALE_MODE) setScaleMode(PHYSICAL_SCALE_MODE);
-    setLensState((current) => ({ ...current, open: true, focusKey: nextKey, zoomLevel: 0 }));
+    setLensState((current) => ({ ...current, open: true, pinned: false, focusKey: nextKey, zoomLevel: 0 }));
   }, [activeFocusKey, activeScaleMode, focusKeyForObject, focusNodes]);
   const navigationTargets = useMemo(() => {
     if (!activeFocus || !focusGraph) return [];
@@ -5193,6 +5284,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           targetId: String(node.object_key || node.orbit_key || ""),
           label: node.display_name || "System region",
           scaleLabel: bounds?.primary || "scale unavailable",
+          radiusAu: Number(node.physical_bounds?.radius_au) || null,
           priority,
         };
       })
@@ -5404,10 +5496,20 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       <button
         className="system-preview-toggle"
         type="button"
+        onClick={() => focusObject(pinnedObject)}
+        disabled={status !== "ready" || webglReady === false || !pinnedObject}
+        title="Animate the camera and scale view to the selected object or orbit"
+      >
+        Focus Selection
+      </button>
+      <button
+        className="system-preview-toggle"
+        type="button"
         onClick={() => openLensForObject(pinnedObject)}
         aria-pressed={lensState.open}
         disabled={status !== "ready" || webglReady === false || !activeFocus}
         title="Open a movable physical scale lens for the selected object or current focus"
+        data-lens-control="true"
       >
         Lens
       </button>
@@ -5498,7 +5600,13 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           ) : null}
           {interactiveReadouts && status === "ready" && scene ? (
             <>
-              <FocusNavigationOverlay focusGraph={focusGraph} focusKey={activeFocusKey} onFocusKey={issueFocusRequest} />
+              <FocusNavigationOverlay
+                focusGraph={focusGraph}
+                focusKey={activeFocusKey}
+                onFocusKey={issueFocusRequest}
+                onBack={returnToPreviousFocus}
+                canBack={focusHistory.length > 0}
+              />
               <OffscreenIndicators
                 indicators={navigationProjection}
                 onSelect={(target) => {
@@ -5512,7 +5620,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               <ScaleLensOverlay
                 lens={resolvedLensState}
                 onClose={() => { setLensState((current) => ({ ...current, open: false })); setLensRect(null); }}
-                onFocus={() => { issueFocusRequest(lensFocus?.focus_key || activeFocusKey); setLensState((current) => ({ ...current, open: false })); }}
+                onOpenMain={() => { issueFocusRequest(lensFocus?.focus_key || activeFocusKey); setLensState((current) => ({ ...current, open: false })); }}
+                onReset={() => setLensState((current) => ({ ...current, zoomLevel: 0 }))}
+                onPin={() => setLensState((current) => ({ ...current, pinned: !current.pinned }))}
                 onZoom={(direction) => setLensState((current) => ({ ...current, zoomLevel: clampNumber(current.zoomLevel + direction, -3, 6) }))}
                 onRectChange={setLensRect}
               />

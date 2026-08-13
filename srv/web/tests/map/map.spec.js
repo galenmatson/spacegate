@@ -1680,6 +1680,9 @@ test.describe("public 3D map beta", () => {
 
     await menu.locator("summary").click();
     const themeSelect = menu.locator(".map-theme-select select");
+    const scaleMode = preview.locator("[data-testid='system-preview-scale-mode']");
+    await scaleMode.selectOption("physical");
+    await expect(preview.locator("[data-testid='system-preview-physical-ruler']")).toBeVisible();
     for (const [themeId, fontFamily] of Object.entries(themes)) {
       if (!(await themeSelect.isVisible())) {
         await menu.locator("summary").click();
@@ -1688,6 +1691,8 @@ test.describe("public 3D map beta", () => {
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
       await expect(preview).toHaveAttribute("data-scene-label-font", fontFamily);
       await expect(preview.locator(".system-preview-canvas canvas")).toBeVisible();
+      await expectPreviewCanvasPainted(preview.locator(".system-preview-canvas canvas"), `${themeId} physical scene`);
+      await preview.screenshot({ path: testInfo.outputPath(`physical-scale-${themeId}.png`) });
     }
   });
 
@@ -2390,14 +2395,32 @@ test.describe("public 3D map beta", () => {
     await expect(physicalRuler).toBeVisible();
     await expect(physicalRuler).toContainText(/AU|km|Gm|Tm|Pm|light/i);
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toHaveCount(0);
+    const selectableObject = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-select").first();
+    await selectableObject.click();
+    await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
+    await page.getByRole("button", { name: /^Focus Selection$/i }).click();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
+      { timeout: 3000 }
+    ).not.toBe("");
+    const focusNavigation = page.locator("[data-testid='system-preview-focus-nav']");
+    await expect(focusNavigation.getByRole("button", { name: /^Back$/i })).toBeEnabled();
+    await focusNavigation.getByRole("button", { name: /^Back$/i }).click();
+    await expect(focusNavigation.getByRole("button", { name: /^Fit System$/i })).toBeVisible();
     const canvasCountBeforeLens = await page.locator(".system-preview-canvas canvas").count();
-    await page.getByRole("button", { name: /^Lens$/i }).click();
-    await expect(page.locator("[data-testid='system-preview-scale-lens']")).toBeVisible();
+    await page.locator("[data-lens-control='true']").click();
+    const scaleLens = page.locator("[data-testid='system-preview-scale-lens']");
+    await expect(scaleLens).toBeVisible();
     expect(await page.locator(".system-preview-canvas canvas").count()).toBe(canvasCountBeforeLens);
-    await page.locator("[data-testid='system-preview-scale-lens']").getByRole("button", { name: /close scale lens/i }).click();
+    await expect(scaleLens.getByRole("button", { name: /^Focus$/i })).toBeVisible();
+    await expect(scaleLens.getByRole("button", { name: /^Open$/i })).toBeVisible();
+    const pinLens = scaleLens.getByRole("button", { name: /^Pin$/i });
+    await pinLens.click();
+    await expect(scaleLens.getByRole("button", { name: /^Pinned$/i })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
     await expect(page.locator("[data-testid='system-preview-scale-lens']")).toHaveCount(0);
     await scaleModeSelect.selectOption("log");
-    await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/logarithmic/i);
+    await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/nonlinear.*no common AU ruler/i);
     await expect(page.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await scaleModeSelect.selectOption("structure");
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/presentation scaled/i);
@@ -2663,6 +2686,26 @@ test.describe("public 3D map beta", () => {
     expect(pinnedBox.height).toBeLessThanOrEqual(previewBox.height * 0.5);
     await pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i }).click();
     await expect(pinnedReadout).toHaveCount(0);
+
+    const scaleMode = page.locator("[data-testid='system-preview-scale-mode']");
+    await scaleMode.selectOption("physical");
+    await expect(page.locator("[data-testid='system-preview-physical-ruler']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-focus-nav']")).toBeVisible();
+    await page.locator("[data-lens-control='true']").click();
+    const scaleLens = page.locator("[data-testid='system-preview-scale-lens']");
+    await expect(scaleLens).toBeVisible();
+    expect(await page.locator(".system-preview-canvas canvas").count()).toBe(1);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.lensUsesSharedContext || "false"),
+      { timeout: 3000 },
+    ).toBe("true");
+    const lensBox = await scaleLens.boundingBox();
+    expect(lensBox, "mobile physical scale lens box").toBeTruthy();
+    expect(lensBox.x).toBeGreaterThanOrEqual(0);
+    expect(lensBox.x + lensBox.width).toBeLessThanOrEqual(412 + 1);
+    await page.keyboard.press("Escape");
+    await expect(scaleLens).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("mobile-physical-scale.png"), fullPage: false });
   });
 
   test("shared stellar leaf classes agree across detail hierarchy and scenes", async ({ page }, testInfo) => {
