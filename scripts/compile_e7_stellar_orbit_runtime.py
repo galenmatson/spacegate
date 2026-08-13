@@ -152,14 +152,23 @@ def materialize(con: duckdb.DuckDBPyConnection, policy: dict[str, Any], build_id
             o.authority_role,o.primary_source_component_key,o.secondary_source_component_key,
             o.canonical_system_stable_object_key,o.solution_key,o.parameter_set_raw,
             o.epoch_raw,o.frame_raw,o.method,o.model,o.reference_raw,o.quality_json,
-            o.normalization_version,
+            concat_ws(';',o.normalization_version,
+              CASE json_extract_string(o.parameter_set_raw,'$.semimajor_axis_unit_flag')
+                WHEN 'm' THEN 'orb6_milliarcseconds_to_arcseconds_v1'
+                WHEN 'a' THEN 'orb6_arcseconds_identity_v1'
+                ELSE 'orb6_axis_unit_unrecognized_v1'
+              END
+            ) normalization_version,
             CASE json_extract_string(o.parameter_set_raw,'$.period_unit')
               WHEN 'd' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.period_raw') AS DOUBLE)
               WHEN 'y' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.period_raw') AS DOUBLE)*365.25
               WHEN 'c' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.period_raw') AS DOUBLE)*36525.0
               WHEN 'h' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.period_raw') AS DOUBLE)/24.0
             END,
-            try_cast(json_extract_string(o.parameter_set_raw,'$.semimajor_axis_raw') AS DOUBLE),
+            CASE json_extract_string(o.parameter_set_raw,'$.semimajor_axis_unit_flag')
+              WHEN 'm' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.semimajor_axis_raw') AS DOUBLE)/1000.0
+              WHEN 'a' THEN try_cast(json_extract_string(o.parameter_set_raw,'$.semimajor_axis_raw') AS DOUBLE)
+            END,
             try_cast(json_extract_string(o.parameter_set_raw,'$.eccentricity_raw') AS DOUBLE),
             try_cast(json_extract_string(o.parameter_set_raw,'$.inclination_deg_raw') AS DOUBLE),
             try_cast(json_extract_string(o.parameter_set_raw,'$.ascending_node_deg_raw') AS DOUBLE),
@@ -288,6 +297,9 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         "selected_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions"),
         "msc_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind IN ('msc_orb','msc_sys')"),
         "orb6_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='orb6'"),
+        "orb6_milliarcsecond_axes": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='orb6' AND json_extract_string(parameter_set_raw,'$.semimajor_axis_unit_flag')='m'"),
+        "orb6_arcsecond_axes": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='orb6' AND json_extract_string(parameter_set_raw,'$.semimajor_axis_unit_flag')='a'"),
+        "orb6_unrecognized_axis_units": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='orb6' AND semi_major_axis_arcsec IS NOT NULL AND coalesce(json_extract_string(parameter_set_raw,'$.semimajor_axis_unit_flag'),'') NOT IN ('m','a')"),
         "sb9_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='sb9'"),
         "debcat_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE source_kind='debcat'"),
         "preferred_simulation_solutions": scalar("SELECT count(*) FROM selected_stellar_orbit_solutions WHERE selection_role='preferred_simulation'"),

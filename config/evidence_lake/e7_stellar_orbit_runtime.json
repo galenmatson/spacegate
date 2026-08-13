@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e7_stellar_orbit_runtime_policy.v2",
-  "policy_version": "2026-08-09.e7-stellar-orbit-runtime.3",
+  "policy_version": "2026-08-13.e7-stellar-orbit-runtime.4",
   "compiler_version": "e7_stellar_orbit_runtime_compiler_v2",
   "input": {
     "build_id": "d1704688e1c34017c6441e2b",

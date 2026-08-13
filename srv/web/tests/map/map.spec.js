@@ -2249,6 +2249,10 @@ test.describe("public 3D map beta", () => {
     const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
     expect(sceneResponse.ok()).toBeTruthy();
     const scenePayload = await sceneResponse.json();
+    expect(scenePayload.render_scene?.physical_scale?.schema_version).toBe("simulation_physical_scale_v1");
+    expect(scenePayload.render_scene?.focus_graph?.schema_version).toBe("simulation_focus_graph_v1");
+    expect(scenePayload.render_scene?.focus_graph?.root_focus_key).toBeTruthy();
+    expect(Object.keys(scenePayload.render_scene?.focus_graph?.nodes || {}).length).toBeGreaterThanOrEqual(8);
     const firstPlanetClass = scenePayload.render_scene?.bodies?.planets?.[0]?.fields?.planet_visual_class;
     expect(firstPlanetClass?.layer).toBe("render_scene");
     expect(firstPlanetClass?.status).toMatch(/derived|assumed/);
@@ -2376,7 +2380,27 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.planetTrailCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(7);
+    await scaleModeSelect.selectOption("physical");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+      { timeout: 3000 }
+    ).toBe("physical");
+    await expect(page.locator("[data-testid='system-preview-focus-nav']")).toBeVisible();
+    const physicalRuler = page.locator("[data-testid='system-preview-physical-ruler']");
+    await expect(physicalRuler).toBeVisible();
+    await expect(physicalRuler).toContainText(/AU|km|Gm|Tm|Pm|light/i);
+    await expect(page.locator("[data-testid='system-preview-scale-note']")).toHaveCount(0);
+    const canvasCountBeforeLens = await page.locator(".system-preview-canvas canvas").count();
+    await page.getByRole("button", { name: /^Lens$/i }).click();
+    await expect(page.locator("[data-testid='system-preview-scale-lens']")).toBeVisible();
+    expect(await page.locator(".system-preview-canvas canvas").count()).toBe(canvasCountBeforeLens);
+    await page.locator("[data-testid='system-preview-scale-lens']").getByRole("button", { name: /close scale lens/i }).click();
+    await expect(page.locator("[data-testid='system-preview-scale-lens']")).toHaveCount(0);
+    await scaleModeSelect.selectOption("log");
+    await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/logarithmic/i);
+    await expect(page.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await scaleModeSelect.selectOption("structure");
+    await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/presentation scaled/i);
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
       { timeout: 3000 }

@@ -10530,6 +10530,252 @@ main {
   cursor: pointer;
 }
 
+.system-preview-pinned-actions {
+  display: flex !important;
+  grid-template-columns: none !important;
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 5px !important;
+}
+
+.system-preview-pinned-actions button:not(:last-child) {
+  width: auto;
+  min-width: 48px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.system-preview-focus-nav {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 32;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 20px);
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, #07111c 86%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(9px);
+}
+
+.system-preview-focus-nav button,
+.system-preview-scale-lens button {
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  color: #eef6ff;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+
+.system-preview-focus-nav button:hover,
+.system-preview-focus-nav button:focus-visible,
+.system-preview-scale-lens button:hover,
+.system-preview-scale-lens button:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.system-preview-focus-nav button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.system-preview-focus-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.system-preview-focus-breadcrumb > span {
+  flex: 0 0 auto;
+  color: #8fa9be;
+  font-size: 0.62rem;
+}
+
+.system-preview-focus-breadcrumb button {
+  min-width: 0;
+  overflow: hidden;
+  border-color: transparent;
+  background: transparent;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-focus-breadcrumb button[aria-current="location"] {
+  border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+  color: var(--accent);
+}
+
+.system-preview-physical-ruler,
+.system-preview-scale-note {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 27;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  max-width: min(280px, calc(100% - 20px));
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, #07111c 80%, transparent);
+  color: #eef6ff;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  backdrop-filter: blur(7px);
+}
+
+.system-preview-scale-note {
+  color: #b9c8d6;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.system-preview-physical-ruler strong {
+  font-size: 0.72rem;
+}
+
+.system-preview-physical-ruler span,
+.system-preview-physical-ruler small {
+  color: #a9bed0;
+  font-size: 0.58rem;
+}
+
+.system-preview-ruler-line {
+  position: relative;
+  min-width: 42px;
+  height: 7px;
+  border-top: 1px solid #eef6ff;
+}
+
+.system-preview-ruler-line::before,
+.system-preview-ruler-line::after {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 7px;
+  background: #eef6ff;
+  content: "";
+}
+
+.system-preview-ruler-line::before {
+  left: 0;
+}
+
+.system-preview-ruler-line::after {
+  right: 0;
+}
+
+.system-preview-edge-indicator {
+  position: absolute;
+  z-index: 24;
+  display: grid;
+  grid-template-columns: 10px max-content;
+  gap: 0 5px;
+  max-width: 150px;
+  translate: -50% -50%;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, #07111c 82%, transparent);
+  color: #eef6ff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  backdrop-filter: blur(7px);
+}
+
+.system-preview-edge-arrow {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 0;
+  height: 0;
+  rotate: var(--indicator-angle);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 7px solid var(--accent);
+}
+
+.system-preview-edge-indicator strong,
+.system-preview-edge-indicator small {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-edge-indicator small {
+  color: #a9bed0;
+  font-size: 0.52rem;
+}
+
+.system-preview-scale-lens {
+  position: absolute;
+  z-index: 38;
+  width: 280px;
+  height: 200px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 68%, var(--border));
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.system-preview-scale-lens header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px 3px 8px;
+  background: color-mix(in srgb, #07111c 90%, transparent);
+  color: #eef6ff;
+  cursor: move;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.system-preview-scale-lens header strong {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-scale-lens header span {
+  flex: 0 0 auto;
+  color: #a9bed0;
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+}
+
+.system-preview-scale-lens button {
+  min-width: 27px;
+  min-height: 26px;
+  padding: 3px 5px;
+}
+
 .system-preview-id-copy {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
@@ -10901,6 +11147,41 @@ main {
 
   .map-system-drill-explore .system-preview-readout {
     top: 174px;
+  }
+
+  .system-preview-focus-nav {
+    right: 6px;
+    left: 6px;
+    max-width: none;
+  }
+
+  .system-preview-focus-nav > button:first-child {
+    flex: 0 0 auto;
+  }
+
+  .system-preview-focus-nav > button:nth-child(2),
+  .system-preview-focus-nav > button:nth-child(3),
+  .system-preview-focus-nav > button:last-child {
+    padding-inline: 5px;
+    font-size: 0.54rem;
+  }
+
+  .system-preview-focus-breadcrumb {
+    flex: 1 1 auto;
+  }
+
+  .system-preview-focus-breadcrumb button:not([aria-current="location"]),
+  .system-preview-focus-breadcrumb > span:not(:last-of-type) {
+    display: none;
+  }
+
+  .system-preview-scale-lens {
+    width: min(270px, calc(100% - 12px));
+    height: 180px;
+  }
+
+  .system-preview-edge-indicator:nth-of-type(n + 4) {
+    display: none;
   }
 }
 

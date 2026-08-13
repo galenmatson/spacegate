@@ -31,6 +31,12 @@ from pydantic import BaseModel, Field
 
 from .runtime_perms import apply_configured_umask
 from .simulation_scene_contract import SIMULATION_SCENE_ARTIFACT_VERSION
+from .simulation_physical_scale import (
+    FOCUS_GRAPH_VERSION,
+    PHYSICAL_SCALE_CONTRACT_VERSION,
+    attach_physical_extents_to_orbits,
+    build_focus_graph,
+)
 from .stellar_classification import (
     spectral_class_from_type,
     spectral_type_indicates_white_dwarf,
@@ -112,7 +118,7 @@ SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", 
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
 SIM_STELLAR_SUBCLASS_PRIOR_VERSION = "spectral_subclass_main_sequence_mass_prior_v1"
-SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
+SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_v2"
 
 
 def _parse_tag_filter(value: Optional[str]) -> List[str]:
@@ -194,13 +200,13 @@ SIM_VISUAL_SCALE_POLICY = {
         },
         {
             "mode": "true_orbits",
-            "label": "True Orbits",
+            "label": "Local Orbits",
             "preserves": "relative planet semi-major-axis spacing within the scene",
-            "sacrifices": "body-size realism and close-in orbit readability",
+            "sacrifices": "a single physical scale across stellar and planetary orbit families",
         },
         {
             "mode": "true_bodies",
-            "label": "True Bodies",
+            "label": "Body Contrast",
             "preserves": "more physical body-size contrast than clarity mode",
             "sacrifices": "small-body visibility and practical physical orbit scale",
         },
@@ -209,6 +215,12 @@ SIM_VISUAL_SCALE_POLICY = {
             "label": "Log Scale",
             "preserves": "rank order across large size and orbit ranges",
             "sacrifices": "linear physical ratios",
+        },
+        {
+            "mode": "physical",
+            "label": "Physical Orbits",
+            "preserves": "one linear AU transform for all physically supported orbital guides",
+            "sacrifices": "simultaneous readability across nested scales; bodies remain markers",
         },
     ],
     "scene_unit": "arbitrary_scene_unit",
@@ -248,6 +260,14 @@ SIM_VISUAL_SCALE_POLICY = {
         "transform": "source-aware display radius when available; deterministic presentation radius otherwise",
         "direct_pair_multiplier": 1.0,
         "group_pair_motion_multiplier": 0.55,
+    },
+    "physical_orbit": {
+        "schema_version": PHYSICAL_SCALE_CONTRACT_VERSION,
+        "source_field": "render_scene.orbits.physical_extent.semi_major_axis_au",
+        "transform": "semi_major_axis_au * scene_units_per_au for the active focus region",
+        "normalization": "single_scene_wide_linear_au_transform",
+        "body_policy": "screen-readable markers; orbital distances are physical, body diameters are not",
+        "unsupported_orbit_policy": "structural guide only; never substitute presentation radius",
     },
     "collision_policy": {
         "applies_to_modes": ["structure", "log"],
@@ -4276,6 +4296,11 @@ def _render_scene_contract(
         "transient": max(0, len(assumption_records) - persisted_assumption_count),
     }
 
+    render_orbits = attach_physical_extents_to_orbits(
+        render_orbits,
+        render_stars.values(),
+    )
+
     def build_simulation_tree() -> Dict[str, Any]:
         body_nodes: Dict[str, Dict[str, Any]] = {}
         node_by_leaf_set: Dict[frozenset[str], str] = {}
@@ -4678,6 +4703,13 @@ def _render_scene_contract(
         return added
 
     fallback_subsystem_count = add_simulation_tree_fallback_subsystems()
+    focus_graph = build_focus_graph(
+        system_name=str(system.get("display_name") or system.get("system_name") or "System"),
+        simulation_tree=simulation_tree,
+        stars=render_stars.values(),
+        planets=render_planets,
+        orbits=render_orbits,
+    )
     source_native_subsystem_count = sum(
         1
         for subsystem in render_subsystems
@@ -4709,6 +4741,15 @@ def _render_scene_contract(
         },
         "orbits": render_orbits,
         "simulation_tree": simulation_tree,
+        "physical_scale": {
+            "schema_version": PHYSICAL_SCALE_CONTRACT_VERSION,
+            "focus_graph_schema_version": FOCUS_GRAPH_VERSION,
+            "coordinate_unit": "au",
+            "distance_transform": "linear_within_active_focus",
+            "body_diameter_policy": "readable_marker_not_physical_scale",
+            "presentation_radius_fields_excluded": True,
+        },
+        "focus_graph": focus_graph,
         "assumptions": assumption_records,
         "assumption_count": len(assumption_records),
         "persisted_assumption_count": persisted_assumption_count,
