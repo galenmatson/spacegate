@@ -712,6 +712,13 @@ Rule:
   derivation lineage. The source angular value remains present. Epoch values
   are converted only for explicit JD, MJD, or Julian-year semantics; ambiguous
   source unit flags remain unnormalized evidence.
+- ORB6 axis unit flag `m` is milliarcseconds and must be divided by 1,000 before
+  the angular-axis conversion; flag `a` is arcseconds. Compiler policy
+  `2026-08-13.e7-stellar-orbit-runtime.4` records the flag-specific transform.
+  A physical presentation consumer must also reject a source axis whose
+  accepted period implies an incoherent total mass under the versioned stellar
+  Kepler coherence policy. Rejection affects applicability for physical
+  rendering, not preservation of the source solution.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
 - Projected-separation support values computed from angular separation and

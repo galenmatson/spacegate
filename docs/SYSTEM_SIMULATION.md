@@ -725,6 +725,57 @@ Success criteria:
   before deployment. V12 narrows host preservation to cases without accepted
   stellar orbit structure, so legitimate nested systems retain their group
   motion.
+- `simulation_scene_artifact_v16` adds the M8.3e.3a physical-scale contract.
+  `render_scene.physical_scale` uses `simulation_physical_scale_v1` and records
+  the coordinate unit, physical-orbit policy, derivation policy, readable-body
+  marker policy, and focus-local linear-transform rule. Every rendered orbit has
+  a `physical_extent` with normalized semi-major axis in AU, apoapsis,
+  eccentricity, status, applicability, confidence or uncertainty where
+  available, and exact source or derivation lineage. A Kepler-derived axis is
+  permitted only from a coherent accepted period and applicable accepted total
+  mass under `kepler_semimajor_axis_v1`.
+- `render_scene.focus_graph` uses `simulation_focus_graph_v1`. Its stable nodes
+  cover the root system, nested hierarchy groups, host neighborhoods, bodies,
+  and inspectable orbits. Recursive physical bounds include accepted orbit
+  apoapses, planet orbits, habitable zones, and available formation-line extent;
+  the latter does not enlarge the default focus just because a line can be
+  toggled on. Each node retains its parent, ordered children, source status,
+  supported actions, and public label.
+- `visual_scale_v2` names five distinct presentation contracts. `structure`
+  is schematic and hierarchy first. `true_orbits` remains a local linear orbit
+  envelope and is presented publicly as Local Orbit. `true_bodies` is Body
+  Contrast. `log` is nonlinear and must expose a nonlinear legend rather than a
+  conventional ruler. `physical` is Physical Orbits and applies one AU-to-scene
+  transform to every supported orbit, habitable zone, and formation line in the
+  active focus. Star and planet meshes, halos, labels, and pick targets remain
+  readable markers and are not physical-radius claims.
+- Physical mode uses a deterministic 1-2-5 viewport ruler covering roughly one
+  fifth of the view. It reports AU by default, kAU or light-years at wide scales,
+  standard metric prefixes such as Gm/Tm/Pm, light-travel time, and the current
+  view span. Expanded orbit inspection reports semi-major axis, period,
+  eccentricity, physical-scale status, and lineage. It never relabels projected
+  separation or a presentation radius as physical distance.
+- Whole-system physical views with extreme inner-to-outer scale ratios suppress
+  unreadable enlarged inner geometry and expose bounded, collision-managed scale
+  beacons for important unresolved regions. Offscreen indicators prioritize the
+  selected target, current-focus parent, significant children, and exceptional
+  outer companions; they do not enumerate every hidden body.
+- Focus navigation provides Fit System, Focus Selection, Parent, Back, sibling
+  navigation, and a breadcrumb. Click/tap selects; explicit Focus works for
+  touch and keyboard; desktop double click animates to a body, subsystem, orbit,
+  habitable zone, or formation-line focus. Selection, simulation time, scale
+  settings, and pinned inspectors survive valid focus transitions.
+- The scale lens is an explicit toolbar action. It renders a second camera and
+  scissored viewport in the existing WebGL context, not a second canvas/context,
+  and provides bounded twofold zoom, Pin, Focus, Open as Main View, close,
+  Escape, and outside-dismissal behavior. Right-drag remains camera panning.
+- ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
+  Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
+  normalization before distance conversion. Runtime physical-scale validation
+  also compares period and axis through implied total mass; an incoherent source
+  axis is retained as rejected evidence and marked unavailable rather than being
+  rendered as a physical orbit. Corrected axes enter the next immutable science
+  build instead of mutating the currently served build in place.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the

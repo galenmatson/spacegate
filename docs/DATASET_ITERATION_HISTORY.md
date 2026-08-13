@@ -4865,6 +4865,47 @@ Representative commits:
   camera axis to its lateral midpoint, preventing its projection from landing on
   the host star. Canvas diagnostics and browser coverage lock both policies.
 
+### 184) Physical Simulation Scale Exposes Rather Than Hides Distance
+
+- The earlier Structure, Local Orbit, Body Contrast, and Log views each used
+  intentional presentation transforms. They made complex systems legible but
+  could not answer a simple physical question such as how Alpha Centauri AB's
+  orbit compares with Proxima's outer orbit or either star's habitable zone.
+- Scene artifact v16 adds `simulation_physical_scale_v1`,
+  `simulation_focus_graph_v1`, and `visual_scale_v2`. Physical Orbits applies
+  one linear AU-to-scene transform within the active focus. Structure is labeled
+  schematic, Log is labeled nonlinear, and readable body meshes remain markers
+  rather than physical-radius claims.
+- Every rendered orbit is accounted as measured, defensibly Kepler-derived,
+  unavailable, or rejected. The compiler accepts a derived semi-major axis only
+  from a coherent accepted period and applicable accepted endpoint masses, with
+  versioned lineage. Projected separations, static hierarchy placements, and
+  display radii cannot silently become physical axes.
+- This audit exposed a general source-normalization defect rather than a named
+  system problem. ORB6 unit flag `m` means milliarcseconds and `a` means
+  arcseconds, but the prior stellar-orbit runtime compiler treated both as
+  arcseconds. The corrected compiler divides `m` values by 1,000 before distance
+  conversion, records the transform, and accounts 116 milliarcsecond plus 1,042
+  arcsecond axes with no populated unknown unit. Runtime coherence validation
+  independently rejects axes whose period/axis combination implies an absurd
+  total mass. The immutable served science build was not patched in place; the
+  next reproducible science build receives the corrected general transform.
+- Recursive stable focus nodes now support Fit System, Focus Selection, Parent,
+  Back, named sibling navigation, breadcrumbs, desktop double click, and
+  explicit touch/keyboard focus. Wide compressed views expose bounded scale
+  beacons and priority offscreen indicators rather than enlarging inner orbits.
+- The scale lens renders a second camera and viewport inside the existing WebGL
+  context. It adds no second canvas or persistent context and supports bounded
+  zoom, pinning, Focus, Open as Main View, Escape, and outside dismissal while
+  retaining right-drag panning.
+- Alpha Centauri, Castor, Sol, TRAPPIST-1, eps Ind, and HD 57041 reproduce exact
+  physical/focus logical hashes across two builds. Retained-master versus v16
+  Structure and Physical-plus-lens browser campaigns pass desktop, 4K, and
+  mobile readiness, frame, selection, heap, canvas, and context budgets. All
+  eight themes render nonblank Physical mode captures. Machine evidence is
+  retained under
+  `/data/spacegate/state/reports/system-simulation-physical-scale-v1/`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

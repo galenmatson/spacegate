@@ -713,7 +713,29 @@ Contract notes:
   meshes. `true_orbits` preserves linear rendered planet-orbit ratios from
   source semi-major axes inside the scene envelope; it does not add an inner
   readability offset. `true_bodies` and `log` are also client presentation
-  modes and must not mutate core, ARM, DISC, or RIM data.
+  modes and must not mutate core, ARM, DISC, or RIM data. Artifact v16 exposes
+  `visual_scale_v2`: public labels are Structure, Local Orbit, Body Contrast,
+  Log, and Physical Orbits. Structure is explicitly schematic, Log is
+  explicitly nonlinear, and only Physical Orbits provides a scene-wide linear
+  ruler inside the active focus.
+- Artifact v16 adds `render_scene.physical_scale` with schema
+  `simulation_physical_scale_v1`. Its `orbit_extent_policy` identifies the
+  accepted source and versioned Kepler-derivation rules; every orbit row carries
+  `physical_extent` with `applicability`, `status`, semi-major axis AU,
+  apoapsis AU, eccentricity, uncertainty/confidence, and lineage as available.
+  Unsupported, assumed-placement, projected-separation-only, and physically
+  incoherent inputs remain explicit unavailable or rejected states.
+- Artifact v16 also adds `render_scene.focus_graph` with schema
+  `simulation_focus_graph_v1`. The mapping is keyed by stable focus key and
+  exposes `root_focus_key`, parent, ordered children, node kind, bound object or
+  orbit, public label, recursive physical bounds, source status, and supported
+  actions. Consumers must navigate these keys rather than array positions or
+  named-system conditions.
+- In Physical Orbits mode the active focus defines one linear AU-to-scene
+  transform shared by every supported orbit, HZ, and formation line. Meshes,
+  halos, labels, and pick targets remain readable presentation markers. A scale
+  lens may use a second camera/viewport but must share the existing WebGL
+  context and does not alter the API scene or focus contract.
 - `render_scene.assumptions` is an additive export of every rendered field with
   `status="assumed"`. Each record is shaped for
   `disc.simulation_assumptions` materialization and includes `assumption_key`,

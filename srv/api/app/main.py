@@ -35,6 +35,7 @@ from .simulation_physical_scale import (
     FOCUS_GRAPH_VERSION,
     PHYSICAL_SCALE_CONTRACT_VERSION,
     attach_physical_extents_to_orbits,
+    attach_physical_extents_to_planets,
     build_focus_graph,
 )
 from .stellar_classification import (
@@ -4298,6 +4299,10 @@ def _render_scene_contract(
 
     render_orbits = attach_physical_extents_to_orbits(
         render_orbits,
+        render_stars.values(),
+    )
+    render_planets = attach_physical_extents_to_planets(
+        render_planets,
         render_stars.values(),
     )
 

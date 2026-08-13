@@ -66,7 +66,9 @@ Current status snapshot:
   reviewed curation workflow remains planned
 - `simulation_scenes`: implemented as compressed presentation artifacts under
   `disc/simulation_scenes/` (`scripts/materialize_simulation_scenes.py`), not
-  as canonical science rows
+  as canonical science rows. Artifact v16 carries versioned physical-scale and
+  focus-graph projections derived from accepted scene inputs; these projections
+  do not create DISC science claims or mutate ARM orbital solutions
 - `system_narrative_blocks`: contract implemented in API with deterministic
   fallback generation; persisted/reviewed DISC materialization planned
 - `external_reference_links`: planned
@@ -331,6 +333,17 @@ Rules:
   those choices requires `simulation_assumptions` rows with generator version,
   seed/input context, replacement target, and visible `ASSUMED`/illustrative
   labeling.
+- Physical-scale scene fields remain renderer artifacts even when they derive a
+  defensible semi-major axis from accepted period and mass. Artifact v16 names
+  the algorithm and exact inputs in `physical_extent`, excludes display radius,
+  projected separation, and static hierarchy placement, and exposes unavailable
+  or rejected states. Persisting a generally useful derived scalar as ARM
+  science requires the normal selected-fact/derivation compiler path; freezing
+  or warming a scene does not perform that promotion.
+- `simulation_focus_graph_v1`, viewport rulers, scale beacons, camera focus
+  history, and scale-lens state are presentation/navigation structures. They
+  must never become canonical containment edges or evidence that an assumed
+  visual placement is a physical orbit.
 
 ## system_narrative_blocks
 

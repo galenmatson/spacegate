@@ -322,6 +322,32 @@ def attach_physical_extents_to_orbits(
     return output
 
 
+def attach_physical_extents_to_planets(
+    planets: Iterable[Dict[str, Any]],
+    stars: Iterable[Dict[str, Any]],
+) -> list[Dict[str, Any]]:
+    """Attach the same explicit extent contract to each rendered planet orbit."""
+    stars_by_key = {
+        str(body.get("render_key") or body.get("key")): body
+        for body in stars
+        if body.get("render_key") or body.get("key")
+    }
+    output = []
+    for planet in planets:
+        host = stars_by_key.get(str(planet.get("host_body_key") or ""))
+        host_mass_field = _body_mass_field(host or {})
+        host_mass = _body_mass(host or {})
+        result = attach_physical_orbit_extent(
+            planet,
+            total_mass_msun=host_mass,
+            mass_inputs=[host_mass_field] if host_mass_field else [],
+        )
+        result["physical_extent"]["orbit_kind"] = "planetary_orbit"
+        result["physical_extent"]["host_body_key"] = planet.get("host_body_key")
+        output.append(result)
+    return output
+
+
 def _star_neighborhood(star: Dict[str, Any], planets: list[Dict[str, Any]]) -> Dict[str, Any]:
     star_key = str(star.get("render_key") or star.get("key") or "")
     luminosity = _field(star.get("fields"), "luminosity_lsun")
@@ -334,12 +360,10 @@ def _star_neighborhood(star: Dict[str, Any], planets: list[Dict[str, Any]]) -> D
     hosted_planets = [planet for planet in planets if str(planet.get("host_body_key") or "") == star_key]
     planet_extents = []
     for planet in hosted_planets:
-        axis_field = _field(planet.get("fields"), "semi_major_axis_au")
-        axis = _positive_float(axis_field.get("value")) if str(axis_field.get("status") or "").lower() in {"source", "derived"} else None
-        eccentricity_field = _field(planet.get("fields"), "eccentricity")
-        eccentricity = _nonnegative_float(eccentricity_field.get("value")) if str(eccentricity_field.get("status") or "").lower() in {"source", "derived"} else None
-        if axis is not None:
-            planet_extents.append(axis * (1.0 + (eccentricity if eccentricity is not None and eccentricity < 1 else 0.0)))
+        extent = planet.get("physical_extent") if isinstance(planet.get("physical_extent"), dict) else {}
+        apoapsis = _positive_float((extent.get("apoapsis_extent_au") or {}).get("value"))
+        if extent.get("applicability") == "physical" and apoapsis is not None:
+            planet_extents.append(apoapsis)
     base_values = [value for value in [hz_outer, *planet_extents] if value is not None]
     return {
         "star_key": star_key,
@@ -470,8 +494,8 @@ def build_focus_graph(
             continue
         host_key = str(planet.get("host_body_key") or "")
         parent_key = object_focus_key.get(host_key, root_focus_key)
-        axis_field = _field(planet.get("fields"), "semi_major_axis_au")
-        axis = _positive_float(axis_field.get("value")) if str(axis_field.get("status") or "").lower() in {"source", "derived"} else None
+        extent = planet.get("physical_extent") if isinstance(planet.get("physical_extent"), dict) else {}
+        axis = _positive_float((extent.get("semi_major_axis_au") or {}).get("value")) if extent.get("applicability") == "physical" else None
         focus_key = f"focus:planet:{planet_key}"
         nodes[focus_key] = {
             "focus_key": focus_key,

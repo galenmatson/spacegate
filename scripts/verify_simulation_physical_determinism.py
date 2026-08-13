@@ -38,6 +38,13 @@ def contract(payload: dict[str, Any]) -> dict[str, Any]:
             }
             for orbit in render_scene.get("orbits") or []
         ],
+        "planet_physical_extents": [
+            {
+                "object_key": planet.get("render_key") or planet.get("key"),
+                "physical_extent": planet.get("physical_extent"),
+            }
+            for planet in ((render_scene.get("bodies") or {}).get("planets") or [])
+        ],
     }
 
 
@@ -62,6 +69,10 @@ def main() -> int:
                 "physical_orbits": sum(
                     int((item.get("physical_extent") or {}).get("applicability") == "physical")
                     for item in first.get("orbit_physical_extents") or []
+                ),
+                "physical_planet_orbits": sum(
+                    int((item.get("physical_extent") or {}).get("applicability") == "physical")
+                    for item in first.get("planet_physical_extents") or []
                 ),
             }
         )

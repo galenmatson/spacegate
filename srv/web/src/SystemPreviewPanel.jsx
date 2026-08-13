@@ -2460,7 +2460,7 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale 
   }
   return (
     <group ref={groupRef} data-testid="system-preview-binary-orbit">
-      {showOrbits && (
+      {showOrbits && spec.orbitRadius > 0 && (
         <>
           <lineLoop {...orbitHandlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
@@ -2828,7 +2828,7 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
           <SceneLabel text={`${spec.orbit.display_name || "Orbit"} - scale unavailable`} position={[0, -0.24, 0]} color="#ffd16a" scale={0.72} />
         </group>
       )}
-      {showOrbits && (
+      {showOrbits && spec.orbitRadius > 0 && (
         <>
           <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
@@ -3074,33 +3074,47 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
     const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
     const movingCenter = treeCenter || addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
-    groupRef.current.position.set(...addVector(movingCenter, orbitalPositionFromMeanAnomaly(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
+    const position = planet.physical_scale_unavailable
+      ? addVector(movingCenter, [0.16, 0.12, 0])
+      : addVector(movingCenter, orbitalPositionFromMeanAnomaly(meanAnomaly, orbitRadius, eccentricity, inclinationRad));
+    groupRef.current.position.set(...position);
   });
 
   return (
-    <group ref={groupRef} position={addVector(center, orbitalPositionFromMeanAnomaly(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
-      <mesh {...hoverHandlers} userData={{ hoverPayload }}>
-        <sphereGeometry args={[planet.radius, 18, 14]} />
-        <meshStandardMaterial color={color} map={texture || null} roughness={0.72} metalness={0.03} />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
-        <meshBasicMaterial
-          color={sceneGuideColor("#b7e2ff", contrast)}
-          transparent
-          opacity={contrast.lightBackground ? (selected ? 0.28 : 0.16) : (selected ? 0.2 : (visualKind === "gas_giant" ? 0.05 : 0.09))}
-          depthWrite={false}
-          blending={contrast.lightBackground ? THREE.NormalBlending : THREE.AdditiveBlending}
-          side={THREE.BackSide}
-        />
-      </mesh>
+    <group ref={groupRef} position={planet.physical_scale_unavailable ? addVector(center, [0.16, 0.12, 0]) : addVector(center, orbitalPositionFromMeanAnomaly(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
+      {planet.physical_scale_unavailable ? (
+        <mesh {...hoverHandlers} userData={{ hoverPayload }} data-testid="system-preview-planet-orbit-unavailable">
+          <octahedronGeometry args={[0.07, 0]} />
+          <meshBasicMaterial color={sceneGuideColor("#ffd16a", contrast)} transparent opacity={0.9} depthTest={false} />
+        </mesh>
+      ) : (
+        <>
+          <mesh {...hoverHandlers} userData={{ hoverPayload }}>
+            <sphereGeometry args={[planet.radius, 18, 14]} />
+            <meshStandardMaterial color={color} map={texture || null} roughness={0.72} metalness={0.03} />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
+            <meshBasicMaterial
+              color={sceneGuideColor("#b7e2ff", contrast)}
+              transparent
+              opacity={contrast.lightBackground ? (selected ? 0.28 : 0.16) : (selected ? 0.2 : (visualKind === "gas_giant" ? 0.05 : 0.09))}
+              depthWrite={false}
+              blending={contrast.lightBackground ? THREE.NormalBlending : THREE.AdditiveBlending}
+              side={THREE.BackSide}
+            />
+          </mesh>
+        </>
+      )}
       {selected && <SelectionHalo radius={Math.max(pickRadius, 0.22)} color="#b7e2ff" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[pickRadius, 14, 10]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       <SceneLabel
-        text={planet.display_name || planet.name || "Planet"}
+        text={planet.physical_scale_unavailable
+          ? `${planet.display_name || planet.name || "Planet"} - orbit scale unavailable`
+          : (planet.display_name || planet.name || "Planet")}
         position={[0, -1, 0]}
         color="#d7efff"
         scale={0.72}
@@ -4283,7 +4297,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         const color = PLANET_COLORS[idx % PLANET_COLORS.length];
         return (
           <React.Fragment key={planet.key}>
-            {showOrbits && (
+            {showOrbits && !planet.physical_scale_unavailable && (
               <PlanetOrbitRing
                 planet={planet}
                 orbitRadius={orbitRadius}
@@ -4302,19 +4316,21 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
                 onFocus={onFocus}
               />
             )}
-            <PlanetOrbitTrail
-              planet={planet}
-              orbitRadius={orbitRadius}
-              center={placement.center}
-              motionGroupKeys={placement.groupKeys}
-              groupMotionSpecs={groupMotionSpecs}
-              layout={layout}
-              treeContext={simulationTreeContext}
-              treeHostBodyKey={layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key}
-              simClockRef={simClockRef}
-              scaleMode={activeScaleMode}
-              color={color}
-            />
+            {!planet.physical_scale_unavailable ? (
+              <PlanetOrbitTrail
+                planet={planet}
+                orbitRadius={orbitRadius}
+                center={placement.center}
+                motionGroupKeys={placement.groupKeys}
+                groupMotionSpecs={groupMotionSpecs}
+                layout={layout}
+                treeContext={simulationTreeContext}
+                treeHostBodyKey={layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key}
+                simClockRef={simClockRef}
+                scaleMode={activeScaleMode}
+                color={color}
+              />
+            ) : null}
             <PlanetObject
               planet={planet}
               orbitRadius={orbitRadius}
@@ -4445,13 +4461,20 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     const renderScene = scene?.render_scene;
     const renderPlanets = renderScene?.bodies?.planets || [];
     if (renderPlanets.length) {
-      return renderPlanets.map((planet, idx) => ({
-        ...planet,
-        key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
-        orbitAu: numericField(planet.fields, "semi_major_axis_au") || 0.08 + idx * 0.08,
-        radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode),
-        pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode) * 2.1, 0.2),
-      }));
+      return renderPlanets.map((planet, idx) => {
+        const selectedOrbitAu = numericField(planet.fields, "semi_major_axis_au");
+        const physicalOrbitAu = physicalOrbitAxis(planet);
+        return {
+          ...planet,
+          key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
+          orbitAu: activeScaleMode === PHYSICAL_SCALE_MODE
+            ? physicalOrbitAu
+            : (selectedOrbitAu || 0.08 + idx * 0.08),
+          physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE && !physicalOrbitAu,
+          radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode),
+          pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode) * 2.1, 0.2),
+        };
+      });
     }
     const readinessPlanets = scene?.simulation_readiness?.planets || [];
     const bodyPlanets = scene?.bodies?.planets || [];
@@ -4460,7 +4483,10 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       return {
         key: planet.stable_object_key || planet.object_id || planet.planet_id || `planet-${idx}`,
         name: planet.display_name || planet.planet_name || `Planet ${idx + 1}`,
-        orbitAu: numericField(fields, "semi_major_axis_au") || Number(planet.semi_major_axis_au || 0.08 + idx * 0.08),
+        orbitAu: activeScaleMode === PHYSICAL_SCALE_MODE
+          ? null
+          : (numericField(fields, "semi_major_axis_au") || Number(planet.semi_major_axis_au || 0.08 + idx * 0.08)),
+        physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE,
         periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
         eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
         phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),

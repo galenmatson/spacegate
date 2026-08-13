@@ -101,6 +101,15 @@ def _target_report(base_url: str, query: str) -> dict[str, Any]:
                 "physical_extent": physical or None,
             }
         )
+    planet_orbit_rows = [
+        {
+            "object_key": planet.get("render_key") or planet.get("key"),
+            "display_name": planet.get("display_name") or planet.get("name"),
+            "host_body_key": planet.get("host_body_key"),
+            "physical_extent": planet.get("physical_extent"),
+        }
+        for planet in planets
+    ]
     root_key = ((render_scene.get("focus_graph") or {}).get("root_focus_key"))
     root_focus = ((render_scene.get("focus_graph") or {}).get("nodes") or {}).get(root_key, {})
     return {
@@ -134,14 +143,19 @@ def _target_report(base_url: str, query: str) -> dict[str, Any]:
                 str(item.get("orbit_key")): ((item.get("physical_extent") or {}).get("applicability") or "not_available")
                 for item in orbit_rows
             },
+            "planet_orbit_applicability": {
+                str(item.get("object_key")): ((item.get("physical_extent") or {}).get("applicability") or "not_available")
+                for item in planet_orbit_rows
+            },
         },
         "orbits": orbit_rows,
+        "planet_orbits": planet_orbit_rows,
     }
 
 
 def _contract_checks(report: dict[str, Any]) -> dict[str, int]:
     contracts = report.get("contracts") or {}
-    orbits = report.get("orbits") or []
+    orbits = [*(report.get("orbits") or []), *(report.get("planet_orbits") or [])]
     root_bounds = (report.get("physical_contract") or {}).get("root_bounds") or {}
     return {
         "physical_scale_schema_mismatch": int(contracts.get("physical_scale") != "simulation_physical_scale_v1"),

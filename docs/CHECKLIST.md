@@ -1036,6 +1036,24 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Complete M8.3e.3 Public UI and Simulation Coherence after Simple Light:
   review a 1,600-px System Page maximum across all themes while retaining
   readable narrative columns
+- [x] Implement M8.3e.3a System Simulation Physical Scale and Navigation v1:
+  attach versioned physical extents and a recursive focus graph to scene-v16,
+  render one linear AU transform inside the active focus, and keep unsupported
+  extents visibly unavailable rather than substituting presentation geometry
+- [x] Add deterministic 1-2-5 AU/metric/light-time scale readouts, Physical
+  Orbits, explicit schematic and nonlinear legends, bounded scale beacons,
+  breadcrumbs, Fit/Focus/Parent/Back/sibling actions, desktop double click, and
+  accessible touch/keyboard focus controls
+- [x] Add a movable pinned scale lens using a second camera in the existing
+  WebGL context, with bounded zoom, Focus, Open as Main View, Escape, outside
+  dismissal, and no regression to right-drag camera panning
+- [x] Correct the general ORB6 stellar-orbit compiler so `m` axes are converted
+  from milliarcseconds and `a` axes remain arcseconds; reject source axes whose
+  period/axis combination implies an incoherent total mass rather than drawing
+  them as physical fact
+- [x] Pass six-system contract/determinism checks plus desktop, 4K, mobile, all-
+  theme, canvas, accessibility, selection, camera, and shared-context lens
+  performance gates for M8.3e.3a
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

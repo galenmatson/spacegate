@@ -149,6 +149,24 @@ The Playwright map suite imports
   light field with dark and chromatic scene pixels, while desktop/mobile
   screenshots retain visible stars, planets, labels, orbit and hierarchy
   guides, HZ bands, and controls without changing the scientific scene.
+- Physical-scale simulation parity verifies Alpha Centauri, Castor, Sol,
+  TRAPPIST-1, eps Ind, and a missing-axis control. Physical Orbits must use one
+  linear AU transform inside the active focus; Structure must say that distance
+  is presentation scaled; Log must identify its nonlinear scale and omit a
+  conventional ruler; unavailable axes must remain visibly unavailable.
+- Desktop double click and explicit keyboard/touch Focus must reach the same
+  stable focus node. Fit System, Parent, Back, sibling navigation, breadcrumb,
+  selection, and pinned inspection must survive transitions without changing
+  scientific membership or presentation settings.
+- Wide-system goldens require bounded, collision-managed scale beacons or
+  offscreen indicators instead of enlarged inner orbits. A scale lens must use
+  one existing WebGL context, remain dismissible and viewport-contained, and
+  preserve right-drag camera panning.
+- Desktop, 4K, and mobile physical-scale captures must remain nonblank in all
+  eight themes. The measured gate compares readiness, frame cadence, selection
+  latency, heap, canvas pixels, renderer allocations, and lens cadence against
+  the retained pre-change Structure baseline under
+  `state/reports/system-simulation-physical-scale-v1/`.
 
 The accepted M8.3e local parity run
 `public-read-v2-full-v7-20260725` completed in 225.008 seconds with 62 passing

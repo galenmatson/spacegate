@@ -259,16 +259,21 @@ Implementation note:
   overlays can attach to active tree body positions; stellar orbit display
   radii preserve broad source/projected separation order, HZ display scaling
   includes rendered HZ bounds, and True Bodies planet meshes use Earth-to-Sun
-  scale relative to stars; this remains a
-  deterministic presentation-scale Keplerian preview, not source-scaled epoch
-  propagation or N-body dynamics; the
+  scale relative to stars; scene artifact v16 now also provides a focus-local
+  Physical Orbits mode in which every supported orbit, habitable zone, and
+  formation line shares one linear AU-to-scene transform. Its versioned focus
+  graph, physical extents, scale ruler, scale beacons, navigation, and shared-
+  context lens let users traverse wide hierarchical systems without presenting
+  readable body markers as physical body radii. Unsupported or incoherent axes
+  remain explicitly unavailable. Structure stays the default schematic view and
+  Log stays explicitly nonlinear. This remains a deterministic Keplerian
+  preview, not source-epoch propagation or N-body dynamics; the
   payload now exports every rendered `ASSUMED` value as a structured
   `render_scene.assumptions` record with stable assumption keys and a
   selected-system `disc.simulation_assumptions` materialization path; broader
-  reviewed assumption curation remains future work; `visual_scale_beta_v1`
-  explicitly labels the live preview as presentation-scaled rather than
-  physically scaled and now advertises selectable Structure, True Orbits, True
-  Bodies, and Log Scale modes; True Orbits uses a pure linear
+  reviewed assumption curation remains future work; `visual_scale_v2`
+  explicitly separates Structure, Local Orbit, Body Contrast, Log, and Physical
+  Orbits; Local Orbit uses a pure linear
   semi-major-axis-to-scene transform with no fixed inner readability offset,
   while Structure mode caps visible stellar radii against nearest rendered
   separation and keeps halo and picking radii as separate readability aids;

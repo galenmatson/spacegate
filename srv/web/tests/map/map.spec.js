@@ -2395,6 +2395,22 @@ test.describe("public 3D map beta", () => {
     await expect(physicalRuler).toBeVisible();
     await expect(physicalRuler).toContainText(/AU|km|Gm|Tm|Pm|light/i);
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toHaveCount(0);
+    const rootFocusKey = await sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || "");
+    const physicalCanvasBox = await sharedClockCanvas.boundingBox();
+    expect(physicalCanvasBox, "physical canvas box for double-click focus").toBeTruthy();
+    await sharedClockCanvas.dblclick({
+      position: { x: physicalCanvasBox.width / 2, y: physicalCanvasBox.height / 2 },
+    });
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).not.toBe(rootFocusKey);
+    const focusNavigation = page.locator("[data-testid='system-preview-focus-nav']");
+    await focusNavigation.getByRole("button", { name: /^Back$/i }).click();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).toBe(rootFocusKey);
     const selectableObject = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-select").first();
     await selectableObject.click();
     await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
@@ -2403,7 +2419,6 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
       { timeout: 3000 }
     ).not.toBe("");
-    const focusNavigation = page.locator("[data-testid='system-preview-focus-nav']");
     await expect(focusNavigation.getByRole("button", { name: /^Back$/i })).toBeEnabled();
     await focusNavigation.getByRole("button", { name: /^Back$/i }).click();
     await expect(focusNavigation.getByRole("button", { name: /^Fit System$/i })).toBeVisible();

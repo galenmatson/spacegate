@@ -3457,6 +3457,69 @@ Verification checkpoint:
   navigation continuity, and deterministic report gates pass against the
   local Photon runtime at `https://10.0.0.12`.
 
+### M8.3e.3a. System Simulation Physical Scale and Navigation v1
+
+Goal:
+
+- add an honest focus-local linear AU view and hierarchical navigation without
+  weakening the default structure-first presentation or confusing readable
+  body markers with physical body size.
+
+Status: implemented and verified locally on Photon on 2026-08-13; not deployed
+to antiproton. The implementation changes the simulation scene and presentation
+artifact contract, not CORE, ARM, DISC, or RIM science.
+
+Accepted decisions:
+
+- `simulation_scene_artifact_v16` carries
+  `simulation_physical_scale_v1`, `simulation_focus_graph_v1`, and
+  `visual_scale_v2`. Physical orbital extents are measured, defensibly derived
+  through versioned Kepler policy, unavailable, or explicitly rejected; static
+  hierarchy placement, projected separation, and presentation radii cannot
+  masquerade as semi-major axes;
+- Physical Orbits applies one linear AU-to-scene transform to every supported
+  orbit, habitable zone, and formation line within the active focus. Structure
+  remains the schematic hierarchy-first default, Local Orbit is an explicitly
+  local presentation envelope, Body Contrast prioritizes readable bodies, and
+  Log is visibly nonlinear with no conventional ruler;
+- recursive focus nodes cover the system, nested groups, host neighborhoods,
+  bodies, and inspectable orbits. Fit System, Focus Selection, Parent, Back,
+  sibling navigation, breadcrumbs, explicit touch/keyboard Focus, and desktop
+  double click all use stable focus keys rather than named-system branches;
+- a deterministic 1-2-5 ruler reports AU/kAU/light-years, metric magnitude,
+  light-travel time, and view span. Orbit inspection names semi-major axis,
+  period, eccentricity, status, and lineage rather than calling every value a
+  distance;
+- compressed whole-system views replace unreadably enlarged inner geometry with
+  bounded collision-managed scale beacons. Important offscreen targets are
+  capped and prioritized; activation recenters without silently changing scale;
+- the movable scale lens renders a second camera and scissored viewport through
+  the existing WebGL context. It supports pinning, bounded twofold zoom, Focus,
+  Open as Main View, Escape, and outside dismissal without taking right-drag
+  camera panning;
+- ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
+  arcseconds. The general stellar-orbit compiler now normalizes those values,
+  and runtime physical-scale validation rejects axes that imply incoherent
+  masses. The served immutable science build is not rewritten in place; the
+  corrected normalization enters its next reproducible scientific build.
+
+Verification:
+
+- Alpha Centauri, Castor, Sol, TRAPPIST-1, eps Ind, and HD 57041 pass the v16
+  contract and two-pass logical determinism audits;
+- retained-master and v16 desktop, 4K, and mobile browser benchmarks pass the
+  measured readiness, frame cadence, selection latency, heap, canvas, and lens
+  budgets. The lens uses one canvas and one WebGL context;
+- all eight themes have nonblank Physical mode screenshots, and mobile verifies
+  that the ruler, focus navigation, and lens remain within the viewport;
+- the complete policy-selected v16 scene cache is rebuilt through the resumable
+  admin materializer before branch closeout. Frozen deployment packaging remains
+  a later release action because this milestone does not deploy publicly.
+
+Machine reports live under
+`state/reports/system-simulation-physical-scale-v1/`.
+See `docs/SIMULATION_PHYSICAL_SCALE_VERIFICATION_2026-08-13.md`.
+
 ### M8.3e.4. Mobile Public UI and Touch Reliability
 
 Goal:

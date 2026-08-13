@@ -6,6 +6,7 @@ from srv.api.app.simulation_physical_scale import (
     FOCUS_GRAPH_VERSION,
     PHYSICAL_SCALE_CONTRACT_VERSION,
     attach_physical_orbit_extent,
+    attach_physical_extents_to_planets,
     build_focus_graph,
     implied_total_mass_msun,
     kepler_semi_major_axis_au,
@@ -77,6 +78,29 @@ def test_physical_extent_rejects_a_kepler_incoherent_source_axis() -> None:
     assert extent["rejected_axis"]["value"] == 120.0
 
 
+def test_planet_physical_extent_uses_host_mass_for_kepler_axis() -> None:
+    star = {
+        "render_key": "star:a",
+        "fields": {"mass_msun": source_field("mass_msun", 1.0, "Msun")},
+    }
+    planet = {
+        "render_key": "planet:b",
+        "host_body_key": "star:a",
+        "fields": {
+            "period_days": source_field("period_days", 365.25, "days"),
+            "semi_major_axis_au": {"key": "semi_major_axis_au", "value": None, "status": "missing"},
+            "eccentricity": source_field("eccentricity", 0.0),
+        },
+    }
+    result = attach_physical_extents_to_planets([planet], [star])[0]
+    extent = result["physical_extent"]
+    assert extent["orbit_kind"] == "planetary_orbit"
+    assert extent["host_body_key"] == "star:a"
+    assert extent["applicability"] == "physical"
+    assert extent["axis_basis"] == "kepler_period_total_mass"
+    assert math.isclose(extent["semi_major_axis_au"]["value"], 1.0, rel_tol=1e-9)
+
+
 def test_focus_graph_keeps_planet_under_host_and_root_bounds() -> None:
     star = {
         "render_key": "star:a",
@@ -103,6 +127,7 @@ def test_focus_graph_keeps_planet_under_host_and_root_bounds() -> None:
             "body:star:a": {"node_key": "body:star:a", "node_type": "body", "body_key": "star:a", "display_name": "A", "children": [], "leaf_body_keys": ["star:a"]},
         },
     }
+    planet = attach_physical_extents_to_planets([planet], [star])[0]
     graph = build_focus_graph(system_name="Test", simulation_tree=tree, stars=[star], planets=[planet], orbits=[])
     assert graph["schema_version"] == FOCUS_GRAPH_VERSION
     assert graph["root_focus_key"] == "focus:root:system"
