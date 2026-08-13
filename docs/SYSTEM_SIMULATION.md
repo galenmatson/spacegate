@@ -769,6 +769,15 @@ Success criteria:
   scissored viewport in the existing WebGL context, not a second canvas/context,
   and provides bounded twofold zoom, Pin, Focus, Open as Main View, close,
   Escape, and outside-dismissal behavior. Right-drag remains camera panning.
+- Physical mode keeps stellar and planetary bodies as small screen-sized
+  markers at every camera distance. Their labels use translucent, laterally
+  offset callouts with short leaders so a label cannot be mistaken for the
+  physical body or conceal its location. The viewport ruler states that marker
+  size is symbolic while orbital distance remains linear.
+- The Lens measures its viewport after it opens and records successful shared-
+  context render frames for browser verification. Embedded Peek and Explorer
+  layouts also measure the simulation action bar and place scale navigation
+  below its actual wrapped height rather than relying on a fixed offset.
 - ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
   Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
   normalization before distance conversion. Runtime physical-scale validation

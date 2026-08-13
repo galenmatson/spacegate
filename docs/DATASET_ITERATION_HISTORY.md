@@ -4916,6 +4916,21 @@ Representative commits:
   four checks. These are presentation-artifact results and do not alter the
   immutable scientific build.
 
+### 185) Physical Scale Post-Review Separates Markers From Geometry
+
+- Alpha Centauri review exposed four presentation defects without changing the
+  scene-v16 science contract: world-sized halos read as physical stellar
+  spheres, labels covered small markers, the Lens frame opened before its
+  viewport observer measured it, and fixed toolbar offsets collided in Explorer.
+- Physical star and planet bodies, halos, selection rings, and pick targets now
+  retain stable screen-space sizes. Labels move into translucent side callouts
+  with leaders, while the scale ruler explicitly distinguishes symbolic marker
+  size from linear orbital distance.
+- The Lens size observer reruns on open and its final shared-context render pass
+  records resolved target and viewport diagnostics. Explorer derives focus
+  navigation clearance from the action bar's measured bounds, including wrapped
+  controls. Desktop Explorer, mobile, and 4K Playwright checks pass on Photon.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

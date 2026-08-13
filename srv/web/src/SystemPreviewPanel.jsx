@@ -1576,14 +1576,32 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   );
 }
 
-function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true, anchorRadius = null, screenGapPixels = 4 }) {
+function SceneLabel({
+  text,
+  position = [0, -0.4, 0],
+  color = "#e6f6ff",
+  scale = 1,
+  visible = true,
+  anchorRadius = null,
+  screenGapPixels = 4,
+  maxLength = 24,
+  callout = false,
+  calloutSide = 1,
+  calloutVerticalPixels = 0,
+}) {
+  const groupRef = React.useRef(null);
   const spriteRef = React.useRef(null);
   const materialRef = React.useRef(null);
+  const leaderAttributeRef = React.useRef(null);
+  const leaderMaterialRef = React.useRef(null);
   const worldPositionRef = React.useRef(new THREE.Vector3());
+  const parentQuaternionRef = React.useRef(new THREE.Quaternion());
+  const localQuaternionRef = React.useRef(new THREE.Quaternion());
+  const leaderPositions = useMemo(() => new Float32Array(6), []);
   const { camera, size } = useThree();
   const typography = React.useContext(SceneLabelTypographyContext);
   const contrast = React.useContext(SceneContrastContext);
-  const label = compactIdentifier(text, 24);
+  const label = compactIdentifier(text, maxLength);
   const resolvedColor = sceneGuideColor(color, contrast, 0.32);
   const texturePayload = useMemo(() => {
     if (!label || typeof document === "undefined") {
@@ -1623,27 +1641,54 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
   useEffect(() => () => texturePayload?.texture?.dispose(), [texturePayload]);
 
   useFrame(() => {
-    if (!spriteRef.current || !materialRef.current || !texturePayload || !visible) {
+    if (!groupRef.current || !spriteRef.current || !materialRef.current || !texturePayload || !visible) {
       return;
     }
     const worldPosition = worldPositionRef.current;
-    spriteRef.current.getWorldPosition(worldPosition);
+    groupRef.current.getWorldPosition(worldPosition);
     const distance = Math.max(0.001, camera.position.distanceTo(worldPosition));
     const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
     const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
     const targetPixels = clampNumber(22.5 * scale, 16.5, 31.5);
     const labelHeight = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
+    const labelWidth = labelHeight * texturePayload.aspect;
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
-    spriteRef.current.scale.set(labelHeight * texturePayload.aspect, labelHeight, 1);
-    const cleanAnchorRadius = Number(anchorRadius);
-    if (Number.isFinite(cleanAnchorRadius) && cleanAnchorRadius >= 0) {
-      const directionY = Number(position?.[1]) < 0 ? -1 : 1;
-      const cleanGapPixels = Math.max(0, Number(screenGapPixels) || 0);
-      spriteRef.current.position.y = directionY * (
-        cleanAnchorRadius + labelHeight / 2 + worldUnitsPerPixel * cleanGapPixels
-      );
+    spriteRef.current.scale.set(labelWidth, labelHeight, 1);
+    if (callout) {
+      if (groupRef.current.parent) {
+        groupRef.current.parent.getWorldQuaternion(parentQuaternionRef.current);
+        localQuaternionRef.current.copy(parentQuaternionRef.current).invert().multiply(camera.quaternion);
+        groupRef.current.quaternion.copy(localQuaternionRef.current);
+      } else {
+        groupRef.current.quaternion.copy(camera.quaternion);
+      }
+      const side = Number(calloutSide) < 0 ? -1 : 1;
+      const anchorPixels = 5.5;
+      const gapPixels = Math.max(5, Number(screenGapPixels) || 0);
+      const centerX = side * (worldUnitsPerPixel * (anchorPixels + gapPixels) + labelWidth / 2);
+      const centerY = worldUnitsPerPixel * Number(calloutVerticalPixels || 0);
+      spriteRef.current.position.set(centerX, centerY, 0);
+      leaderPositions[0] = side * worldUnitsPerPixel * 2.5;
+      leaderPositions[1] = 0;
+      leaderPositions[2] = 0;
+      leaderPositions[3] = centerX - side * (labelWidth / 2 + worldUnitsPerPixel * 1.5);
+      leaderPositions[4] = centerY;
+      leaderPositions[5] = 0;
+      if (leaderAttributeRef.current) leaderAttributeRef.current.needsUpdate = true;
+      if (leaderMaterialRef.current) leaderMaterialRef.current.opacity = clampNumber(fade * 0.62, 0.34, 0.58);
+      materialRef.current.opacity = clampNumber(fade * 0.78, 0.48, 0.74);
+    } else {
+      groupRef.current.quaternion.identity();
+      const cleanAnchorRadius = Number(anchorRadius);
+      if (Number.isFinite(cleanAnchorRadius) && cleanAnchorRadius >= 0) {
+        const directionY = Number(position?.[1]) < 0 ? -1 : 1;
+        const cleanGapPixels = Math.max(0, Number(screenGapPixels) || 0);
+        spriteRef.current.position.y = directionY * (
+          cleanAnchorRadius + labelHeight / 2 + worldUnitsPerPixel * cleanGapPixels
+        );
+      }
+      materialRef.current.opacity = fade;
     }
-    materialRef.current.opacity = fade;
   });
 
   if (!visible || !label || !texturePayload) {
@@ -1651,27 +1696,65 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
   }
 
   return (
-    <sprite ref={spriteRef} position={position} renderOrder={30} raycast={() => {}}>
-      <spriteMaterial
-        ref={materialRef}
-        map={texturePayload.texture}
-        transparent
-        opacity={0.94}
-        depthTest={false}
-        depthWrite={false}
-        toneMapped={false}
-      />
-    </sprite>
+    <group ref={groupRef} renderOrder={29}>
+      {callout ? (
+        <line renderOrder={29} raycast={() => {}}>
+          <bufferGeometry>
+            <bufferAttribute ref={leaderAttributeRef} attach="attributes-position" args={[leaderPositions, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial
+            ref={leaderMaterialRef}
+            color={resolvedColor}
+            transparent
+            opacity={0.5}
+            depthTest={false}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </line>
+      ) : null}
+      <sprite ref={spriteRef} position={position} renderOrder={30} raycast={() => {}}>
+        <spriteMaterial
+          ref={materialRef}
+          map={texturePayload.texture}
+          transparent
+          opacity={callout ? 0.68 : 0.94}
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </sprite>
+    </group>
   );
 }
 
-function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
+function useScreenSpaceMeshScale(meshRef, enabled, baseRadius, radiusPixels) {
+  const { camera, size } = useThree();
+  const worldPositionRef = React.useRef(new THREE.Vector3());
+  useFrame(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    if (!enabled) {
+      mesh.scale.setScalar(1);
+      return;
+    }
+    mesh.getWorldPosition(worldPositionRef.current);
+    const distance = Math.max(0.001, camera.position.distanceTo(worldPositionRef.current));
+    const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
+    const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
+    const scaleFactor = (worldUnitsPerPixel * radiusPixels) / Math.max(0.000001, Number(baseRadius) || 1);
+    mesh.scale.setScalar(clampNumber(scaleFactor, 0.0001, 10000));
+  });
+}
+
+function SelectionHalo({ radius, color = "#ffffff", pulse = false, screenRadiusPixels = null }) {
   const ref = React.useRef(null);
   const contrast = React.useContext(SceneContrastContext);
   const haloColor = sceneGuideColor(color, contrast, 0.3);
+  useScreenSpaceMeshScale(ref, Number.isFinite(Number(screenRadiusPixels)), radius, Number(screenRadiusPixels) || 0);
 
   useFrame(({ clock }) => {
-    if (!pulse || !ref.current) {
+    if (!pulse || !ref.current || Number.isFinite(Number(screenRadiusPixels))) {
       return;
     }
     const scale = 1 + Math.sin(clock.elapsedTime * 4.2) * 0.045;
@@ -1713,12 +1796,16 @@ function useSceneTargetRegistration(targetId, objectRef, targetRegistryRef) {
 
 function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect, onFocus }) {
   const groupRef = React.useRef(null);
+  const bodyRef = React.useRef(null);
+  const haloRef = React.useRef(null);
+  const pickRef = React.useRef(null);
   const contrast = React.useContext(SceneContrastContext);
   const bodyClass = stellarBodyClass(star);
   const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
   const radius = Number(star.display_radius_scene) || scaledStarRadius(radiusRsun, star.visualScale, star.visual_scale_mode);
   const scaleMode = normalizeScaleMode(star.visual_scale_mode);
+  const physicalMarker = scaleMode === PHYSICAL_SCALE_MODE;
   const haloRadius = Number(star.display_halo_radius_scene) || (
     scaleMode === "true_orbits"
       ? Math.max(radius * (bodyClass === "white_dwarf" ? 2.1 : 1.65), radius + 0.025)
@@ -1740,6 +1827,10 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const hoverPayloadId = payloadId(hoverPayload);
   useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
+  const calloutSide = hashUnit(star.render_key || star.key || star.display_name || star.name, "physical-label-side") < 0.5 ? -1 : 1;
+  useScreenSpaceMeshScale(bodyRef, physicalMarker, radius, 4.25);
+  useScreenSpaceMeshScale(haloRef, physicalMarker, haloRadius, 6.25);
+  useScreenSpaceMeshScale(pickRef, physicalMarker, pickRadius, 10.5);
   const hoverHandlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -1764,11 +1855,11 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   };
   return (
     <group ref={groupRef} position={position}>
-      <mesh {...hoverHandlers} userData={{ hoverPayload }}>
+      <mesh ref={bodyRef} {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[radius, 32, 24]} />
         <meshStandardMaterial color={color} map={texture || null} emissive={color} emissiveIntensity={bodyClass === "white_dwarf" ? 1.45 : 0.9} roughness={0.52} />
       </mesh>
-      <mesh>
+      <mesh ref={haloRef}>
         <sphereGeometry args={[haloRadius, 32, 20]} />
         <meshBasicMaterial
           color={contrast.lightBackground ? sceneGuideColor(color, contrast, 0.28) : color}
@@ -1779,24 +1870,38 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
           side={THREE.BackSide}
         />
       </mesh>
-      {selected && <SelectionHalo radius={Math.max(radius * 1.82, radius + 0.28)} color="#fff2b7" pulse />}
-      <mesh {...hoverHandlers} userData={{ hoverPayload }}>
+      {selected && (
+        <SelectionHalo
+          radius={Math.max(radius * 1.82, radius + 0.28)}
+          color="#fff2b7"
+          pulse
+          screenRadiusPixels={physicalMarker ? 8.5 : null}
+        />
+      )}
+      <mesh ref={pickRef} {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[pickRadius, 16, 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       <SceneLabel
-        text={star.display_name || star.name || "Star"}
+        text={physicalMarker && classLabel
+          ? `${star.display_name || star.name || "Star"} · ${classLabel}`
+          : (star.display_name || star.name || "Star")}
         position={[0, -Math.max(radius + 0.28, pickRadius * 0.72), 0]}
         color="#fff4c4"
         scale={bodyClass === "white_dwarf" ? 0.78 : 0.92}
         visible={showLabels}
+        maxLength={physicalMarker ? 34 : 24}
+        callout={physicalMarker}
+        calloutSide={calloutSide}
+        calloutVerticalPixels={calloutSide < 0 ? -8 : 8}
+        screenGapPixels={6}
       />
       <SceneLabel
         text={classLabel}
         position={[0, Math.max(radius + 0.24, pickRadius * 0.76), 0]}
         color={classColor}
         scale={0.78}
-        visible={showLabels && Boolean(classLabel)}
+        visible={showLabels && Boolean(classLabel) && !physicalMarker}
       />
     </group>
   );
@@ -3029,6 +3134,10 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
 
 function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect, onFocus }) {
   const groupRef = React.useRef(null);
+  const bodyRef = React.useRef(null);
+  const haloRef = React.useRef(null);
+  const unavailableRef = React.useRef(null);
+  const pickRef = React.useRef(null);
   const contrast = React.useContext(SceneContrastContext);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -3043,6 +3152,12 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   const hoverPayloadId = payloadId(hoverPayload);
   useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
+  const physicalMarker = normalizeScaleMode(planet.visual_scale_mode) === PHYSICAL_SCALE_MODE;
+  const calloutSide = hashUnit(planet.render_key || planet.key || planet.display_name || planet.name, "physical-label-side") < 0.5 ? -1 : 1;
+  useScreenSpaceMeshScale(bodyRef, physicalMarker && !planet.physical_scale_unavailable, planet.radius, 3.4);
+  useScreenSpaceMeshScale(haloRef, physicalMarker && !planet.physical_scale_unavailable, planet.radius * 1.08, 5.1);
+  useScreenSpaceMeshScale(unavailableRef, physicalMarker && planet.physical_scale_unavailable, 0.07, 4.5);
+  useScreenSpaceMeshScale(pickRef, physicalMarker, pickRadius, 9.5);
   const hoverHandlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -3083,17 +3198,17 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   return (
     <group ref={groupRef} position={planet.physical_scale_unavailable ? addVector(center, [0.16, 0.12, 0]) : addVector(center, orbitalPositionFromMeanAnomaly(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
       {planet.physical_scale_unavailable ? (
-        <mesh {...hoverHandlers} userData={{ hoverPayload }} data-testid="system-preview-planet-orbit-unavailable">
+        <mesh ref={unavailableRef} {...hoverHandlers} userData={{ hoverPayload }} data-testid="system-preview-planet-orbit-unavailable">
           <octahedronGeometry args={[0.07, 0]} />
           <meshBasicMaterial color={sceneGuideColor("#ffd16a", contrast)} transparent opacity={0.9} depthTest={false} />
         </mesh>
       ) : (
         <>
-          <mesh {...hoverHandlers} userData={{ hoverPayload }}>
+          <mesh ref={bodyRef} {...hoverHandlers} userData={{ hoverPayload }}>
             <sphereGeometry args={[planet.radius, 18, 14]} />
             <meshStandardMaterial color={color} map={texture || null} roughness={0.72} metalness={0.03} />
           </mesh>
-          <mesh>
+          <mesh ref={haloRef}>
             <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
             <meshBasicMaterial
               color={sceneGuideColor("#b7e2ff", contrast)}
@@ -3106,8 +3221,15 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
           </mesh>
         </>
       )}
-      {selected && <SelectionHalo radius={Math.max(pickRadius, 0.22)} color="#b7e2ff" pulse />}
-      <mesh {...hoverHandlers} userData={{ hoverPayload }}>
+      {selected && (
+        <SelectionHalo
+          radius={Math.max(pickRadius, 0.22)}
+          color="#b7e2ff"
+          pulse
+          screenRadiusPixels={physicalMarker ? 7.5 : null}
+        />
+      )}
+      <mesh ref={pickRef} {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[pickRadius, 14, 10]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -3120,7 +3242,11 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
         scale={0.72}
         visible={showLabels}
         anchorRadius={planet.radius}
-        screenGapPixels={3}
+        screenGapPixels={physicalMarker ? 6 : 3}
+        maxLength={physicalMarker ? 34 : 24}
+        callout={physicalMarker}
+        calloutSide={calloutSide}
+        calloutVerticalPixels={calloutSide < 0 ? 7 : -7}
       />
     </group>
   );
@@ -3214,6 +3340,7 @@ function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey
     canvas.dataset.physicalFocusNodeCount = String(Object.keys(focusGraph?.nodes || {}).length);
     canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
+    canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
   });
   return null;
 }
@@ -3433,36 +3560,68 @@ function NavigationTargetReporter({ targets = [], targetRegistryRef = null, scen
 function ScaleLensRenderer({ enabled = false, targetId = "", targetRegistryRef = null, spanScene = 2.6, rect = null }) {
   const { gl, scene, camera, size } = useThree();
   const lensCamera = useMemo(() => new THREE.PerspectiveCamera(camera.fov, 1, 0.001, 1000), [camera.fov]);
+  const previousViewport = useMemo(() => new THREE.Vector4(), []);
+  const previousScissor = useMemo(() => new THREE.Vector4(), []);
+  const previousClearColor = useMemo(() => new THREE.Color(), []);
+  const lensClearColor = useMemo(() => new THREE.Color("#030810"), []);
+  const fallbackCenter = useMemo(() => new THREE.Vector3(), []);
+  const lensDirection = useMemo(() => new THREE.Vector3(), []);
+  const lensRenderCountRef = React.useRef(0);
   useFrame(() => {
+    const canvas = gl.domElement;
+    const previousScissorTest = gl.getScissorTest();
+    const previousAutoClear = gl.autoClear;
+    const previousClearAlpha = gl.getClearAlpha();
+    gl.getViewport(previousViewport);
+    gl.getScissor(previousScissor);
+    gl.getClearColor(previousClearColor);
+    gl.autoClear = true;
     gl.setScissorTest(false);
-    gl.setViewport(0, 0, gl.domElement.width, gl.domElement.height);
+    gl.setViewport(0, 0, canvas.width, canvas.height);
     gl.render(scene, camera);
-    if (!enabled || !rect) return;
+    if (!enabled || !rect) {
+      gl.autoClear = previousAutoClear;
+      return;
+    }
     const pixelRatio = gl.getPixelRatio();
-    const width = Math.max(1, Math.round(rect.width * pixelRatio));
-    const height = Math.max(1, Math.round(rect.height * pixelRatio));
-    const x = Math.round(rect.x * pixelRatio);
-    const y = Math.round((size.height - rect.y - rect.height) * pixelRatio);
+    const cssWidth = clampNumber(Number(rect.width) || 0, 1, size.width);
+    const cssHeight = clampNumber(Number(rect.height) || 0, 1, size.height);
+    const cssX = clampNumber(Number(rect.x) || 0, 0, Math.max(0, size.width - cssWidth));
+    const cssY = clampNumber(Number(rect.y) || 0, 0, Math.max(0, size.height - cssHeight));
+    const width = Math.max(1, Math.round(cssWidth * pixelRatio));
+    const height = Math.max(1, Math.round(cssHeight * pixelRatio));
+    const x = Math.round(cssX * pixelRatio);
+    const y = Math.round((size.height - cssY - cssHeight) * pixelRatio);
     const target = targetId ? targetRegistryRef?.current?.get(targetId) : null;
-    const center = target || new THREE.Vector3(0, 0, 0);
-    const direction = camera.position.clone().sub(center);
-    if (direction.lengthSq() < 0.0001) direction.set(0.25, 0.6, 1);
-    direction.normalize();
+    const center = target || fallbackCenter;
+    lensDirection.copy(camera.position).sub(center);
+    if (lensDirection.lengthSq() < 0.0001) lensDirection.set(0.25, 0.6, 1);
+    lensDirection.normalize();
     lensCamera.aspect = width / height;
-    lensCamera.near = 0.001;
-    lensCamera.far = Math.max(1000, Number(spanScene) * 20);
-    lensCamera.position.copy(center).add(direction.multiplyScalar(Math.max(0.3, Number(spanScene) * 1.7)));
+    const halfSpan = Math.max(0.01, Number(spanScene) || 2.6);
+    const cameraDistance = Math.max(0.025, (halfSpan / Math.tan(THREE.MathUtils.degToRad(lensCamera.fov) / 2)) * 1.08);
+    lensCamera.near = Math.max(0.000001, cameraDistance / 100000);
+    lensCamera.far = Math.max(1000, cameraDistance + halfSpan * 40);
+    lensCamera.position.copy(center).add(lensDirection.multiplyScalar(cameraDistance));
+    lensCamera.up.copy(camera.up);
     lensCamera.lookAt(center);
     lensCamera.updateProjectionMatrix();
     gl.setViewport(x, y, width, height);
     gl.setScissor(x, y, width, height);
     gl.setScissorTest(true);
-    gl.setClearColor(new THREE.Color("#030810"), 1);
+    gl.setClearColor(lensClearColor, 1);
     gl.clear(true, true, true);
     gl.render(scene, lensCamera);
-    gl.setScissorTest(false);
-    gl.setViewport(0, 0, gl.domElement.width, gl.domElement.height);
-  }, 1);
+    lensRenderCountRef.current += 1;
+    canvas.dataset.lensRenderCount = String(lensRenderCountRef.current);
+    canvas.dataset.lensTargetResolved = target ? "true" : "false";
+    canvas.dataset.lensViewport = `${x},${y},${width},${height}`;
+    gl.setClearColor(previousClearColor, previousClearAlpha);
+    gl.setViewport(previousViewport);
+    gl.setScissor(previousScissor);
+    gl.setScissorTest(previousScissorTest);
+    gl.autoClear = previousAutoClear;
+  }, 100);
   return null;
 }
 
@@ -4471,6 +4630,8 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
             ? physicalOrbitAu
             : (selectedOrbitAu || 0.08 + idx * 0.08),
           physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE && !physicalOrbitAu,
+          visual_scale_mode: activeScaleMode,
+          visualScale,
           radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode),
           pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode) * 2.1, 0.2),
         };
@@ -4487,6 +4648,8 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           ? null
           : (numericField(fields, "semi_major_axis_au") || Number(planet.semi_major_axis_au || 0.08 + idx * 0.08)),
         physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE,
+        visual_scale_mode: activeScaleMode,
+        visualScale,
         periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
         eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
         phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),
@@ -4855,13 +5018,14 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
           <strong>{length?.primary}</strong>
           <span>{length?.metric} / {length?.lightTime}</span>
           <small>View width {view?.primary}</small>
+          <small>Screen-sized body markers; orbital distances are linear</small>
         </>
       )}
     </div>
   );
 }
 
-function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = null, canBack = false }) {
+function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = null, canBack = false, topOffset = null }) {
   const nodes = focusGraphNodes(focusGraph);
   const active = nodes[focusKey] || nodes[focusGraph?.root_focus_key];
   if (!active) return null;
@@ -4871,7 +5035,12 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
   const previous = siblingIndex > 0 ? siblings[siblingIndex - 1] : null;
   const next = siblingIndex >= 0 && siblingIndex < siblings.length - 1 ? siblings[siblingIndex + 1] : null;
   return (
-    <nav className="system-preview-focus-nav" aria-label="System scale navigation" data-testid="system-preview-focus-nav">
+    <nav
+      className="system-preview-focus-nav"
+      aria-label="System scale navigation"
+      data-testid="system-preview-focus-nav"
+      style={Number.isFinite(Number(topOffset)) ? { top: `${Number(topOffset)}px` } : undefined}
+    >
       <button type="button" onClick={() => onFocusKey(focusGraph.root_focus_key)} title="Fit the complete system">Fit System</button>
       <button type="button" onClick={onBack} disabled={!canBack} title="Return to the previous scale view">Back</button>
       <button type="button" onClick={() => active.parent_focus_key && onFocusKey(active.parent_focus_key)} disabled={!active.parent_focus_key} title="Move outward one scale level">Parent</button>
@@ -4922,7 +5091,7 @@ function ScaleLensOverlay({ lens, onClose, onOpenMain, onReset, onPin, onZoom, o
     const observer = new ResizeObserver(report);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [onRectChange, position.x, position.y]);
+  }, [lens?.open, onRectChange, position.x, position.y]);
   useEffect(() => {
     if (!lens?.open) return undefined;
     const handleKeyDown = (event) => {
@@ -4971,6 +5140,7 @@ function ScaleLensOverlay({ lens, onClose, onOpenMain, onReset, onPin, onZoom, o
         <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onOpenMain}>Open</button>
         <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close scale lens">x</button>
       </header>
+      <div className="system-preview-scale-lens-viewport" aria-hidden="true" />
     </section>
   );
 }
@@ -5051,7 +5221,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [pinnedReadoutPosition, setPinnedReadoutPosition] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
   const [panelVisible, setPanelVisible] = useState(true);
+  const [focusNavigationTop, setFocusNavigationTop] = useState(null);
   const panelRef = React.useRef(null);
+  const canvasFrameRef = React.useRef(null);
+  const floatingActionsRef = React.useRef(null);
   const focusSequenceRef = React.useRef(0);
   const hoverDelayRef = React.useRef(null);
   const contextRecoveryTimerRef = React.useRef(null);
@@ -5230,6 +5403,34 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const cardPresentation = normalizedPresentationMode === "card";
   const interactiveReadouts = !cardPresentation;
   const showObjectList = normalizedPresentationMode === "detail" || normalizedPresentationMode === "explore";
+
+  useEffect(() => {
+    const canvasFrame = canvasFrameRef.current;
+    const floatingActions = floatingActionsRef.current;
+    if (!canvasFrame || !floatingActions || !embeddedPresentation) {
+      setFocusNavigationTop(null);
+      return undefined;
+    }
+    const measure = () => {
+      const canvasRect = canvasFrame.getBoundingClientRect();
+      const actionsRect = floatingActions.getBoundingClientRect();
+      const nextTop = clampNumber(
+        Math.ceil(actionsRect.bottom - canvasRect.top + 8),
+        10,
+        Math.max(10, canvasRect.height - 54),
+      );
+      setFocusNavigationTop((current) => (current === nextTop ? current : nextTop));
+    };
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    observer?.observe(canvasFrame);
+    observer?.observe(floatingActions);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [embeddedPresentation, normalizedPresentationMode, status]);
   const evidenceFields = collectEvidenceFields(scene);
   const planetReadiness = scene?.simulation_readiness?.planets || [];
   const assumedOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "assumed").length;
@@ -5575,7 +5776,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         </div>
       )}
       <div className="system-preview-layout">
-        <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
+        <div ref={canvasFrameRef} className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
           {status === "fallback" || webglReady === false || contextFailureLocked
             ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason={contextFailureLocked ? "Repeated WebGL context loss" : "WebGL unavailable"} />
             : status === "ready" && scene
@@ -5632,6 +5833,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 onFocusKey={issueFocusRequest}
                 onBack={returnToPreviousFocus}
                 canBack={focusHistory.length > 0}
+                topOffset={focusNavigationTop}
               />
               <OffscreenIndicators
                 indicators={navigationProjection}
@@ -5793,7 +5995,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           )}
         </div>}
       </div>
-      {embeddedPresentation && normalizedPresentationMode !== "card" && <div className="system-preview-floating-actions">{renderPreviewActions()}</div>}
+      {embeddedPresentation && normalizedPresentationMode !== "card" && <div ref={floatingActionsRef} className="system-preview-floating-actions">{renderPreviewActions()}</div>}
     </section>
   );
 }

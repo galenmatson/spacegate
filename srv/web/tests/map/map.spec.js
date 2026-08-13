@@ -1341,12 +1341,14 @@ test.describe("public 3D map beta", () => {
     const exploreObjectList = drill.locator("[data-testid='system-preview-object-list']");
     await expect(exploreObjectList).toBeVisible();
     const exploreControlsBox = await drill.locator(".system-preview-floating-actions").boundingBox();
+    const exploreFocusNavigationBox = await drill.locator("[data-testid='system-preview-focus-nav']").boundingBox();
     const exploreObjectsBox = await exploreObjectList.boundingBox();
     const coolstarsHeaderBox = await page.locator(".map-hud-top").boundingBox();
     const exploreWindowBox = await drill.boundingBox();
     const exploreHeaderBox = await drill.locator(".map-system-drill-bar").boundingBox();
     const exploreBodyBox = await drill.locator(".map-system-drill-body").boundingBox();
     expect(exploreControlsBox, "Explore simulation controls bounds").toBeTruthy();
+    expect(exploreFocusNavigationBox, "Explore scale navigation bounds").toBeTruthy();
     expect(exploreObjectsBox, "Explore Objects bounds").toBeTruthy();
     expect(coolstarsHeaderBox, "Coolstars header bounds").toBeTruthy();
     expect(exploreWindowBox, "Explore window bounds").toBeTruthy();
@@ -1355,6 +1357,7 @@ test.describe("public 3D map beta", () => {
     expect(exploreWindowBox.y).toBeGreaterThanOrEqual(coolstarsHeaderBox.y + coolstarsHeaderBox.height + 8);
     expect(exploreBodyBox.y).toBeGreaterThanOrEqual(exploreHeaderBox.y + exploreHeaderBox.height - 1);
     expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 8);
+    expect(exploreFocusNavigationBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 6);
     const vitalPills = drill.locator(".map-system-vital-pill");
     await expect(vitalPills).toHaveCount(5);
     const expectedVitalCopy = [
@@ -1412,7 +1415,7 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("explore");
-    await expect(drill.getByRole("button", { name: /^Back$/i })).toBeVisible();
+    await expect(drill.locator("button.map-command-button", { hasText: /^Back$/i })).toBeVisible();
     await expect(drill.getByRole("button", { name: "×" })).toBeVisible();
 
     const fullButton = page.locator(".map-fullscreen-command");
@@ -2394,6 +2397,11 @@ test.describe("public 3D map beta", () => {
     const physicalRuler = page.locator("[data-testid='system-preview-physical-ruler']");
     await expect(physicalRuler).toBeVisible();
     await expect(physicalRuler).toContainText(/AU|km|Gm|Tm|Pm|light/i);
+    await expect(physicalRuler).toContainText(/screen-sized body markers.*orbital distances are linear/i);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalBodyMarkerPolicy || ""),
+      { timeout: 3000 },
+    ).toBe("screen-sized-not-physical-radius");
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toHaveCount(0);
     const rootFocusKey = await sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || "");
     const physicalCanvasBox = await sharedClockCanvas.boundingBox();
@@ -2426,7 +2434,16 @@ test.describe("public 3D map beta", () => {
     await page.locator("[data-lens-control='true']").click();
     const scaleLens = page.locator("[data-testid='system-preview-scale-lens']");
     await expect(scaleLens).toBeVisible();
+    await expect(scaleLens.locator(".system-preview-scale-lens-viewport")).toBeVisible();
     expect(await page.locator(".system-preview-canvas canvas").count()).toBe(canvasCountBeforeLens);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.lensRenderCount || 0)),
+      { timeout: 3000 },
+    ).toBeGreaterThan(0);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.lensTargetResolved || ""),
+      { timeout: 3000 },
+    ).toBe("true");
     await expect(scaleLens.getByRole("button", { name: /^Focus$/i })).toBeVisible();
     await expect(scaleLens.getByRole("button", { name: /^Open$/i })).toBeVisible();
     const pinLens = scaleLens.getByRole("button", { name: /^Pin$/i });
