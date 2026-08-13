@@ -2402,6 +2402,10 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalBodyMarkerPolicy || ""),
       { timeout: 3000 },
     ).toBe("screen-sized-not-physical-radius");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalSubsystemMarkerPolicy || ""),
+      { timeout: 3000 },
+    ).toBe("screen-sized-barycenter-marker");
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toHaveCount(0);
     const rootFocusKey = await sharedClockCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || "");
     const physicalCanvasBox = await sharedClockCanvas.boundingBox();
@@ -2651,6 +2655,41 @@ test.describe("public 3D map beta", () => {
     await expect(fallback).toBeVisible();
     await expect(fallback).toContainText(/Live preview unavailable/i);
     await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
+  });
+
+  test("physical close zoom keeps Alpha Centauri markers and scale beacons readable", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop close-zoom physical marker check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Alpha Centauri", limit: "1", sort: "match" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Alpha Centauri system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    const canvas = page.locator(".system-preview-canvas canvas");
+    await expect(canvas).toBeVisible();
+    await page.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalSubsystemMarkerPolicy || ""),
+      { timeout: 3000 },
+    ).toBe("screen-sized-barycenter-marker");
+    const firstGroup = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-select").filter({ hasText: /group/i }).first();
+    await firstGroup.click();
+    const canvasBox = await canvas.boundingBox();
+    expect(canvasBox, "Alpha Centauri physical canvas bounds").toBeTruthy();
+    await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+    for (let index = 0; index < 6; index += 1) {
+      await page.mouse.wheel(0, -1200);
+    }
+    const beacons = page.locator("[data-testid='system-preview-scale-beacon']");
+    await expect.poll(() => beacons.count(), { timeout: 3000 }).toBeGreaterThanOrEqual(2);
+    const leaderLengths = await beacons.evaluateAll((nodes) => nodes.map((node) => (
+      Number.parseFloat(getComputedStyle(node.querySelector(".system-preview-indicator-leader")).width || "0")
+    )));
+    expect(leaderLengths.every((length) => length >= 8)).toBeTruthy();
+    await page.screenshot({ path: testInfo.outputPath("alpha-centauri-physical-close-zoom.png"), fullPage: false });
   });
 
   test("mobile system detail keeps live preview usable", async ({ page }, testInfo) => {

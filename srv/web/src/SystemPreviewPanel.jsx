@@ -3054,6 +3054,7 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
               groupMotionSpecs={[]}
               layout={null}
               simClockRef={simClockRef}
+              scaleMode={scaleMode}
               showLabels={showLabels}
               selectedObjectId={selectedObjectId}
               targetRegistryRef={targetRegistryRef}
@@ -3068,13 +3069,20 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
   );
 }
 
-function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect, onFocus }) {
+function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, scaleMode = "structure", showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect, onFocus }) {
   const groupRef = React.useRef(null);
+  const markerRef = React.useRef(null);
+  const pickRef = React.useRef(null);
   const contrast = React.useContext(SceneContrastContext);
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
   const payloadKey = payloadId(payload);
   useSceneTargetRegistration(payloadKey, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
+  const physicalMarker = normalizeScaleMode(scaleMode) === PHYSICAL_SCALE_MODE;
+  const markerRadius = selected ? 0.268 : 0.201;
+  const calloutSide = hashUnit(subsystem.render_key || subsystem.key || subsystem.display_name || subsystem.name, "physical-label-side") < 0.5 ? -1 : 1;
+  useScreenSpaceMeshScale(markerRef, physicalMarker, markerRadius, selected ? 10 : 8);
+  useScreenSpaceMeshScale(pickRef, physicalMarker, 0.34, 13);
 
   useFrame(() => {
     if (!groupRef.current) {
@@ -3109,24 +3117,37 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
 
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-subsystem-marker">
-      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload: payload }}>
-        <torusGeometry args={[selected ? 0.25 : 0.19, selected ? 0.018 : 0.011, 8, 44]} />
-        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.9 : (contrast.lightBackground ? 0.76 : 0.58)} />
-      </mesh>
-      <mesh {...handlers} rotation={[0, Math.PI / 2, 0]} userData={{ hoverPayload: payload }}>
-        <torusGeometry args={[selected ? 0.2 : 0.155, selected ? 0.014 : 0.008, 8, 36]} />
-        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.62 : (contrast.lightBackground ? 0.48 : 0.26)} />
-      </mesh>
-      <mesh {...handlers} userData={{ hoverPayload: payload }}>
-        <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
-        <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.92 : (contrast.lightBackground ? 0.78 : 0.62)} />
-      </mesh>
+      <group ref={markerRef}>
+        <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload: payload }}>
+          <torusGeometry args={[selected ? 0.25 : 0.19, selected ? 0.018 : 0.011, 8, 44]} />
+          <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.9 : (contrast.lightBackground ? 0.76 : 0.58)} />
+        </mesh>
+        <mesh {...handlers} rotation={[0, Math.PI / 2, 0]} userData={{ hoverPayload: payload }}>
+          <torusGeometry args={[selected ? 0.2 : 0.155, selected ? 0.014 : 0.008, 8, 36]} />
+          <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.62 : (contrast.lightBackground ? 0.48 : 0.26)} />
+        </mesh>
+        <mesh {...handlers} userData={{ hoverPayload: payload }}>
+          <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
+          <meshBasicMaterial color={sceneGuideColor(selected ? "#fff4c4" : "#7ddcff", contrast)} transparent opacity={selected ? 0.92 : (contrast.lightBackground ? 0.78 : 0.62)} />
+        </mesh>
+      </group>
+      {physicalMarker ? (
+        <mesh ref={pickRef} {...handlers} userData={{ hoverPayload: payload }}>
+          <sphereGeometry args={[0.34, 14, 10]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
       <SceneLabel
         text={subsystem.display_name || subsystem.name || "Subsystem"}
         position={[0, -0.36, 0]}
         color="#b7f3ff"
         scale={0.72}
         visible={showLabels}
+        maxLength={physicalMarker ? 34 : 24}
+        callout={physicalMarker}
+        calloutSide={calloutSide}
+        calloutVerticalPixels={calloutSide < 0 ? -10 : 10}
+        screenGapPixels={9}
       />
     </group>
   );
@@ -3341,6 +3362,7 @@ function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey
     canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
     canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
+    canvas.dataset.physicalSubsystemMarkerPolicy = "screen-sized-barycenter-marker";
   });
   return null;
 }
@@ -4442,6 +4464,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
             simClockRef={simClockRef}
             running={running}
             speedMultiplier={speedMultiplier}
+            scaleMode={activeScaleMode}
             showLabels={showLabels}
             selectedObjectId={selectedObjectId}
             targetRegistryRef={targetRegistryRef}
@@ -5065,13 +5088,22 @@ function OffscreenIndicators({ indicators = [], onSelect, onFocus }) {
       key={item.focusKey}
       type="button"
       className={`system-preview-edge-indicator${item.unresolved ? " system-preview-scale-beacon" : ""}`}
-      style={{ left: `${item.displayX}px`, top: `${item.displayY}px`, "--indicator-angle": `${-item.angleDeg}deg` }}
+      style={{
+        left: `${item.displayX}px`,
+        top: `${item.displayY}px`,
+        "--indicator-angle": `${item.unresolved ? item.leaderAngleDeg : -item.angleDeg}deg`,
+        "--leader-start-x": `${item.leaderStartX || 0}px`,
+        "--leader-start-y": `${item.leaderStartY || 0}px`,
+        "--leader-length": `${item.leaderLength || 0}px`,
+        "--leader-angle": `${item.leaderAngleDeg || 0}deg`,
+      }}
       onClick={() => onSelect?.(item)}
       onDoubleClick={() => onFocus?.(item.focusKey)}
       title={`${item.label}. ${item.unresolved ? "This region is below the readable scale of the current view. " : ""}Select and recenter; double click to focus.`}
       aria-label={`${item.label}, ${item.unresolved ? "unresolved at this scale" : "offscreen"}. Select and recenter or activate Focus.`}
       data-testid={item.unresolved ? "system-preview-scale-beacon" : "system-preview-offscreen-indicator"}
     >
+      {item.unresolved ? <span className="system-preview-indicator-leader" aria-hidden="true" /> : null}
       <span className="system-preview-edge-arrow" aria-hidden="true" />
       <strong>{item.label}</strong>
       {item.scaleLabel ? <small>{item.scaleLabel}</small> : null}

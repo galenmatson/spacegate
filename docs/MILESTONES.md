@@ -3522,11 +3522,13 @@ Verification:
   The frozen sets are local verification artifacts only and are not deployed;
 - dedicated 3,840x2,160 and 3,440x1,440 Playwright runs pass all-theme physical
   rendering and the complete physical interaction contract.
-- the first post-review correction makes physical body markers explicitly
-  screen sized, moves star and planet labels into translucent side callouts with
-  leaders, repairs the lens open lifecycle so its measured scissored viewport
-  actually renders, and measures the focus toolbar below wrapped simulation
-  actions. Desktop Explorer, mobile, and 4K regression checks pass.
+- the first post-review correction makes physical body and subsystem/barycenter
+  markers explicitly screen sized, moves star and planet labels into translucent
+  side callouts, and offsets unresolved scale beacons with leaders to their exact
+  projected subjects. It also repairs the lens open lifecycle so its measured
+  scissored viewport actually renders and measures the focus toolbar below
+  wrapped simulation actions. Desktop Explorer, mobile, and 4K regression checks
+  pass.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

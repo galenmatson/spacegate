@@ -125,24 +125,65 @@ export function physicalOrbitAxis(orbit) {
   return finitePositive(extent?.semi_major_axis_au?.value);
 }
 
+function stableIndicatorDirection(value, salt = 0) {
+  const text = `${String(value || "indicator")}:${salt}`;
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 2 === 0 ? -1 : 1;
+}
+
 export function layoutBoundedIndicators(indicators, limit = 5) {
   const candidates = (indicators || []).filter((item) => item?.offscreen || item?.unresolved).slice(0, limit);
   const placed = [];
   for (const item of candidates) {
     const width = Math.max(160, Number(item.viewportWidth) || 640);
     const height = Math.max(120, Number(item.viewportHeight) || 360);
-    const baseX = Math.min(width - 72, Math.max(72, Number(item.x) || width / 2));
-    const baseY = Math.min(height - 28, Math.max(28, Number(item.y) || height / 2));
+    const targetX = Math.min(width - 8, Math.max(8, Number(item.x) || width / 2));
+    const targetY = Math.min(height - 8, Math.max(8, Number(item.y) || height / 2));
+    let baseX = Math.min(width - 72, Math.max(72, targetX));
+    let baseY = Math.min(height - 28, Math.max(28, targetY));
+    if (item.unresolved && !item.offscreen) {
+      const preferredDirection = stableIndicatorDirection(item.focusKey, 0);
+      const preferredX = Math.min(width - 82, Math.max(82, targetX + preferredDirection * 118));
+      const alternateX = Math.min(width - 82, Math.max(82, targetX - preferredDirection * 118));
+      baseX = Math.abs(preferredX - targetX) >= Math.abs(alternateX - targetX) ? preferredX : alternateX;
+      baseY = Math.min(height - 30, Math.max(30, targetY + stableIndicatorDirection(item.focusKey, 1) * 22));
+    }
     const offsets = [0, -34, 34, -68, 68, -102, 102];
     const offset = offsets.find((value) => {
       const y = Math.min(height - 28, Math.max(28, baseY + value));
       return placed.every((other) => Math.abs(other.displayX - baseX) >= 136 || Math.abs(other.displayY - y) >= 30);
     });
     if (offset === undefined) continue;
+    const displayY = Math.min(height - 28, Math.max(28, baseY + offset));
+    const targetDeltaX = targetX - baseX;
+    const targetDeltaY = targetY - displayY;
+    const absoluteX = Math.abs(targetDeltaX);
+    const absoluteY = Math.abs(targetDeltaY);
+    const edgeScale = item.unresolved
+      ? Math.min(
+        absoluteX > 0 ? 72 / absoluteX : Number.POSITIVE_INFINITY,
+        absoluteY > 0 ? 20 / absoluteY : Number.POSITIVE_INFINITY,
+        1,
+      )
+      : 0;
+    const leaderStartX = targetDeltaX * edgeScale;
+    const leaderStartY = targetDeltaY * edgeScale;
+    const leaderDeltaX = targetDeltaX - leaderStartX;
+    const leaderDeltaY = targetDeltaY - leaderStartY;
     placed.push({
       ...item,
       displayX: baseX,
-      displayY: Math.min(height - 28, Math.max(28, baseY + offset)),
+      displayY,
+      targetX,
+      targetY,
+      leaderStartX,
+      leaderStartY,
+      leaderLength: Math.max(0, Math.hypot(leaderDeltaX, leaderDeltaY) - 3),
+      leaderAngleDeg: Math.atan2(leaderDeltaY, leaderDeltaX) * 180 / Math.PI,
     });
   }
   return placed;

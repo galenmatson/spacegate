@@ -10721,16 +10721,43 @@ main {
 }
 
 .system-preview-scale-beacon {
+  grid-template-columns: max-content;
   border-style: dashed;
   border-color: color-mix(in srgb, #ffd166 66%, var(--border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #ffd166 12%, transparent), 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
 .system-preview-scale-beacon .system-preview-edge-arrow {
-  width: 8px;
-  height: 8px;
-  border: 1px solid #ffd166;
-  border-radius: 50%;
+  display: none;
+}
+
+.system-preview-scale-beacon strong,
+.system-preview-scale-beacon small {
+  grid-column: 1;
+}
+
+.system-preview-indicator-leader {
+  position: absolute;
+  left: calc(50% + var(--leader-start-x));
+  top: calc(50% + var(--leader-start-y));
+  width: var(--leader-length);
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 72%, var(--ink));
+  transform: rotate(var(--leader-angle));
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+.system-preview-indicator-leader::after {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 5px solid color-mix(in srgb, var(--accent) 72%, var(--ink));
+  content: "";
 }
 
 .system-preview-edge-indicator small {

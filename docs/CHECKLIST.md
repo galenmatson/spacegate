@@ -1060,8 +1060,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Pass dedicated 3,840x2,160 and 3,440x1,440 all-theme rendering and physical
   interaction Playwright gates
 - [x] Complete the M8.3e.3a post-review UI correction: screen-sized physical
-  body markers, translucent side-callout labels, a visibly rendered shared-
-  context Lens, and measured clearance between simulation and focus controls
+  body and barycenter markers, offset scale beacons and translucent callout
+  labels with leaders, a visibly rendered shared-context Lens, and measured
+  clearance between simulation and focus controls
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

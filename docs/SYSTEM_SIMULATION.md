@@ -774,6 +774,10 @@ Success criteria:
   offset callouts with short leaders so a label cannot be mistaken for the
   physical body or conceal its location. The viewport ruler states that marker
   size is symbolic while orbital distance remains linear.
+- Subsystem and barycenter markers follow the same screen-space contract, so
+  close zoom cannot enlarge their central sphere or crossed rings into apparent
+  physical structures. Unresolved scale beacons are displaced from their exact
+  subject positions and use a visible leader and arrowhead back to the subject.
 - The Lens measures its viewport after it opens and records successful shared-
   context render frames for browser verification. Embedded Peek and Explorer
   layouts also measure the simulation action bar and place scale navigation
