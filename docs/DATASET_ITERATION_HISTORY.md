@@ -4905,6 +4905,16 @@ Representative commits:
   eight themes render nonblank Physical mode captures. Machine evidence is
   retained under
   `/data/spacegate/state/reports/system-simulation-physical-scale-v1/`.
+- The complete scene-v16 policy set then materialized 7,719/7,719 scenes with
+  zero failures. A read-only full-cache audit accounts for 9,307 stellar/group
+  orbits, 2,826 planet orbits, 38,335 focus nodes, 4,247 physically usable
+  extents, and 7,886 explicit unavailable extents with zero contract errors.
+  Two independent normalized freezes reproduce the same 90,830,917-byte
+  archive and SHA-256
+  `443b7daeecfba0707f1c8a8177d6e382630c19d144836e14742a89b53a280aa4`.
+  Dedicated 4K and ultrawide all-theme/interaction browser gates pass four of
+  four checks. These are presentation-artifact results and do not alter the
+  immutable scientific build.
 
 ## Recurrent Defect Classes and Mitigations
 

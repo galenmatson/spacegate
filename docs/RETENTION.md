@@ -1750,3 +1750,14 @@ the two clean v12 freeze roots under
 `/space/spacegate/scene-refresh-20260810-v12/`; one duplicate may be proposed
 through a reviewed dry run after branch acceptance and public soak, while the
 canonical archive, reports, release manifest, and immediate rollback remain.
+
+The August 13 M8.3e.3a v16 local verification for build
+`e7_524b4c016779a77bc9780053_full_public` protects the complete runtime cache,
+its materialization report, full-cache physical contract audit, and both clean
+freeze roots under `/space/spacegate/system-simulation-physical-scale-v1/`
+through branch review. The two 90,830,917-byte archives have identical SHA-256
+`443b7daeecfba0707f1c8a8177d6e382630c19d144836e14742a89b53a280aa4`.
+After branch acceptance one duplicate freeze may be proposed through an
+enumerated retention dry run. Preserve at least one verified archive, its
+manifest, the cache report, and the machine audits; no v16 artifact is served
+publicly by this milestone.

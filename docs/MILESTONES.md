@@ -3513,8 +3513,15 @@ Verification:
 - all eight themes have nonblank Physical mode screenshots, and mobile verifies
   that the ruler, focus navigation, and lens remain within the viewport;
 - the complete policy-selected v16 scene cache is rebuilt through the resumable
-  admin materializer before branch closeout. Frozen deployment packaging remains
-  a later release action because this milestone does not deploy publicly.
+  admin materializer: 7,719 scenes, 7,064 regenerated, 655 verified and reused,
+  zero failures, and 90,532,043 compressed bytes. A full-cache contract audit
+  accounts for 9,307 stellar/group orbits, 2,826 planet orbits, and 38,335 focus
+  nodes with zero errors;
+- two independent normalized freezes produce the same 90,830,917-byte archive
+  and SHA-256 `443b7daeecfba0707f1c8a8177d6e382630c19d144836e14742a89b53a280aa4`.
+  The frozen sets are local verification artifacts only and are not deployed;
+- dedicated 3,840x2,160 and 3,440x1,440 Playwright runs pass all-theme physical
+  rendering and the complete physical interaction contract.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

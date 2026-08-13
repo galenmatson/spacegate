@@ -83,6 +83,8 @@ context and mounts its manual second viewport only while open.
   containment without taking right-drag panning.
 - Physical scale beacons are bounded and collision managed.
 - All eight themes render nonblank Physical mode screenshots.
+- Dedicated 3,840x2,160 and 3,440x1,440 runs pass all-theme rendering and the
+  complete physical interaction contract, four checks in total.
 - Mobile renders the ruler, navigation, and lens within the viewport with one
   WebGL canvas.
 - Focus changes preserve selection, simulation time, and presentation settings.
@@ -98,6 +100,7 @@ Key files:
 - `baseline/scale-contract.json`
 - `after/scale-contract-v16-final.json`
 - `after/determinism-v16-final.json`
+- `after/full-cache-audit-v16.json`
 - `orb6-unit-normalization.json`
 - `browser/before-master-structure.json`
 - `browser/after-v16-structure.json`
@@ -105,7 +108,17 @@ Key files:
 - `browser/performance-comparison-v16.json`
 - `screenshots/alpha-centauri-physical-beacons-desktop.png`
 - `../map_playwright/system-physical-scale-v16-final/`
+- `../map_playwright/system-physical-scale-v16-4k-ultrawide/`
 
-The scene runtime cache is regenerable. The complete v16 policy set is warmed
-with the resumable admin materializer before branch closeout. A frozen public
-deployment artifact is intentionally deferred to a later reviewed release.
+The resumable admin materializer completed the v16 policy set with 7,719 scenes,
+7,064 regenerated entries, 655 verified reusable entries, zero failures, and
+90,532,043 compressed scene bytes. The full-cache audit records 9,307
+stellar/group orbits, 2,826 planet orbits, 38,335 focus nodes, and zero contract
+errors. Of 12,133 orbital relationships, 4,247 have a usable physical extent
+and 7,886 remain explicitly unavailable.
+
+Two independent freeze roots on `/space` produced identical 90,830,917-byte
+archives and normalized manifests. Their archive SHA-256 is
+`443b7daeecfba0707f1c8a8177d6e382630c19d144836e14742a89b53a280aa4`.
+These are local verification and later release inputs; this milestone does not
+deploy them.

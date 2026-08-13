@@ -1054,6 +1054,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Pass six-system contract/determinism checks plus desktop, 4K, mobile, all-
   theme, canvas, accessibility, selection, camera, and shared-context lens
   performance gates for M8.3e.3a
+- [x] Rebuild all 7,719 policy-selected scene-v16 artifacts with zero failures,
+  audit every stellar/group and planet orbit physical extent, and reproduce the
+  normalized frozen archive hash across two independent output roots
+- [x] Pass dedicated 3,840x2,160 and 3,440x1,440 all-theme rendering and physical
+  interaction Playwright gates
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

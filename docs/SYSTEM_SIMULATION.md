@@ -816,6 +816,15 @@ Success criteria:
   Antiproton installed this build-matched scene closure atomically and now
   serves policy-selected scenes as `prebuilt` without visitor-triggered
   regeneration.
+- The August 13 M8.3e.3a local artifact-v16 verification generated or verified
+  all 7,719 policy-selected scenes for build
+  `e7_524b4c016779a77bc9780053_full_public` with zero failures. The selected
+  compressed payloads occupy 90,532,043 bytes. A full-cache physical contract
+  audit checks every scene, 9,307 stellar/group orbits, 2,826 planet orbits,
+  and 38,335 focus nodes with zero errors. Independent freeze roots reproduce
+  the same 90,830,917-byte archive with SHA-256
+  `443b7daeecfba0707f1c8a8177d6e382630c19d144836e14742a89b53a280aa4`.
+  These artifacts remain local and are not the active public scene closure.
 - Prebuilt scene artifacts are renderer-contract artifacts, not canonical
   source data. The API may bypass stale artifacts when they lack current
   required diagnostics such as `membership_reconciliation`, falling back to
