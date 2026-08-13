@@ -3529,6 +3529,11 @@ Verification:
   scissored viewport actually renders and measures the focus toolbar below
   wrapped simulation actions. Desktop Explorer, mobile, and 4K regression checks
   pass.
+- complex focus graphs now expose the nearest meaningful branches through any
+  single-child wrapper, so root Prev/Next controls do useful work in systems
+  such as Castor. Physical extent-unavailable orbit markers follow the same
+  screen-space policy as bodies and barycenters instead of expanding into large
+  octahedrons during close zoom.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

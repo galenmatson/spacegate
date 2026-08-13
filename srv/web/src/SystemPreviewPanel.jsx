@@ -19,6 +19,7 @@ import {
 import {
   PHYSICAL_SCALE_MODE,
   focusBreadcrumb,
+  focusNavigationNeighbors,
   focusGraphNodes,
   focusKeyForPayload,
   focusNode,
@@ -2751,6 +2752,7 @@ function treeOrbitSpec(node, nodesByKey, orbitsByKey, starsByKey, visualScale, s
     eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
     inclinationRad: THREE.MathUtils.degToRad(numericField(orbit.fields, "inclination_deg") || 0),
     orbitRadius: scaledBinaryOrbitRadius(orbit, visualScale, scaleMode, fallbackRadius),
+    scaleMode: normalizeScaleMode(scaleMode),
   };
 }
 
@@ -2872,6 +2874,10 @@ function simulationTreeBodyPositionAt(treeContext, bodyKey, simDays) {
 
 function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjectId = "", onHover, onSelect, onFocus }) {
   const contrast = React.useContext(SceneContrastContext);
+  const unavailableMarkerRef = React.useRef(null);
+  const unavailablePhysicalMarker = spec.orbitRadius <= 0 && spec.scaleMode === PHYSICAL_SCALE_MODE;
+  const unavailableCalloutSide = hashUnit(spec.orbit.orbit_key || spec.orbit.display_name, "physical-label-side") < 0.5 ? -1 : 1;
+  useScreenSpaceMeshScale(unavailableMarkerRef, unavailablePhysicalMarker, 0.1, 5.5);
   const relativePathPoints = useMemo(
     () => sampledOrbitPoints(spec.orbitRadius, spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind === "group_pair" ? 224 : 192),
     [spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind, spec.orbitRadius],
@@ -2926,11 +2932,21 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
     <group ref={(element) => groupRefSetter(spec.nodeKey, element)} data-testid={spec.orbit.endpoint_kind === "group_pair" ? "system-preview-group-orbit-guide" : "system-preview-binary-orbit"}>
       {spec.orbitRadius <= 0 && (
         <group {...handlers} userData={{ hoverPayload: orbitPayload }} data-testid="system-preview-physical-orbit-unavailable">
-          <mesh>
+          <mesh ref={unavailableMarkerRef}>
             <octahedronGeometry args={[0.1, 0]} />
             <meshBasicMaterial color={sceneGuideColor("#ffd16a", contrast)} transparent opacity={0.84} depthTest={false} />
           </mesh>
-          <SceneLabel text={`${spec.orbit.display_name || "Orbit"} - scale unavailable`} position={[0, -0.24, 0]} color="#ffd16a" scale={0.72} />
+          <SceneLabel
+            text={`${spec.orbit.display_name || "Orbit"} - scale unavailable`}
+            position={[0, -0.24, 0]}
+            color="#ffd16a"
+            scale={0.72}
+            maxLength={34}
+            callout={unavailablePhysicalMarker}
+            calloutSide={unavailableCalloutSide}
+            calloutVerticalPixels={unavailableCalloutSide < 0 ? -10 : 10}
+            screenGapPixels={9}
+          />
         </group>
       )}
       {showOrbits && spec.orbitRadius > 0 && (
@@ -3363,6 +3379,7 @@ function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
     canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
     canvas.dataset.physicalSubsystemMarkerPolicy = "screen-sized-barycenter-marker";
+    canvas.dataset.physicalUnavailableMarkerPolicy = "screen-sized-diamond-callout";
   });
   return null;
 }
@@ -5053,10 +5070,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
   const active = nodes[focusKey] || nodes[focusGraph?.root_focus_key];
   if (!active) return null;
   const breadcrumbs = focusBreadcrumb(focusGraph, focusKey);
-  const siblings = siblingFocusKeys(focusGraph, focusKey);
-  const siblingIndex = siblings.indexOf(focusKey);
-  const previous = siblingIndex > 0 ? siblings[siblingIndex - 1] : null;
-  const next = siblingIndex >= 0 && siblingIndex < siblings.length - 1 ? siblings[siblingIndex + 1] : null;
+  const { previous, next, mode: navigationMode } = focusNavigationNeighbors(focusGraph, focusKey);
   return (
     <nav
       className="system-preview-focus-nav"
@@ -5067,7 +5081,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
       <button type="button" onClick={() => onFocusKey(focusGraph.root_focus_key)} title="Fit the complete system">Fit System</button>
       <button type="button" onClick={onBack} disabled={!canBack} title="Return to the previous scale view">Back</button>
       <button type="button" onClick={() => active.parent_focus_key && onFocusKey(active.parent_focus_key)} disabled={!active.parent_focus_key} title="Move outward one scale level">Parent</button>
-      <button type="button" onClick={() => previous && onFocusKey(previous)} disabled={!previous} aria-label="Previous subsystem">Prev</button>
+      <button type="button" onClick={() => previous && onFocusKey(previous)} disabled={!previous} aria-label="Previous focus region" title={navigationMode === "nearest-branches" ? "Open the last nearby branch" : "Open the previous sibling region"}>Prev</button>
       <div className="system-preview-focus-breadcrumb">
         {breadcrumbs.map((item, index) => (
           <React.Fragment key={item.key}>
@@ -5076,7 +5090,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
           </React.Fragment>
         ))}
       </div>
-      <button type="button" onClick={() => next && onFocusKey(next)} disabled={!next} aria-label="Next subsystem">Next</button>
+      <button type="button" onClick={() => next && onFocusKey(next)} disabled={!next} aria-label="Next focus region" title={navigationMode === "nearest-branches" ? "Open the first nearby branch" : "Open the next sibling region"}>Next</button>
     </nav>
   );
 }

@@ -59,6 +59,33 @@ export function siblingFocusKeys(focusGraph, focusKey) {
   return parent?.child_focus_keys || [];
 }
 
+export function focusNavigationNeighbors(focusGraph, focusKey) {
+  const nodes = focusGraphNodes(focusGraph);
+  const activeKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
+  const active = nodes[activeKey];
+  if (!active) return { previous: null, next: null, mode: "unavailable" };
+  const siblings = siblingFocusKeys(focusGraph, activeKey);
+  if (siblings.length > 1) {
+    const index = siblings.indexOf(activeKey);
+    return {
+      previous: index > 0 ? siblings[index - 1] : null,
+      next: index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null,
+      mode: "siblings",
+    };
+  }
+  const visited = new Set();
+  let branch = active;
+  while (branch && !visited.has(branch.focus_key || activeKey)) {
+    visited.add(branch.focus_key || activeKey);
+    const children = (branch.child_focus_keys || []).filter((key) => nodes[key]);
+    if (children.length > 1) {
+      return { previous: children[children.length - 1], next: children[0], mode: "nearest-branches" };
+    }
+    branch = children.length === 1 ? nodes[children[0]] : null;
+  }
+  return { previous: null, next: null, mode: "unavailable" };
+}
+
 export function niceScaleLength(value) {
   const positive = finitePositive(value);
   if (!positive) return null;

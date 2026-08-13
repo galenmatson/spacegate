@@ -778,6 +778,10 @@ Success criteria:
   close zoom cannot enlarge their central sphere or crossed rings into apparent
   physical structures. Unresolved scale beacons are displaced from their exact
   subject positions and use a visible leader and arrowhead back to the subject.
+- Physical extent-unavailable orbit markers also remain small screen-space
+  diamonds with offset callouts. Prev and Next use direct siblings when they
+  exist; at a root or other single-child wrapper they expose the nearest
+  meaningful branch choices rather than appearing permanently disabled.
 - The Lens measures its viewport after it opens and records successful shared-
   context render frames for browser verification. Embedded Peek and Explorer
   layouts also measure the simulation action bar and place scale navigation

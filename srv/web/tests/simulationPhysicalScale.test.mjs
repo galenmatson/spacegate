@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   focusBreadcrumb,
+  focusNavigationNeighbors,
   focusKeyForPayload,
   formatAuDistance,
   formatLightTravelTime,
@@ -29,6 +30,29 @@ test("physical focus uses one linear AU transform", () => {
 test("focus lookup and breadcrumb retain hierarchy", () => {
   assert.equal(focusKeyForPayload(graph, { id: "star:a" }), "focus:star");
   assert.deepEqual(focusBreadcrumb(graph, "focus:star").map((item) => item.label), ["System", "A"]);
+});
+
+test("focus navigation exposes meaningful branches through single-child wrappers", () => {
+  const nested = {
+    schema_version: "simulation_focus_graph_v1",
+    root_focus_key: "root",
+    nodes: {
+      root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["wrapper"] },
+      wrapper: { focus_key: "wrapper", parent_focus_key: "root", child_focus_keys: ["a", "b"] },
+      a: { focus_key: "a", parent_focus_key: "wrapper", child_focus_keys: [] },
+      b: { focus_key: "b", parent_focus_key: "wrapper", child_focus_keys: [] },
+    },
+  };
+  assert.deepEqual(focusNavigationNeighbors(nested, "root"), {
+    previous: "b",
+    next: "a",
+    mode: "nearest-branches",
+  });
+  assert.deepEqual(focusNavigationNeighbors(nested, "a"), {
+    previous: null,
+    next: "b",
+    mode: "siblings",
+  });
 });
 
 test("scale labels use AU, standard metre prefixes, and light time", () => {

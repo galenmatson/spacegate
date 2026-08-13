@@ -4932,6 +4932,12 @@ Representative commits:
   records resolved target and viewport diagnostics. Explorer derives focus
   navigation clearance from the action bar's measured bounds, including wrapped
   controls. Desktop Explorer, mobile, and 4K Playwright checks pass on Photon.
+- Castor then exposed two remaining general cases. Physical extent-unavailable
+  orbit octahedrons still used world units, and the root focus contained a
+  single wrapper before its meaningful AB and C branches. Unavailable markers
+  now use small screen-space diamonds and offset callouts. Prev and Next retain
+  ordinary sibling behavior but look through single-child wrappers to the
+  nearest branching focus regions, with deterministic unit and browser checks.
 
 ## Recurrent Defect Classes and Mitigations
 

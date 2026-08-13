@@ -2692,6 +2692,50 @@ test.describe("public 3D map beta", () => {
     await page.screenshot({ path: testInfo.outputPath("alpha-centauri-physical-close-zoom.png"), fullPage: false });
   });
 
+  test("Castor physical navigation crosses wrapper branches without enlarged unavailable markers", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop complex-system physical navigation check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Castor", limit: "1", sort: "match" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Castor system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    const canvas = page.locator(".system-preview-canvas canvas");
+    await expect(canvas).toBeVisible();
+    await page.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    const navigation = page.locator("[data-testid='system-preview-focus-nav']");
+    const previous = navigation.getByRole("button", { name: "Previous focus region" });
+    const next = navigation.getByRole("button", { name: "Next focus region" });
+    await expect(previous).toBeEnabled();
+    await expect(next).toBeEnabled();
+    const rootFocus = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
+    await next.click();
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).not.toBe(rootFocus);
+    await expect(next).toBeEnabled();
+    const beforeSecondNext = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
+    await next.click();
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).not.toBe(beforeSecondNext);
+    await previous.click();
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).toBe(beforeSecondNext);
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalUnavailableMarkerPolicy || ""),
+      { timeout: 3000 },
+    ).toBe("screen-sized-diamond-callout");
+    await page.screenshot({ path: testInfo.outputPath("castor-physical-wrapper-navigation.png"), fullPage: false });
+  });
+
   test("mobile system detail keeps live preview usable", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only simulator layout check");
     const response = await page.request.get("/api/v1/systems/search", {

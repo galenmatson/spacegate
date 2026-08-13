@@ -1063,6 +1063,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   body and barycenter markers, offset scale beacons and translucent callout
   labels with leaders, a visibly rendered shared-context Lens, and measured
   clearance between simulation and focus controls
+- [x] Make Prev/Next traverse meaningful branches through single-child focus
+  wrappers and constrain physical extent-unavailable orbit diamonds and their
+  callouts to screen space in complex systems
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`
