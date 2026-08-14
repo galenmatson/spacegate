@@ -3396,7 +3396,7 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0 }) {
+function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0 }) {
   const { gl } = useThree();
   const lastSampleRef = React.useRef(0);
   useFrame(({ clock }) => {
@@ -3404,7 +3404,7 @@ function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey
     lastSampleRef.current = clock.elapsedTime;
     const canvas = gl.domElement;
     canvas.dataset.webglContextCount = "1";
-    canvas.dataset.lensUsesSharedContext = lensOpen ? "true" : "false";
+    canvas.dataset.lensUsesSharedContext = "false";
     canvas.dataset.rendererGeometries = String(gl.info.memory.geometries || 0);
     canvas.dataset.rendererTextures = String(gl.info.memory.textures || 0);
     canvas.dataset.rendererPrograms = String(gl.info.programs?.length || 0);
@@ -3442,6 +3442,7 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
       target.y.toFixed(3),
       target.z.toFixed(3),
     ].join(",");
+    gl.domElement.dataset.cameraTargetDistance = camera.position.distanceTo(target).toFixed(5);
     gl.domElement.dataset.cameraTargetObjectId = lastTargetObjectIdRef.current || "";
   }, [camera, gl]);
 
@@ -3474,13 +3475,22 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
     if (!controlsRef.current) {
       return;
     }
-    const closeZoomModes = new Set(["true_orbits", "true_bodies", "log", PHYSICAL_SCALE_MODE]);
-    controlsRef.current.minDistance = closeZoomModes.has(activeScaleMode) ? 0.18 : 2.2;
+    const closeZoomModes = new Set(["true_orbits", "true_bodies", "log"]);
+    controlsRef.current.minDistance = activeScaleMode === PHYSICAL_SCALE_MODE
+      ? 0.008
+      : (closeZoomModes.has(activeScaleMode) ? 0.18 : 2.2);
     controlsRef.current.maxDistance = ["true_orbits", PHYSICAL_SCALE_MODE].includes(activeScaleMode) ? 240 : 70;
-    controlsRef.current.zoomSpeed = ["true_orbits", PHYSICAL_SCALE_MODE].includes(activeScaleMode) ? 0.9 : 0.72;
+    controlsRef.current.zoomSpeed = activeScaleMode === PHYSICAL_SCALE_MODE
+      ? 1.15
+      : (activeScaleMode === "true_orbits" ? 0.9 : 0.72);
+    camera.near = activeScaleMode === PHYSICAL_SCALE_MODE ? 0.001 : 0.1;
+    camera.updateProjectionMatrix();
+    gl.domElement.dataset.cameraMinDistance = controlsRef.current.minDistance.toFixed(3);
+    gl.domElement.dataset.cameraNearPlane = camera.near.toFixed(3);
     controlsRef.current.update();
+    writeCameraState();
     invalidate();
-  }, [activeScaleMode, invalidate]);
+  }, [activeScaleMode, camera, gl, invalidate, writeCameraState]);
 
   useEffect(() => {
     if (!controlsRef.current) {
@@ -3631,74 +3641,6 @@ function NavigationTargetReporter({ targets = [], targetRegistryRef = null, scen
       onChange(projected);
     }
   });
-  return null;
-}
-
-function ScaleLensRenderer({ enabled = false, targetId = "", targetRegistryRef = null, spanScene = 2.6, rect = null }) {
-  const { gl, scene, camera, size } = useThree();
-  const lensCamera = useMemo(() => new THREE.PerspectiveCamera(camera.fov, 1, 0.001, 1000), [camera.fov]);
-  const previousViewport = useMemo(() => new THREE.Vector4(), []);
-  const previousScissor = useMemo(() => new THREE.Vector4(), []);
-  const previousClearColor = useMemo(() => new THREE.Color(), []);
-  const lensClearColor = useMemo(() => new THREE.Color("#030810"), []);
-  const fallbackCenter = useMemo(() => new THREE.Vector3(), []);
-  const lensDirection = useMemo(() => new THREE.Vector3(), []);
-  const lensRenderCountRef = React.useRef(0);
-  useFrame(() => {
-    const canvas = gl.domElement;
-    const previousScissorTest = gl.getScissorTest();
-    const previousAutoClear = gl.autoClear;
-    const previousClearAlpha = gl.getClearAlpha();
-    gl.getViewport(previousViewport);
-    gl.getScissor(previousScissor);
-    gl.getClearColor(previousClearColor);
-    gl.autoClear = true;
-    gl.setScissorTest(false);
-    gl.setViewport(0, 0, canvas.width, canvas.height);
-    gl.render(scene, camera);
-    if (!enabled || !rect) {
-      gl.autoClear = previousAutoClear;
-      return;
-    }
-    const pixelRatio = gl.getPixelRatio();
-    const cssWidth = clampNumber(Number(rect.width) || 0, 1, size.width);
-    const cssHeight = clampNumber(Number(rect.height) || 0, 1, size.height);
-    const cssX = clampNumber(Number(rect.x) || 0, 0, Math.max(0, size.width - cssWidth));
-    const cssY = clampNumber(Number(rect.y) || 0, 0, Math.max(0, size.height - cssHeight));
-    const width = Math.max(1, Math.round(cssWidth * pixelRatio));
-    const height = Math.max(1, Math.round(cssHeight * pixelRatio));
-    const x = Math.round(cssX * pixelRatio);
-    const y = Math.round((size.height - cssY - cssHeight) * pixelRatio);
-    const target = targetId ? targetRegistryRef?.current?.get(targetId) : null;
-    const center = target || fallbackCenter;
-    lensDirection.copy(camera.position).sub(center);
-    if (lensDirection.lengthSq() < 0.0001) lensDirection.set(0.25, 0.6, 1);
-    lensDirection.normalize();
-    lensCamera.aspect = width / height;
-    const halfSpan = Math.max(0.01, Number(spanScene) || 2.6);
-    const cameraDistance = Math.max(0.025, (halfSpan / Math.tan(THREE.MathUtils.degToRad(lensCamera.fov) / 2)) * 1.08);
-    lensCamera.near = Math.max(0.000001, cameraDistance / 100000);
-    lensCamera.far = Math.max(1000, cameraDistance + halfSpan * 40);
-    lensCamera.position.copy(center).add(lensDirection.multiplyScalar(cameraDistance));
-    lensCamera.up.copy(camera.up);
-    lensCamera.lookAt(center);
-    lensCamera.updateProjectionMatrix();
-    gl.setViewport(x, y, width, height);
-    gl.setScissor(x, y, width, height);
-    gl.setScissorTest(true);
-    gl.setClearColor(lensClearColor, 1);
-    gl.clear(true, true, true);
-    gl.render(scene, lensCamera);
-    lensRenderCountRef.current += 1;
-    canvas.dataset.lensRenderCount = String(lensRenderCountRef.current);
-    canvas.dataset.lensTargetResolved = target ? "true" : "false";
-    canvas.dataset.lensViewport = `${x},${y},${width},${height}`;
-    gl.setClearColor(previousClearColor, previousClearAlpha);
-    gl.setViewport(previousViewport);
-    gl.setScissor(previousScissor);
-    gl.setScissorTest(previousScissorTest);
-    gl.autoClear = previousAutoClear;
-  }, 100);
   return null;
 }
 
@@ -4667,7 +4609,7 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
   return null;
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", focusKey = "", focusRequest = null, navigationTargets = [], lensState = null, lensRect = null, transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, theme = "simple_dark", onHover, onSelect, onFocus, onPointerMissed, onClockSample, onContextLost, onScaleReport, onNavigationTargetsChange }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", focusKey = "", focusRequest = null, navigationTargets = [], transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, theme = "simple_dark", onHover, onSelect, onFocus, onPointerMissed, onClockSample, onContextLost, onScaleReport, onNavigationTargetsChange }) {
   const targetRegistryRef = React.useRef(new Map());
   const contrast = sceneContrastForTheme(theme);
   const baseVisualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
@@ -4814,7 +4756,6 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         {!transparentBackground && <color attach="background" args={[contrast.background]} />}
         <WebGLContextGuard onContextLost={onContextLost} />
         <RendererResourceMetrics
-          lensOpen={Boolean(lensState?.open)}
           focusGraph={focusGraph}
           focusKey={focusKey}
           sceneUnitsPerAU={physicalUnitsPerAu}
@@ -4831,15 +4772,6 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           onChange={onScaleReport}
         />
         <NavigationTargetReporter targets={navigationTargets} targetRegistryRef={targetRegistryRef} sceneUnitsPerAU={physicalUnitsPerAu} onChange={onNavigationTargetsChange} />
-        {lensState?.open ? (
-          <ScaleLensRenderer
-            enabled
-            targetId={lensState?.targetId || ""}
-            targetRegistryRef={targetRegistryRef}
-            spanScene={lensState?.spanScene || 2.6}
-            rect={lensRect}
-          />
-        ) : null}
         <CanvasHoverRaycaster onHover={onHover} />
         <SceneLabelTypographyContext.Provider value={labelTypography}>
           <PreviewObjects
@@ -4898,7 +4830,7 @@ function HoverReadout({ object, compact = false }) {
   );
 }
 
-function PinnedReadout({ object, onClose, onFocus = null, onLens = null, position = null, onPositionChange = null }) {
+function PinnedReadout({ object, onClose, onFocus = null, position = null, onPositionChange = null }) {
   const panelRef = React.useRef(null);
   const dragRef = React.useRef(null);
   if (!object) {
@@ -4966,7 +4898,6 @@ function PinnedReadout({ object, onClose, onFocus = null, onLens = null, positio
         </div>
         <div className="system-preview-pinned-actions">
           <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onFocus?.(object)}>Focus</button>
-          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onLens?.(object)}>Lens</button>
           <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close pinned simulator readout">x</button>
         </div>
       </div>
@@ -5216,72 +5147,6 @@ function OffscreenIndicators({ indicators = [], onSelect, onFocus }) {
   ));
 }
 
-function ScaleLensOverlay({ lens, onClose, onOpenMain, onReset, onPin, onZoom, onRectChange }) {
-  const ref = React.useRef(null);
-  const dragRef = React.useRef(null);
-  const position = lens?.position || { x: 16, y: 66 };
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || typeof ResizeObserver === "undefined") return undefined;
-    const report = () => onRectChange?.({ x: node.offsetLeft, y: node.offsetTop, width: node.offsetWidth, height: node.offsetHeight });
-    report();
-    const observer = new ResizeObserver(report);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [lens?.open, onRectChange, position.x, position.y]);
-  useEffect(() => {
-    if (!lens?.open) return undefined;
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose?.();
-    };
-    const handlePointerDown = (event) => {
-      if (lens.pinned || ref.current?.contains(event.target) || event.target?.closest?.("[data-lens-control='true']")) return;
-      onClose?.();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-    };
-  }, [lens?.open, lens?.pinned, onClose]);
-  if (!lens?.open) return null;
-  const startDrag = (event) => {
-    if (event.button !== 0) return;
-    const node = ref.current;
-    const parent = node?.parentElement;
-    if (!node || !parent) return;
-    const parentRect = parent.getBoundingClientRect();
-    dragRef.current = { pointerId: event.pointerId, parentRect, offsetX: event.clientX - node.getBoundingClientRect().left, offsetY: event.clientY - node.getBoundingClientRect().top };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-  };
-  const moveDrag = (event) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    lens.onPositionChange?.({
-      x: Math.round(clampNumber(event.clientX - drag.parentRect.left - drag.offsetX, 6, drag.parentRect.width - 286)),
-      y: Math.round(clampNumber(event.clientY - drag.parentRect.top - drag.offsetY, 48, drag.parentRect.height - 206)),
-    });
-  };
-  const endDrag = () => { dragRef.current = null; };
-  return (
-    <section ref={ref} className="system-preview-scale-lens" data-testid="system-preview-scale-lens" style={{ left: `${position.x}px`, top: `${position.y}px` }}>
-      <header onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
-        <strong>{lens.label || "Scale lens"}</strong>
-        <span>{physicalScaleReadout(lens.spanAu)?.primary || "Local view"}</span>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onZoom(-1)} aria-label="Zoom lens out">-</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onZoom(1)} aria-label="Zoom lens in">+</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onReset}>Focus</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onPin} aria-pressed={Boolean(lens.pinned)}>{lens.pinned ? "Pinned" : "Pin"}</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onOpenMain}>Open</button>
-        <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close scale lens">x</button>
-      </header>
-      <div className="system-preview-scale-lens-viewport" aria-hidden="true" />
-    </section>
-  );
-}
-
 export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onPlanetCategoryEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full", subjectTags = [], persistPresentationState = false }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
@@ -5351,8 +5216,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [focusRequest, setFocusRequest] = useState(null);
   const [scaleReport, setScaleReport] = useState(null);
   const [navigationProjection, setNavigationProjection] = useState([]);
-  const [lensState, setLensState] = useState({ open: false, focusKey: "", zoomLevel: 0, position: { x: 16, y: 66 } });
-  const [lensRect, setLensRect] = useState(null);
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [pinnedReadoutPosition, setPinnedReadoutPosition] = useState(null);
@@ -5496,8 +5359,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setFocusRequest(null);
     setScaleReport(null);
     setNavigationProjection([]);
-    setLensState({ open: false, focusKey: "", zoomLevel: 0, position: { x: 16, y: 66 } });
-    setLensRect(null);
     setSimulationDays(0);
     window.clearTimeout(hoverDelayRef.current);
     hoverDelayRef.current = null;
@@ -5537,6 +5398,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const visualScale = renderScene.visual_scale || {};
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
+  const peekPresentation = normalizedPresentationMode === "peek";
   const embeddedPresentation = normalizedPresentationMode !== "detail";
   const cardPresentation = normalizedPresentationMode === "card";
   const interactiveReadouts = !cardPresentation;
@@ -5545,7 +5407,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   useEffect(() => {
     const canvasFrame = canvasFrameRef.current;
     const floatingActions = floatingActionsRef.current;
-    if (!canvasFrame || !floatingActions || !embeddedPresentation) {
+    if (!canvasFrame || !floatingActions || !embeddedPresentation || peekPresentation) {
       setFocusNavigationTop(null);
       return undefined;
     }
@@ -5568,7 +5430,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [embeddedPresentation, normalizedPresentationMode, status]);
+  }, [embeddedPresentation, normalizedPresentationMode, peekPresentation, status]);
   const evidenceFields = collectEvidenceFields(scene);
   const planetReadiness = scene?.simulation_readiness?.planets || [];
   const assumedOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "assumed").length;
@@ -5630,13 +5492,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     const nextKey = focusKeyForObject(payload);
     if (nextKey) issueFocusRequest(nextKey);
   }, [focusKeyForObject, issueFocusRequest]);
-  const openLensForObject = useCallback((payload = null) => {
-    const nextKey = (payload && focusKeyForObject(payload)) || activeFocusKey;
-    const node = focusNodes[nextKey];
-    if (!node) return;
-    if (activeScaleMode !== PHYSICAL_SCALE_MODE) setScaleMode(PHYSICAL_SCALE_MODE);
-    setLensState((current) => ({ ...current, open: true, pinned: false, focusKey: nextKey, zoomLevel: 0 }));
-  }, [activeFocusKey, activeScaleMode, focusKeyForObject, focusNodes]);
   const navigationTargets = useMemo(() => {
     if (!activeFocus || !focusGraph) return [];
     const immediate = new Set([
@@ -5667,20 +5522,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       .sort((left, right) => left.priority - right.priority || left.label.localeCompare(right.label))
       .slice(0, compactPresentation ? 5 : 9);
   }, [activeFocus, activeFocusKey, compactPresentation, focusGraph, focusNodes]);
-  const lensFocus = focusNodes[lensState.focusKey] || activeFocus;
-  const lensSpanAu = physicalScaleResolution(focusGraph, lensFocus?.focus_key || activeFocusKey).radiusAu;
-  const activeUnitsPerAu = activeScaleMode === PHYSICAL_SCALE_MODE ? sceneUnitsPerAu(focusGraph, activeFocusKey) : null;
-  const lensZoomFactor = 2 ** Number(lensState.zoomLevel || 0);
-  const lensSpanScene = lensSpanAu && activeUnitsPerAu ? (lensSpanAu * activeUnitsPerAu) / lensZoomFactor : 2.6;
-  const resolvedLensState = {
-    ...lensState,
-    label: lensFocus?.display_name || "Scale lens",
-    targetId: String(lensFocus?.object_key || lensFocus?.orbit_key || ""),
-    spanAu: lensSpanAu ? lensSpanAu / lensZoomFactor : null,
-    spanScene: lensSpanScene,
-    onPositionChange: (position) => setLensState((current) => ({ ...current, position })),
-  };
-
   useEffect(() => {
     if (!focusGraph?.root_focus_key || focusKey) return;
     setFocusKey(focusGraph.root_focus_key);
@@ -5860,48 +5701,41 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           })}
         </div>
       </details>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => setShowLabels((value) => !value)}
-        aria-pressed={showLabels}
-        disabled={status !== "ready" || webglReady === false}
-      >
-        {showLabels ? "Labels On" : "Labels Off"}
-      </button>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => focusObject(pinnedObject)}
-        disabled={status !== "ready" || webglReady === false || !pinnedObject}
-        title="Animate the camera and scale view to the selected object or orbit"
-      >
-        Focus Selection
-      </button>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => openLensForObject(pinnedObject)}
-        aria-pressed={lensState.open}
-        disabled={status !== "ready" || webglReady === false || !activeFocus}
-        title="Open a movable physical scale lens for the selected object or current focus"
-        data-lens-control="true"
-      >
-        Lens
-      </button>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => {
-          setSimulationDays(0);
-          setShowHabitableZones(true);
-          setShowFormationLines(defaultFormationLineVisibility());
-          setResetToken((value) => value + 1);
-        }}
-        disabled={status !== "ready" || webglReady === false}
-      >
-        Reset
-      </button>
+      {!peekPresentation ? (
+        <>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => setShowLabels((value) => !value)}
+            aria-pressed={showLabels}
+            disabled={status !== "ready" || webglReady === false}
+          >
+            {showLabels ? "Labels On" : "Labels Off"}
+          </button>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => focusObject(pinnedObject)}
+            disabled={status !== "ready" || webglReady === false || !pinnedObject}
+            title="Animate the camera and scale view to the selected object or orbit"
+          >
+            Focus Selection
+          </button>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => {
+              setSimulationDays(0);
+              setShowHabitableZones(true);
+              setShowFormationLines(defaultFormationLineVisibility());
+              setResetToken((value) => value + 1);
+            }}
+            disabled={status !== "ready" || webglReady === false}
+          >
+            Reset
+          </button>
+        </>
+      ) : null}
     </div>
   );
 
@@ -5915,6 +5749,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       data-simulation-running={effectiveRunning ? "true" : "false"}
       data-scene-label-font={labelTypography.primary}
       data-scene-contrast={sceneContrastForTheme(activeTheme).id}
+      style={focusNavigationTop != null ? { "--system-preview-focus-nav-top": `${focusNavigationTop}px` } : undefined}
     >
       {!embeddedPresentation && (
         <div className="system-preview-header">
@@ -5945,8 +5780,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 focusKey={activeFocusKey}
                 focusRequest={focusRequest}
                 navigationTargets={navigationTargets}
-                lensState={resolvedLensState}
-                lensRect={lensRect}
                 transparentBackground={normalizedPresentationMode !== "detail"}
                 frameLoop={effectiveFrameLoop}
                 preserveDrawingBuffer={captureFrame || !cardPresentation}
@@ -5976,33 +5809,28 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           ) : null}
           {interactiveReadouts && status === "ready" && scene ? (
             <>
-              <FocusNavigationOverlay
-                focusGraph={focusGraph}
-                focusKey={activeFocusKey}
-                onFocusKey={issueFocusRequest}
-                onBack={returnToPreviousFocus}
-                canBack={focusHistory.length > 0}
-                topOffset={focusNavigationTop}
-              />
-              <OffscreenIndicators
-                indicators={navigationProjection}
-                onSelect={(target) => {
-                  const item = objectItems.find((candidate) => payloadId(candidate.payload) === target.targetId);
-                  if (item?.payload) setPinnedObject(item.payload);
-                  issueFocusRequest(target.focusKey, { enter: false, preserveDistance: true });
-                }}
-                onFocus={issueFocusRequest}
-              />
-              <PhysicalScaleOverlay scaleMode={activeScaleMode} scaleReport={scaleReport} focusGraph={focusGraph} focusKey={activeFocusKey} />
-              <ScaleLensOverlay
-                lens={resolvedLensState}
-                onClose={() => { setLensState((current) => ({ ...current, open: false })); setLensRect(null); }}
-                onOpenMain={() => { issueFocusRequest(lensFocus?.focus_key || activeFocusKey); setLensState((current) => ({ ...current, open: false })); }}
-                onReset={() => setLensState((current) => ({ ...current, zoomLevel: 0 }))}
-                onPin={() => setLensState((current) => ({ ...current, pinned: !current.pinned }))}
-                onZoom={(direction) => setLensState((current) => ({ ...current, zoomLevel: clampNumber(current.zoomLevel + direction, -3, 6) }))}
-                onRectChange={setLensRect}
-              />
+              {!peekPresentation ? (
+                <>
+                  <FocusNavigationOverlay
+                    focusGraph={focusGraph}
+                    focusKey={activeFocusKey}
+                    onFocusKey={issueFocusRequest}
+                    onBack={returnToPreviousFocus}
+                    canBack={focusHistory.length > 0}
+                    topOffset={focusNavigationTop}
+                  />
+                  <OffscreenIndicators
+                    indicators={navigationProjection}
+                    onSelect={(target) => {
+                      const item = objectItems.find((candidate) => payloadId(candidate.payload) === target.targetId);
+                      if (item?.payload) setPinnedObject(item.payload);
+                      issueFocusRequest(target.focusKey, { enter: false, preserveDistance: true });
+                    }}
+                    onFocus={issueFocusRequest}
+                  />
+                  <PhysicalScaleOverlay scaleMode={activeScaleMode} scaleReport={scaleReport} focusGraph={focusGraph} focusKey={activeFocusKey} />
+                </>
+              ) : null}
             </>
           ) : null}
           {interactiveReadouts && (
@@ -6015,7 +5843,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 object={pinnedObject}
                 onClose={() => setPinnedObject(null)}
                 onFocus={focusObject}
-                onLens={openLensForObject}
                 position={pinnedReadoutPosition}
                 onPositionChange={setPinnedReadoutPosition}
               />

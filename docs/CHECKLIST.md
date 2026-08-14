@@ -1071,6 +1071,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   bound Physical labels to the current scale neighborhood, retain the nearest
   measured parent ruler for extent-unavailable focus nodes, and reconcile open
   Map drill counts against the attached Public Read scene
+- [x] Minimize Peek by removing focus navigation, the physical ruler, Labels,
+  Focus Selection, and Reset; retire the experimental Lens; place Explorer
+  OBJECTS below the measured navigation bar; make Search replace open drill
+  surfaces; and extend Physical Orbits close zoom from `0.18` to `0.008`
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

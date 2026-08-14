@@ -4561,7 +4561,10 @@ export default function StarMapPage({
       setDrillMode("explore");
       setFocusToken((value) => value + 1);
     }
-  }, [flushMapSystems, mapFrame, selectSystem, systems]);
+    if (location.pathname !== "/map") {
+      navigate("/map");
+    }
+  }, [flushMapSystems, location.pathname, mapFrame, navigate, selectSystem, systems]);
 
   const jumpHomeToSol = useCallback(() => {
     const sol = systems.find((item) => (
@@ -4663,12 +4666,20 @@ export default function StarMapPage({
   }, [closeMapSearchResults, location.pathname, navigate]);
 
   const toggleMapSearch = useCallback(() => {
+    if (drillMode !== "flight") {
+      drillHistoryPushedRef.current = false;
+      setDrillMode("flight");
+      if (!mapSearchOpen) {
+        navigate("/", { replace: true });
+      }
+      return;
+    }
     if (mapSearchOpen) {
       closeMapSearch();
       return;
     }
     navigate("/");
-  }, [closeMapSearch, mapSearchOpen, navigate]);
+  }, [closeMapSearch, drillMode, mapSearchOpen, navigate]);
 
   const submitMapSearch = useCallback((event) => {
     event?.preventDefault?.();

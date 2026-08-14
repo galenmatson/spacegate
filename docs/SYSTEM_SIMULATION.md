@@ -765,10 +765,10 @@ Success criteria:
   touch and keyboard; desktop double click animates to a body, subsystem, orbit,
   habitable zone, or formation-line focus. Selection, simulation time, scale
   settings, and pinned inspectors survive valid focus transitions.
-- The scale lens is an explicit toolbar action. It renders a second camera and
-  scissored viewport in the existing WebGL context, not a second canvas/context,
-  and provides bounded twofold zoom, Pin, Focus, Open as Main View, close,
-  Escape, and outside-dismissal behavior. Right-drag remains camera panning.
+- The experimental scale lens was removed after browser review. The extra inset
+  did not add enough clarity beyond the scale modes and focus graph to justify
+  its controls or rendering path. Git history preserves the prototype if a
+  later interaction study establishes a clearer use case.
 - Physical mode keeps stellar and planetary bodies as small screen-sized
   markers at every camera distance. Their labels use translucent, laterally
   offset callouts with short leaders so a label cannot be mistaken for the
@@ -796,10 +796,14 @@ Success criteria:
   drive the markers when present; missing or illustrative radii use documented
   presentation-only spectral-class proxies rather than making every unknown
   component look identical.
-- The Lens measures its viewport after it opens and records successful shared-
-  context render frames for browser verification. Embedded Peek and Explorer
-  layouts also measure the simulation action bar and place scale navigation
-  below its actual wrapped height rather than relying on a fixed offset.
+- Embedded Explorer layouts measure the simulation action bar and place scale
+  navigation and the OBJECTS column below its actual wrapped height rather than
+  relying on a fixed offset. Peek intentionally omits the focus tour, ruler,
+  label toggle, Focus Selection, and Reset controls to remain a compact preview.
+- Physical mode permits camera distance down to `0.008` scene units with a
+  `0.001` near plane. This expands close inspection by more than twenty times
+  relative to the former `0.18` limit while retaining the same symbolic body
+  marker and linear orbital-distance contracts.
 - ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
   Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
   normalization before distance conversion. Runtime physical-scale validation

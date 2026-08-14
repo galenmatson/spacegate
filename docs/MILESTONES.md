@@ -3543,6 +3543,15 @@ Verification:
 - open Map Peek and Explorer vitals reconcile tile summaries with the attached
   build-matched Public Read scene, preventing older tile counts from replacing
   the accepted hierarchy leaf count while tiles continue to stream.
+- subsequent usability review removes the experimental Lens from the active UI
+  and renderer. Peek now omits hierarchy navigation, the physical ruler, Labels,
+  Focus Selection, and Reset, while Explorer retains the complete toolset;
+- Search now replaces an open Peek or Explorer directly, and selecting a search
+  result closes Search before opening the simulation. Explorer derives the
+  OBJECTS top edge from the measured focus-toolbar position;
+- Physical Orbits reduces its minimum camera distance from `0.18` to `0.008`
+  scene units and its near plane to `0.001`, making close focus inspection
+  practical without changing physical orbital geometry.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

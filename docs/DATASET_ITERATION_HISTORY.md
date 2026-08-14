@@ -4967,6 +4967,23 @@ Representative commits:
   reintroducing the stale count. This is a general consumer reconciliation and
   does not alter map membership or canonical science.
 
+### 187) Peek Returns to a Minimal Preview
+
+- Post-implementation review found that the complete physical-navigation toolset
+  made Peek behave like a smaller Explorer. Peek now retains only playback,
+  speed, scale, orbit, and line controls. The hierarchy tour, physical ruler,
+  Labels, Focus Selection, and Reset remain available in Explorer and Detail.
+- The experimental scale Lens was removed from the public controls and renderer.
+  Its second viewport duplicated the clearer scale and focus workflows without
+  earning its interface and rendering cost.
+- Search is now an explicit surface transition. Activating Search dismisses an
+  open Peek or Explorer, while selecting a result closes Search before opening
+  its simulation.
+- Explorer now derives the OBJECTS top edge from the measured focus-navigation
+  position. Physical Orbits also lowers its close camera limit from `0.18` to
+  `0.008` scene units with a `0.001` near plane, allowing meaningful inspection
+  inside a focused physical region without altering orbital scale.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

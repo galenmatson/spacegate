@@ -13,10 +13,8 @@ async function openMapPeekFromRecents(page) {
     await searchToggle.click();
   }
   await page.locator(".map-search-recents").first().locator(".map-search-recent-pill").first().click();
-  if (await searchToggle.getAttribute("aria-pressed") === "true") {
-    await searchToggle.click();
-  }
   await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+  await expect(searchToggle).toHaveAttribute("aria-pressed", "false");
 }
 
 async function canvasBox(page) {
@@ -1358,6 +1356,7 @@ test.describe("public 3D map beta", () => {
     expect(exploreBodyBox.y).toBeGreaterThanOrEqual(exploreHeaderBox.y + exploreHeaderBox.height - 1);
     expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 8);
     expect(exploreFocusNavigationBox.y).toBeGreaterThanOrEqual(exploreControlsBox.y + exploreControlsBox.height + 6);
+    expect(exploreObjectsBox.y).toBeGreaterThanOrEqual(exploreFocusNavigationBox.y + exploreFocusNavigationBox.height + 8);
     const vitalPills = drill.locator(".map-system-vital-pill");
     await expect(vitalPills).toHaveCount(5);
     const expectedVitalCopy = [
@@ -1486,10 +1485,18 @@ test.describe("public 3D map beta", () => {
     await openMapPeekFromRecents(page);
     let drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
+    await drill.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    await expect(drill.locator("[data-testid='system-preview-focus-nav']")).toHaveCount(0);
+    await expect(drill.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await drill.locator("[data-testid='system-preview-scale-mode']").selectOption("log");
     await drill.locator(".system-preview-speed select").selectOption("5000");
     await drill.getByRole("button", { name: "Orbits On" }).click();
-    await drill.getByRole("button", { name: "Labels On" }).click();
+    await expect(drill.getByRole("button", { name: /Labels (On|Off)/ })).toHaveCount(0);
+    await expect(drill.getByRole("button", { name: /^Focus Selection$/ })).toHaveCount(0);
+    await expect(drill.getByRole("button", { name: /^Reset$/ })).toHaveCount(0);
+    await expect(drill.locator("[data-testid='system-preview-focus-nav']")).toHaveCount(0);
+    await expect(drill.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
+    await expect(drill.locator("[data-lens-control='true']")).toHaveCount(0);
     await drill.getByRole("button", { name: "Explore", exact: true }).click();
 
     drill = page.locator("[data-testid='map-system-drill']");
@@ -1497,6 +1504,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toHaveValue("log");
     await expect(drill.locator(".system-preview-speed select")).toHaveValue("5000");
     await expect(drill.getByRole("button", { name: "Orbits Off" })).toBeVisible();
+    await drill.getByRole("button", { name: "Labels On" }).click();
     await expect(drill.getByRole("button", { name: "Labels Off" })).toBeVisible();
 
     await drill.getByRole("button", { name: "Detail", exact: true }).click();
@@ -1507,6 +1515,24 @@ test.describe("public 3D map beta", () => {
     await expect(detailPanel.getByRole("button", { name: "Orbits Off" })).toBeVisible();
     await expect(detailPanel.getByRole("button", { name: "Labels Off" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Back to 3D map" })).toBeVisible();
+  });
+
+  test("Search replaces an open Peek or Explorer without a manual close", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop map surface switching check");
+    await openMap(page);
+    const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    await openMapPeekFromRecents(page);
+    await searchToggle.click();
+    await expect(page.locator("[data-testid='map-system-drill']")).toHaveCount(0);
+    await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
+
+    await openMapPeekFromRecents(page);
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await drill.getByRole("button", { name: /^Explore$/ }).click();
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
+    await searchToggle.click();
+    await expect(drill).toHaveCount(0);
+    await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
   });
 
   test("System Page uses the reviewed wide envelope and explicit Catalog and Map peers", async ({ page }, testInfo) => {
@@ -1664,6 +1690,7 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme switching keeps a live simulator open");
     await openMap(page);
     await openMapPeekFromRecents(page);
+    await page.locator("[data-testid='map-system-drill']").getByRole("button", { name: /^Explore$/ }).click();
 
     const preview = page.locator("[data-testid='system-preview-panel']");
     const menu = page.locator(".map-header-menu");
@@ -2435,29 +2462,29 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
       { timeout: 3000 }
     ).not.toBe("");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.cameraMinDistance || ""),
+      { timeout: 3000 },
+    ).toBe("0.008");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.cameraNearPlane || ""),
+      { timeout: 3000 },
+    ).toBe("0.001");
+    await page.waitForTimeout(700);
+    const closeZoomBox = await sharedClockCanvas.boundingBox();
+    expect(closeZoomBox, "physical close-zoom canvas bounds").toBeTruthy();
+    await page.mouse.move(closeZoomBox.x + closeZoomBox.width / 2, closeZoomBox.y + closeZoomBox.height / 2);
+    for (let index = 0; index < 80; index += 1) {
+      await page.mouse.wheel(0, -1200);
+    }
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.cameraTargetDistance || Number.POSITIVE_INFINITY)),
+      { timeout: 3000 },
+    ).toBeLessThan(0.16);
     await expect(focusNavigation.getByRole("button", { name: /^Back$/i })).toBeEnabled();
     await focusNavigation.getByRole("button", { name: /^Back$/i }).click();
     await expect(focusNavigation.getByRole("button", { name: /^Fit System$/i })).toBeVisible();
-    const canvasCountBeforeLens = await page.locator(".system-preview-canvas canvas").count();
-    await page.locator("[data-lens-control='true']").click();
-    const scaleLens = page.locator("[data-testid='system-preview-scale-lens']");
-    await expect(scaleLens).toBeVisible();
-    await expect(scaleLens.locator(".system-preview-scale-lens-viewport")).toBeVisible();
-    expect(await page.locator(".system-preview-canvas canvas").count()).toBe(canvasCountBeforeLens);
-    await expect.poll(
-      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.lensRenderCount || 0)),
-      { timeout: 3000 },
-    ).toBeGreaterThan(0);
-    await expect.poll(
-      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.lensTargetResolved || ""),
-      { timeout: 3000 },
-    ).toBe("true");
-    await expect(scaleLens.getByRole("button", { name: /^Focus$/i })).toBeVisible();
-    await expect(scaleLens.getByRole("button", { name: /^Open$/i })).toBeVisible();
-    const pinLens = scaleLens.getByRole("button", { name: /^Pin$/i });
-    await pinLens.click();
-    await expect(scaleLens.getByRole("button", { name: /^Pinned$/i })).toHaveAttribute("aria-pressed", "true");
-    await page.keyboard.press("Escape");
+    await expect(page.locator("[data-lens-control='true']")).toHaveCount(0);
     await expect(page.locator("[data-testid='system-preview-scale-lens']")).toHaveCount(0);
     await scaleModeSelect.selectOption("log");
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/nonlinear.*no common AU ruler/i);
@@ -2875,20 +2902,13 @@ test.describe("public 3D map beta", () => {
     await scaleMode.selectOption("physical");
     await expect(page.locator("[data-testid='system-preview-physical-ruler']")).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-focus-nav']")).toBeVisible();
-    await page.locator("[data-lens-control='true']").click();
-    const scaleLens = page.locator("[data-testid='system-preview-scale-lens']");
-    await expect(scaleLens).toBeVisible();
+    await expect(page.locator("[data-lens-control='true']")).toHaveCount(0);
+    await expect(page.locator("[data-testid='system-preview-scale-lens']")).toHaveCount(0);
     expect(await page.locator(".system-preview-canvas canvas").count()).toBe(1);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.lensUsesSharedContext || "false"),
       { timeout: 3000 },
-    ).toBe("true");
-    const lensBox = await scaleLens.boundingBox();
-    expect(lensBox, "mobile physical scale lens box").toBeTruthy();
-    expect(lensBox.x).toBeGreaterThanOrEqual(0);
-    expect(lensBox.x + lensBox.width).toBeLessThanOrEqual(412 + 1);
-    await page.keyboard.press("Escape");
-    await expect(scaleLens).toHaveCount(0);
+    ).toBe("false");
     await page.screenshot({ path: testInfo.outputPath("mobile-physical-scale.png"), fullPage: false });
   });
 
