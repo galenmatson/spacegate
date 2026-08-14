@@ -2305,7 +2305,7 @@ test.describe("public 3D map beta", () => {
     expect(sceneResponse.ok()).toBeTruthy();
     const scenePayload = await sceneResponse.json();
     expect(scenePayload.render_scene?.physical_scale?.schema_version).toBe("simulation_physical_scale_v1");
-    expect(scenePayload.render_scene?.focus_graph?.schema_version).toBe("simulation_focus_graph_v1");
+    expect(scenePayload.render_scene?.focus_graph?.schema_version).toBe("simulation_focus_graph_v2");
     expect(scenePayload.render_scene?.focus_graph?.root_focus_key).toBeTruthy();
     expect(Object.keys(scenePayload.render_scene?.focus_graph?.nodes || {}).length).toBeGreaterThanOrEqual(8);
     const firstPlanetClass = scenePayload.render_scene?.bodies?.planets?.[0]?.fields?.planet_visual_class;
@@ -2750,7 +2750,44 @@ test.describe("public 3D map beta", () => {
     await page.screenshot({ path: testInfo.outputPath("32alf-leo-physical-unavailable-fallback.png"), fullPage: false });
   });
 
-  test("physical close zoom keeps Alpha Centauri markers and scale beacons readable", async ({ page }, testInfo) => {
+  test("a descendant habitable zone does not certify an unresolved multiple layout", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop unresolved-multiple physical fallback check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "AR Cas", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "AR Cas system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scene = await sceneResponse.json();
+    const graph = scene.render_scene?.focus_graph;
+    expect(graph?.schema_version).toBe("simulation_focus_graph_v2");
+    const rootBounds = graph?.nodes?.[graph?.root_focus_key]?.physical_bounds;
+    expect(rootBounds?.view_applicability).toBe("unavailable");
+    expect(rootBounds?.view_radius_au).toBeNull();
+    expect(Number(rootBounds?.available_overlay_radius_au || 0)).toBeGreaterThan(0);
+    const localNeighborhoods = Object.values(graph?.nodes || {})
+      .filter((node) => node?.physical_bounds?.view_applicability === "local_neighborhood");
+    expect(localNeighborhoods.length).toBeGreaterThan(0);
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    const panel = page.locator("[data-testid='system-preview-panel']");
+    const canvas = panel.locator(".system-preview-canvas canvas");
+    await expect(canvas).toBeVisible();
+    await panel.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    await expect(panel.locator("[data-testid='system-preview-physical-ruler']"))
+      .toHaveAttribute("data-physical-scale-status", "unavailable");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalGeometryFallback || ""),
+      { timeout: 3000 },
+    ).toBe("structure");
+    await page.screenshot({ path: testInfo.outputPath("ar-cas-unresolved-layout-fallback.png"), fullPage: false });
+  });
+
+  test("physical close zoom keeps Alpha Centauri markers and navigation indicators readable", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop close-zoom physical marker check");
     const response = await page.request.get("/api/v1/systems/search", {
       params: { q: "Alpha Centauri", limit: "1", sort: "match" },
@@ -2776,8 +2813,13 @@ test.describe("public 3D map beta", () => {
     for (let index = 0; index < 6; index += 1) {
       await page.mouse.wheel(0, -1200);
     }
+    const indicators = page.locator("[data-testid='system-preview-scale-beacon'], [data-testid='system-preview-offscreen-indicator']");
+    await expect.poll(() => indicators.count(), { timeout: 3000 }).toBeGreaterThanOrEqual(2);
+    await expect.poll(
+      () => page.locator("[data-testid='system-preview-offscreen-indicator']").count(),
+      { timeout: 3000 },
+    ).toBeGreaterThanOrEqual(1);
     const beacons = page.locator("[data-testid='system-preview-scale-beacon']");
-    await expect.poll(() => beacons.count(), { timeout: 3000 }).toBeGreaterThanOrEqual(2);
     const leaderLengths = await beacons.evaluateAll((nodes) => nodes.map((node) => (
       Number.parseFloat(getComputedStyle(node.querySelector(".system-preview-indicator-leader")).width || "0")
     )));

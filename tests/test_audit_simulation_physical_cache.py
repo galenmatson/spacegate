@@ -21,17 +21,19 @@ def _write_scene(
 ) -> None:
     axis = {"value": 1.0, "unit": "au"} if applicability == "physical" else None
     payload = {
-        "materialization": {"materializer_version": "simulation_scene_artifact_v16"},
+        "materialization": {"materializer_version": "simulation_scene_artifact_v17"},
         "render_scene": {
             "physical_scale": {"schema_version": "simulation_physical_scale_v1"},
             "focus_graph": {
-                "schema_version": "simulation_focus_graph_v1",
+                "schema_version": "simulation_focus_graph_v2",
                 "root_focus_key": "focus:root",
                 "nodes": {
                     "focus:root": {
                         "physical_bounds": {
                             "radius_au": root_radius_au,
+                            "view_radius_au": root_radius_au,
                             "status": root_status,
+                            "view_applicability": "physical_layout" if root_radius_au else "unavailable",
                         }
                     },
                 },

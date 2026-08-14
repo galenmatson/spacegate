@@ -39,10 +39,10 @@ compatible. Side-build materialization may reuse a scene only when both its
 contract version and embedded target build ID match; a copied scene from the
 source build must be regenerated even when its schema version is current.
 Physical-scale, focus-graph, or visual-scale policy changes are also semantic
-scene changes. Artifact v16 keys `simulation_physical_scale_v1`,
-`simulation_focus_graph_v1`, and `visual_scale_v2` into the scene contract;
-v12 and earlier runtime/frozen scenes remain rollback evidence but are not
-runtime-compatible with v16. Physical-scale audit, determinism, browser,
+scene changes. Artifact v17 keys `simulation_physical_scale_v1`,
+`simulation_focus_graph_v2`, and `visual_scale_v2` into the scene contract;
+v16 and earlier runtime/frozen scenes remain rollback evidence but are not
+runtime-compatible with v17. Physical-scale audit, determinism, browser,
 performance-comparison, and ORB6 unit-normalization reports under
 `reports/system-simulation-physical-scale-v1/` are protected through branch
 review and any later public deployment/rollback drill. They are small reports,

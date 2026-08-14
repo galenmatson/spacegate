@@ -20,6 +20,7 @@ import {
   PHYSICAL_SCALE_MODE,
   focusBreadcrumb,
   focusNavigationNeighbors,
+  focusNavigationTargetKeys,
   focusGraphNodes,
   focusKeyForPayload,
   focusNode,
@@ -30,7 +31,6 @@ import {
   physicalScaleResolution,
   physicalScaleReadout,
   sceneUnitsPerAu,
-  siblingFocusKeys,
 } from "./simulationPhysicalScale.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
@@ -3636,7 +3636,14 @@ function NavigationTargetReporter({ targets = [], targetRegistryRef = null, scen
         viewportHeight: size.height,
       };
     }).filter(Boolean);
-    const signature = projected.map((item) => `${item.focusKey}:${item.offscreen ? 1 : 0}:${item.x.toFixed(0)}:${item.y.toFixed(0)}`).join("|");
+    const signature = projected.map((item) => [
+      item.focusKey,
+      item.offscreen ? 1 : 0,
+      item.unresolved ? 1 : 0,
+      Number.isFinite(item.projectedRadiusPx) ? item.projectedRadiusPx.toFixed(1) : "none",
+      item.x.toFixed(0),
+      item.y.toFixed(0),
+    ].join(":")).join("|");
     if (signature !== lastSignatureRef.current) {
       lastSignatureRef.current = signature;
       onChange(projected);
@@ -5503,11 +5510,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   }, [focusKeyForObject, issueFocusRequest]);
   const navigationTargets = useMemo(() => {
     if (!activeFocus || !focusGraph) return [];
-    const immediate = new Set([
-      activeFocus.parent_focus_key,
-      ...(activeFocus.child_focus_keys || []),
-      ...siblingFocusKeys(focusGraph, activeFocusKey),
-    ].filter(Boolean));
+    const immediate = new Set(focusNavigationTargetKeys(focusGraph, activeFocusKey));
     return Object.values(focusNodes)
       .filter((node) => (
         node.focus_key !== activeFocusKey

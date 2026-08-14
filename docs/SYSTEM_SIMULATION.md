@@ -725,7 +725,10 @@ Success criteria:
   before deployment. V12 narrows host preservation to cases without accepted
   stellar orbit structure, so legitimate nested systems retain their group
   motion.
-- `simulation_scene_artifact_v16` adds the M8.3e.3a physical-scale contract.
+- `simulation_scene_artifact_v17` carries the current M8.3e.3a physical-scale
+  contract. It supersedes v16 after browser review found that a descendant HZ
+  could incorrectly make an unresolved multistar root appear to have physical
+  placement.
   `render_scene.physical_scale` uses `simulation_physical_scale_v1` and records
   the coordinate unit, physical-orbit policy, derivation policy, readable-body
   marker policy, and focus-local linear-transform rule. Every rendered orbit has
@@ -734,13 +737,14 @@ Success criteria:
   available, and exact source or derivation lineage. A Kepler-derived axis is
   permitted only from a coherent accepted period and applicable accepted total
   mass under `kepler_semimajor_axis_v1`.
-- `render_scene.focus_graph` uses `simulation_focus_graph_v1`. Its stable nodes
+- `render_scene.focus_graph` uses `simulation_focus_graph_v2`. Its stable nodes
   cover the root system, nested hierarchy groups, host neighborhoods, bodies,
   and inspectable orbits. Recursive physical bounds include accepted orbit
-  apoapses, planet orbits, habitable zones, and available formation-line extent;
-  the latter does not enlarge the default focus just because a line can be
-  toggled on. Each node retains its parent, ordered children, source status,
-  supported actions, and public label.
+  distinguish `layout_radius_au`, the admissible `view_radius_au`, and the
+  larger available overlay extent. A body-local planet or HZ neighborhood is a
+  valid physical focus, but it cannot establish the relative placement of an
+  unresolved parent relation. Each node retains its applicability, parent,
+  ordered children, source status, supported actions, and public label.
 - `visual_scale_v2` names five distinct presentation contracts. `structure`
   is schematic and hierarchy first. `true_orbits` remains a local linear orbit
   envelope and is presented publicly as Local Orbit. `true_bodies` is Body

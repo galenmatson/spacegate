@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, Optional
 
 PHYSICAL_SCALE_CONTRACT_VERSION = "simulation_physical_scale_v1"
 PHYSICAL_EXTENT_POLICY_VERSION = "physical_orbit_extent_policy_v2"
-FOCUS_GRAPH_VERSION = "simulation_focus_graph_v1"
+FOCUS_GRAPH_VERSION = "simulation_focus_graph_v2"
 KEPLER_AXIS_DERIVATION_VERSION = "kepler_axis_from_period_total_mass_v1"
 ORBIT_COHERENCE_POLICY_VERSION = "stellar_orbit_kepler_coherence_v1"
 MIN_PLAUSIBLE_STELLAR_SYSTEM_MASS_MSUN = 0.001
@@ -396,46 +396,78 @@ def build_focus_graph(
     }
     nodes: Dict[str, Dict[str, Any]] = {}
 
-    def compile_node(tree_key: str, parent_focus_key: Optional[str]) -> tuple[str, float, str, float]:
+    def compile_node(
+        tree_key: str,
+        parent_focus_key: Optional[str],
+    ) -> tuple[str, float, str, float, float]:
         node = tree_nodes.get(tree_key) or {}
         node_type = str(node.get("node_type") or "unknown")
         focus_key = f"focus:{tree_key}"
         child_results = [compile_node(str(child), focus_key) for child in node.get("children") or []]
         child_focus_keys = [item[0] for item in child_results]
-        child_radii = [item[1] for item in child_results]
+        child_view_radii = [item[1] for item in child_results]
         child_statuses = [item[2] for item in child_results]
         child_overlay_radii = [item[3] for item in child_results]
-        radius = max(child_radii, default=0.0)
-        available_overlay_radius = max(child_overlay_radii, default=radius)
-        status = "complete" if child_results and all(value == "complete" for value in child_statuses) else "partial"
+        child_layout_radii = [item[4] for item in child_results]
+        view_radius = 0.0
+        layout_radius = 0.0
+        available_overlay_radius = max(child_overlay_radii, default=0.0)
+        status = "unavailable"
+        view_applicability = "unavailable"
         basis = "recursive_child_bounds"
         object_key = None
         orbit_key = str(node.get("orbit_key") or "") or None
         if node_type == "body":
             object_key = str(node.get("body_key") or "") or None
             neighborhood = neighborhoods.get(object_key or "", {})
-            radius = float(neighborhood.get("base_radius_au") or 0.0)
-            available_overlay_radius = max(radius, float(neighborhood.get("max_overlay_radius_au") or 0.0))
-            status = "complete" if radius > 0 else "identity_only"
+            view_radius = float(neighborhood.get("base_radius_au") or 0.0)
+            available_overlay_radius = max(
+                view_radius,
+                float(neighborhood.get("max_overlay_radius_au") or 0.0),
+            )
+            status = "complete" if view_radius > 0 else "identity_only"
+            view_applicability = "local_neighborhood" if view_radius > 0 else "unavailable"
             basis = "host_planets_and_habitable_zone"
         elif orbit_key:
             orbit = orbit_by_key.get(orbit_key) or {}
             extent = orbit.get("physical_extent") if isinstance(orbit.get("physical_extent"), dict) else {}
             own_radius = _positive_float((extent.get("apoapsis_extent_au") or {}).get("value"))
             if own_radius is not None:
-                radius = max(radius, own_radius + max(child_radii, default=0.0))
+                layout_radius = own_radius + max(child_layout_radii, default=0.0)
+                view_radius = max(layout_radius, own_radius + max(child_view_radii, default=0.0))
                 available_overlay_radius = max(
                     available_overlay_radius,
                     own_radius + max(child_overlay_radii, default=0.0),
                 )
                 status = "complete" if extent.get("completeness") == "complete" and all(value == "complete" for value in child_statuses) else "partial"
+                view_applicability = "physical_layout"
                 basis = "physical_orbit_apoapsis_plus_child_bounds"
             else:
-                status = "unavailable" if not child_radii else "partial"
+                # Descendant HZs and inner orbits do not locate this relation's
+                # children relative to one another. They remain inspectable at
+                # their own focus nodes, but cannot certify this parent view.
+                view_radius = 0.0
+                layout_radius = 0.0
+                status = "unavailable"
+                view_applicability = "unavailable"
                 basis = "physical_orbit_extent_unavailable"
         elif node_type == "root":
-            status = "complete" if len(child_results) == 1 and child_statuses == ["complete"] else "partial"
-            basis = "root_recursive_bounds"
+            if len(child_results) == 1 and child_view_radii[0] > 0:
+                view_radius = child_view_radii[0]
+                layout_radius = child_layout_radii[0]
+                status = child_statuses[0]
+                child_node = nodes.get(child_focus_keys[0]) or {}
+                view_applicability = str(
+                    (child_node.get("physical_bounds") or {}).get("view_applicability")
+                    or "unavailable"
+                )
+                basis = "single_child_physical_view"
+            else:
+                # A root with multiple independently placed children has no
+                # physical relation establishing their separation.
+                status = "unavailable"
+                view_applicability = "unavailable"
+                basis = "root_physical_layout_unavailable"
 
         nodes[focus_key] = {
             "focus_key": focus_key,
@@ -448,19 +480,22 @@ def build_focus_graph(
             "orbit_key": orbit_key,
             "leaf_body_keys": sorted(str(key) for key in node.get("leaf_body_keys") or []),
             "physical_bounds": {
-                "radius_au": round(radius, 9) if radius > 0 else None,
+                "radius_au": round(view_radius, 9) if view_radius > 0 else None,
+                "view_radius_au": round(view_radius, 9) if view_radius > 0 else None,
+                "layout_radius_au": round(layout_radius, 9) if layout_radius > 0 else None,
                 "status": status,
+                "view_applicability": view_applicability,
                 "basis": basis,
                 "includes_active_overlays": False,
                 "available_overlay_radius_au": round(available_overlay_radius, 9) if available_overlay_radius > 0 else None,
             },
             "supported_actions": ["select", "focus", "lens"] + (["fit_system"] if node_type == "root" else ["parent"]),
         }
-        return focus_key, radius, status, available_overlay_radius
+        return focus_key, view_radius, status, available_overlay_radius, layout_radius
 
     root_tree_key = str(simulation_tree.get("root_node_key") or "")
     if root_tree_key and root_tree_key in tree_nodes:
-        root_focus_key, _, _, _ = compile_node(root_tree_key, None)
+        root_focus_key, _, _, _, _ = compile_node(root_tree_key, None)
     else:
         root_focus_key = "focus:root:system"
         nodes[root_focus_key] = {
@@ -475,7 +510,10 @@ def build_focus_graph(
             "leaf_body_keys": sorted(neighborhoods),
             "physical_bounds": {
                 "radius_au": None,
+                "view_radius_au": None,
+                "layout_radius_au": None,
                 "status": "unavailable",
+                "view_applicability": "unavailable",
                 "basis": "simulation_tree_unavailable",
                 "includes_active_overlays": False,
                 "available_overlay_radius_au": None,
@@ -509,7 +547,10 @@ def build_focus_graph(
             "leaf_body_keys": [],
             "physical_bounds": {
                 "radius_au": round(axis, 9) if axis is not None else None,
+                "view_radius_au": round(axis, 9) if axis is not None else None,
+                "layout_radius_au": round(axis, 9) if axis is not None else None,
                 "status": "complete" if axis is not None else "unavailable",
+                "view_applicability": "planet_orbit" if axis is not None else "unavailable",
                 "basis": "planet_semi_major_axis",
                 "includes_active_overlays": False,
                 "available_overlay_radius_au": round(axis, 9) if axis is not None else None,
@@ -535,6 +576,8 @@ def build_focus_graph(
         "diagnostics": {
             "focus_node_count": len(nodes),
             "physical_bound_count": sum(1 for node in nodes.values() if _positive_float((node.get("physical_bounds") or {}).get("radius_au")) is not None),
+            "physical_layout_bound_count": sum(1 for node in nodes.values() if _positive_float((node.get("physical_bounds") or {}).get("layout_radius_au")) is not None),
+            "local_neighborhood_bound_count": sum(1 for node in nodes.values() if (node.get("physical_bounds") or {}).get("view_applicability") == "local_neighborhood"),
             "unavailable_bound_count": sum(1 for node in nodes.values() if (node.get("physical_bounds") or {}).get("status") == "unavailable"),
             "partial_bound_count": sum(1 for node in nodes.values() if (node.get("physical_bounds") or {}).get("status") == "partial"),
             "planet_focus_count": sum(1 for node in nodes.values() if node.get("focus_kind") == "planet"),

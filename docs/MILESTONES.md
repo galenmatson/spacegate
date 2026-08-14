@@ -3471,8 +3471,8 @@ artifact contract, not CORE, ARM, DISC, or RIM science.
 
 Accepted decisions:
 
-- `simulation_scene_artifact_v16` carries
-  `simulation_physical_scale_v1`, `simulation_focus_graph_v1`, and
+- `simulation_scene_artifact_v17` carries
+  `simulation_physical_scale_v1`, `simulation_focus_graph_v2`, and
   `visual_scale_v2`. Physical orbital extents are measured, defensibly derived
   through versioned Kepler policy, unavailable, or explicitly rejected; static
   hierarchy placement, projected separation, and presentation radii cannot
@@ -3497,6 +3497,11 @@ Accepted decisions:
   the existing WebGL context. It supports pinning, bounded twofold zoom, Focus,
   Open as Main View, Escape, and outside dismissal without taking right-drag
   camera panning;
+- focus graph v2 separates physical layout bounds from local neighborhoods and
+  optional overlay extents. A habitable zone or formation line around one
+  member cannot certify an unresolved multistar relation as physically laid
+  out. Such a parent uses the explicit Structure fallback, while the member's
+  own focused neighborhood can still use a linear AU scale;
 - ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
   arcseconds. The general stellar-orbit compiler now normalizes those values,
   and runtime physical-scale validation rejects axes that imply incoherent

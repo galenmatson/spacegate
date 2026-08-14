@@ -4991,6 +4991,30 @@ Representative commits:
   longer collapse to the origin, while focus regions with real physical extents
   retain the deeper physical camera policy.
 
+### 188) Physical Layout Evidence Is Separate from Local Overlays
+
+- AR Cas exposed a general focus-graph defect: one luminous member supplied an
+  HZ radius even though every stellar hierarchy orbit lacked a defensible
+  physical extent. Recursive v1 bounds treated that local overlay as a system
+  radius, collapsed all unresolved members to the origin, and drew the HZ as if
+  it described the system layout.
+- `simulation_focus_graph_v2` separates stellar layout radius, admissible view
+  radius, and available overlay radius. An unresolved orbit focus remains
+  unavailable even when descendants have planets, HZs, formation lines, or
+  resolved inner orbits. Those descendant regions remain directly focusable.
+- A root is physical only when its single hierarchy child supplies a valid
+  physical view. A lone star's local neighborhood remains valid; a resolved
+  stellar relation remains valid; multiple unrelated root children and an
+  unresolved wrapping relation use the explicit Structure fallback.
+- The implementation has no named-system production branches. Unit controls
+  cover lone-star neighborhoods, resolved multiples, unresolved multiples with
+  luminous members, and parent-scale inheritance. Scene artifact v17 rejects
+  stale v16 focus semantics.
+- Whole-system indicator selection now looks through single-child hierarchy
+  wrappers to the first meaningful branches. Its render-state signature includes
+  projected scale and unresolved status, so changing scale modes cannot leave
+  stale offscreen or scale-beacon classifications in the overlay.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

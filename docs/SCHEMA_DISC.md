@@ -340,10 +340,13 @@ Rules:
   or rejected states. Persisting a generally useful derived scalar as ARM
   science requires the normal selected-fact/derivation compiler path; freezing
   or warming a scene does not perform that promotion.
-- `simulation_focus_graph_v1`, viewport rulers, scale beacons, camera focus
+- `simulation_focus_graph_v2`, viewport rulers, scale beacons, camera focus
   history, and scale-lens state are presentation/navigation structures. They
   must never become canonical containment edges or evidence that an assumed
   visual placement is a physical orbit.
+- Focus graph v2 stores layout, admissible view, and optional overlay extents
+  separately. These are regenerable presentation/navigation facts. A local
+  stellar HZ does not supply missing physical placement for its parent relation.
 
 ## system_narrative_blocks
 

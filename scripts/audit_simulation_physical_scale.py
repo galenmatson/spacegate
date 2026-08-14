@@ -159,9 +159,18 @@ def _contract_checks(report: dict[str, Any]) -> dict[str, int]:
     root_bounds = (report.get("physical_contract") or {}).get("root_bounds") or {}
     return {
         "physical_scale_schema_mismatch": int(contracts.get("physical_scale") != "simulation_physical_scale_v1"),
-        "focus_graph_schema_mismatch": int(contracts.get("focus_graph") != "simulation_focus_graph_v1"),
+        "focus_graph_schema_mismatch": int(contracts.get("focus_graph") != "simulation_focus_graph_v2"),
         "visual_scale_schema_mismatch": int(contracts.get("visual_scale") != "visual_scale_v2"),
-        "missing_root_physical_bound": int(_number(root_bounds.get("radius_au")) is None),
+        "invalid_root_physical_bound": int(
+            (
+                root_bounds.get("view_applicability") == "unavailable"
+                and _number(root_bounds.get("radius_au")) is not None
+            )
+            or (
+                root_bounds.get("view_applicability") != "unavailable"
+                and _number(root_bounds.get("radius_au")) is None
+            )
+        ),
         "orbit_contract_missing": sum(int(not isinstance(item.get("physical_extent"), dict)) for item in orbits),
         "physical_orbit_missing_axis": sum(
             int(

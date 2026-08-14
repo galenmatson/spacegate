@@ -70,11 +70,11 @@ def audit(cache_dir: Path, expected_count: int | None) -> dict[str, Any]:
         physical = render_scene.get("physical_scale") or {}
         focus = render_scene.get("focus_graph") or {}
         visual = render_scene.get("visual_scale") or {}
-        if materialization.get("materializer_version") != "simulation_scene_artifact_v16":
-            errors.add(path, "materializer version is not v16")
+        if materialization.get("materializer_version") != "simulation_scene_artifact_v17":
+            errors.add(path, "materializer version is not v17")
         if physical.get("schema_version") != "simulation_physical_scale_v1":
             errors.add(path, "physical-scale schema mismatch")
-        if focus.get("schema_version") != "simulation_focus_graph_v1":
+        if focus.get("schema_version") != "simulation_focus_graph_v2":
             errors.add(path, "focus-graph schema mismatch")
         if visual.get("schema_version") != "visual_scale_v2":
             errors.add(path, "visual-scale schema mismatch")
@@ -88,6 +88,13 @@ def audit(cache_dir: Path, expected_count: int | None) -> dict[str, Any]:
             root_status = str(root_bounds.get("status") or "missing")
             root_bound_statuses[root_status] += 1
             root_radius = _number(root_bounds.get("radius_au"))
+            root_applicability = str(root_bounds.get("view_applicability") or "missing")
+            if root_applicability not in {"physical_layout", "local_neighborhood", "planet_orbit", "unavailable"}:
+                errors.add(path, "root focus has invalid physical-view applicability")
+            if root_applicability == "unavailable" and root_radius is not None:
+                errors.add(path, "unavailable root focus carries a physical view radius")
+            if root_applicability != "unavailable" and root_radius is None:
+                errors.add(path, "available root focus lacks a physical view radius")
             if root_radius is None and root_status not in {"partial", "unavailable", "identity_only"}:
                 errors.add(path, "root focus lacks an explicit unavailable or partial bound state")
         focus_node_count += len(nodes) if isinstance(nodes, dict) else 0

@@ -134,4 +134,120 @@ def test_focus_graph_keeps_planet_under_host_and_root_bounds() -> None:
     star_focus = graph["nodes"]["focus:body:star:a"]
     assert "focus:planet:planet:b" in star_focus["child_focus_keys"]
     assert star_focus["physical_bounds"]["radius_au"] > 1.0
+    assert star_focus["physical_bounds"]["view_applicability"] == "local_neighborhood"
+    assert star_focus["physical_bounds"]["layout_radius_au"] is None
     assert star_focus["physical_bounds"]["available_overlay_radius_au"] > star_focus["physical_bounds"]["radius_au"]
+    root_bounds = graph["nodes"][graph["root_focus_key"]]["physical_bounds"]
+    assert root_bounds["view_applicability"] == "local_neighborhood"
+    assert root_bounds["radius_au"] == star_focus["physical_bounds"]["radius_au"]
+
+
+def test_unresolved_multistar_relation_is_not_certified_by_descendant_hz() -> None:
+    stars = [
+        {
+            "render_key": "star:a",
+            "display_name": "A",
+            "fields": {"luminosity_lsun": source_field("luminosity_lsun", 100.0, "Lsun")},
+        },
+        {"render_key": "star:b", "display_name": "B", "fields": {}},
+    ]
+    orbit = attach_physical_orbit_extent(
+        {
+            "orbit_key": "orbit:ab",
+            "fields": {
+                "period_days": {"key": "period_days", "value": None, "status": "missing"},
+                "semi_major_axis_au": {"key": "semi_major_axis_au", "value": None, "status": "missing"},
+                "eccentricity": {"key": "eccentricity", "value": None, "status": "missing"},
+            },
+        },
+        total_mass_msun=None,
+    )
+    tree = {
+        "schema_version": "simulation_tree_v1",
+        "root_node_key": "root:system",
+        "nodes": {
+            "root:system": {
+                "node_key": "root:system",
+                "node_type": "root",
+                "display_name": "Unresolved multiple",
+                "children": ["orbit:ab"],
+                "leaf_body_keys": ["star:a", "star:b"],
+            },
+            "orbit:ab": {
+                "node_key": "orbit:ab",
+                "node_type": "barycenter",
+                "display_name": "A - B",
+                "orbit_key": "orbit:ab",
+                "children": ["body:star:a", "body:star:b"],
+                "leaf_body_keys": ["star:a", "star:b"],
+            },
+            "body:star:a": {
+                "node_key": "body:star:a",
+                "node_type": "body",
+                "body_key": "star:a",
+                "display_name": "A",
+                "children": [],
+                "leaf_body_keys": ["star:a"],
+            },
+            "body:star:b": {
+                "node_key": "body:star:b",
+                "node_type": "body",
+                "body_key": "star:b",
+                "display_name": "B",
+                "children": [],
+                "leaf_body_keys": ["star:b"],
+            },
+        },
+    }
+    graph = build_focus_graph(
+        system_name="Unresolved multiple",
+        simulation_tree=tree,
+        stars=stars,
+        planets=[],
+        orbits=[orbit],
+    )
+
+    star_bounds = graph["nodes"]["focus:body:star:a"]["physical_bounds"]
+    orbit_bounds = graph["nodes"]["focus:orbit:ab"]["physical_bounds"]
+    root_bounds = graph["nodes"]["focus:root:system"]["physical_bounds"]
+    assert star_bounds["view_applicability"] == "local_neighborhood"
+    assert star_bounds["radius_au"] > 0
+    assert orbit_bounds["view_applicability"] == "unavailable"
+    assert orbit_bounds["radius_au"] is None
+    assert orbit_bounds["available_overlay_radius_au"] > 0
+    assert root_bounds["view_applicability"] == "unavailable"
+    assert root_bounds["radius_au"] is None
+
+
+def test_resolved_multistar_relation_provides_physical_layout() -> None:
+    stars = [
+        {"render_key": "star:a", "fields": {"luminosity_lsun": source_field("luminosity_lsun", 1.0)}},
+        {"render_key": "star:b", "fields": {}},
+    ]
+    orbit = attach_physical_orbit_extent(
+        {
+            "orbit_key": "orbit:ab",
+            "fields": {
+                "period_days": source_field("period_days", 365.25, "days"),
+                "semi_major_axis_au": source_field("semi_major_axis_au", 1.0, "au"),
+                "eccentricity": source_field("eccentricity", 0.1),
+            },
+        },
+        total_mass_msun=1.0,
+    )
+    tree = {
+        "root_node_key": "root:system",
+        "nodes": {
+            "root:system": {"node_type": "root", "children": ["orbit:ab"], "leaf_body_keys": ["star:a", "star:b"]},
+            "orbit:ab": {"node_type": "barycenter", "orbit_key": "orbit:ab", "children": ["body:a", "body:b"], "leaf_body_keys": ["star:a", "star:b"]},
+            "body:a": {"node_type": "body", "body_key": "star:a", "children": [], "leaf_body_keys": ["star:a"]},
+            "body:b": {"node_type": "body", "body_key": "star:b", "children": [], "leaf_body_keys": ["star:b"]},
+        },
+    }
+    graph = build_focus_graph(system_name="Resolved multiple", simulation_tree=tree, stars=stars, planets=[], orbits=[orbit])
+    root_bounds = graph["nodes"]["focus:root:system"]["physical_bounds"]
+    orbit_bounds = graph["nodes"]["focus:orbit:ab"]["physical_bounds"]
+    assert orbit_bounds["view_applicability"] == "physical_layout"
+    assert orbit_bounds["layout_radius_au"] == 1.1
+    assert root_bounds["view_applicability"] == "physical_layout"
+    assert root_bounds["radius_au"] >= 1.1

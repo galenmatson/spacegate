@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   focusBreadcrumb,
   focusNavigationNeighbors,
+  focusNavigationTargetKeys,
   focusKeyForPayload,
   formatAuDistance,
   formatLightTravelTime,
@@ -16,11 +17,11 @@ import {
 } from "../src/simulationPhysicalScale.js";
 
 const graph = {
-  schema_version: "simulation_focus_graph_v1",
+  schema_version: "simulation_focus_graph_v2",
   root_focus_key: "focus:root",
   nodes: {
-    "focus:root": { display_name: "System", parent_focus_key: null, child_focus_keys: ["focus:star"], physical_bounds: { radius_au: 100 } },
-    "focus:star": { display_name: "A", parent_focus_key: "focus:root", child_focus_keys: [], object_key: "star:a", physical_bounds: { radius_au: 2 } },
+    "focus:root": { display_name: "System", parent_focus_key: null, child_focus_keys: ["focus:star"], physical_bounds: { view_radius_au: 100, view_applicability: "physical_layout" } },
+    "focus:star": { display_name: "A", parent_focus_key: "focus:root", child_focus_keys: [], object_key: "star:a", physical_bounds: { view_radius_au: 2, view_applicability: "local_neighborhood" } },
   },
 };
 
@@ -36,7 +37,7 @@ test("focus lookup and breadcrumb retain hierarchy", () => {
 
 test("focus navigation cycles through the complete hierarchy without dead ends", () => {
   const nested = {
-    schema_version: "simulation_focus_graph_v1",
+    schema_version: "simulation_focus_graph_v2",
     root_focus_key: "root",
     nodes: {
       root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["wrapper"] },
@@ -59,15 +60,16 @@ test("focus navigation cycles through the complete hierarchy without dead ends",
   const labels = physicalFocusLabelLayout(nested, "root");
   assert.deepEqual([...labels.keys()], ["orbit:wrapper", "star:a", "star:b"]);
   assert.notEqual(labels.get("star:a").side, labels.get("star:b").side);
+  assert.deepEqual(focusNavigationTargetKeys(nested, "root"), ["wrapper", "a", "b"]);
 });
 
 test("a scale-less focus retains the nearest defensible parent ruler", () => {
   const nested = {
-    schema_version: "simulation_focus_graph_v1",
+    schema_version: "simulation_focus_graph_v2",
     root_focus_key: "root",
     nodes: {
-      root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["unknown"], physical_bounds: { radius_au: 120 } },
-      unknown: { focus_key: "unknown", parent_focus_key: "root", child_focus_keys: [], physical_bounds: { radius_au: null } },
+      root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["unknown"], physical_bounds: { view_radius_au: 120, view_applicability: "physical_layout" } },
+      unknown: { focus_key: "unknown", parent_focus_key: "root", child_focus_keys: [], physical_bounds: { view_radius_au: null, view_applicability: "unavailable" } },
     },
   };
   assert.deepEqual(physicalScaleResolution(nested, "unknown"), {
@@ -77,6 +79,48 @@ test("a scale-less focus retains the nearest defensible parent ruler", () => {
     inherited: true,
   });
   assert.ok(Math.abs(sceneUnitsPerAu(nested, "unknown") - (5.2 / 120)) < 1e-12);
+});
+
+test("a descendant overlay cannot certify an unresolved parent layout", () => {
+  const unresolved = {
+    schema_version: "simulation_focus_graph_v2",
+    root_focus_key: "root",
+    nodes: {
+      root: {
+        focus_key: "root",
+        parent_focus_key: null,
+        child_focus_keys: ["orbit"],
+        physical_bounds: {
+          view_radius_au: null,
+          available_overlay_radius_au: 4500,
+          view_applicability: "unavailable",
+        },
+      },
+      orbit: {
+        focus_key: "orbit",
+        parent_focus_key: "root",
+        child_focus_keys: ["star"],
+        physical_bounds: {
+          view_radius_au: null,
+          available_overlay_radius_au: 4500,
+          view_applicability: "unavailable",
+        },
+      },
+      star: {
+        focus_key: "star",
+        parent_focus_key: "orbit",
+        child_focus_keys: [],
+        physical_bounds: {
+          view_radius_au: 18,
+          available_overlay_radius_au: 4500,
+          view_applicability: "local_neighborhood",
+        },
+      },
+    },
+  };
+  assert.equal(physicalScaleResolution(unresolved, "root").radiusAu, null);
+  assert.equal(physicalScaleResolution(unresolved, "orbit").radiusAu, null);
+  assert.equal(physicalScaleResolution(unresolved, "star").radiusAu, 18);
 });
 
 test("scale labels use AU, standard metre prefixes, and light time", () => {

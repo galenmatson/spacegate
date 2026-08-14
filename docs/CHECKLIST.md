@@ -1078,6 +1078,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Reduce Peek to playback, speed, scale, and three core vitals; make Search
   form submission replace an open drill; and keep scale-unavailable Physical
   Orbits inspectable through an explicit schematic Structure fallback
+- [x] Replace focus graph v1 with v2 layout semantics: separate stellar
+  placement, local planet/HZ neighborhoods, and optional formation overlays;
+  prevent a descendant overlay from certifying an unresolved multiple's root
+  as a physical view, without named-system production logic
+- [x] Make physical navigation indicators traverse single-child wrappers and
+  refresh when projected scale changes, preserving bounded offscreen arrows and
+  unresolved beacons across scale transitions
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

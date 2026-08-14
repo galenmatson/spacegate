@@ -725,11 +725,13 @@ Contract notes:
   apoapsis AU, eccentricity, uncertainty/confidence, and lineage as available.
   Unsupported, assumed-placement, projected-separation-only, and physically
   incoherent inputs remain explicit unavailable or rejected states.
-- Artifact v16 also adds `render_scene.focus_graph` with schema
-  `simulation_focus_graph_v1`. The mapping is keyed by stable focus key and
+- Artifact v17 carries `render_scene.focus_graph` with schema
+  `simulation_focus_graph_v2`. The mapping is keyed by stable focus key and
   exposes `root_focus_key`, parent, ordered children, node kind, bound object or
-  orbit, public label, recursive physical bounds, source status, and supported
-  actions. Consumers must navigate these keys rather than array positions or
+  orbit, public label, separate layout/view/overlay physical bounds, physical
+  view applicability, source status, and supported actions. A local HZ or
+  formation overlay cannot make an unresolved parent relation physically
+  renderable. Consumers must navigate these keys rather than array positions or
   named-system conditions.
 - In Physical Orbits mode the active focus defines one linear AU-to-scene
   transform shared by every supported orbit, HZ, and formation line. Meshes,

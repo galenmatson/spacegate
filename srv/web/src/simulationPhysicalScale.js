@@ -9,7 +9,7 @@ function finitePositive(value) {
 }
 
 export function focusGraphNodes(focusGraph) {
-  return focusGraph?.schema_version === "simulation_focus_graph_v1" && focusGraph?.nodes
+  return focusGraph?.schema_version === "simulation_focus_graph_v2" && focusGraph?.nodes
     ? focusGraph.nodes
     : {};
 }
@@ -20,7 +20,9 @@ export function focusNode(focusGraph, focusKey) {
 }
 
 export function focusRadiusAu(focusGraph, focusKey) {
-  return finitePositive(focusNode(focusGraph, focusKey)?.physical_bounds?.radius_au);
+  const bounds = focusNode(focusGraph, focusKey)?.physical_bounds;
+  if (!bounds || bounds.view_applicability === "unavailable") return null;
+  return finitePositive(bounds.view_radius_au ?? bounds.radius_au);
 }
 
 export function sceneUnitsPerAu(focusGraph, focusKey, sceneRadius = PHYSICAL_SCENE_RADIUS) {
@@ -90,6 +92,32 @@ export function focusNavigationNeighbors(focusGraph, focusKey) {
   };
 }
 
+export function focusNavigationTargetKeys(focusGraph, focusKey) {
+  const nodes = focusGraphNodes(focusGraph);
+  const activeKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
+  const active = nodes[activeKey];
+  if (!active) return [];
+  const targets = new Set([
+    active.parent_focus_key,
+    ...siblingFocusKeys(focusGraph, activeKey),
+  ].filter(Boolean));
+  const visited = new Set([activeKey]);
+  let branch = active;
+  while (branch) {
+    const children = (branch.child_focus_keys || []).filter((key) => nodes[key]);
+    if (children.length !== 1 || visited.has(children[0])) {
+      children.forEach((key) => targets.add(key));
+      break;
+    }
+    const childKey = children[0];
+    targets.add(childKey);
+    visited.add(childKey);
+    branch = nodes[childKey];
+  }
+  targets.delete(activeKey);
+  return [...targets];
+}
+
 export function physicalScaleResolution(focusGraph, focusKey) {
   const nodes = focusGraphNodes(focusGraph);
   const requestedKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
@@ -97,7 +125,10 @@ export function physicalScaleResolution(focusGraph, focusKey) {
   let key = requestedKey;
   while (key && nodes[key] && !visited.has(key)) {
     visited.add(key);
-    const radiusAu = finitePositive(nodes[key]?.physical_bounds?.radius_au);
+    const bounds = nodes[key]?.physical_bounds;
+    const radiusAu = bounds?.view_applicability === "unavailable"
+      ? null
+      : finitePositive(bounds?.view_radius_au ?? bounds?.radius_au);
     if (radiusAu) {
       return {
         requestedFocusKey: requestedKey || null,
