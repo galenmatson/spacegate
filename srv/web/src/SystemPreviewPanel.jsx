@@ -3396,7 +3396,7 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0 }) {
+function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0, physicalGeometryFallback = false }) {
   const { gl } = useThree();
   const lastSampleRef = React.useRef(0);
   useFrame(({ clock }) => {
@@ -3415,6 +3415,7 @@ function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsP
     canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
     canvas.dataset.physicalLabelCount = String(Math.max(0, Number(physicalLabelCount) || 0));
+    canvas.dataset.physicalGeometryFallback = physicalGeometryFallback ? "structure" : "none";
     canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
     canvas.dataset.physicalSubsystemMarkerPolicy = "screen-sized-barycenter-marker";
     canvas.dataset.physicalUnavailableMarkerPolicy = "screen-sized-diamond-callout";
@@ -4615,11 +4616,14 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   const baseVisualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || baseVisualScale.default_scale_mode || baseVisualScale.scale_mode);
   const focusGraph = scene?.render_scene?.focus_graph || null;
+  const physicalResolution = useMemo(() => physicalScaleResolution(focusGraph, focusKey), [focusGraph, focusKey]);
+  const physicalGeometryFallback = activeScaleMode === PHYSICAL_SCALE_MODE && !physicalResolution.radiusAu;
+  const renderScaleMode = physicalGeometryFallback ? "structure" : activeScaleMode;
   const physicalLabelLayout = useMemo(() => (
-    activeScaleMode === PHYSICAL_SCALE_MODE ? physicalFocusLabelLayout(focusGraph, focusKey) : new Map()
-  ), [activeScaleMode, focusGraph, focusKey]);
+    renderScaleMode === PHYSICAL_SCALE_MODE ? physicalFocusLabelLayout(focusGraph, focusKey) : new Map()
+  ), [focusGraph, focusKey, renderScaleMode]);
   const physicalUnitsPerAu = activeScaleMode === PHYSICAL_SCALE_MODE
-    ? sceneUnitsPerAu(focusGraph, focusKey)
+    ? (physicalResolution.radiusAu ? sceneUnitsPerAu(focusGraph, focusKey) : null)
     : null;
   const visualScale = useMemo(() => ({
     ...baseVisualScale,
@@ -4630,26 +4634,26 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     const placement = physicalLabelPlacementForRecord(physicalLabelLayout, orbit);
     return {
       ...orbit,
-      physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+      physical_label_visible: renderScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
       physical_label_side: placement?.side,
       physical_label_vertical_pixels: placement?.verticalPixels,
     };
-  }), [activeScaleMode, physicalLabelLayout, scene]);
+  }), [physicalLabelLayout, renderScaleMode, scene]);
   const simulationTree = useMemo(() => scene?.render_scene?.simulation_tree || null, [scene]);
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
       return renderStars.map((star) => {
         const placement = physicalLabelPlacementForRecord(physicalLabelLayout, star);
-        const radiusRsun = activeScaleMode === "true_bodies"
+        const radiusRsun = renderScaleMode === "true_bodies"
           ? bodyContrastRadiusRsun(star)
           : numericField(star.fields, "radius_rsun");
         return {
           ...star,
           visualScale,
-          display_radius_scene: scaledStarRadius(radiusRsun, visualScale, activeScaleMode),
-          visual_scale_mode: activeScaleMode,
-          physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+          display_radius_scene: scaledStarRadius(radiusRsun, visualScale, renderScaleMode),
+          visual_scale_mode: renderScaleMode,
+          physical_label_visible: renderScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
           physical_label_side: placement?.side,
           physical_label_vertical_pixels: placement?.verticalPixels,
         };
@@ -4664,14 +4668,14 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         key: star.stable_object_key || star.object_id || star.star_id || `star-${idx}`,
         name: star.display_name || star.star_name || `Star ${idx + 1}`,
         radiusRsun: numericField(fields, "radius_rsun") || Number(star.radius_rsun || 0.55),
-        display_radius_scene: scaledStarRadius(numericField(fields, "radius_rsun") || Number(star.radius_rsun || 0.55), visualScale, activeScaleMode),
-        visual_scale_mode: activeScaleMode,
+        display_radius_scene: scaledStarRadius(numericField(fields, "radius_rsun") || Number(star.radius_rsun || 0.55), visualScale, renderScaleMode),
+        visual_scale_mode: renderScaleMode,
         visualScale,
         teffK,
         color: starColor(teffK),
       };
     });
-  }, [scene, visualScale, activeScaleMode, physicalLabelLayout]);
+  }, [scene, visualScale, renderScaleMode, physicalLabelLayout]);
 
   const planets = useMemo(() => {
     const renderScene = scene?.render_scene;
@@ -4684,15 +4688,15 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         return {
           ...planet,
           key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
-          orbitAu: activeScaleMode === PHYSICAL_SCALE_MODE
+          orbitAu: renderScaleMode === PHYSICAL_SCALE_MODE
             ? physicalOrbitAu
             : (selectedOrbitAu || 0.08 + idx * 0.08),
-          physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE && !physicalOrbitAu,
-          visual_scale_mode: activeScaleMode,
+          physical_scale_unavailable: renderScaleMode === PHYSICAL_SCALE_MODE && !physicalOrbitAu,
+          visual_scale_mode: renderScaleMode,
           visualScale,
-          radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode),
-          pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode) * 2.1, 0.2),
-          physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+          radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, renderScaleMode),
+          pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, renderScaleMode) * 2.1, 0.2),
+          physical_label_visible: renderScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
           physical_label_side: placement?.side,
           physical_label_vertical_pixels: placement?.verticalPixels,
         };
@@ -4705,21 +4709,21 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       return {
         key: planet.stable_object_key || planet.object_id || planet.planet_id || `planet-${idx}`,
         name: planet.display_name || planet.planet_name || `Planet ${idx + 1}`,
-        orbitAu: activeScaleMode === PHYSICAL_SCALE_MODE
+        orbitAu: renderScaleMode === PHYSICAL_SCALE_MODE
           ? null
           : (numericField(fields, "semi_major_axis_au") || Number(planet.semi_major_axis_au || 0.08 + idx * 0.08)),
-        physical_scale_unavailable: activeScaleMode === PHYSICAL_SCALE_MODE,
-        visual_scale_mode: activeScaleMode,
+        physical_scale_unavailable: renderScaleMode === PHYSICAL_SCALE_MODE,
+        visual_scale_mode: renderScaleMode,
         visualScale,
         periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
         eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
         phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),
-        radius: scaledPlanetRadius(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1), visualScale, activeScaleMode),
+        radius: scaledPlanetRadius(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1), visualScale, renderScaleMode),
         radiusEarth: numericField(fields, "radius_earth") || Number(planet.radius_earth || 1),
         orbitStatus: fieldStatus(fields, "semi_major_axis_au"),
       };
     });
-  }, [scene, visualScale, activeScaleMode, physicalLabelLayout]);
+  }, [scene, visualScale, renderScaleMode, physicalLabelLayout]);
 
   const subsystems = useMemo(() => (
     (scene?.render_scene?.bodies?.subsystems || []).map((subsystem, idx) => {
@@ -4727,12 +4731,12 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       return {
         ...subsystem,
         key: subsystem.render_key || subsystem.source?.stable_component_key || `subsystem-${idx}`,
-        physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+        physical_label_visible: renderScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
         physical_label_side: placement?.side,
         physical_label_vertical_pixels: placement?.verticalPixels,
       };
     })
-  ), [activeScaleMode, physicalLabelLayout, scene]);
+  ), [physicalLabelLayout, renderScaleMode, scene]);
   const compressedPhysicalRoot = useMemo(() => {
     if (activeScaleMode !== PHYSICAL_SCALE_MODE || focusKey !== focusGraph?.root_focus_key) return false;
     const nodes = Object.values(focusGraph?.nodes || {});
@@ -4761,9 +4765,10 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           sceneUnitsPerAU={physicalUnitsPerAu}
           compressedPhysicalRoot={compressedPhysicalRoot}
           physicalLabelCount={new Set(physicalLabelLayout.values()).size}
+          physicalGeometryFallback={physicalGeometryFallback}
         />
         <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
-        <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
+        <CameraControls resetToken={resetToken} scaleMode={renderScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
         <ViewportScaleReporter
           enabled={activeScaleMode === PHYSICAL_SCALE_MODE}
           sceneUnitsPerAU={physicalUnitsPerAu}
@@ -4782,7 +4787,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
             simulationTree={simulationTree}
             hierarchy={scene?.hierarchy}
             visualScale={visualScale}
-            scaleMode={activeScaleMode}
+            scaleMode={renderScaleMode}
             running={running}
             speedMultiplier={speedMultiplier}
             resetToken={resetToken}
@@ -5070,7 +5075,10 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
   return (
     <div className="system-preview-physical-ruler" data-testid="system-preview-physical-ruler" data-physical-scale-status={unavailable ? "unavailable" : (resolution.inherited ? "inherited" : "available")}>
       {unavailable ? (
-        <strong>Physical extent unavailable for {activeFocus?.display_name || "this focus"}</strong>
+        <>
+          <strong>Physical extent unavailable for {activeFocus?.display_name || "this focus"}</strong>
+          <span>Showing the schematic Structure layout; no AU ruler applies</span>
+        </>
       ) : (
         <>
           <div className="system-preview-ruler-line" style={{ width: `${scaleReport?.widthPx || 90}px` }} />
@@ -5454,15 +5462,16 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       setFocusKey(nextFocusKey);
     }
     focusSequenceRef.current += 1;
+    const physicalFocusAvailable = Boolean(physicalScaleResolution(focusGraph, nextFocusKey).radiusAu);
     setFocusRequest({
       token: `${systemId}:${focusSequenceRef.current}`,
       focusKey: nextFocusKey,
       targetId: String(node.object_key || node.orbit_key || ""),
-      radiusScene: activeScaleMode === PHYSICAL_SCALE_MODE ? 5.2 : 4.6,
+      radiusScene: activeScaleMode === PHYSICAL_SCALE_MODE && physicalFocusAvailable ? 5.2 : 4.6,
       preserveDistance,
     });
     return true;
-  }, [activeFocusKey, activeScaleMode, focusNodes, systemId]);
+  }, [activeFocusKey, activeScaleMode, focusGraph, focusNodes, systemId]);
   const returnToPreviousFocus = useCallback(() => {
     const previous = focusHistory[focusHistory.length - 1];
     if (!previous || !focusNodes[previous]) return;
@@ -5657,50 +5666,54 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value} title={option.detail}>{option.label}</option>)}
         </select>
       </label>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => setShowOrbits((value) => !value)}
-        aria-pressed={showOrbits}
-        disabled={status !== "ready" || webglReady === false}
-      >
-        {showOrbits ? "Orbits On" : "Orbits Off"}
-      </button>
-      <details className="system-preview-line-menu" ref={lineMenuRef}>
-        <summary>
-          Lines
-        </summary>
-        <div className="system-preview-line-menu-body">
+      {!peekPresentation ? (
+        <>
           <button
             className="system-preview-toggle"
             type="button"
-            onClick={() => setShowHabitableZones((value) => !value)}
-            aria-pressed={showHabitableZones}
+            onClick={() => setShowOrbits((value) => !value)}
+            aria-pressed={showOrbits}
             disabled={status !== "ready" || webglReady === false}
-            title={HABITABLE_ZONE_TOOLTIP}
           >
-            {showHabitableZones ? "HZ On" : "HZ Off"}
+            {showOrbits ? "Orbits On" : "Orbits Off"}
           </button>
-          {FORMATION_LINE_ORDER.map((lineKey) => {
-            const line = FORMATION_LINE_TYPES[lineKey];
-            const active = Boolean(showFormationLines[lineKey]);
-            return (
+          <details className="system-preview-line-menu" ref={lineMenuRef}>
+            <summary>
+              Lines
+            </summary>
+            <div className="system-preview-line-menu-body">
               <button
-                key={lineKey}
-                className="system-preview-toggle system-preview-line-toggle"
+                className="system-preview-toggle"
                 type="button"
-                onClick={() => setShowFormationLines((current) => ({ ...current, [lineKey]: !current[lineKey] }))}
-                aria-pressed={active}
+                onClick={() => setShowHabitableZones((value) => !value)}
+                aria-pressed={showHabitableZones}
                 disabled={status !== "ready" || webglReady === false}
-                title={line.tooltip}
-                style={{ "--line-color": line.color }}
+                title={HABITABLE_ZONE_TOOLTIP}
               >
-                {active ? `${line.shortLabel} On` : `${line.shortLabel} Off`}
+                {showHabitableZones ? "HZ On" : "HZ Off"}
               </button>
-            );
-          })}
-        </div>
-      </details>
+              {FORMATION_LINE_ORDER.map((lineKey) => {
+                const line = FORMATION_LINE_TYPES[lineKey];
+                const active = Boolean(showFormationLines[lineKey]);
+                return (
+                  <button
+                    key={lineKey}
+                    className="system-preview-toggle system-preview-line-toggle"
+                    type="button"
+                    onClick={() => setShowFormationLines((current) => ({ ...current, [lineKey]: !current[lineKey] }))}
+                    aria-pressed={active}
+                    disabled={status !== "ready" || webglReady === false}
+                    title={line.tooltip}
+                    style={{ "--line-color": line.color }}
+                  >
+                    {active ? `${line.shortLabel} On` : `${line.shortLabel} Off`}
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        </>
+      ) : null}
       {!peekPresentation ? (
         <>
           <button
@@ -5772,10 +5785,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 running={effectiveRunning}
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
-                showOrbits={showOrbits}
-                showHabitableZones={showHabitableZones}
-                showFormationLines={showFormationLines}
-                showLabels={showLabels}
+                showOrbits={peekPresentation ? true : showOrbits}
+                showHabitableZones={peekPresentation ? true : showHabitableZones}
+                showFormationLines={peekPresentation ? DEFAULT_FORMATION_LINE_VISIBILITY : showFormationLines}
+                showLabels={peekPresentation ? true : showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 focusKey={activeFocusKey}
                 focusRequest={focusRequest}

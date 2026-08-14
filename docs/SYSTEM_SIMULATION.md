@@ -798,12 +798,19 @@ Success criteria:
   component look identical.
 - Embedded Explorer layouts measure the simulation action bar and place scale
   navigation and the OBJECTS column below its actual wrapped height rather than
-  relying on a fixed offset. Peek intentionally omits the focus tour, ruler,
-  label toggle, Focus Selection, and Reset controls to remain a compact preview.
+  relying on a fixed offset. Peek intentionally exposes only playback, speed,
+  and scale. It fixes labels, orbit guides, and available habitable zones on,
+  keeps optional formation lines off, omits the focus tour and ruler, and shows
+  only distance, stellar-member, and planet-count vitals.
 - Physical mode permits camera distance down to `0.008` scene units with a
   `0.001` near plane. This expands close inspection by more than twenty times
   relative to the former `0.18` limit while retaining the same symbolic body
   marker and linear orbital-distance contracts.
+- When the current focus and all of its ancestors lack a defensible physical
+  extent, Physical Orbits preserves the inspectable Structure geometry and
+  Structure camera bounds. The ruler explicitly states that the fallback is
+  schematic and that no AU scale applies. It never collapses unknown relations
+  to a misleading zero-distance physical system.
 - ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
   Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
   normalization before distance conversion. Runtime physical-scale validation

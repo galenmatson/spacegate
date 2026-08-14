@@ -4970,19 +4970,26 @@ Representative commits:
 ### 187) Peek Returns to a Minimal Preview
 
 - Post-implementation review found that the complete physical-navigation toolset
-  made Peek behave like a smaller Explorer. Peek now retains only playback,
-  speed, scale, orbit, and line controls. The hierarchy tour, physical ruler,
-  Labels, Focus Selection, and Reset remain available in Explorer and Detail.
+  made Peek behave like a smaller Explorer. Peek now exposes only playback,
+  speed, and scale. Labels, orbit guides, and available HZs are fixed on,
+  optional formation lines remain off, and its vital strip contains only
+  distance, star count, and planet count. The full controls remain available in
+  Explorer and Detail.
 - The experimental scale Lens was removed from the public controls and renderer.
   Its second viewport duplicated the clearer scale and focus workflows without
   earning its interface and rendering cost.
 - Search is now an explicit surface transition. Activating Search dismisses an
   open Peek or Explorer, while selecting a result closes Search before opening
-  its simulation.
+  its simulation. Search form submission follows the same transition instead of
+  completing a hidden query behind the active drill.
 - Explorer now derives the OBJECTS top edge from the measured focus-navigation
   position. Physical Orbits also lowers its close camera limit from `0.18` to
   `0.008` scene units with a `0.001` near plane, allowing meaningful inspection
   inside a focused physical region without altering orbital scale.
+- A focus with no measured or inherited AU extent retains schematic Structure
+  geometry and camera bounds under an explicit notice. Unknown relations no
+  longer collapse to the origin, while focus regions with real physical extents
+  retain the deeper physical camera policy.
 
 ## Recurrent Defect Classes and Mitigations
 

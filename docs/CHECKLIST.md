@@ -1075,6 +1075,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Focus Selection, and Reset; retire the experimental Lens; place Explorer
   OBJECTS below the measured navigation bar; make Search replace open drill
   surfaces; and extend Physical Orbits close zoom from `0.18` to `0.008`
+- [x] Reduce Peek to playback, speed, scale, and three core vitals; make Search
+  form submission replace an open drill; and keep scale-unavailable Physical
+  Orbits inspectable through an explicit schematic Structure fallback
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

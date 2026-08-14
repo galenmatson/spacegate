@@ -3552,6 +3552,11 @@ Verification:
 - Physical Orbits reduces its minimum camera distance from `0.18` to `0.008`
   scene units and its near plane to `0.001`, making close focus inspection
   practical without changing physical orbital geometry.
+- Peek is further reduced to playback, speed, and scale with fixed labels,
+  orbit guides, available HZs, and three core vitals. Search form submission now
+  dismisses an open drill surface before exposing results. A focus with no
+  physical extent at any ancestor uses an explicitly labelled schematic
+  Structure fallback instead of collapsing unknown relations to the origin.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

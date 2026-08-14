@@ -4683,8 +4683,15 @@ export default function StarMapPage({
 
   const submitMapSearch = useCallback((event) => {
     event?.preventDefault?.();
+    if (drillMode !== "flight") {
+      drillHistoryPushedRef.current = false;
+      setDrillMode("flight");
+    }
+    if (!mapSearchOpen) {
+      navigate("/", { replace: true });
+    }
     runMapSearch({ append: false });
-  }, [runMapSearch]);
+  }, [drillMode, mapSearchOpen, navigate, runMapSearch]);
 
   const changeMapSearchSort = useCallback((nextSort) => {
     const requested = STAR_SEARCH_SORT_OPTIONS.some((option) => option.value === nextSort) ? nextSort : "distance";
@@ -5610,29 +5617,33 @@ export default function StarMapPage({
                 ]}
               />
               <MapVitalPill
-                value={`${formatNumber(drillSystemSummary.star_count, 0)} stars`}
+                value={`${formatNumber(drillSystemSummary.star_count, 0)} ${Number(drillSystemSummary.star_count) === 1 ? "star" : "stars"}`}
                 heading="Bound stars"
                 lines={buildStarTooltipLines(drillSystemSummary, selectedSystemDetail)}
               />
               <MapVitalPill
-                value={`${formatNumber(drillSystemSummary.planet_count, 0)} planets`}
+                value={`${formatNumber(drillSystemSummary.planet_count, 0)} ${Number(drillSystemSummary.planet_count) === 1 ? "planet" : "planets"}`}
                 heading="Known planets"
                 lines={buildPlanetTooltipLines(selectedSystemDetail, drillSystemSummary.planet_count)}
               />
-              <MapVitalPill
-                value={`cool ${formatNumber(selectedSystem.coolness_score, 1)}`}
-                heading="Coolness score"
-                lines={buildCoolnessTooltipLines(selectedSystemMetrics || selectedSystem)}
-                onIntent={loadSelectedSystemMetrics}
-              />
-              <MapVitalPill
-                value={`rank ${formatNumber(selectedSystem.coolness_rank, 0)}`}
-                heading="Coolness rank"
-                lines={[
-                  "Rank orders systems by coolness in this served build; rank 1 is highest.",
-                  "It can change when source data or the versioned scoring weights change.",
-                ]}
-              />
+              {drillMode !== "peek" ? (
+                <>
+                  <MapVitalPill
+                    value={`cool ${formatNumber(selectedSystem.coolness_score, 1)}`}
+                    heading="Coolness score"
+                    lines={buildCoolnessTooltipLines(selectedSystemMetrics || selectedSystem)}
+                    onIntent={loadSelectedSystemMetrics}
+                  />
+                  <MapVitalPill
+                    value={`rank ${formatNumber(selectedSystem.coolness_rank, 0)}`}
+                    heading="Coolness rank"
+                    lines={[
+                      "Rank orders systems by coolness in this served build; rank 1 is highest.",
+                      "It can change when source data or the versioned scoring weights change.",
+                    ]}
+                  />
+                </>
+              ) : null}
             </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel

@@ -1218,6 +1218,9 @@ test.describe("public 3D map beta", () => {
     expect(selectionRequests.filter((path) => path === "/api/v1/systems/search")).toHaveLength(0);
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
+    await expect(drill.getByRole("button", { name: /Orbits (On|Off)/ })).toHaveCount(0);
+    await expect(drill.locator(".system-preview-line-menu")).toHaveCount(0);
+    await expect(drill.locator(".map-system-vital-pill")).toHaveCount(3);
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveText("1.9 years/s (1,000x)");
     await expect(drill.locator(".system-preview-speed select option[value='5000']")).toHaveText("9.6 years/s (5,000x)");
     await expect(drill.locator(".system-preview-speed select option[value='10000']")).toHaveText("19.2 years/s (10,000x)");
@@ -1490,7 +1493,9 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await drill.locator("[data-testid='system-preview-scale-mode']").selectOption("log");
     await drill.locator(".system-preview-speed select").selectOption("5000");
-    await drill.getByRole("button", { name: "Orbits On" }).click();
+    await expect(drill.getByRole("button", { name: /Orbits (On|Off)/ })).toHaveCount(0);
+    await expect(drill.locator(".system-preview-line-menu")).toHaveCount(0);
+    await expect(drill.locator(".map-system-vital-pill")).toHaveCount(3);
     await expect(drill.getByRole("button", { name: /Labels (On|Off)/ })).toHaveCount(0);
     await expect(drill.getByRole("button", { name: /^Focus Selection$/ })).toHaveCount(0);
     await expect(drill.getByRole("button", { name: /^Reset$/ })).toHaveCount(0);
@@ -1503,6 +1508,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toHaveValue("log");
     await expect(drill.locator(".system-preview-speed select")).toHaveValue("5000");
+    await drill.getByRole("button", { name: "Orbits On" }).click();
     await expect(drill.getByRole("button", { name: "Orbits Off" })).toBeVisible();
     await drill.getByRole("button", { name: "Labels On" }).click();
     await expect(drill.getByRole("button", { name: "Labels Off" })).toBeVisible();
@@ -1533,6 +1539,20 @@ test.describe("public 3D map beta", () => {
     await searchToggle.click();
     await expect(drill).toHaveCount(0);
     await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
+
+    await openMapPeekFromRecents(page);
+    const formDrill = page.locator("[data-testid='map-system-drill']");
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    const input = page.locator("[data-testid='map-star-search-input']");
+    await expect(input).toBeVisible();
+    await expect(formDrill).toBeVisible();
+    await input.fill("Castor");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    await expect(formDrill).toHaveCount(0);
+    await expect(page.locator(".map-search-card").filter({ hasText: "Castor" }).first()).toBeVisible();
   });
 
   test("System Page uses the reviewed wide envelope and explicit Catalog and Map peers", async ({ page }, testInfo) => {
@@ -2686,6 +2706,48 @@ test.describe("public 3D map beta", () => {
     await expect(fallback).toBeVisible();
     await expect(fallback).toContainText(/Live preview unavailable/i);
     await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
+  });
+
+  test("physical mode keeps a scale-unavailable hierarchy inspectable", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop physical fallback inspection check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "32alf Leo", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "32alf Leo system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    const panel = page.locator("[data-testid='system-preview-panel']");
+    const canvas = panel.locator(".system-preview-canvas canvas");
+    await expect(canvas).toBeVisible();
+    await panel.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    const ruler = panel.locator("[data-testid='system-preview-physical-ruler']");
+    await expect(ruler).toHaveAttribute("data-physical-scale-status", "unavailable");
+    await expect(ruler).toContainText(/schematic Structure layout.*no AU ruler applies/i);
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.physicalGeometryFallback || ""),
+      { timeout: 3000 },
+    ).toBe("structure");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
+      { timeout: 3000 },
+    ).toBe("structure");
+
+    const beforeDistance = await canvas.evaluate((node) => Number(node.dataset.cameraTargetDistance || 0));
+    expect(beforeDistance).toBeGreaterThan(1);
+    const box = await canvas.boundingBox();
+    expect(box, "scale-unavailable physical canvas bounds").toBeTruthy();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let index = 0; index < 12; index += 1) {
+      await page.mouse.wheel(0, -900);
+    }
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.cameraTargetDistance || Number.POSITIVE_INFINITY)),
+      { timeout: 3000 },
+    ).toBeLessThan(beforeDistance * 0.5);
+    await page.screenshot({ path: testInfo.outputPath("32alf-leo-physical-unavailable-fallback.png"), fullPage: false });
   });
 
   test("physical close zoom keeps Alpha Centauri markers and scale beacons readable", async ({ page }, testInfo) => {
