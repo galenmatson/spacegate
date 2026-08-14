@@ -42,7 +42,10 @@ import {
 } from "./stellarClassTags.jsx";
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 import { useSmartTagDefinition } from "./SmartTag.jsx";
-import { SIMULATION_SCALE_MODE_OPTIONS as SYSTEM_SCALE_MODE_OPTIONS } from "./simulationPresentationState.js";
+import {
+  SIMULATION_SCALE_MODE_OPTIONS as SYSTEM_SCALE_MODE_OPTIONS,
+  normalizeSimulationScaleMode as normalizeSystemScaleMode,
+} from "./simulationPresentationState.js";
 
 const DEFAULT_MAP_RADIUS_LY = 500;
 const MONOLITHIC_DIAGNOSTIC_RADIUS_LY = 100;
@@ -84,7 +87,6 @@ const MAP_UTILITY_LINKS = [
 ];
 const MAP_VISIBLE_UTILITY_LABELS = new Set(["HELP", "DATA"]);
 const MAP_MENU_UTILITY_LABELS = new Set(["ABT", "SPT", "SRC"]);
-const SYSTEM_SCALE_MODE_IDS = new Set(SYSTEM_SCALE_MODE_OPTIONS.map((option) => option.value));
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
@@ -262,14 +264,6 @@ const ICRS_TO_GALACTIC = [
   [0.4941094279, -0.4448296300, 0.7469822445],
   [-0.8676661490, -0.1980763734, 0.4559837762],
 ];
-
-function normalizeSystemScaleMode(value) {
-  const raw = String(value || "").trim().toLowerCase();
-  if (raw === "clarity" || raw === "structured") {
-    return "structure";
-  }
-  return SYSTEM_SCALE_MODE_IDS.has(raw) ? raw : "structure";
-}
 
 function formatNumber(value, digits = 1) {
   const numeric = Number(value);

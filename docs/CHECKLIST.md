@@ -1088,6 +1088,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Enforce scale-mode truthfulness: mark Physical Orbits unavailable at a
   focus with no defensible inherited AU extent, keep Structure visibly selected,
   and restore the normal option for valid member or relation focus regions
+- [x] Unify Catalog, Map, and simulator scale menus on the shared five-mode
+  registry; preserve the global default across system changes; and make OBJECTS
+  selection retarget the live camera with double click entering object focus
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

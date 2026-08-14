@@ -705,6 +705,10 @@ Success criteria:
   system ID is unchanged. It deliberately excludes running state, camera,
   selected object, and elapsed simulation days. A different system starts at
   current global defaults and `1x`.
+- Catalog, Map, and the simulator consume the same scale registry and
+  normalizer. The former `Orbit` menu label is now consistently `Local Orbit`,
+  and all surfaces expose Structured, Local Orbit, Body Contrast, Log, and
+  Physical Orbits without maintaining private option lists.
 - `scripts/report_simulation_rate_policy.py` measures five-second fastest-planet
   and sixty-second shortest/top-level stellar candidates from accepted render
   periods. The August 9 review keeps automatic selection disabled because the
@@ -769,6 +773,10 @@ Success criteria:
   touch and keyboard; desktop double click animates to a body, subsystem, orbit,
   habitable zone, or formation-line focus. Selection, simulation time, scale
   settings, and pinned inspectors survive valid focus transitions.
+- Selecting a rendered object or OBJECTS row retargets OrbitControls at the
+  object's live scene position while preserving camera distance, so zoom and
+  orbit remain centered on the selection. Double clicking an OBJECTS row also
+  enters its focus-graph region and animates to the corresponding bounds.
 - The experimental scale lens was removed after browser review. The extra inset
   did not add enough clarity beyond the scale modes and focus graph to justify
   its controls or rendering path. Git history preserves the prototype if a

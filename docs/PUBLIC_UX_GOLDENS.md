@@ -112,8 +112,10 @@ The Playwright map suite imports
 - Map-menu parity keeps the stored `realistic` preference compatible while
   presenting that mode as `Natural Color`, exposes the active style and default
   simulation-scale explanations without hover, and gives abbreviated map
-  commands complete accessible names. A 360-by-640 regression check keeps the
-  expanded settings menu within the viewport with bounded internal scrolling.
+  commands complete accessible names. Catalog and Map must expose the same
+  shared five simulation-scale modes and labels. A 360-by-640 regression check
+  keeps the expanded settings menu within the viewport with bounded internal
+  scrolling.
 - System-page narration parity presents deterministic fallback blocks as
   `Spacegate Summary` rather than exposing machine status tokens, while pinned
   simulator readouts translate storage layers into plain public language.

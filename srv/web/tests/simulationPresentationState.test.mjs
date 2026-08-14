@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  SIMULATION_SCALE_MODE_OPTIONS,
+  normalizeSimulationScaleMode,
   readSimulationPresentationState,
   writeSimulationPresentationState,
 } from "../src/simulationPresentationState.js";
@@ -22,6 +24,22 @@ const defaults = {
   showFormationLines: { soot: true, snow: false },
   showLabels: true,
 };
+
+test("the shared scale contract includes every current simulator mode", () => {
+  assert.deepEqual(
+    SIMULATION_SCALE_MODE_OPTIONS.map((option) => [option.value, option.label]),
+    [
+      ["structure", "Structured"],
+      ["true_orbits", "Local Orbit"],
+      ["true_bodies", "Body Contrast"],
+      ["log", "Log"],
+      ["physical", "Physical Orbits"],
+    ],
+  );
+  assert.equal(normalizeSimulationScaleMode("Orbit"), "true_orbits");
+  assert.equal(normalizeSimulationScaleMode("structured"), "structure");
+  assert.equal(normalizeSimulationScaleMode("physical"), "physical");
+});
 
 test("same-system presentation survives a surface remount without carrying an epoch", () => {
   const storage = memoryStorage();

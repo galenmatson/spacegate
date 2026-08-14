@@ -13,6 +13,7 @@ import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFrom
 import { PlanetCategoryBadge, planetCategoryForKey } from "./planetCategoryIcons.jsx";
 import {
   SIMULATION_SCALE_MODE_OPTIONS as SCALE_MODE_OPTIONS,
+  normalizeSimulationScaleMode,
   readSimulationPresentationState,
   writeSimulationPresentationState,
 } from "./simulationPresentationState.js";
@@ -231,11 +232,7 @@ function mergeVisualScale(scale) {
 }
 
 function normalizeScaleMode(value) {
-  const mode = String(value || "").trim().toLowerCase();
-  if (mode === "clarity" || mode === "clarity_scaled_not_physical") {
-    return "structure";
-  }
-  return SCALE_MODE_OPTIONS.some((option) => option.value === mode) ? mode : "structure";
+  return normalizeSimulationScaleMode(value);
 }
 
 function scaleModeLabel(value) {
@@ -5511,6 +5508,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     const desiredTop = current.offsetTop - Math.max(0, (list.clientHeight - current.offsetHeight) / 2);
     list.scrollTo({ top: Math.max(0, desiredTop), behavior: "smooth" });
   }, [activeFocusKey]);
+  const selectObject = useCallback((payload) => {
+    if (!payload) return;
+    setPinnedObject(payload);
+    const nextKey = focusKeyForObject(payload);
+    if (nextKey) issueFocusRequest(nextKey, { enter: false, preserveDistance: true });
+  }, [focusKeyForObject, issueFocusRequest]);
   const focusObject = useCallback((payload) => {
     if (!payload) return;
     setPinnedObject(payload);
@@ -5591,12 +5594,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         || String(candidate.payload?.id || "") === targetKey
       ));
       if (!item) return;
-      setPinnedObject(item.payload);
+      selectObject(item.payload);
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     };
     window.addEventListener("spacegate:focus-object", focusObject);
     return () => window.removeEventListener("spacegate:focus-object", focusObject);
-  }, [objectItems, systemId]);
+  }, [objectItems, selectObject, systemId]);
   const stellarClassEntries = useMemo(() => {
     const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
     return stars
@@ -5826,7 +5829,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 labelTypography={labelTypography}
                 theme={activeTheme}
                 onHover={interactiveReadouts ? handleHoverObject : null}
-                onSelect={interactiveReadouts ? setPinnedObject : null}
+                onSelect={interactiveReadouts ? selectObject : null}
                 onFocus={interactiveReadouts ? focusObject : null}
                 onPointerMissed={interactiveReadouts ? () => setPinnedObject(null) : null}
                 onClockSample={handleClockSample}
@@ -5922,10 +5925,11 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   data-object-parent-key={item.parentKey || ""}
                   data-focus-current={focusCurrent ? "true" : "false"}
                   aria-current={focusCurrent ? "location" : undefined}
-                  onClick={() => setPinnedObject(item.payload)}
+                  onClick={() => selectObject(item.payload)}
+                  onDoubleClick={() => focusObject(item.payload)}
                   onMouseEnter={() => setHoveredObject(item.payload)}
                   onMouseLeave={() => setHoveredObject(null)}
-                  title={`Inspect ${item.name}`}
+                  title={`Select ${item.name}; double click to center and focus`}
                 >
                   {item.recordKind === "star" && item.record
                     ? (

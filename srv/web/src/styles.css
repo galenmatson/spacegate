@@ -4842,6 +4842,13 @@ body {
   width: 100%;
 }
 
+.header-menu-note {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
 .data-build-callout {
   display: inline-grid;
   gap: 4px;

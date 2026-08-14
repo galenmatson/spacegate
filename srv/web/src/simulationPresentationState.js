@@ -11,12 +11,23 @@ export const SIMULATION_SCALE_MODE_OPTIONS = Object.freeze([
   Object.freeze({ value: "physical", label: "Physical Orbits", detail: "Uses one linear AU transform for every supported orbit, habitable zone, and formation line in the active focus region. Bodies remain readable markers rather than physical-size spheres." }),
 ]);
 
+export function normalizeSimulationScaleMode(value) {
+  const mode = String(value || "").trim().toLowerCase();
+  if (mode === "clarity" || mode === "clarity_scaled_not_physical" || mode === "structured") {
+    return "structure";
+  }
+  if (mode === "orbit" || mode === "local_orbit") return "true_orbits";
+  if (mode === "body" || mode === "body_contrast") return "true_bodies";
+  if (mode === "physical_orbits") return "physical";
+  return VALID_SCALE_MODES.has(mode) ? mode : "structure";
+}
+
 function booleanOr(value, fallback) {
   return typeof value === "boolean" ? value : Boolean(fallback);
 }
 
 export function normalizeSimulationPresentationState(value = {}, defaults = {}) {
-  const scaleMode = String(value?.scaleMode || defaults?.scaleMode || "structure").trim().toLowerCase();
+  const scaleMode = normalizeSimulationScaleMode(value?.scaleMode || defaults?.scaleMode || "structure");
   const speed = Number(value?.speedMultiplier ?? defaults?.speedMultiplier ?? 1);
   const defaultFormationLines = defaults?.showFormationLines && typeof defaults.showFormationLines === "object"
     ? defaults.showFormationLines
@@ -25,7 +36,7 @@ export function normalizeSimulationPresentationState(value = {}, defaults = {}) 
     ? value.showFormationLines
     : defaultFormationLines;
   return {
-    scaleMode: VALID_SCALE_MODES.has(scaleMode) ? scaleMode : "structure",
+    scaleMode,
     speedMultiplier: VALID_SPEEDS.has(speed) ? speed : 1,
     showOrbits: booleanOr(value?.showOrbits, defaults?.showOrbits ?? true),
     showHabitableZones: booleanOr(value?.showHabitableZones, defaults?.showHabitableZones ?? true),

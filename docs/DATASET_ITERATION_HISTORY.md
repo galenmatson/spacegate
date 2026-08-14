@@ -5020,6 +5020,10 @@ Representative commits:
   Physical Orbits while the renderer drew Structure still violated the mode
   contract. Availability is now enforced by the control itself and follows the
   active focus without object-specific rules.
+- Follow-up UI reconciliation removed the Catalog's stale private scale list.
+  Catalog, Map, and simulator now use one scale registry, and object selection
+  retargets the live OrbitControls pivot. OBJECTS-row double click uses the same
+  generic focus graph as canvas double click; no named-system behavior was added.
 
 ## Recurrent Defect Classes and Mitigations
 

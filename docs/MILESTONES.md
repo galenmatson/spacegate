@@ -3503,6 +3503,10 @@ Accepted decisions:
   out. Such a parent keeps Structure selected and marks Physical Orbits as
   unavailable, while the member's own focused neighborhood can still enable a
   linear AU scale;
+- Catalog, Map, and simulator controls now share one five-mode scale registry.
+  Object selection retargets the live OrbitControls pivot without changing
+  distance, while an OBJECTS-row double click selects and enters that object's
+  focus region;
 - ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
   arcseconds. The general stellar-orbit compiler now normalizes those values,
   and runtime physical-scale validation rejects axes that imply incoherent

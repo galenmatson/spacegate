@@ -19,6 +19,10 @@ import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStore
 import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 import { PlanetCategoryBadge, planetCategoryTitle } from "./planetCategoryIcons.jsx";
 import {
+  SIMULATION_SCALE_MODE_OPTIONS,
+  normalizeSimulationScaleMode,
+} from "./simulationPresentationState.js";
+import {
   OBJECT_BADGE_TAG_CATEGORIES,
   HeroSmartTagList,
   SmartTagList,
@@ -160,13 +164,6 @@ const LCARS_TEXT_SLOTS_PER_LINE = 5;
 const SEARCH_RESULT_PREVIEW_POOL_SIZE = 4;
 const SEARCH_RESULT_PREVIEW_CACHE_LIMIT = 160;
 const SIM_SCALE_STORAGE_KEY = "spacegate.systemSimulation.defaultScale";
-const SIM_SCALE_MODE_OPTIONS = [
-  { value: "structure", label: "Structured" },
-  { value: "true_orbits", label: "Orbit" },
-  { value: "true_bodies", label: "Body" },
-  { value: "log", label: "Log" },
-];
-const SIM_SCALE_MODE_IDS = new Set(SIM_SCALE_MODE_OPTIONS.map((option) => option.value));
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -238,14 +235,6 @@ function normalizeThemeId(raw) {
   const key = String(raw || "").trim().toLowerCase();
   const mapped = THEME_ALIASES[key] || key;
   return THEME_IDS.has(mapped) ? mapped : "";
-}
-
-function normalizeSimulationScaleMode(raw) {
-  const value = String(raw || "").trim().toLowerCase();
-  if (value === "clarity" || value === "structured") {
-    return "structure";
-  }
-  return SIM_SCALE_MODE_IDS.has(value) ? value : "structure";
 }
 
 function resolveInitialTheme() {
@@ -2908,10 +2897,13 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
             onChange={(event) => setDefaultScaleMode(normalizeSimulationScaleMode(event.target.value))}
             data-testid="global-default-scale-select"
           >
-            {SIM_SCALE_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {SIMULATION_SCALE_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value} title={option.detail}>{option.label}</option>
             ))}
           </select>
+          <small className="header-menu-note">
+            {SIMULATION_SCALE_MODE_OPTIONS.find((option) => option.value === normalizeSimulationScaleMode(defaultScaleMode))?.detail}
+          </small>
         </label>
         <label className="header-menu-field">
           <span>Name Style</span>

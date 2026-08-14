@@ -370,7 +370,12 @@ test.describe("public 3D map beta", () => {
     const headerMenu = page.locator(".header-menu");
     await expect(headerMenu).toBeVisible();
     await headerMenu.locator("summary").click();
-    await expect(headerMenu.locator("[data-testid='global-default-scale-select']")).toBeVisible();
+    const catalogScale = headerMenu.locator("[data-testid='global-default-scale-select']");
+    await expect(catalogScale).toBeVisible();
+    await expect(catalogScale.locator("option")).toHaveCount(5);
+    await expect(catalogScale.locator("option[value='true_orbits']")).toHaveText("Local Orbit");
+    await expect(catalogScale.locator("option[value='physical']")).toHaveText("Physical Orbits");
+    await expect(headerMenu.locator(".header-menu-note")).toContainText(/hierarchy readability|local scene envelope|one linear AU transform/i);
     await expect(page.locator(".catalog-search-topbar")).toBeVisible();
     await expect(page.locator(".catalog-search-sidebar")).toBeVisible();
     await expect.poll(() => page.locator(".catalog-search-sidebar").evaluate((node) => (
@@ -952,6 +957,9 @@ test.describe("public 3D map beta", () => {
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
+    await expect(scaleSelect.locator("option")).toHaveCount(5);
+    await expect(scaleSelect.locator("option[value='true_orbits']")).toHaveText("Local Orbit");
+    await expect(scaleSelect.locator("option[value='physical']")).toHaveText("Physical Orbits");
     await expect(scaleSelect.locator("option[value='structure']")).toHaveAttribute("title", /system structure/i);
     await expect(menu.locator("#map-default-scale-help")).toContainText(/hierarchy readability/i);
     await expect(nameStyleSelect).toBeVisible();
@@ -3493,10 +3501,8 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(45);
-    await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i })
-      .first()
-      .locator(".system-preview-object-select")
-      .click();
+    const proximaObjectRow = page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i }).first();
+    await proximaObjectRow.locator(".system-preview-object-select").click();
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
       { timeout: 3000 }
@@ -3510,7 +3516,36 @@ test.describe("public 3D map beta", () => {
       }),
       { timeout: 3000 }
     ).toBeTruthy();
+    const focusBeforeDoubleClick = await previewCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || "");
+    await proximaObjectRow.locator(".system-preview-object-select").dblclick();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.physicalFocusKey || ""),
+      { timeout: 3000 },
+    ).not.toBe(focusBeforeDoubleClick);
+    await expect(proximaObjectRow).toHaveAttribute("data-focus-current", "true");
     await expect(page.locator(".system-detail-v2")).toContainText(/Proxima/i);
+  });
+
+  test("the global simulation scale default applies to every newly opened system", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop cross-system default contract check");
+    await page.addInitScript(() => {
+      window.localStorage.setItem("spacegate.systemSimulation.defaultScale", "true_bodies");
+      window.sessionStorage.removeItem("spacegate.systemSimulation.presentation.v1");
+    });
+    const sol = await resolveGoldenSystem(page, { query: "Sol" });
+    const tauCeti = await resolveGoldenSystem(page, { query: "Tau Ceti" });
+    expect(sol?.system_id).toBeTruthy();
+    expect(tauCeti?.system_id).toBeTruthy();
+
+    for (const system of [sol, tauCeti]) {
+      await page.goto(`/systems/${system.system_id}`, { waitUntil: "domcontentloaded" });
+      const scale = page.locator("[data-testid='system-preview-scale-mode']");
+      await expect(scale).toHaveValue("true_bodies", { timeout: 15000 });
+      await expect.poll(
+        () => page.locator(".system-preview-canvas canvas").evaluate((canvas) => canvas.dataset.scaleMode || ""),
+        { timeout: 3000 },
+      ).toBe("true_bodies");
+    }
   });
 
   test("system hierarchy exposes compact stellar leaves by default", async ({ page }, testInfo) => {
