@@ -53,12 +53,24 @@ Runtime ARM now contains three versioned tables:
 - `stellar_leaf_selected_parameters` provides one accepted, conflicted, or
   missing mass decision per relevant exact leaf.
 
-The finalized projection contains 22,836 binding outcomes, 15,110 evidence
-rows, and 15,503 selected or explicitly unresolved leaf rows. Selected values
-include 23 DEBCat dynamical masses, 1,255 MSC publication masses, 11,626 MSC
-source-model masses, 749 Gaia model masses, 43 NASA host masses, and 249
-white-dwarf leaf selections across all applicable source families. Seven equal
-authority conflicts remain explicit and 1,800 relevant leaves remain missing.
+The finalized projection contains 22,836 binding outcomes, 15,747 evidence
+rows, and 16,064 selected or explicitly unresolved leaf rows. Selected values
+include 23 DEBCat dynamical masses, 1,310 MSC publication masses, 12,054 MSC
+source-model masses, 818 Gaia model masses, and 48 NASA host masses. This
+includes 269 accepted white-dwarf leaf selections across applicable source
+families. Seven equal-authority conflicts remain explicit and 1,804 relevant
+leaves remain missing.
+
+An intermediate full A/B exposed an overly narrow population boundary before
+promotion. All 8,429 leaves whose prior display class used an MSC component
+mass are now accounted in the typed evidence projection. Of those leaves,
+7,758 retain an accepted point mass and the corresponding mass-based display
+class. Two have equal-authority mass conflicts. The remaining 669 lose the
+class because their only mass is not a selectable point estimate: 640 carry a
+minimum-mass lower bound, 27 have an unresolved MSC mass method, and two carry
+a subsystem sum that is inapplicable to an individual leaf. Those values remain
+preserved as evidence rather than disappearing or being promoted into orbital
+inputs.
 
 MSC mass method codes follow the pinned catalog documentation. Publication
 values (`r`) are source evidence; magnitude, color, spectral, and mass-ratio
@@ -73,10 +85,12 @@ relations retain a WDS source-system identity while their exact runtime leaves
 belong to a canonical Gaia-based system. Filtering relevant leaves by equal
 system keys discarded otherwise accepted endpoint masses.
 
-`stellar_leaf_mass_selection_v2` now selects relevance from the accepted
-relation endpoint-to-leaf bindings. It does not infer identity from names or
-copy a source system mass to a component. A regression control covers a WDS
-source relation whose two exact MSC leaves live under a Gaia runtime system.
+`stellar_leaf_mass_selection_v3` selects relevance from the union of accepted
+relation endpoint-to-leaf bindings and exact leaves with eligible bound
+component mass evidence. It does not infer identity from names or copy a source
+system mass to a component. Regression controls cover both a WDS source
+relation whose exact MSC leaves live under a Gaia runtime system and a bound
+mass leaf that is not currently used by an eligible physical relation.
 
 An end-to-end candidate scene demonstrates two MSC source-model endpoint masses
 of 1.43 and 1.16 solar masses feeding
@@ -112,4 +126,3 @@ Machine reports are stored under:
 Large clean-build artifacts are staged under:
 
 `/space/spacegate/physical-extent-coverage-v1/`
-

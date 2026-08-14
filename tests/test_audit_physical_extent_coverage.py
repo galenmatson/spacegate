@@ -21,7 +21,7 @@ def _field(key: str, value: float | None, status: str) -> dict:
 def _selected_mass(value: float | None, status: str) -> dict:
     return {
         **_field("mass_msun", value, status),
-        "selection_policy_version": "stellar_leaf_mass_selection_v2",
+        "selection_policy_version": "stellar_leaf_mass_selection_v3",
     }
 
 
@@ -35,7 +35,7 @@ def _write_scene(path: Path, *, derived: bool, system_id: int = 1) -> None:
     }
     payload = {
         "build_id": "build-test",
-        "materialization": {"materializer_version": "simulation_scene_artifact_v19"},
+        "materialization": {"materializer_version": "simulation_scene_artifact_v20"},
         "system": {
             "system_id": system_id,
             "stable_object_key": f"system:{system_id}",

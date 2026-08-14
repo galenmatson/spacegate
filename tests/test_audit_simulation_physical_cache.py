@@ -21,7 +21,7 @@ def _write_scene(
 ) -> None:
     axis = {"value": 1.0, "unit": "au"} if applicability == "physical" else None
     payload = {
-        "materialization": {"materializer_version": "simulation_scene_artifact_v19"},
+        "materialization": {"materializer_version": "simulation_scene_artifact_v20"},
         "render_scene": {
             "physical_scale": {"schema_version": "simulation_physical_scale_v2"},
             "focus_graph": {

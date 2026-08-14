@@ -1842,16 +1842,21 @@ candidates remain separate.
 
 ### `stellar_leaf_selected_parameters`
 
-One row per physical-extent-relevant stellar leaf and quantity. Relevance is
-defined by accepted relation endpoint membership, not by equality between a
+One row per parameter-relevant stellar leaf and quantity. The population is
+the union of exact endpoints required by eligible physical relations and exact
+canonical leaves carrying eligible bound component mass evidence. Relation
+relevance is defined by accepted endpoint membership, not by equality between a
 source catalog's system key and the canonical runtime system key. This permits
 an exact WDS endpoint binding to select the same leaf after the runtime system
 has adopted a Gaia-based permanent identity, without transferring evidence to
-another component. Accepted rows
+another component. Including other exact mass-bound leaves ensures a component
+mass used by the shared classification projection is retained in the typed
+parameter projection even when the leaf has no currently eligible physical
+relation. Accepted rows
 identify the exact winning evidence candidate and selection policy. Missing or
 equal-authority conflicted rows retain an explicit reason and no numeric value.
 The current quantity is `mass_msun`; its selection contract is
-`stellar_leaf_mass_selection_v2`.
+`stellar_leaf_mass_selection_v3`.
 
 Authority is quantity specific. DEBCat dynamical masses outrank accepted
 canonical source measurements; applicable canonical source models follow;

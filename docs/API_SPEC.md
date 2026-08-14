@@ -827,7 +827,7 @@ is the same ordered leaf sequence. Clients must use this projection for public
 class badges instead of independently combining CORE stars, MSC aggregate
 components, renderer priors, or display names.
 
-Simulation-scene artifact v19 also resolves runtime ARM
+Simulation-scene artifact v20 also resolves runtime ARM
 `stellar_leaf_selected_parameters` onto the matching render body. The current
 quantity is `mass_msun`. A field may have status `source`, `source_model`,
 `derived`, `missing`, or `conflicted`, and carries exact evidence,

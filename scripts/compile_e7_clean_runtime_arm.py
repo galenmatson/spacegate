@@ -48,6 +48,38 @@ def physical_extent_runtime_leaf_membership_sql(
     """
 
 
+def selected_parameter_runtime_leaf_membership_sql(leaf_alias: str = "l") -> str:
+    """Return the exact leaf population eligible for parameter accounting."""
+    return f"""
+      EXISTS (
+        SELECT 1
+        FROM stellar_orbit_relation_bindings relation
+        WHERE relation.simulation_eligible
+          AND ({physical_extent_runtime_leaf_membership_sql(leaf_alias)})
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM msc_runtime_leaf_bindings binding
+        JOIN science.evidence_component_msc_stellar_parameter_projection parameter
+          USING(component_entity_id)
+        WHERE binding.runtime_binding_status='accepted'
+          AND binding.hierarchy_node_key={leaf_alias}.hierarchy_node_key
+          AND parameter.quantity_key='mass'
+          AND parameter.projection_status='eligible_for_quantity_selection'
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM msc_runtime_leaf_bindings binding
+        JOIN science.evidence_component_debcat_stellar_parameter_projection parameter
+          ON parameter.target_key=binding.source_component_key
+        WHERE binding.runtime_binding_status='accepted'
+          AND binding.hierarchy_node_key={leaf_alias}.hierarchy_node_key
+          AND parameter.quantity_key='log10_mass'
+          AND parameter.projection_status='eligible_for_quantity_selection'
+      )
+    """
+
+
 def load_object(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -1179,15 +1211,10 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
         con.execute(
             f"""
 
-        CREATE TEMP TABLE physical_extent_runtime_leaves AS
+        CREATE TEMP TABLE selected_parameter_runtime_leaves AS
         SELECT l.*
         FROM runtime_stellar_leaves l
-        WHERE EXISTS (
-          SELECT 1
-          FROM stellar_orbit_relation_bindings relation
-          WHERE relation.simulation_eligible
-            AND ({physical_extent_runtime_leaf_membership_sql()})
-        );
+        WHERE ({selected_parameter_runtime_leaf_membership_sql()});
 
         CREATE TEMP TABLE physical_extent_leaf_applicability AS
         WITH msc_classification AS (
@@ -1210,7 +1237,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
               END,
               'UNKNOWN')::VARCHAR AS classification_value,
             msc.classification_raw
-          FROM physical_extent_runtime_leaves leaf
+          FROM selected_parameter_runtime_leaves leaf
           LEFT JOIN selected_stellar_display_classifications display
             ON display.star_id=leaf.star_id
           LEFT JOIN msc_classification msc
@@ -1341,7 +1368,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             'accepted_exact_leaf_selected_fact'::VARCHAR AS applicability_decision,
             applicability.applicability_policy_version,
             NULL::VARCHAR AS msc_mass_code,facts.quality_json::JSON AS quality_json
-          FROM physical_extent_runtime_leaves l
+          FROM selected_parameter_runtime_leaves l
           JOIN physical_extent_leaf_applicability applicability
             USING(hierarchy_node_key)
           JOIN selected_stellar_parameters p USING(star_id)
@@ -1430,7 +1457,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             applicability.applicability_policy_version,
             outcome.msc_mass_code,outcome.quality_json
           FROM stellar_leaf_parameter_binding_outcomes outcome
-          JOIN physical_extent_runtime_leaves l
+          JOIN selected_parameter_runtime_leaves l
             ON l.hierarchy_node_key=outcome.hierarchy_node_key
           JOIN physical_extent_leaf_applicability applicability
             ON applicability.hierarchy_node_key=l.hierarchy_node_key
@@ -1446,7 +1473,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
               source_id,evidence_id
           )::BIGINT AS leaf_parameter_evidence_id,
           {sql_literal(build_id)}::VARCHAR AS build_id,*,
-          'stellar_leaf_parameter_evidence_v2'::VARCHAR AS projection_version
+          'stellar_leaf_parameter_evidence_v3'::VARCHAR AS projection_version
         FROM candidates
         ORDER BY system_id,hierarchy_node_key,quantity_key,authority_rank,
           source_id,evidence_id;
@@ -1516,8 +1543,8 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             AS distinct_top_value_count,
           conflict.candidate_value_min,conflict.candidate_value_max,
           coalesce(conflict.top_evidence_ids_json,'[]')::VARCHAR AS top_evidence_ids_json,
-          'stellar_leaf_mass_selection_v2'::VARCHAR AS selection_policy_version
-        FROM physical_extent_runtime_leaves leaf
+          'stellar_leaf_mass_selection_v3'::VARCHAR AS selection_policy_version
+        FROM selected_parameter_runtime_leaves leaf
         LEFT JOIN ranked selected
           ON selected.hierarchy_node_key=leaf.hierarchy_node_key
          AND selected.quantity_key='mass_msun' AND selected.candidate_rank=1
@@ -1558,7 +1585,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
         # projection graph. Production compilation always takes the branch above.
         con.execute(
             f"""
-            CREATE TEMP TABLE physical_extent_runtime_leaves AS
+            CREATE TEMP TABLE selected_parameter_runtime_leaves AS
             SELECT * FROM runtime_stellar_leaves WHERE false;
             CREATE TABLE stellar_leaf_parameter_binding_outcomes AS
             SELECT {sql_literal(build_id)}::VARCHAR AS build_id WHERE false;
@@ -1824,7 +1851,7 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         ),
         "selected_leaf_mass_inventory_delta": abs(
             counts["stellar_leaf_selected_parameters"]
-            - scalar("SELECT count(*) FROM physical_extent_runtime_leaves")
+            - scalar("SELECT count(*) FROM selected_parameter_runtime_leaves")
         ),
         "duplicate_selected_leaf_parameters": scalar(
             "SELECT count(*) FROM (SELECT hierarchy_node_key,quantity_key "

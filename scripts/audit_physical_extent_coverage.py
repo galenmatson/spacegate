@@ -17,7 +17,7 @@ from typing import Any
 import duckdb
 
 
-SELECTED_STELLAR_MASS_POLICY_VERSION = "stellar_leaf_mass_selection_v2"
+SELECTED_STELLAR_MASS_POLICY_VERSION = "stellar_leaf_mass_selection_v3"
 
 
 def _number(value: Any) -> float | None:

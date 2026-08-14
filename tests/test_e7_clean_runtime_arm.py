@@ -119,6 +119,57 @@ def test_physical_extent_leaf_membership_uses_bound_endpoints_across_system_alia
     ]
 
 
+def test_selected_parameter_population_keeps_exact_mass_bound_leaves() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute("ATTACH ':memory:' AS science")
+    con.execute(
+        """
+        CREATE TABLE runtime_stellar_leaves(
+          hierarchy_node_key VARCHAR, system_stable_object_key VARCHAR,
+          leaf_component_key VARCHAR
+        );
+        CREATE TABLE stellar_orbit_relation_bindings(
+          simulation_eligible BOOLEAN,
+          canonical_system_stable_object_key VARCHAR,
+          primary_descendant_leaf_keys_json VARCHAR,
+          secondary_descendant_leaf_keys_json VARCHAR
+        );
+        CREATE TABLE msc_runtime_leaf_bindings(
+          component_entity_id VARCHAR, source_component_key VARCHAR,
+          hierarchy_node_key VARCHAR, runtime_binding_status VARCHAR
+        );
+        CREATE TABLE science.evidence_component_msc_stellar_parameter_projection(
+          component_entity_id VARCHAR, quantity_key VARCHAR,
+          projection_status VARCHAR
+        );
+        CREATE TABLE science.evidence_component_debcat_stellar_parameter_projection(
+          target_key VARCHAR, quantity_key VARCHAR, projection_status VARCHAR
+        );
+        INSERT INTO runtime_stellar_leaves VALUES
+          ('leaf:msc','system:1','component:msc'),
+          ('leaf:debcat','system:2','component:debcat'),
+          ('leaf:unbound','system:3','component:unbound');
+        INSERT INTO msc_runtime_leaf_bindings VALUES
+          ('entity:msc','component:msc','leaf:msc','accepted'),
+          ('entity:debcat','component:debcat','leaf:debcat','accepted');
+        INSERT INTO science.evidence_component_msc_stellar_parameter_projection VALUES
+          ('entity:msc','mass','eligible_for_quantity_selection');
+        INSERT INTO science.evidence_component_debcat_stellar_parameter_projection VALUES
+          ('component:debcat','log10_mass','eligible_for_quantity_selection');
+        """
+    )
+    rows = con.execute(
+        f"""
+        SELECT l.hierarchy_node_key
+        FROM runtime_stellar_leaves l
+        WHERE ({COMPILER.selected_parameter_runtime_leaf_membership_sql()})
+        ORDER BY 1
+        """
+    ).fetchall()
+
+    assert rows == [("leaf:debcat",), ("leaf:msc",)]
+
+
 def test_component_graph_projects_each_node_kind_without_cross_product_joins() -> None:
     con = duckdb.connect(":memory:")
     con.execute("ATTACH ':memory:' AS core")

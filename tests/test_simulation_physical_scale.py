@@ -21,7 +21,7 @@ def source_field(key: str, value: float, unit: str | None = None) -> dict:
 def selected_mass_field(value: float, *, status: str = "source") -> dict:
     field = source_field("mass_msun", value, "Msun")
     field["status"] = status
-    field["selection_policy_version"] = "stellar_leaf_mass_selection_v2"
+    field["selection_policy_version"] = "stellar_leaf_mass_selection_v3"
     return field
 
 
