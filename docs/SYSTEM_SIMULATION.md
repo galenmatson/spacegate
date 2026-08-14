@@ -811,10 +811,11 @@ Success criteria:
   relative to the former `0.18` limit while retaining the same symbolic body
   marker and linear orbital-distance contracts.
 - When the current focus and all of its ancestors lack a defensible physical
-  extent, Physical Orbits preserves the inspectable Structure geometry and
-  Structure camera bounds. The ruler explicitly states that the fallback is
-  schematic and that no AU scale applies. It never collapses unknown relations
-  to a misleading zero-distance physical system.
+  extent, Structure remains visibly selected and the Physical Orbits option is
+  disabled as unavailable. Focusing a member neighborhood or relation with a
+  valid AU extent re-enables the option. The simulator never labels schematic
+  geometry Physical Orbits and never collapses unknown relations into a
+  misleading zero-distance physical system.
 - ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
   Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
   normalization before distance conversion. Runtime physical-scale validation

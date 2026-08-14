@@ -2708,8 +2708,8 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
   });
 
-  test("physical mode keeps a scale-unavailable hierarchy inspectable", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.includes("mobile"), "desktop physical fallback inspection check");
+  test("scale-unavailable hierarchy cannot masquerade as Physical Orbits", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop physical availability inspection check");
     const response = await page.request.get("/api/v1/systems/search", {
       params: { q: "32alf Leo", limit: "1" },
     });
@@ -2722,14 +2722,12 @@ test.describe("public 3D map beta", () => {
     const panel = page.locator("[data-testid='system-preview-panel']");
     const canvas = panel.locator(".system-preview-canvas canvas");
     await expect(canvas).toBeVisible();
-    await panel.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
-    const ruler = panel.locator("[data-testid='system-preview-physical-ruler']");
-    await expect(ruler).toHaveAttribute("data-physical-scale-status", "unavailable");
-    await expect(ruler).toContainText(/schematic Structure layout.*no AU ruler applies/i);
-    await expect.poll(
-      () => canvas.evaluate((node) => node.dataset.physicalGeometryFallback || ""),
-      { timeout: 3000 },
-    ).toBe("structure");
+    const scale = panel.locator("[data-testid='system-preview-scale-mode']");
+    await expect(scale).toHaveValue("structure");
+    const physicalOption = scale.locator("option[value='physical']");
+    await expect.poll(() => physicalOption.evaluate((option) => option.disabled)).toBe(true);
+    await expect(physicalOption).toHaveText(/Physical Orbits.*Unavailable here/i);
+    await expect(panel.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
       { timeout: 3000 },
@@ -2747,11 +2745,11 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => Number(node.dataset.cameraTargetDistance || Number.POSITIVE_INFINITY)),
       { timeout: 3000 },
     ).toBeLessThan(beforeDistance * 0.5);
-    await page.screenshot({ path: testInfo.outputPath("32alf-leo-physical-unavailable-fallback.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("32alf-leo-physical-unavailable.png"), fullPage: false });
   });
 
   test("a descendant habitable zone does not certify an unresolved multiple layout", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.includes("mobile"), "desktop unresolved-multiple physical fallback check");
+    test.skip(testInfo.project.name.includes("mobile"), "desktop unresolved-multiple physical availability check");
     const response = await page.request.get("/api/v1/systems/search", {
       params: { q: "AR Cas", limit: "1" },
     });
@@ -2777,14 +2775,26 @@ test.describe("public 3D map beta", () => {
     const panel = page.locator("[data-testid='system-preview-panel']");
     const canvas = panel.locator(".system-preview-canvas canvas");
     await expect(canvas).toBeVisible();
-    await panel.locator("[data-testid='system-preview-scale-mode']").selectOption("physical");
+    const scale = panel.locator("[data-testid='system-preview-scale-mode']");
+    await expect(scale).toHaveValue("structure");
+    await expect.poll(() => scale.locator("option[value='physical']").evaluate((option) => option.disabled)).toBe(true);
+
+    const localName = localNeighborhoods[0].display_name;
+    const localRow = panel.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")
+      .filter({ hasText: localName })
+      .first();
+    await localRow.click();
+    await panel.getByRole("button", { name: "Focus Selection" }).click();
+    await expect.poll(() => scale.locator("option[value='physical']").evaluate((option) => option.disabled)).toBe(false);
+    await scale.selectOption("physical");
+    await expect(scale).toHaveValue("physical");
     await expect(panel.locator("[data-testid='system-preview-physical-ruler']"))
-      .toHaveAttribute("data-physical-scale-status", "unavailable");
+      .toHaveAttribute("data-physical-scale-status", "available");
     await expect.poll(
-      () => canvas.evaluate((node) => node.dataset.physicalGeometryFallback || ""),
+      () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
       { timeout: 3000 },
-    ).toBe("structure");
-    await page.screenshot({ path: testInfo.outputPath("ar-cas-unresolved-layout-fallback.png"), fullPage: false });
+    ).toBe("physical");
+    await page.screenshot({ path: testInfo.outputPath("ar-cas-local-physical-neighborhood.png"), fullPage: false });
   });
 
   test("physical close zoom keeps Alpha Centauri markers and navigation indicators readable", async ({ page }, testInfo) => {

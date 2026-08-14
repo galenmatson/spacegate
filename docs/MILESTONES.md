@@ -3500,8 +3500,9 @@ Accepted decisions:
 - focus graph v2 separates physical layout bounds from local neighborhoods and
   optional overlay extents. A habitable zone or formation line around one
   member cannot certify an unresolved multistar relation as physically laid
-  out. Such a parent uses the explicit Structure fallback, while the member's
-  own focused neighborhood can still use a linear AU scale;
+  out. Such a parent keeps Structure selected and disables Physical Orbits as
+  unavailable, while the member's own focused neighborhood can still enable a
+  linear AU scale;
 - ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
   arcseconds. The general stellar-orbit compiler now normalizes those values,
   and runtime physical-scale validation rejects axes that imply incoherent
@@ -3560,8 +3561,9 @@ Verification:
 - Peek is further reduced to playback, speed, and scale with fixed labels,
   orbit guides, available HZs, and three core vitals. Search form submission now
   dismisses an open drill surface before exposing results. A focus with no
-  physical extent at any ancestor uses an explicitly labelled schematic
-  Structure fallback instead of collapsing unknown relations to the origin.
+  physical extent at any ancestor keeps Structure selected and marks Physical
+  Orbits unavailable instead of claiming schematic geometry is physically
+  scaled or collapsing unknown relations to the origin.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

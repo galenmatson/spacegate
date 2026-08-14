@@ -4986,10 +4986,11 @@ Representative commits:
   position. Physical Orbits also lowers its close camera limit from `0.18` to
   `0.008` scene units with a `0.001` near plane, allowing meaningful inspection
   inside a focused physical region without altering orbital scale.
-- A focus with no measured or inherited AU extent retains schematic Structure
-  geometry and camera bounds under an explicit notice. Unknown relations no
-  longer collapse to the origin, while focus regions with real physical extents
-  retain the deeper physical camera policy.
+- A focus with no measured or inherited AU extent remains in Structure and
+  disables Physical Orbits as unavailable. Unknown relations no longer collapse
+  to the origin, and schematic geometry is never displayed under a physical
+  mode label. Focus regions with real physical extents retain the deeper
+  physical camera policy.
 
 ### 188) Physical Layout Evidence Is Separate from Local Overlays
 
@@ -5005,7 +5006,8 @@ Representative commits:
 - A root is physical only when its single hierarchy child supplies a valid
   physical view. A lone star's local neighborhood remains valid; a resolved
   stellar relation remains valid; multiple unrelated root children and an
-  unresolved wrapping relation use the explicit Structure fallback.
+  unresolved wrapping relation keep Structure selected and mark Physical Orbits
+  unavailable.
 - The implementation has no named-system production branches. Unit controls
   cover lone-star neighborhoods, resolved multiples, unresolved multiples with
   luminous members, and parent-scale inheritance. Scene artifact v17 rejects
@@ -5014,6 +5016,10 @@ Representative commits:
   wrappers to the first meaningful branches. Its render-state signature includes
   projected scale and unresolved status, so changing scale modes cannot leave
   stale offscreen or scale-beacon classifications in the overlay.
+- Post-review removed the interim labelled fallback because a selector reading
+  Physical Orbits while the renderer drew Structure still violated the mode
+  contract. Availability is now enforced by the control itself and follows the
+  active focus without object-specific rules.
 
 ## Recurrent Defect Classes and Mitigations
 

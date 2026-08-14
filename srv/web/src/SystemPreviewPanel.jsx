@@ -3396,7 +3396,7 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0, physicalGeometryFallback = false }) {
+function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0 }) {
   const { gl } = useThree();
   const lastSampleRef = React.useRef(0);
   useFrame(({ clock }) => {
@@ -3415,7 +3415,6 @@ function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsP
     canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
     canvas.dataset.physicalLabelCount = String(Math.max(0, Number(physicalLabelCount) || 0));
-    canvas.dataset.physicalGeometryFallback = physicalGeometryFallback ? "structure" : "none";
     canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
     canvas.dataset.physicalSubsystemMarkerPolicy = "screen-sized-barycenter-marker";
     canvas.dataset.physicalUnavailableMarkerPolicy = "screen-sized-diamond-callout";
@@ -4624,8 +4623,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   const activeScaleMode = normalizeScaleMode(scaleMode || baseVisualScale.default_scale_mode || baseVisualScale.scale_mode);
   const focusGraph = scene?.render_scene?.focus_graph || null;
   const physicalResolution = useMemo(() => physicalScaleResolution(focusGraph, focusKey), [focusGraph, focusKey]);
-  const physicalGeometryFallback = activeScaleMode === PHYSICAL_SCALE_MODE && !physicalResolution.radiusAu;
-  const renderScaleMode = physicalGeometryFallback ? "structure" : activeScaleMode;
+  const renderScaleMode = activeScaleMode;
   const physicalLabelLayout = useMemo(() => (
     renderScaleMode === PHYSICAL_SCALE_MODE ? physicalFocusLabelLayout(focusGraph, focusKey) : new Map()
   ), [focusGraph, focusKey, renderScaleMode]);
@@ -4772,7 +4770,6 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           sceneUnitsPerAU={physicalUnitsPerAu}
           compressedPhysicalRoot={compressedPhysicalRoot}
           physicalLabelCount={new Set(physicalLabelLayout.values()).size}
-          physicalGeometryFallback={physicalGeometryFallback}
         />
         <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
         <CameraControls resetToken={resetToken} scaleMode={renderScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
@@ -5452,13 +5449,25 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const renderedAssumptionCount = Number.isFinite(Number(renderScene.assumption_count))
     ? Number(renderScene.assumption_count)
     : (counts.assumed || 0) + assumedOrbitCount;
-  const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
-  const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
+  const requestedScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
   const focusGraph = renderScene.focus_graph || null;
   const focusNodes = useMemo(() => focusGraphNodes(focusGraph), [focusGraph]);
   const activeFocusKey = focusNodes[focusKey] ? focusKey : (focusGraph?.root_focus_key || "");
   const activeFocus = focusNodes[activeFocusKey] || null;
+  const activePhysicalResolution = useMemo(
+    () => physicalScaleResolution(focusGraph, activeFocusKey),
+    [activeFocusKey, focusGraph],
+  );
+  const physicalModeAvailable = Boolean(activePhysicalResolution.radiusAu);
+  const activeScaleMode = requestedScaleMode === PHYSICAL_SCALE_MODE && !physicalModeAvailable
+    ? "structure"
+    : requestedScaleMode;
+  const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
+  useEffect(() => {
+    if (status !== "ready" || requestedScaleMode !== PHYSICAL_SCALE_MODE || physicalModeAvailable) return;
+    setScaleMode("structure");
+  }, [physicalModeAvailable, requestedScaleMode, status]);
   const issueFocusRequest = useCallback((nextFocusKey, { enter = true, preserveDistance = false } = {}) => {
     const node = focusNodes[nextFocusKey];
     if (!node) return false;
@@ -5664,9 +5673,22 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           disabled={status !== "ready" || webglReady === false}
           data-testid="system-preview-scale-mode"
           aria-label="System simulator scale mode"
-          title={scaleModeDetail(activeScaleMode)}
+          title={physicalModeAvailable
+            ? scaleModeDetail(activeScaleMode)
+            : "Physical Orbits is unavailable at this focus because its subjects lack a defensible common AU placement."}
         >
-          {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value} title={option.detail}>{option.label}</option>)}
+          {SCALE_MODE_OPTIONS.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+              title={option.detail}
+              disabled={option.value === PHYSICAL_SCALE_MODE && !physicalModeAvailable}
+            >
+              {option.value === PHYSICAL_SCALE_MODE && !physicalModeAvailable
+                ? `${option.label} - Unavailable here`
+                : option.label}
+            </option>
+          ))}
         </select>
       </label>
       {!peekPresentation ? (
