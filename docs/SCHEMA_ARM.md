@@ -1813,7 +1813,7 @@ If MSC retrieval/cook fails:
 - ingest must fail
 - promotion must not proceed
 
-## Selected Stellar Leaf Parameters v1
+## Selected Stellar Leaf Parameters v2
 
 Runtime ARM carries exact-scope component parameters needed by scientific
 consumers without flattening source evidence into CORE.
@@ -1842,10 +1842,16 @@ candidates remain separate.
 
 ### `stellar_leaf_selected_parameters`
 
-One row per physical-extent-relevant stellar leaf and quantity. Accepted rows
+One row per physical-extent-relevant stellar leaf and quantity. Relevance is
+defined by accepted relation endpoint membership, not by equality between a
+source catalog's system key and the canonical runtime system key. This permits
+an exact WDS endpoint binding to select the same leaf after the runtime system
+has adopted a Gaia-based permanent identity, without transferring evidence to
+another component. Accepted rows
 identify the exact winning evidence candidate and selection policy. Missing or
 equal-authority conflicted rows retain an explicit reason and no numeric value.
-The current v1 quantity is `mass_msun`.
+The current quantity is `mass_msun`; its selection contract is
+`stellar_leaf_mass_selection_v2`.
 
 Authority is quantity specific. DEBCat dynamical masses outrank accepted
 canonical source measurements; applicable canonical source models follow;

@@ -1009,7 +1009,10 @@ masses would merely turn the same sky-plane snapshot back into a misleading
 Keplerian axis.
 
 `simulation_physical_scale_v2`, `physical_orbit_extent_policy_v3`, and scene
-artifact v18 reject older cached contracts. Projected separations, static
+artifact v19 reject older cached contracts. Selected component masses use
+`stellar_leaf_mass_selection_v2`, which resolves exact orbit endpoint leaves
+even when a source catalog's WDS system key and the canonical runtime system
+key differ. Projected separations, static
 hierarchy positions, and display radii remain excluded from Physical Orbits.
 Future Projected Separation and Estimated Scale modes are separately reserved
 in `docs/PROJECTED_AND_ESTIMATED_SCALE.md` and are not active.

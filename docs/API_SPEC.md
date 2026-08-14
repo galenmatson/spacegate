@@ -713,12 +713,12 @@ Contract notes:
   meshes. `true_orbits` preserves linear rendered planet-orbit ratios from
   source semi-major axes inside the scene envelope; it does not add an inner
   readability offset. `true_bodies` and `log` are also client presentation
-  modes and must not mutate core, ARM, DISC, or RIM data. Artifact v18 exposes
+  modes and must not mutate core, ARM, DISC, or RIM data. Artifact v19 exposes
   `visual_scale_v2`: public labels are Structure, Local Orbit, Body Contrast,
   Log, and Physical Orbits. Structure is explicitly schematic, Log is
   explicitly nonlinear, and only Physical Orbits provides a scene-wide linear
   ruler inside the active focus.
-- Artifact v18 exposes `render_scene.physical_scale` with schema
+- Artifact v19 exposes `render_scene.physical_scale` with schema
   `simulation_physical_scale_v2`. Its `orbit_extent_policy` identifies the
   accepted source and versioned Kepler-derivation rules; every orbit row carries
   `physical_extent` with `applicability`, `completeness`, `axis_basis`,
@@ -827,7 +827,7 @@ is the same ordered leaf sequence. Clients must use this projection for public
 class badges instead of independently combining CORE stars, MSC aggregate
 components, renderer priors, or display names.
 
-Simulation-scene artifact v18 also resolves runtime ARM
+Simulation-scene artifact v19 also resolves runtime ARM
 `stellar_leaf_selected_parameters` onto the matching render body. The current
 quantity is `mass_msun`. A field may have status `source`, `source_model`,
 `derived`, `missing`, or `conflicted`, and carries exact evidence,

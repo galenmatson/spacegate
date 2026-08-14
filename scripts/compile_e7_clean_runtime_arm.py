@@ -29,6 +29,25 @@ DEFAULT_OUTPUT_ROOT = bulk_path("e7-clean-runtime-arm")
 PARSECS_TO_LIGHT_YEARS = 3.26156
 
 
+def physical_extent_runtime_leaf_membership_sql(
+    leaf_alias: str = "l", relation_alias: str = "relation"
+) -> str:
+    """Return the exact endpoint membership predicate for physical-scale leaves."""
+    return f"""
+      {relation_alias}.canonical_system_stable_object_key={leaf_alias}.system_stable_object_key
+      OR list_contains(
+        json_extract_string(
+          {relation_alias}.primary_descendant_leaf_keys_json::JSON,'$[*]'
+        ),{leaf_alias}.leaf_component_key
+      )
+      OR list_contains(
+        json_extract_string(
+          {relation_alias}.secondary_descendant_leaf_keys_json::JSON,'$[*]'
+        ),{leaf_alias}.leaf_component_key
+      )
+    """
+
+
 def load_object(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -1018,13 +1037,15 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             endpoint.build_id AS identity_bridge_build_id,
             endpoint.policy_version AS identity_bridge_policy_version,
             endpoint.hierarchy_node_key,endpoint.runtime_component_key,
-            endpoint.canonical_system_stable_object_key,
+            leaf.system_stable_object_key AS runtime_system_stable_object_key,
             endpoint.runtime_candidate_count,
             groups.accepted_leaf_candidate_count
           FROM stellar_orbit_endpoint_bindings endpoint
           JOIN identity_bridge_groups groups
             ON groups.wds_id=trim(endpoint.wds_id_raw)
            AND groups.casefold_label=lower(trim(endpoint.component_label_normalized))
+          JOIN runtime_stellar_leaves leaf
+            ON leaf.leaf_component_key=endpoint.runtime_component_key
           WHERE endpoint.binding_status='accepted'
             AND endpoint.endpoint_kind='leaf'
             AND groups.accepted_leaf_candidate_count=1
@@ -1084,7 +1105,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             WHEN ce.binding_status='accepted' AND s.source_candidate_count>1
               AND bridge.component_entity_id IS NOT NULL
               AND bridge.runtime_candidate_count=1
-                THEN bridge.canonical_system_stable_object_key
+                THEN bridge.runtime_system_stable_object_key
             WHEN ce.binding_status='accepted' AND s.source_candidate_count=1
               AND coalesce(d.runtime_candidate_count,r.runtime_candidate_count)=1
                 THEN coalesce(d.runtime_system_stable_object_key,
@@ -1116,7 +1137,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
           bridge.identity_bridge_build_id AS runtime_identity_bridge_build_id,
           bridge.identity_bridge_policy_version AS runtime_identity_bridge_policy_version,
           false::BOOLEAN AS canonical_containment,
-          'e7_msc_runtime_leaf_binding_v2'::VARCHAR AS policy_version
+          'e7_msc_runtime_leaf_binding_v3'::VARCHAR AS policy_version
         FROM science.evidence_component_msc_component_entities ce
         LEFT JOIN source_groups s
           ON s.wds_id=trim(ce.wds_id_raw)
@@ -1165,7 +1186,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
           SELECT 1
           FROM stellar_orbit_relation_bindings relation
           WHERE relation.simulation_eligible
-            AND relation.canonical_system_stable_object_key=l.system_stable_object_key
+            AND ({physical_extent_runtime_leaf_membership_sql()})
         );
 
         CREATE TEMP TABLE physical_extent_leaf_applicability AS
@@ -1278,7 +1299,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
           END::VARCHAR AS binding_status,
           runtime_binding_reason AS binding_reason,runtime_identity_bridge_id,
           false::BOOLEAN AS canonical_containment,
-          'stellar_leaf_parameter_binding_v1'::VARCHAR AS binding_policy_version
+          'stellar_leaf_parameter_binding_v2'::VARCHAR AS binding_policy_version
         FROM component_mass_inputs
         ORDER BY source_id,evidence_id;
 
@@ -1425,7 +1446,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
               source_id,evidence_id
           )::BIGINT AS leaf_parameter_evidence_id,
           {sql_literal(build_id)}::VARCHAR AS build_id,*,
-          'stellar_leaf_parameter_evidence_v1'::VARCHAR AS projection_version
+          'stellar_leaf_parameter_evidence_v2'::VARCHAR AS projection_version
         FROM candidates
         ORDER BY system_id,hierarchy_node_key,quantity_key,authority_rank,
           source_id,evidence_id;
@@ -1495,7 +1516,7 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
             AS distinct_top_value_count,
           conflict.candidate_value_min,conflict.candidate_value_max,
           coalesce(conflict.top_evidence_ids_json,'[]')::VARCHAR AS top_evidence_ids_json,
-          'stellar_leaf_mass_selection_v1'::VARCHAR AS selection_policy_version
+          'stellar_leaf_mass_selection_v2'::VARCHAR AS selection_policy_version
         FROM physical_extent_runtime_leaves leaf
         LEFT JOIN ranked selected
           ON selected.hierarchy_node_key=leaf.hierarchy_node_key

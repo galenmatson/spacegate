@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.e7_clean_runtime_arm_policy.v8",
-  "policy_version": "2026-08-14.e7-clean-runtime-arm.15",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v10",
+  "policy_version": "2026-08-14.e7-clean-runtime-arm.16",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v11",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,

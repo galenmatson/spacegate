@@ -78,6 +78,47 @@ def test_runtime_distance_adapter_uses_explicit_light_year_conversion() -> None:
     assert "sys.dist_pc" not in source
 
 
+def test_physical_extent_leaf_membership_uses_bound_endpoints_across_system_aliases() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute(
+        """
+        CREATE TABLE runtime_stellar_leaves(
+          system_stable_object_key VARCHAR, leaf_component_key VARCHAR
+        );
+        CREATE TABLE stellar_orbit_relation_bindings(
+          simulation_eligible BOOLEAN,
+          canonical_system_stable_object_key VARCHAR,
+          primary_descendant_leaf_keys_json VARCHAR,
+          secondary_descendant_leaf_keys_json VARCHAR
+        );
+        INSERT INTO runtime_stellar_leaves VALUES
+          ('canon:system:gaia:1','comp:msc:wds:12345+6789:aa'),
+          ('canon:system:gaia:1','comp:msc:wds:12345+6789:ab'),
+          ('canon:system:gaia:1','comp:star:unrelated');
+        INSERT INTO stellar_orbit_relation_bindings VALUES
+          (true,'canon:system:wds:12345+6789',
+           '["comp:msc:wds:12345+6789:aa"]',
+           '["comp:msc:wds:12345+6789:ab"]');
+        """
+    )
+    rows = con.execute(
+        f"""
+        SELECT l.leaf_component_key
+        FROM runtime_stellar_leaves l
+        WHERE EXISTS (
+          SELECT 1 FROM stellar_orbit_relation_bindings relation
+          WHERE relation.simulation_eligible
+            AND ({COMPILER.physical_extent_runtime_leaf_membership_sql()})
+        )
+        ORDER BY 1
+        """
+    ).fetchall()
+    assert rows == [
+        ("comp:msc:wds:12345+6789:aa",),
+        ("comp:msc:wds:12345+6789:ab",),
+    ]
+
+
 def test_component_graph_projects_each_node_kind_without_cross_product_joins() -> None:
     con = duckdb.connect(":memory:")
     con.execute("ATTACH ':memory:' AS core")

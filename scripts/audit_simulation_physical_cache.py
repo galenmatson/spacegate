@@ -70,8 +70,8 @@ def audit(cache_dir: Path, expected_count: int | None) -> dict[str, Any]:
         physical = render_scene.get("physical_scale") or {}
         focus = render_scene.get("focus_graph") or {}
         visual = render_scene.get("visual_scale") or {}
-        if materialization.get("materializer_version") != "simulation_scene_artifact_v18":
-            errors.add(path, "materializer version is not v18")
+        if materialization.get("materializer_version") != "simulation_scene_artifact_v19":
+            errors.add(path, "materializer version is not v19")
         if physical.get("schema_version") != "simulation_physical_scale_v2":
             errors.add(path, "physical-scale schema mismatch")
         if focus.get("schema_version") != "simulation_focus_graph_v2":
