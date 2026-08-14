@@ -3507,6 +3507,10 @@ Accepted decisions:
   Object selection retargets the live OrbitControls pivot without changing
   distance, while an OBJECTS-row double click selects and enters that object's
   focus region;
+- habitable-zone presentation now prefers the actual displayed host-planet
+  plane before a companion-star plane. Source and derived planet inclinations
+  remain distinct from disclosed visual assumptions, and the fallback is
+  covered as a general hosted-planet policy rather than a named-system rule;
 - ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
   arcseconds. The general stellar-orbit compiler now normalizes those values,
   and runtime physical-scale validation rejects axes that imply incoherent
@@ -3572,6 +3576,42 @@ Verification:
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.
 See `docs/SIMULATION_PHYSICAL_SCALE_VERIFICATION_2026-08-13.md`.
+
+### M8.3e.3b. Physical Extent Coverage Recovery
+
+Goal:
+
+- recover defensible physical scale for the broad unresolved multiple-system
+  population without weakening the meaning of Physical Orbits.
+
+Status: queued from the M8.3e.3a coverage audit. This is a scientific compiler
+and projection repair, not a renderer exception and not a prerequisite for the
+AAA foundation.
+
+Required work:
+
+- add an exact-scope selected component-parameter projection so accepted MSC,
+  DEBCat, SB9, Gaia, and other component mass evidence reaches hierarchy leaves
+  as typed facts with source-model or derived status, uncertainty, and lineage;
+- rerun the versioned Kepler axis policy from accepted relation periods and
+  complete endpoint mass sets, then report recovered, still unavailable,
+  rejected, and conflict counts with before/after named goldens used only as
+  general-policy checks;
+- evaluate bounded stellar-mass models only for exact ordinary-star leaves whose
+  applicability is established. Propagate a mass interval into an orbital-axis
+  interval and do not promote a presentation class prior into accepted science;
+- add a separately named projected or estimated separation view only for rows
+  with applicable astrometric evidence. A sky-projected separation may describe
+  a measured snapshot or feed a versioned statistical model, but it may not be
+  drawn as a known Keplerian orbit or labeled Physical Orbits;
+- route incoherent accepted axis/period pairs and unresolved component scope to
+  deterministic quarantine or AAA adjudication rather than bypassing the
+  physical coherence gate.
+
+Acceptance requires a machine-readable coverage A/B, exact component scope,
+uncertainty and lineage preservation, deterministic rebuilds, no named-system
+production branches, and unchanged behavior for already verified physical
+systems such as Castor.
 
 ### M8.3e.4. Mobile Public UI and Touch Reliability
 

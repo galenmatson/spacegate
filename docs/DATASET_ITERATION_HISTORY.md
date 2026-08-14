@@ -5025,6 +5025,32 @@ Representative commits:
   retargets the live OrbitControls pivot. OBJECTS-row double click uses the same
   generic focus graph as canvas double click; no named-system behavior was added.
 
+### 189) Habitable Zones Follow Their Displayed Planetary Context
+
+- Groombridge 34 exposed a general presentation mismatch: its planets used
+  disclosed low-inclination visual priors, while the habitable-zone disk fell
+  through to the measured 61.4-degree companion-star orbit. The disk therefore
+  appeared unrelated to the planets it was intended to contextualize.
+- Host stars now align their habitable-zone disk first from accepted planet
+  inclinations and otherwise from the median plane actually used to display
+  their hosted planets. The latter remains explicitly `assumed` in the hover
+  evidence. A local stellar companion orbit is used only when the star has no
+  displayed planets.
+- The rule changes no scientific values and adds no named-system transform.
+  Groombridge 34 is retained as a positive browser control because its assumed
+  planet plane and strongly inclined measured binary orbit make the regression
+  observable.
+- A follow-on cache audit explains most unavailable stellar extents. Of 9,307
+  stellar relation rows, 1,431 already have physical axes. Of the 7,876
+  unavailable rows, 7,489 carry an accepted period but lack a complete accepted
+  endpoint-mass set, 135 have an accepted axis rejected by the coherence gate,
+  and 252 lack an accepted axis, period, or projected separation in the scene.
+- The gap is not evidence that all 7,489 orbits are unknowable. The runtime ARM
+  retains 8,429 exact MSC leaf classifications derived from source component
+  mass estimates, but does not yet expose a typed selected component-mass
+  projection to the physical compiler. M8.3e.3b will repair that contract and
+  measure the recovery before considering lower-confidence estimated views.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

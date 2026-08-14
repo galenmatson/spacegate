@@ -108,8 +108,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   provenance-aware browser golden
 - [x] Normalize the System Page site header and search row with Star Search,
   and align System Simulation habitable-zone disks from reliable host-planet
-  ecliptic evidence or the star's most local rendered parent orbit; assumed
-  planet visualization priors no longer override multistar parent planes
+  ecliptic evidence, then the actual displayed host-planet plane, or the star's
+  most local rendered parent orbit when it has no planets; assumed planet
+  visualization planes remain explicitly labeled as presentation assumptions
 
 - [ ] Investigate and repair AR Cassiopeiae / AR Cas / HD 221253 as one
   consistently searchable system with seven accepted stellar members; explain
@@ -1082,6 +1083,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   placement, local planet/HZ neighborhoods, and optional formation overlays;
   prevent a descendant overlay from certifying an unresolved multiple's root
   as a physical view, without named-system production logic
+- [ ] Implement M8.3e.3b Physical Extent Coverage Recovery: carry exact-scope
+  component mass evidence into a typed selected leaf projection, rerun the
+  accepted-period Kepler derivation with uncertainty and lineage, quarantine
+  incoherent rows, and evaluate a separately labeled projected/estimated view
+  without weakening Physical Orbits
 - [x] Make physical navigation indicators traverse single-child wrappers and
   refresh when projected scale changes, preserving bounded offscreen arrows and
   unresolved beacons across scale transitions

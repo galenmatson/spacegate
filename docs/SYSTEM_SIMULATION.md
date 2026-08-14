@@ -777,6 +777,13 @@ Success criteria:
   object's live scene position while preserving camera distance, so zoom and
   orbit remain centered on the selection. Double clicking an OBJECTS row also
   enters its focus-graph region and animates to the corresponding bounds.
+- A host star's habitable-zone disk follows sourced or derived planet
+  inclinations when available. If its displayed planets use disclosed visual
+  inclination assumptions, the disk follows their median displayed plane so
+  the overlay remains legible in relation to those planets. Only a star without
+  hosted planets falls back to its most local stellar companion orbit. This is
+  a presentation alignment, not a claim about the stellar spin axis or an
+  unmeasured planetary orbital plane.
 - The experimental scale lens was removed after browser review. The extra inset
   did not add enough clarity beyond the scale modes and focus graph to justify
   its controls or rendering path. Git history preserves the prototype if a

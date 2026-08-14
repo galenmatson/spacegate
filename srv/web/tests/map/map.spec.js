@@ -2734,7 +2734,7 @@ test.describe("public 3D map beta", () => {
     await expect(scale).toHaveValue("structure");
     const physicalOption = scale.locator("option[value='physical']");
     await expect.poll(() => physicalOption.evaluate((option) => option.disabled)).toBe(false);
-    await expect(physicalOption).toHaveText(/Physical Orbits.*Unavailable here/i);
+    await expect(physicalOption).toHaveText(/Physical Orbits.*Unavailable/i);
     await scale.selectOption("physical");
     await expect(scale).toHaveValue("structure");
     await expect(panel.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
@@ -2787,7 +2787,7 @@ test.describe("public 3D map beta", () => {
     await expect(canvas).toBeVisible();
     const scale = panel.locator("[data-testid='system-preview-scale-mode']");
     await expect(scale).toHaveValue("structure");
-    await expect(scale.locator("option[value='physical']")).toHaveText(/Physical Orbits.*Unavailable here/i);
+    await expect(scale.locator("option[value='physical']")).toHaveText(/Physical Orbits.*Unavailable/i);
     await scale.selectOption("physical");
     await expect(scale).toHaveValue("structure");
 
@@ -3492,11 +3492,11 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneParentPlaneCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(2);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZonePlanetPlaneCount || 0)),
       { timeout: 3000 }
-    ).toBe(0);
+    ).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
       { timeout: 3000 }
@@ -3524,6 +3524,40 @@ test.describe("public 3D map beta", () => {
     ).not.toBe(focusBeforeDoubleClick);
     await expect(proximaObjectRow).toHaveAttribute("data-focus-current", "true");
     await expect(page.locator(".system-detail-v2")).toContainText(/Proxima/i);
+  });
+
+  test("hosted planets define the displayed habitable-zone plane before a companion orbit", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop HZ plane diagnostic check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Groombridge 34", limit: "1", sort: "match" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const system = (await response.json()).items?.[0];
+    expect(system?.system_id, "Groombridge 34 system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${system.system_id}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scene = await sceneResponse.json();
+    const planets = scene.render_scene?.bodies?.planets || [];
+    expect(planets.length).toBeGreaterThanOrEqual(2);
+    expect(planets.every((planet) => {
+      const inclination = (planet.fields || []).find?.((field) => field?.key === "inclination_deg")
+        || planet.fields?.inclination_deg;
+      return inclination?.status === "assumed";
+    }), "Groombridge planet planes should remain disclosed assumptions").toBeTruthy();
+    const companionOrbit = (scene.render_scene?.orbits || []).find((orbit) => orbit.endpoint_kind === "star_pair");
+    const companionInclination = companionOrbit?.fields?.inclination_deg?.value;
+    expect(Math.abs(Number(companionInclination || 0))).toBeGreaterThan(45);
+
+    await page.goto(`/systems/${system.system_id}`, { waitUntil: "domcontentloaded" });
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZonePlanetPlaneCount || 0)),
+      { timeout: 3000 },
+    ).toBeGreaterThanOrEqual(1);
+    await expectPreviewCanvasPainted(previewCanvas, "Groombridge 34 HZ plane");
+    await previewCanvas.screenshot({ path: testInfo.outputPath("groombridge-34-hz-planet-plane.png") });
   });
 
   test("the global simulation scale default applies to every newly opened system", async ({ page }, testInfo) => {

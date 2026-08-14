@@ -1318,16 +1318,18 @@ function habitableZoneHoverPayload(star, bounds) {
     label: "HZ plane inclination",
     value: planeDeg,
     unit: "deg",
-    status: "derived",
+    status: star.habitable_zone_plane_status || "derived",
     layer: "render_scene",
     source_catalog: "spacegate_renderer",
     basis: star.habitable_zone_plane_basis || "default_scene_plane",
     confidence: 0.7,
     notes: star.habitable_zone_plane_basis === "host_planet_ecliptic_inclination"
       ? "Presentation alignment from sourced or derived host-planet inclinations; not a source orbital element for the star."
+      : (star.habitable_zone_plane_basis === "host_planet_display_plane"
+        ? "Presentation alignment with the displayed host-planet plane. The planet inclinations are assumed visual placements, not measured orbital elements."
       : (star.habitable_zone_plane_basis === "parent_orbit_inclination"
         ? "Presentation alignment with the star's most local rendered parent orbit; not a source stellar spin-axis measurement."
-        : "Presentation alignment with the default scene plane; not a source stellar spin-axis measurement."),
+        : "Presentation alignment with the default scene plane; not a source stellar spin-axis measurement.")),
   } : null;
   return {
     kind: "Habitable zone",
@@ -1423,20 +1425,33 @@ function applyHabitableZonePlaneAlignment(stars, planetPlacements, layout, rende
         ? [value]
         : [];
     });
-    const medianInclinationDeg = medianNumber(supportedPlanetInclinations);
+    const medianSupportedPlanetInclinationDeg = medianNumber(supportedPlanetInclinations);
+    const medianDisplayedPlanetInclinationDeg = medianNumber(hostPlanets.map((planet) => {
+      const value = numericField(planet.fields, "inclination_deg");
+      return Number.isFinite(value) ? value : 0;
+    }));
     const parentOrbitPlane = parentOrbitPlaneForStar(star, layout, renderOrbits);
     const parentInclinationDeg = parentOrbitPlane?.inclinationDeg;
-    const hasPlanetPlane = Number.isFinite(medianInclinationDeg);
+    const hasSupportedPlanetPlane = Number.isFinite(medianSupportedPlanetInclinationDeg);
+    const hasDisplayedPlanetPlane = hostPlanets.length > 0 && Number.isFinite(medianDisplayedPlanetInclinationDeg);
     const hasParentPlane = Number.isFinite(parentInclinationDeg);
-    const planeInclinationDeg = hasPlanetPlane
-      ? medianInclinationDeg
-      : (hasParentPlane ? parentInclinationDeg : 0);
+    const planeInclinationDeg = hasSupportedPlanetPlane
+      ? medianSupportedPlanetInclinationDeg
+      : (hasDisplayedPlanetPlane
+        ? medianDisplayedPlanetInclinationDeg
+        : (hasParentPlane ? parentInclinationDeg : 0));
+    const planeBasis = hasSupportedPlanetPlane
+      ? "host_planet_ecliptic_inclination"
+      : (hasDisplayedPlanetPlane
+        ? "host_planet_display_plane"
+        : (hasParentPlane ? "parent_orbit_inclination" : "default_scene_plane"));
     return {
       ...star,
       habitable_zone_plane_inclination_deg: planeInclinationDeg,
-      habitable_zone_plane_basis: hasPlanetPlane
-        ? "host_planet_ecliptic_inclination"
-        : (hasParentPlane ? "parent_orbit_inclination" : "default_scene_plane"),
+      habitable_zone_plane_basis: planeBasis,
+      habitable_zone_plane_status: planeBasis === "host_planet_display_plane" || planeBasis === "default_scene_plane"
+        ? "assumed"
+        : "derived",
       habitable_zone_plane_orbit_key: parentOrbitPlane?.orbit?.orbit_key || null,
     };
   });
@@ -4268,7 +4283,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     renderOrbits,
   );
   const habitableZoneParentPlaneCount = habitableZoneStars.filter((star) => star.habitable_zone_plane_basis === "parent_orbit_inclination").length;
-  const habitableZonePlanetPlaneCount = habitableZoneStars.filter((star) => star.habitable_zone_plane_basis === "host_planet_ecliptic_inclination").length;
+  const habitableZonePlanetPlaneCount = habitableZoneStars.filter((star) => String(star.habitable_zone_plane_basis || "").startsWith("host_planet_")).length;
   const habitableZoneMaxPlaneInclinationDeg = Math.max(
     0,
     ...habitableZoneStars.map((star) => Number(star.habitable_zone_plane_inclination_deg) || 0),
@@ -5687,7 +5702,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               title={option.detail}
             >
               {option.value === PHYSICAL_SCALE_MODE && !physicalModeAvailable
-                ? `${option.label} - Unavailable here`
+                ? `${option.label} - Unavailable`
                 : option.label}
             </option>
           ))}
