@@ -3529,11 +3529,20 @@ Verification:
   scissored viewport actually renders and measures the focus toolbar below
   wrapped simulation actions. Desktop Explorer, mobile, and 4K regression checks
   pass.
-- complex focus graphs now expose the nearest meaningful branches through any
-  single-child wrapper, so root Prev/Next controls do useful work in systems
-  such as Castor. Physical extent-unavailable orbit markers follow the same
-  screen-space policy as bodies and barycenters instead of expanding into large
-  octahedrons during close zoom.
+- complex focus graphs now use a deterministic depth-first circular tour across
+  every focus region, so Prev and Next never dead-end and the active hierarchy
+  row follows the tour. The navigation bar is constrained to the canvas column,
+  even when breadcrumbs contain long source-native relation names;
+- Physical mode limits labels and indicators to the active scale neighborhood
+  and gives its subjects deterministic callout lanes. A relationship without a
+  defensible extent retains the nearest measured parent ruler with an explicit
+  notice, so zoom remains meaningful without inventing a local semi-major axis;
+- Body Contrast uses accepted radii where available and presentation-only
+  spectral-class size proxies when the only radius is missing or illustrative.
+  It remains a readable contrast view, not a physical common-distance ruler;
+- open Map Peek and Explorer vitals reconcile tile summaries with the attached
+  build-matched Public Read scene, preventing older tile counts from replacing
+  the accepted hierarchy leaf count while tiles continue to stream.
 
 Machine reports live under
 `state/reports/system-simulation-physical-scale-v1/`.

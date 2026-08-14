@@ -23,10 +23,11 @@ import {
   focusGraphNodes,
   focusKeyForPayload,
   focusNode,
-  focusRadiusAu,
   layoutBoundedIndicators,
   niceScaleLength,
+  physicalFocusLabelLayout,
   physicalOrbitAxis,
+  physicalScaleResolution,
   physicalScaleReadout,
   sceneUnitsPerAu,
   siblingFocusKeys,
@@ -262,6 +263,37 @@ function scaledStarRadius(radiusRsun, visualScale = DEFAULT_VISUAL_SCALE, scaleM
     return clampNumber(0.06 + (Math.log1p(source) / Math.log1p(30)) * 0.78, 0.045, Number(policy.max_scene || 1.35));
   }
   return clampNumber(Math.sqrt(source) * Number(policy.factor || 0.45), Number(policy.min_scene || 0.18), Number(policy.max_scene || 1.35));
+}
+
+function bodyContrastRadiusRsun(star) {
+  const radius = fieldRecord(star?.fields, "radius_rsun");
+  const numericRadius = Number(radius?.value);
+  const status = String(radius?.status || "").toLowerCase();
+  if (Number.isFinite(numericRadius) && numericRadius > 0 && !["assumed", "missing"].includes(status)) {
+    return numericRadius;
+  }
+  const bodyClass = stellarBodyClass(star);
+  if (bodyClass === "white_dwarf") return 0.012;
+  if (["neutron_star", "pulsar", "magnetar"].includes(bodyClass)) return 0.00002;
+  const classLetter = spectralClassLetter(visualStellarClassValue(star));
+  return ({ O: 10, B: 4.5, A: 1.8, F: 1.3, G: 1, K: 0.78, M: 0.35, L: 0.12, T: 0.1, Y: 0.08 })[classLetter]
+    || (Number.isFinite(numericRadius) && numericRadius > 0 ? numericRadius : 0.55);
+}
+
+function physicalLabelPlacementForRecord(layout, record) {
+  if (!(layout instanceof Map)) return null;
+  const keys = [
+    record?.render_key,
+    record?.orbit_key,
+    record?.tree_node_key,
+    record?.source_component_key,
+    record?.stable_component_key,
+    record?.stable_object_key,
+    record?.key,
+    record?.source?.stable_component_key,
+    record?.source?.stable_object_key,
+  ].filter(Boolean).map(String);
+  return keys.map((key) => layout.get(key)).find(Boolean) || null;
 }
 
 function scaledPlanetRadius(radiusEarth, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure") {
@@ -1828,7 +1860,8 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const hoverPayloadId = payloadId(hoverPayload);
   useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
-  const calloutSide = hashUnit(star.render_key || star.key || star.display_name || star.name, "physical-label-side") < 0.5 ? -1 : 1;
+  const calloutSide = Number(star.physical_label_side)
+    || (hashUnit(star.render_key || star.key || star.display_name || star.name, "physical-label-side") < 0.5 ? -1 : 1);
   useScreenSpaceMeshScale(bodyRef, physicalMarker, radius, 4.25);
   useScreenSpaceMeshScale(haloRef, physicalMarker, haloRadius, 6.25);
   useScreenSpaceMeshScale(pickRef, physicalMarker, pickRadius, 10.5);
@@ -1890,11 +1923,11 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
         position={[0, -Math.max(radius + 0.28, pickRadius * 0.72), 0]}
         color="#fff4c4"
         scale={bodyClass === "white_dwarf" ? 0.78 : 0.92}
-        visible={showLabels}
+        visible={showLabels && (!physicalMarker || star.physical_label_visible !== false)}
         maxLength={physicalMarker ? 34 : 24}
         callout={physicalMarker}
         calloutSide={calloutSide}
-        calloutVerticalPixels={calloutSide < 0 ? -8 : 8}
+        calloutVerticalPixels={Number(star.physical_label_vertical_pixels) || 0}
         screenGapPixels={6}
       />
       <SceneLabel
@@ -2876,7 +2909,8 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
   const contrast = React.useContext(SceneContrastContext);
   const unavailableMarkerRef = React.useRef(null);
   const unavailablePhysicalMarker = spec.orbitRadius <= 0 && spec.scaleMode === PHYSICAL_SCALE_MODE;
-  const unavailableCalloutSide = hashUnit(spec.orbit.orbit_key || spec.orbit.display_name, "physical-label-side") < 0.5 ? -1 : 1;
+  const unavailableCalloutSide = Number(spec.orbit.physical_label_side)
+    || (hashUnit(spec.orbit.orbit_key || spec.orbit.display_name, "physical-label-side") < 0.5 ? -1 : 1);
   useScreenSpaceMeshScale(unavailableMarkerRef, unavailablePhysicalMarker, 0.1, 5.5);
   const relativePathPoints = useMemo(
     () => sampledOrbitPoints(spec.orbitRadius, spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind === "group_pair" ? 224 : 192),
@@ -2942,9 +2976,10 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
             color="#ffd16a"
             scale={0.72}
             maxLength={34}
+            visible={spec.orbit.physical_label_visible !== false}
             callout={unavailablePhysicalMarker}
             calloutSide={unavailableCalloutSide}
-            calloutVerticalPixels={unavailableCalloutSide < 0 ? -10 : 10}
+            calloutVerticalPixels={Number(spec.orbit.physical_label_vertical_pixels) || 0}
             screenGapPixels={9}
           />
         </group>
@@ -3096,7 +3131,8 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const physicalMarker = normalizeScaleMode(scaleMode) === PHYSICAL_SCALE_MODE;
   const markerRadius = selected ? 0.268 : 0.201;
-  const calloutSide = hashUnit(subsystem.render_key || subsystem.key || subsystem.display_name || subsystem.name, "physical-label-side") < 0.5 ? -1 : 1;
+  const calloutSide = Number(subsystem.physical_label_side)
+    || (hashUnit(subsystem.render_key || subsystem.key || subsystem.display_name || subsystem.name, "physical-label-side") < 0.5 ? -1 : 1);
   useScreenSpaceMeshScale(markerRef, physicalMarker, markerRadius, selected ? 10 : 8);
   useScreenSpaceMeshScale(pickRef, physicalMarker, 0.34, 13);
 
@@ -3158,11 +3194,11 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
         position={[0, -0.36, 0]}
         color="#b7f3ff"
         scale={0.72}
-        visible={showLabels}
+        visible={showLabels && (!physicalMarker || subsystem.physical_label_visible !== false)}
         maxLength={physicalMarker ? 34 : 24}
         callout={physicalMarker}
         calloutSide={calloutSide}
-        calloutVerticalPixels={calloutSide < 0 ? -10 : 10}
+        calloutVerticalPixels={Number(subsystem.physical_label_vertical_pixels) || 0}
         screenGapPixels={9}
       />
     </group>
@@ -3190,7 +3226,8 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const physicalMarker = normalizeScaleMode(planet.visual_scale_mode) === PHYSICAL_SCALE_MODE;
-  const calloutSide = hashUnit(planet.render_key || planet.key || planet.display_name || planet.name, "physical-label-side") < 0.5 ? -1 : 1;
+  const calloutSide = Number(planet.physical_label_side)
+    || (hashUnit(planet.render_key || planet.key || planet.display_name || planet.name, "physical-label-side") < 0.5 ? -1 : 1);
   useScreenSpaceMeshScale(bodyRef, physicalMarker && !planet.physical_scale_unavailable, planet.radius, 3.4);
   useScreenSpaceMeshScale(haloRef, physicalMarker && !planet.physical_scale_unavailable, planet.radius * 1.08, 5.1);
   useScreenSpaceMeshScale(unavailableRef, physicalMarker && planet.physical_scale_unavailable, 0.07, 4.5);
@@ -3277,13 +3314,13 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
         position={[0, -1, 0]}
         color="#d7efff"
         scale={0.72}
-        visible={showLabels}
+        visible={showLabels && (!physicalMarker || planet.physical_label_visible !== false)}
         anchorRadius={planet.radius}
         screenGapPixels={physicalMarker ? 6 : 3}
         maxLength={physicalMarker ? 34 : 24}
         callout={physicalMarker}
         calloutSide={calloutSide}
-        calloutVerticalPixels={calloutSide < 0 ? 7 : -7}
+        calloutVerticalPixels={Number(planet.physical_label_vertical_pixels) || 0}
       />
     </group>
   );
@@ -3359,7 +3396,7 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false }) {
+function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey = "", sceneUnitsPerAU = null, compressedPhysicalRoot = false, physicalLabelCount = 0 }) {
   const { gl } = useThree();
   const lastSampleRef = React.useRef(0);
   useFrame(({ clock }) => {
@@ -3377,6 +3414,7 @@ function RendererResourceMetrics({ lensOpen = false, focusGraph = null, focusKey
     canvas.dataset.physicalFocusNodeCount = String(Object.keys(focusGraph?.nodes || {}).length);
     canvas.dataset.sceneUnitsPerAu = Number.isFinite(Number(sceneUnitsPerAU)) ? Number(sceneUnitsPerAU).toPrecision(8) : "";
     canvas.dataset.compressedPhysicalRoot = compressedPhysicalRoot ? "true" : "false";
+    canvas.dataset.physicalLabelCount = String(Math.max(0, Number(physicalLabelCount) || 0));
     canvas.dataset.physicalBodyMarkerPolicy = "screen-sized-not-physical-radius";
     canvas.dataset.physicalSubsystemMarkerPolicy = "screen-sized-barycenter-marker";
     canvas.dataset.physicalUnavailableMarkerPolicy = "screen-sized-diamond-callout";
@@ -3678,6 +3716,7 @@ function SceneMotionMetrics({
   trueOrbitMaxBodyRadius = null,
   trueOrbitMinPlanetOrbitRadius = null,
   trueOrbitMaxBodyToMinOrbitRatio = null,
+  bodyContrastStarRadiusRatio = null,
   habitableZoneCount = 0,
   habitableZoneMaxPlaneInclinationDeg = 0,
   habitableZoneParentPlaneCount = 0,
@@ -3761,6 +3800,12 @@ function SceneMotionMetrics({
     gl.domElement.dataset.trueOrbitMaxBodyToMinOrbitRatio = Number.isFinite(Number(trueOrbitMaxBodyToMinOrbitRatio))
       ? Number(trueOrbitMaxBodyToMinOrbitRatio).toFixed(5)
       : "";
+    gl.domElement.dataset.bodyContrastRadiusPolicy = normalizeScaleMode(scaleMode) === "true_bodies"
+      ? "accepted-radius-or-class-proxy-v1"
+      : "inactive";
+    gl.domElement.dataset.bodyContrastStarRadiusRatio = Number.isFinite(Number(bodyContrastStarRadiusRatio))
+      ? Number(bodyContrastStarRadiusRatio).toFixed(5)
+      : "";
     gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
     gl.domElement.dataset.habitableZoneMaxPlaneInclinationDeg = Number.isFinite(Number(habitableZoneMaxPlaneInclinationDeg)) ? Number(habitableZoneMaxPlaneInclinationDeg).toFixed(3) : "";
     gl.domElement.dataset.habitableZoneParentPlaneCount = String(habitableZoneParentPlaneCount || 0);
@@ -3814,6 +3859,7 @@ function SceneMotionMetrics({
     trueOrbitMaxBodyRadius,
     trueOrbitMinPlanetOrbitRadius,
     trueOrbitMaxBodyToMinOrbitRatio,
+    bodyContrastStarRadiusRatio,
     planetHostGroupCount,
     treeHostedPlanetCount,
     planetTrailCount,
@@ -4121,6 +4167,14 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     applyCollisionSafeStarRadii(stars, separationDiagnostics, visualScale, activeScaleMode)
   ), [stars, separationDiagnostics, visualScale, activeScaleMode]);
   const displayStars = collisionScale.stars;
+  const bodyContrastStarRadiusRatio = useMemo(() => {
+    if (activeScaleMode !== "true_bodies") return null;
+    const radii = displayStars
+      .map((star) => Number(star.display_radius_scene))
+      .filter((radius) => Number.isFinite(radius) && radius > 0);
+    if (radii.length < 2) return null;
+    return Math.max(...radii) / Math.min(...radii);
+  }, [activeScaleMode, displayStars]);
   const simClockRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   useEffect(() => {
     simClockRef.current = { days: 0, lastElapsedSeconds: null };
@@ -4308,6 +4362,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         trueOrbitMaxBodyRadius={trueOrbitBodyDiagnostics.maxBodyRadius}
         trueOrbitMinPlanetOrbitRadius={trueOrbitBodyDiagnostics.minPlanetOrbitRadius}
         trueOrbitMaxBodyToMinOrbitRatio={trueOrbitBodyDiagnostics.maxBodyToMinOrbitRatio}
+        bodyContrastStarRadiusRatio={bodyContrastStarRadiusRatio}
         habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
         habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
         habitableZoneParentPlaneCount={showHabitableZones ? habitableZoneParentPlaneCount : 0}
@@ -4618,6 +4673,9 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   const baseVisualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || baseVisualScale.default_scale_mode || baseVisualScale.scale_mode);
   const focusGraph = scene?.render_scene?.focus_graph || null;
+  const physicalLabelLayout = useMemo(() => (
+    activeScaleMode === PHYSICAL_SCALE_MODE ? physicalFocusLabelLayout(focusGraph, focusKey) : new Map()
+  ), [activeScaleMode, focusGraph, focusKey]);
   const physicalUnitsPerAu = activeScaleMode === PHYSICAL_SCALE_MODE
     ? sceneUnitsPerAu(focusGraph, focusKey)
     : null;
@@ -4626,17 +4684,34 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     physical_scene_units_per_au: physicalUnitsPerAu,
     active_focus_key: focusKey,
   }), [baseVisualScale, focusKey, physicalUnitsPerAu]);
-  const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
+  const renderOrbits = useMemo(() => (scene?.render_scene?.orbits || []).map((orbit) => {
+    const placement = physicalLabelPlacementForRecord(physicalLabelLayout, orbit);
+    return {
+      ...orbit,
+      physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+      physical_label_side: placement?.side,
+      physical_label_vertical_pixels: placement?.verticalPixels,
+    };
+  }), [activeScaleMode, physicalLabelLayout, scene]);
   const simulationTree = useMemo(() => scene?.render_scene?.simulation_tree || null, [scene]);
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
-      return renderStars.map((star) => ({
-        ...star,
-        visualScale,
-        display_radius_scene: scaledStarRadius(numericField(star.fields, "radius_rsun"), visualScale, activeScaleMode),
-        visual_scale_mode: activeScaleMode,
-      }));
+      return renderStars.map((star) => {
+        const placement = physicalLabelPlacementForRecord(physicalLabelLayout, star);
+        const radiusRsun = activeScaleMode === "true_bodies"
+          ? bodyContrastRadiusRsun(star)
+          : numericField(star.fields, "radius_rsun");
+        return {
+          ...star,
+          visualScale,
+          display_radius_scene: scaledStarRadius(radiusRsun, visualScale, activeScaleMode),
+          visual_scale_mode: activeScaleMode,
+          physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+          physical_label_side: placement?.side,
+          physical_label_vertical_pixels: placement?.verticalPixels,
+        };
+      });
     }
     const readinessStars = scene?.simulation_readiness?.stars || [];
     const bodyStars = scene?.bodies?.stars || [];
@@ -4654,7 +4729,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         color: starColor(teffK),
       };
     });
-  }, [scene, visualScale, activeScaleMode]);
+  }, [scene, visualScale, activeScaleMode, physicalLabelLayout]);
 
   const planets = useMemo(() => {
     const renderScene = scene?.render_scene;
@@ -4663,6 +4738,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       return renderPlanets.map((planet, idx) => {
         const selectedOrbitAu = numericField(planet.fields, "semi_major_axis_au");
         const physicalOrbitAu = physicalOrbitAxis(planet);
+        const placement = physicalLabelPlacementForRecord(physicalLabelLayout, planet);
         return {
           ...planet,
           key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
@@ -4674,6 +4750,9 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           visualScale,
           radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode),
           pick_radius_scene: Math.max(scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale, activeScaleMode) * 2.1, 0.2),
+          physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+          physical_label_side: placement?.side,
+          physical_label_vertical_pixels: placement?.verticalPixels,
         };
       });
     }
@@ -4698,14 +4777,20 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         orbitStatus: fieldStatus(fields, "semi_major_axis_au"),
       };
     });
-  }, [scene, visualScale, activeScaleMode]);
+  }, [scene, visualScale, activeScaleMode, physicalLabelLayout]);
 
   const subsystems = useMemo(() => (
-    (scene?.render_scene?.bodies?.subsystems || []).map((subsystem, idx) => ({
-      ...subsystem,
-      key: subsystem.render_key || subsystem.source?.stable_component_key || `subsystem-${idx}`,
-    }))
-  ), [scene]);
+    (scene?.render_scene?.bodies?.subsystems || []).map((subsystem, idx) => {
+      const placement = physicalLabelPlacementForRecord(physicalLabelLayout, subsystem);
+      return {
+        ...subsystem,
+        key: subsystem.render_key || subsystem.source?.stable_component_key || `subsystem-${idx}`,
+        physical_label_visible: activeScaleMode !== PHYSICAL_SCALE_MODE || Boolean(placement),
+        physical_label_side: placement?.side,
+        physical_label_vertical_pixels: placement?.verticalPixels,
+      };
+    })
+  ), [activeScaleMode, physicalLabelLayout, scene]);
   const compressedPhysicalRoot = useMemo(() => {
     if (activeScaleMode !== PHYSICAL_SCALE_MODE || focusKey !== focusGraph?.root_focus_key) return false;
     const nodes = Object.values(focusGraph?.nodes || {});
@@ -4734,6 +4819,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           focusKey={focusKey}
           sceneUnitsPerAU={physicalUnitsPerAu}
           compressedPhysicalRoot={compressedPhysicalRoot}
+          physicalLabelCount={new Set(physicalLabelLayout.values()).size}
         />
         <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
         <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
@@ -5047,9 +5133,11 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
   }
   const length = physicalScaleReadout(scaleReport?.lengthAu);
   const view = physicalScaleReadout(scaleReport?.viewWidthAu);
-  const unavailable = !focusRadiusAu(focusGraph, focusKey);
+  const resolution = physicalScaleResolution(focusGraph, focusKey);
+  const unavailable = !resolution.radiusAu;
+  const scaleFocus = resolution.scaleFocusKey ? focusNode(focusGraph, resolution.scaleFocusKey) : null;
   return (
-    <div className="system-preview-physical-ruler" data-testid="system-preview-physical-ruler" data-physical-scale-status={unavailable ? "unavailable" : "available"}>
+    <div className="system-preview-physical-ruler" data-testid="system-preview-physical-ruler" data-physical-scale-status={unavailable ? "unavailable" : (resolution.inherited ? "inherited" : "available")}>
       {unavailable ? (
         <strong>Physical extent unavailable for {activeFocus?.display_name || "this focus"}</strong>
       ) : (
@@ -5059,6 +5147,9 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
           <span>{length?.metric} / {length?.lightTime}</span>
           <small>View width {view?.primary}</small>
           <small>Screen-sized body markers; orbital distances are linear</small>
+          {resolution.inherited ? (
+            <small>Selected relation has no defensible extent; ruler retained from {scaleFocus?.display_name || "its measured parent"}</small>
+          ) : null}
         </>
       )}
     </div>
@@ -5081,7 +5172,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
       <button type="button" onClick={() => onFocusKey(focusGraph.root_focus_key)} title="Fit the complete system">Fit System</button>
       <button type="button" onClick={onBack} disabled={!canBack} title="Return to the previous scale view">Back</button>
       <button type="button" onClick={() => active.parent_focus_key && onFocusKey(active.parent_focus_key)} disabled={!active.parent_focus_key} title="Move outward one scale level">Parent</button>
-      <button type="button" onClick={() => previous && onFocusKey(previous)} disabled={!previous} aria-label="Previous focus region" title={navigationMode === "nearest-branches" ? "Open the last nearby branch" : "Open the previous sibling region"}>Prev</button>
+      <button type="button" onClick={() => previous && onFocusKey(previous)} disabled={!previous} aria-label="Previous focus region" title={navigationMode === "system-cycle" ? "Tour the previous region in this system" : "Open the previous focus region"}>Prev</button>
       <div className="system-preview-focus-breadcrumb">
         {breadcrumbs.map((item, index) => (
           <React.Fragment key={item.key}>
@@ -5090,7 +5181,7 @@ function FocusNavigationOverlay({ focusGraph, focusKey, onFocusKey, onBack = nul
           </React.Fragment>
         ))}
       </div>
-      <button type="button" onClick={() => next && onFocusKey(next)} disabled={!next} aria-label="Next focus region" title={navigationMode === "nearest-branches" ? "Open the first nearby branch" : "Open the next sibling region"}>Next</button>
+      <button type="button" onClick={() => next && onFocusKey(next)} disabled={!next} aria-label="Next focus region" title={navigationMode === "system-cycle" ? "Tour the next region in this system" : "Open the next focus region"}>Next</button>
     </nav>
   );
 }
@@ -5271,6 +5362,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const panelRef = React.useRef(null);
   const canvasFrameRef = React.useRef(null);
   const floatingActionsRef = React.useRef(null);
+  const objectListRef = React.useRef(null);
   const focusSequenceRef = React.useRef(0);
   const hoverDelayRef = React.useRef(null);
   const contextRecoveryTimerRef = React.useRef(null);
@@ -5525,6 +5617,13 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       return objectKey && id.startsWith(`${objectKey}:`);
     }) || null;
   }, [focusGraph, focusNodes]);
+  useEffect(() => {
+    const list = objectListRef.current;
+    const current = list?.querySelector?.('[data-focus-current="true"]');
+    if (!list || !current) return;
+    const desiredTop = current.offsetTop - Math.max(0, (list.clientHeight - current.offsetHeight) / 2);
+    list.scrollTo({ top: Math.max(0, desiredTop), behavior: "smooth" });
+  }, [activeFocusKey]);
   const focusObject = useCallback((payload) => {
     if (!payload) return;
     setPinnedObject(payload);
@@ -5546,7 +5645,11 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       ...siblingFocusKeys(focusGraph, activeFocusKey),
     ].filter(Boolean));
     return Object.values(focusNodes)
-      .filter((node) => node.focus_key !== activeFocusKey && (node.object_key || node.orbit_key))
+      .filter((node) => (
+        node.focus_key !== activeFocusKey
+        && immediate.has(node.focus_key)
+        && (node.object_key || node.orbit_key)
+      ))
       .map((node) => {
         const bounds = physicalScaleReadout(node.physical_bounds?.radius_au);
         const priority = immediate.has(node.focus_key)
@@ -5565,7 +5668,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       .slice(0, compactPresentation ? 5 : 9);
   }, [activeFocus, activeFocusKey, compactPresentation, focusGraph, focusNodes]);
   const lensFocus = focusNodes[lensState.focusKey] || activeFocus;
-  const lensSpanAu = focusRadiusAu(focusGraph, lensFocus?.focus_key) || focusRadiusAu(focusGraph, activeFocusKey);
+  const lensSpanAu = physicalScaleResolution(focusGraph, lensFocus?.focus_key || activeFocusKey).radiusAu;
   const activeUnitsPerAu = activeScaleMode === PHYSICAL_SCALE_MODE ? sceneUnitsPerAu(focusGraph, activeFocusKey) : null;
   const lensZoomFactor = 2 ** Number(lensState.zoomLevel || 0);
   const lensSpanScene = lensSpanAu && activeUnitsPerAu ? (lensSpanAu * activeUnitsPerAu) / lensZoomFactor : 2.6;
@@ -5937,20 +6040,24 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             label={`${systemName} featured tags`}
           />
           {showObjectList ? (
-            <div className="system-preview-object-list" data-testid="system-preview-object-list">
+            <div ref={objectListRef} className="system-preview-object-list" data-testid="system-preview-object-list">
               <span className="system-preview-object-list-title">Objects</span>
               {objectItems.length > 0 ? objectItems.map((item) => {
                 const tagSubject = tagsForObjectItem(item);
                 const itemTags = Array.isArray(tagSubject?.tags) ? tagSubject.tags : [];
+                const itemFocusKey = focusKeyForObject(item.payload);
+                const focusCurrent = Boolean(itemFocusKey && itemFocusKey === activeFocusKey);
                 return (
                 <div
                   key={item.key}
-                  className="system-preview-object-chip"
+                  className={`system-preview-object-chip${focusCurrent ? " is-focus-current" : ""}`}
                   style={{ "--object-depth": item.depth }}
                   data-object-key={item.key}
                   data-object-kind={item.recordKind}
                   data-object-depth={item.depth}
                   data-object-parent-key={item.parentKey || ""}
+                  data-focus-current={focusCurrent ? "true" : "false"}
+                  aria-current={focusCurrent ? "location" : undefined}
                   onClick={() => setPinnedObject(item.payload)}
                   onMouseEnter={() => setHoveredObject(item.payload)}
                   onMouseLeave={() => setHoveredObject(null)}

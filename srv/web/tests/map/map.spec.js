@@ -2388,6 +2388,10 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.planetTrailCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.bodyContrastRadiusPolicy || ""),
+      { timeout: 3000 }
+    ).toBe("accepted-radius-or-class-proxy-v1");
     await scaleModeSelect.selectOption("physical");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
@@ -2711,29 +2715,94 @@ test.describe("public 3D map beta", () => {
     const next = navigation.getByRole("button", { name: "Next focus region" });
     await expect(previous).toBeEnabled();
     await expect(next).toBeEnabled();
+    const navigationBox = await navigation.boundingBox();
+    const canvasBox = await page.locator(".system-preview-canvas").boundingBox();
+    expect(navigationBox, "Castor navigation bounds").toBeTruthy();
+    expect(canvasBox, "Castor canvas bounds").toBeTruthy();
+    expect(navigationBox.x).toBeGreaterThanOrEqual(canvasBox.x + 8);
+    expect(navigationBox.x + navigationBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width - 8);
     const rootFocus = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
-    await next.click();
+    const focusNodeCount = await canvas.evaluate((node) => Number(node.dataset.physicalFocusNodeCount || 0));
+    expect(focusNodeCount).toBeGreaterThanOrEqual(14);
+    const visited = new Set([rootFocus]);
+    for (let index = 0; index < focusNodeCount; index += 1) {
+      const before = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
+      await expect(next).toBeEnabled();
+      await next.click();
+      await expect.poll(
+        () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
+        { timeout: 3000 },
+      ).not.toBe(before);
+      const current = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
+      if (current !== rootFocus) {
+        await expect(page.locator('[data-testid="system-preview-object-list"] [data-focus-current="true"]')).toHaveCount(1);
+      }
+      await expect.poll(
+        () => canvas.evaluate((node) => Number(node.dataset.physicalLabelCount || 0)),
+        { timeout: 3000 },
+      ).toBeLessThanOrEqual(3);
+      if (current.includes("orbit:759")) {
+        const ruler = page.locator('[data-testid="system-preview-physical-ruler"]');
+        await expect(ruler).toHaveAttribute("data-physical-scale-status", "inherited");
+        await expect(ruler).toContainText(/ruler retained from/i);
+        await page.waitForTimeout(700);
+        const beforeZoom = await canvas.evaluate((node) => node.dataset.cameraPosition || "");
+        const box = await canvas.boundingBox();
+        const viewport = page.viewportSize();
+        await page.mouse.move(
+          box.x + box.width / 2,
+          Math.min(box.y + 120, (viewport?.height || 900) - 40),
+        );
+        await page.mouse.wheel(0, -800);
+        await expect.poll(
+          () => canvas.evaluate((node) => node.dataset.cameraPosition || ""),
+          { timeout: 3000 },
+        ).not.toBe(beforeZoom);
+      }
+      visited.add(current);
+    }
+    expect(visited.size).toBe(focusNodeCount);
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
       { timeout: 3000 },
-    ).not.toBe(rootFocus);
-    await expect(next).toBeEnabled();
-    const beforeSecondNext = await canvas.evaluate((node) => node.dataset.physicalFocusKey || "");
-    await next.click();
+    ).toBe(rootFocus);
     await expect.poll(
-      () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
+      () => canvas.evaluate((node) => Number(node.dataset.physicalLabelCount || 0)),
       { timeout: 3000 },
-    ).not.toBe(beforeSecondNext);
+    ).toBeLessThanOrEqual(3);
+    await next.click();
     await previous.click();
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.physicalFocusKey || ""),
       { timeout: 3000 },
-    ).toBe(beforeSecondNext);
+    ).toBe(rootFocus);
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.physicalUnavailableMarkerPolicy || ""),
       { timeout: 3000 },
     ).toBe("screen-sized-diamond-callout");
+    await page.locator("[data-testid='system-preview-scale-mode']").selectOption("true_bodies");
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.bodyContrastStarRadiusRatio || 0)),
+      { timeout: 3000 },
+    ).toBeGreaterThan(3);
     await page.screenshot({ path: testInfo.outputPath("castor-physical-wrapper-navigation.png"), fullPage: false });
+  });
+
+  test("Castor map drill uses the authoritative scene member count", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop map drill count reconciliation check");
+    await openMap(page, "/map?radius=250");
+    const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    if (await searchToggle.getAttribute("aria-pressed") !== "true") {
+      await searchToggle.click();
+    }
+    await page.locator("[data-testid='map-star-search-input']").fill("Castor");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    const card = page.locator(".map-search-card").filter({ hasText: "Castor" }).first();
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: "Peek" }).click();
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    await expect(drill.locator(".map-system-vital-pill").nth(1)).toContainText(/^7 stars/i);
   });
 
   test("mobile system detail keeps live preview usable", async ({ page }, testInfo) => {

@@ -3821,6 +3821,20 @@ export default function StarMapPage({
       stars: Array.isArray(payload?.bodies?.stars) ? payload.bodies.stars : [],
       planets: Array.isArray(payload?.bodies?.planets) ? payload.bodies.planets : [],
     });
+    const summary = payload?.system;
+    const summarySystemId = String(summary?.system_id || "");
+    const reconcileSummary = (system) => {
+      if (!system || String(system.system_id || "") !== summarySystemId) return system;
+      const starCount = Number(summary?.star_count);
+      const planetCount = Number(summary?.planet_count);
+      return {
+        ...system,
+        star_count: Number.isFinite(starCount) ? starCount : system.star_count,
+        planet_count: Number.isFinite(planetCount) ? planetCount : system.planet_count,
+      };
+    };
+    setSelectedSystem(reconcileSummary);
+    setSelectionHistory((history) => history.map(reconcileSummary));
   }, []);
 
   const loadSelectedSystemMetrics = useCallback(() => {
@@ -4708,6 +4722,22 @@ export default function StarMapPage({
     };
   }, [closeMapSearch, closeMapSearchResults, drillMode, exitDrillMode, exitMinimalMode, location.pathname, mapSearchOpen, mapSearchResultsOpen, minimalMode, toggleMinimalMode]);
 
+  const drillSystemSummary = useMemo(() => {
+    const publicSummary = selectedSystemDetail?.system;
+    if (!selectedSystem || String(publicSummary?.system_id || "") !== String(selectedSystem.system_id || "")) {
+      return selectedSystem;
+    }
+    return {
+      ...selectedSystem,
+      star_count: Number.isFinite(Number(publicSummary.star_count))
+        ? Number(publicSummary.star_count)
+        : selectedSystem.star_count,
+      planet_count: Number.isFinite(Number(publicSummary.planet_count))
+        ? Number(publicSummary.planet_count)
+        : selectedSystem.planet_count,
+    };
+  }, [selectedSystem, selectedSystemDetail]);
+
   return (
     <div
       className={`map-page ${telemetry.locked ? "reticle-active" : ""} ${mapSearchOpen ? "map-search-active" : ""} ${minimalMode ? "map-minimal-mode" : ""} map-drill-${drillMode}`}
@@ -5569,14 +5599,14 @@ export default function StarMapPage({
                 ]}
               />
               <MapVitalPill
-                value={`${formatNumber(selectedSystem.star_count, 0)} stars`}
+                value={`${formatNumber(drillSystemSummary.star_count, 0)} stars`}
                 heading="Bound stars"
-                lines={buildStarTooltipLines(selectedSystem, selectedSystemDetail)}
+                lines={buildStarTooltipLines(drillSystemSummary, selectedSystemDetail)}
               />
               <MapVitalPill
-                value={`${formatNumber(selectedSystem.planet_count, 0)} planets`}
+                value={`${formatNumber(drillSystemSummary.planet_count, 0)} planets`}
                 heading="Known planets"
-                lines={buildPlanetTooltipLines(selectedSystemDetail, selectedSystem.planet_count)}
+                lines={buildPlanetTooltipLines(selectedSystemDetail, drillSystemSummary.planet_count)}
               />
               <MapVitalPill
                 value={`cool ${formatNumber(selectedSystem.coolness_score, 1)}`}

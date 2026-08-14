@@ -1066,6 +1066,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Make Prev/Next traverse meaningful branches through single-child focus
   wrappers and constrain physical extent-unavailable orbit diamonds and their
   callouts to screen space in complex systems
+- [x] Replace dead-end focus siblings with a circular full-hierarchy tour,
+  highlight the active OBJECTS row, constrain long breadcrumbs to the canvas,
+  bound Physical labels to the current scale neighborhood, retain the nearest
+  measured parent ruler for extent-unavailable focus nodes, and reconcile open
+  Map drill counts against the attached Public Read scene
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

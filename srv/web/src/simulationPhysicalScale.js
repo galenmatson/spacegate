@@ -24,7 +24,7 @@ export function focusRadiusAu(focusGraph, focusKey) {
 }
 
 export function sceneUnitsPerAu(focusGraph, focusKey, sceneRadius = PHYSICAL_SCENE_RADIUS) {
-  const radiusAu = focusRadiusAu(focusGraph, focusKey);
+  const radiusAu = physicalScaleResolution(focusGraph, focusKey).radiusAu;
   return radiusAu ? sceneRadius / radiusAu : null;
 }
 
@@ -59,31 +59,107 @@ export function siblingFocusKeys(focusGraph, focusKey) {
   return parent?.child_focus_keys || [];
 }
 
+export function focusTraversalKeys(focusGraph) {
+  const nodes = focusGraphNodes(focusGraph);
+  const rootKey = nodes[focusGraph?.root_focus_key] ? focusGraph.root_focus_key : null;
+  if (!rootKey) return [];
+  const ordered = [];
+  const visited = new Set();
+  const visit = (key) => {
+    if (!nodes[key] || visited.has(key)) return;
+    visited.add(key);
+    ordered.push(key);
+    (nodes[key].child_focus_keys || []).forEach(visit);
+  };
+  visit(rootKey);
+  return ordered;
+}
+
 export function focusNavigationNeighbors(focusGraph, focusKey) {
   const nodes = focusGraphNodes(focusGraph);
   const activeKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
-  const active = nodes[activeKey];
-  if (!active) return { previous: null, next: null, mode: "unavailable" };
-  const siblings = siblingFocusKeys(focusGraph, activeKey);
-  if (siblings.length > 1) {
-    const index = siblings.indexOf(activeKey);
-    return {
-      previous: index > 0 ? siblings[index - 1] : null,
-      next: index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null,
-      mode: "siblings",
-    };
+  const traversal = focusTraversalKeys(focusGraph);
+  const index = traversal.indexOf(activeKey);
+  if (index < 0 || traversal.length < 2) {
+    return { previous: null, next: null, mode: "unavailable" };
   }
+  return {
+    previous: traversal[(index - 1 + traversal.length) % traversal.length],
+    next: traversal[(index + 1) % traversal.length],
+    mode: "system-cycle",
+  };
+}
+
+export function physicalScaleResolution(focusGraph, focusKey) {
+  const nodes = focusGraphNodes(focusGraph);
+  const requestedKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
   const visited = new Set();
-  let branch = active;
-  while (branch && !visited.has(branch.focus_key || activeKey)) {
-    visited.add(branch.focus_key || activeKey);
-    const children = (branch.child_focus_keys || []).filter((key) => nodes[key]);
-    if (children.length > 1) {
-      return { previous: children[children.length - 1], next: children[0], mode: "nearest-branches" };
+  let key = requestedKey;
+  while (key && nodes[key] && !visited.has(key)) {
+    visited.add(key);
+    const radiusAu = finitePositive(nodes[key]?.physical_bounds?.radius_au);
+    if (radiusAu) {
+      return {
+        requestedFocusKey: requestedKey || null,
+        scaleFocusKey: key,
+        radiusAu,
+        inherited: key !== requestedKey,
+      };
     }
-    branch = children.length === 1 ? nodes[children[0]] : null;
+    key = nodes[key].parent_focus_key;
   }
-  return { previous: null, next: null, mode: "unavailable" };
+  return {
+    requestedFocusKey: requestedKey || null,
+    scaleFocusKey: null,
+    radiusAu: null,
+    inherited: false,
+  };
+}
+
+export function physicalFocusLabelLayout(focusGraph, focusKey) {
+  const nodes = focusGraphNodes(focusGraph);
+  const activeKey = nodes[focusKey] ? focusKey : focusGraph?.root_focus_key;
+  const active = nodes[activeKey];
+  if (!active) return new Map();
+  const targetNodes = [];
+  const addNode = (node) => {
+    if (!node || targetNodes.some((item) => item.focus_key === node.focus_key)) return;
+    targetNodes.push(node);
+  };
+  if (active.focus_kind === "body") addNode(active);
+  let branch = active;
+  const visited = new Set([activeKey]);
+  while (branch) {
+    const children = (branch.child_focus_keys || []).map((key) => nodes[key]).filter(Boolean);
+    if (children.length !== 1 || visited.has(children[0].focus_key)) {
+      children.forEach(addNode);
+      break;
+    }
+    branch = children[0];
+    visited.add(branch.focus_key);
+    addNode(branch);
+  }
+  const targetGroups = targetNodes
+    .map((node) => [...new Set([node.object_key, node.orbit_key, node.tree_node_key]
+      .filter(Boolean)
+      .map((key) => String(key)))])
+    .filter((keys) => keys.length > 0);
+  const leftCount = Math.ceil(targetGroups.length / 2);
+  const rightCount = Math.floor(targetGroups.length / 2);
+  let leftIndex = 0;
+  let rightIndex = 0;
+  const layout = new Map();
+  targetGroups.forEach((keys, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const sideIndex = side < 0 ? leftIndex++ : rightIndex++;
+    const sideCount = side < 0 ? leftCount : rightCount;
+    const placement = {
+      side,
+      verticalPixels: (sideIndex - (sideCount - 1) / 2) * 30,
+    };
+    keys.forEach((key) => layout.set(key, placement));
+  });
+  return layout;
 }
 
 export function niceScaleLength(value) {

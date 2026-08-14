@@ -6,7 +6,7 @@ const VALID_SPEEDS = new Set([0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000]);
 export const SIMULATION_SCALE_MODE_OPTIONS = Object.freeze([
   Object.freeze({ value: "structure", label: "Structured", detail: "Best for understanding system structure. It preserves hierarchy readability and prevents common overlaps, but body sizes and orbit spacing are presentation-scaled." }),
   Object.freeze({ value: "true_orbits", label: "Local Orbit", detail: "Compares planet and habitable-zone spacing within each local scene envelope. Stellar hierarchy distances remain presentation-scaled, so this is not one system-wide physical ruler." }),
-  Object.freeze({ value: "true_bodies", label: "Body Contrast", detail: "Compares body-size contrast more honestly than Structure while retaining compressed orbital distances and readable markers." }),
+  Object.freeze({ value: "true_bodies", label: "Body Contrast", detail: "Emphasizes relative body-size differences while retaining compressed orbital distances. It uses accepted radii when available and clearly presentation-only stellar-class proxies when radii are missing or merely assumed." }),
   Object.freeze({ value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." }),
   Object.freeze({ value: "physical", label: "Physical Orbits", detail: "Uses one linear AU transform for every supported orbit, habitable zone, and formation line in the active focus region. Bodies remain readable markers rather than physical-size spheres." }),
 ]);

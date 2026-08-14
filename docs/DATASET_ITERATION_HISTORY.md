@@ -4939,6 +4939,34 @@ Representative commits:
   ordinary sibling behavior but look through single-child wrappers to the
   nearest branching focus regions, with deterministic unit and browser checks.
 
+### 186) Physical Focus Touring and Scale Context Are Coherent
+
+- Castor review showed that sibling-only Prev and Next controls could still
+  terminate inside a nested branch, long breadcrumbs could cross into the
+  OBJECTS column, and no hierarchy row identified the current tour location.
+  Focus navigation now follows one stable depth-first circular ordering across
+  the complete focus graph. The active OBJECTS row is highlighted and kept in
+  view, while the navigation overlay is bounded by the simulation canvas.
+- Label crowding came from rendering every unresolved descendant at nearly the
+  same physical point. Physical mode now labels only the current scale
+  neighborhood and assigns one deterministic callout lane per focus subject;
+  aliases of the same focus node cannot consume duplicate lanes. Offscreen
+  indicators likewise remain local to parent, child, and sibling context.
+- Some accepted hierarchy relations have periods or placement evidence but no
+  defensible semi-major axis. Entering one no longer drops the ruler entirely:
+  Spacegate retains and names the nearest measured parent scale, while the local
+  extent remains explicitly unavailable. This restores useful wheel zoom
+  without converting a presentation placement into scientific distance.
+- Body Contrast had been reading identical illustrative radius priors for many
+  source hierarchy leaves. It now uses accepted radius evidence where available
+  and a presentation-only spectral-class size proxy otherwise. This fulfills
+  the mode's comparative purpose without claiming a physical common scale.
+- Castor's accepted Public Read scene reports seven stellar-family leaves, while an
+  older streamed map tile still reported three. Open Peek and Explorer vitals
+  now prefer the build-matched scene summary, preventing later tile batches from
+  reintroducing the stale count. This is a general consumer reconciliation and
+  does not alter map membership or canonical science.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

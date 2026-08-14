@@ -779,9 +779,23 @@ Success criteria:
   physical structures. Unresolved scale beacons are displaced from their exact
   subject positions and use a visible leader and arrowhead back to the subject.
 - Physical extent-unavailable orbit markers also remain small screen-space
-  diamonds with offset callouts. Prev and Next use direct siblings when they
-  exist; at a root or other single-child wrapper they expose the nearest
-  meaningful branch choices rather than appearing permanently disabled.
+  diamonds with offset callouts. Prev and Next follow a stable depth-first
+  circular tour over every focus node, including hierarchy groups and bodies,
+  and the matching OBJECTS row is highlighted and scrolled into view.
+- Physical labels and indicators are limited to the active focus, its parent,
+  children, and siblings rather than annotating every unresolved descendant at
+  one screen position. Deterministic left and right callout lanes keep the
+  remaining labels distinct. Long breadcrumbs truncate inside the canvas and
+  cannot extend over the OBJECTS column.
+- If a selected focus has no defensible physical bound, its geometry remains
+  unavailable and the ruler explicitly retains the nearest ancestor with a
+  measured bound. This keeps ordinary wheel zoom and scale readout useful while
+  refusing to manufacture a local orbital extent.
+- Body Contrast is not a physical orbit view. It retains compressed orbit
+  placement while emphasizing relative body-size differences. Accepted radii
+  drive the markers when present; missing or illustrative radii use documented
+  presentation-only spectral-class proxies rather than making every unknown
+  component look identical.
 - The Lens measures its viewport after it opens and records successful shared-
   context render frames for browser verification. Embedded Peek and Explorer
   layouts also measure the simulation action bar and place scale navigation

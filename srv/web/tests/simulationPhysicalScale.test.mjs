@@ -10,6 +10,8 @@ import {
   formatMetricDistance,
   layoutBoundedIndicators,
   niceScaleLength,
+  physicalFocusLabelLayout,
+  physicalScaleResolution,
   sceneUnitsPerAu,
 } from "../src/simulationPhysicalScale.js";
 
@@ -32,27 +34,49 @@ test("focus lookup and breadcrumb retain hierarchy", () => {
   assert.deepEqual(focusBreadcrumb(graph, "focus:star").map((item) => item.label), ["System", "A"]);
 });
 
-test("focus navigation exposes meaningful branches through single-child wrappers", () => {
+test("focus navigation cycles through the complete hierarchy without dead ends", () => {
   const nested = {
     schema_version: "simulation_focus_graph_v1",
     root_focus_key: "root",
     nodes: {
       root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["wrapper"] },
-      wrapper: { focus_key: "wrapper", parent_focus_key: "root", child_focus_keys: ["a", "b"] },
-      a: { focus_key: "a", parent_focus_key: "wrapper", child_focus_keys: [] },
-      b: { focus_key: "b", parent_focus_key: "wrapper", child_focus_keys: [] },
+      wrapper: { focus_key: "wrapper", parent_focus_key: "root", child_focus_keys: ["a", "b"], orbit_key: "orbit:wrapper" },
+      a: { focus_key: "a", parent_focus_key: "wrapper", child_focus_keys: [], object_key: "star:a" },
+      b: { focus_key: "b", parent_focus_key: "wrapper", child_focus_keys: [], object_key: "star:b" },
     },
   };
   assert.deepEqual(focusNavigationNeighbors(nested, "root"), {
     previous: "b",
-    next: "a",
-    mode: "nearest-branches",
+    next: "wrapper",
+    mode: "system-cycle",
   });
   assert.deepEqual(focusNavigationNeighbors(nested, "a"), {
-    previous: null,
+    previous: "wrapper",
     next: "b",
-    mode: "siblings",
+    mode: "system-cycle",
   });
+  assert.equal(focusNavigationNeighbors(nested, "b").next, "root");
+  const labels = physicalFocusLabelLayout(nested, "root");
+  assert.deepEqual([...labels.keys()], ["orbit:wrapper", "star:a", "star:b"]);
+  assert.notEqual(labels.get("star:a").side, labels.get("star:b").side);
+});
+
+test("a scale-less focus retains the nearest defensible parent ruler", () => {
+  const nested = {
+    schema_version: "simulation_focus_graph_v1",
+    root_focus_key: "root",
+    nodes: {
+      root: { focus_key: "root", parent_focus_key: null, child_focus_keys: ["unknown"], physical_bounds: { radius_au: 120 } },
+      unknown: { focus_key: "unknown", parent_focus_key: "root", child_focus_keys: [], physical_bounds: { radius_au: null } },
+    },
+  };
+  assert.deepEqual(physicalScaleResolution(nested, "unknown"), {
+    requestedFocusKey: "unknown",
+    scaleFocusKey: "root",
+    radiusAu: 120,
+    inherited: true,
+  });
+  assert.ok(Math.abs(sceneUnitsPerAu(nested, "unknown") - (5.2 / 120)) < 1e-12);
 });
 
 test("scale labels use AU, standard metre prefixes, and light time", () => {
