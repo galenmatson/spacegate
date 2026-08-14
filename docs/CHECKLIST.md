@@ -1085,9 +1085,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Make physical navigation indicators traverse single-child wrappers and
   refresh when projected scale changes, preserving bounded offscreen arrows and
   unresolved beacons across scale transitions
-- [x] Enforce scale-mode truthfulness: disable Physical Orbits at a focus with
-  no defensible inherited AU extent, keep Structure visibly selected, and
-  re-enable Physical Orbits for valid member or relation focus regions
+- [x] Enforce scale-mode truthfulness: mark Physical Orbits unavailable at a
+  focus with no defensible inherited AU extent, keep Structure visibly selected,
+  and restore the normal option for valid member or relation focus regions
 - [x] Add explicit Map/Catalog peer navigation, clean-surface title behavior,
   and a context-preserving `Back to Map` action without replacing selected-
   system `Explore`

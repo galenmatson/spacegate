@@ -4987,7 +4987,7 @@ Representative commits:
   `0.008` scene units with a `0.001` near plane, allowing meaningful inspection
   inside a focused physical region without altering orbital scale.
 - A focus with no measured or inherited AU extent remains in Structure and
-  disables Physical Orbits as unavailable. Unknown relations no longer collapse
+  marks Physical Orbits as unavailable. Unknown relations no longer collapse
   to the origin, and schematic geometry is never displayed under a physical
   mode label. Focus regions with real physical extents retain the deeper
   physical camera policy.

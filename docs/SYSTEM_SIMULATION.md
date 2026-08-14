@@ -812,7 +812,7 @@ Success criteria:
   marker and linear orbital-distance contracts.
 - When the current focus and all of its ancestors lack a defensible physical
   extent, Structure remains visibly selected and the Physical Orbits option is
-  disabled as unavailable. Focusing a member neighborhood or relation with a
+  visibly marked unavailable. Focusing a member neighborhood or relation with a
   valid AU extent re-enables the option. The simulator never labels schematic
   geometry Physical Orbits and never collapses unknown relations into a
   misleading zero-distance physical system.

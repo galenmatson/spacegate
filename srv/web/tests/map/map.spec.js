@@ -2725,8 +2725,10 @@ test.describe("public 3D map beta", () => {
     const scale = panel.locator("[data-testid='system-preview-scale-mode']");
     await expect(scale).toHaveValue("structure");
     const physicalOption = scale.locator("option[value='physical']");
-    await expect.poll(() => physicalOption.evaluate((option) => option.disabled)).toBe(true);
+    await expect.poll(() => physicalOption.evaluate((option) => option.disabled)).toBe(false);
     await expect(physicalOption).toHaveText(/Physical Orbits.*Unavailable here/i);
+    await scale.selectOption("physical");
+    await expect(scale).toHaveValue("structure");
     await expect(panel.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
@@ -2777,7 +2779,9 @@ test.describe("public 3D map beta", () => {
     await expect(canvas).toBeVisible();
     const scale = panel.locator("[data-testid='system-preview-scale-mode']");
     await expect(scale).toHaveValue("structure");
-    await expect.poll(() => scale.locator("option[value='physical']").evaluate((option) => option.disabled)).toBe(true);
+    await expect(scale.locator("option[value='physical']")).toHaveText(/Physical Orbits.*Unavailable here/i);
+    await scale.selectOption("physical");
+    await expect(scale).toHaveValue("structure");
 
     const localName = localNeighborhoods[0].display_name;
     const localRow = panel.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")
@@ -2785,7 +2789,7 @@ test.describe("public 3D map beta", () => {
       .first();
     await localRow.click();
     await panel.getByRole("button", { name: "Focus Selection" }).click();
-    await expect.poll(() => scale.locator("option[value='physical']").evaluate((option) => option.disabled)).toBe(false);
+    await expect(scale.locator("option[value='physical']")).toHaveText("Physical Orbits");
     await scale.selectOption("physical");
     await expect(scale).toHaveValue("physical");
     await expect(panel.locator("[data-testid='system-preview-physical-ruler']"))

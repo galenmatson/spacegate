@@ -5682,7 +5682,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               key={option.value}
               value={option.value}
               title={option.detail}
-              disabled={option.value === PHYSICAL_SCALE_MODE && !physicalModeAvailable}
             >
               {option.value === PHYSICAL_SCALE_MODE && !physicalModeAvailable
                 ? `${option.label} - Unavailable here`

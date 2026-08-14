@@ -3500,7 +3500,7 @@ Accepted decisions:
 - focus graph v2 separates physical layout bounds from local neighborhoods and
   optional overlay extents. A habitable zone or formation line around one
   member cannot certify an unresolved multistar relation as physically laid
-  out. Such a parent keeps Structure selected and disables Physical Orbits as
+  out. Such a parent keeps Structure selected and marks Physical Orbits as
   unavailable, while the member's own focused neighborhood can still enable a
   linear AU scale;
 - ORB6 unit auditing found that unit flag `m` is milliarcseconds while `a` is
