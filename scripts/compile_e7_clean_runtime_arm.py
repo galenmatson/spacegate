@@ -106,12 +106,16 @@ class Timings:
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
-    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v6":
+    if policy.get("schema_version") != "spacegate.e7_clean_runtime_arm_policy.v8":
         raise ValueError("unsupported clean runtime ARM policy")
     required_rules = {
         "open_stability_databases": False,
         "canonical_containment_from_runtime_hierarchy_only": True,
         "scientific_values_from_selected_facts_only": True,
+        "selected_component_mass_requires_exact_leaf": True,
+        "msc_mass_codes_control_applicability": True,
+        "presentation_mass_priors_can_scale_physical_orbits": False,
+        "equal_authority_mass_disagreement_is_conflict": True,
         "source_relation_claims_create_containment": False,
         "context_only_orbits_create_renderable_edges": False,
         "copy_historical_evidence_warehouse_into_runtime_arm": False,
@@ -120,7 +124,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if any(rules.get(key) is not expected for key, expected in required_rules.items()):
         raise ValueError("unsafe clean runtime ARM rules")
     if set(policy.get("inputs") or {}) != {
-        "clean_runtime_core", "clean_science", "clean_wise",
+        "clean_runtime_core", "clean_science", "selected_facts", "clean_wise",
         "solar_identity", "solar_runtime", "stellar_orbits",
         "stellar_orbit_bridge",
         "tess_runtime",
@@ -149,6 +153,10 @@ def validate_policy(policy: dict[str, Any]) -> None:
         raise ValueError("duplicate runtime ARM input table")
     if "selected_stellar_parameters" not in science_tables:
         raise ValueError("selected stellar consumer surface is required")
+    if policy.get("selected_fact_tables") != {
+        "mass_msun": "selected_facts__mass_msun.parquet"
+    }:
+        raise ValueError("selected mass-fact input is required")
 
 
 def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, dict[str, Any]]:
@@ -162,7 +170,8 @@ def resolve_inputs(policy: dict[str, Any], state: Path) -> dict[str, dict[str, A
         if manifest_sha != spec["manifest_sha256"]:
             raise ValueError(f"manifest checksum mismatch: {name}")
         manifest = load_object(manifest_path)
-        if manifest.get("build_id") != spec["build_id"] or manifest.get("status") != "pass":
+        status = manifest.get("status") or (manifest.get("report") or {}).get("status")
+        if manifest.get("build_id") != spec["build_id"] or status != "pass":
             raise ValueError(f"unaccepted input manifest: {name}")
         resolved[name] = {
             "root": root,
@@ -177,7 +186,11 @@ def product_path(input_spec: dict[str, Any], relative: str) -> Path:
     path = input_spec["root"] / relative
     if not path.is_file():
         raise FileNotFoundError(path)
-    products = input_spec["manifest"].get("products") or {}
+    products = (
+        input_spec["manifest"].get("products")
+        or (input_spec["manifest"].get("report") or {}).get("files")
+        or {}
+    )
     entry = products.get(relative)
     if not isinstance(entry, dict) or len(str(entry.get("sha256") or "")) != 64:
         raise ValueError(f"unregistered input product: {path}")
@@ -217,12 +230,14 @@ def register_parquet_inputs(
     stellar_orbit_products: dict[str, Path],
     stellar_orbit_bridge_products: dict[str, Path],
     tess_runtime_products: dict[str, Path],
+    selected_fact_products: dict[str, Path],
 ) -> None:
     con.execute("CREATE SCHEMA solar_identity")
     con.execute("CREATE SCHEMA solar_runtime")
     con.execute("CREATE SCHEMA stellar_orbits")
     con.execute("CREATE SCHEMA stellar_orbit_bridge")
     con.execute("CREATE SCHEMA tess_runtime")
+    con.execute("CREATE SCHEMA selected_fact_source")
     for table, path in sorted(solar_identity_products.items()):
         con.execute(
             f"CREATE VIEW solar_identity.{table} AS "
@@ -246,6 +261,11 @@ def register_parquet_inputs(
     for table, path in sorted(tess_runtime_products.items()):
         con.execute(
             f"CREATE VIEW tess_runtime.{table} AS "
+            f"SELECT * FROM read_parquet({sql_literal(path)})"
+        )
+    for table, path in sorted(selected_fact_products.items()):
+        con.execute(
+            f"CREATE VIEW selected_fact_source.{table} AS "
             f"SELECT * FROM read_parquet({sql_literal(path)})"
         )
 
@@ -1112,6 +1132,453 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
          AND r.casefold_label=lower(trim(ce.component_label_normalized))
         ORDER BY ce.component_entity_id;
 
+        """
+    )
+
+    def relation_is_queryable(qualified_name: str) -> bool:
+        try:
+            con.execute(f"SELECT * FROM {qualified_name} LIMIT 0")
+        except duckdb.CatalogException:
+            return False
+        return True
+
+    parameter_projection_ready = all(
+        relation_is_queryable(qualified_name)
+        for qualified_name in (
+            "stellar_orbit_relation_bindings",
+            "selected_stellar_parameters",
+            "selected_fact_source.mass_msun",
+            "science.evidence_component_debcat_stellar_parameter_projection",
+            "science.evidence_component_sb9_stellar_parameter_projection",
+            "science.evidence_component_sbx_stellar_parameter_projection",
+            "science.evidence_component_tess_eb_stellar_parameter_projection",
+        )
+    )
+    if parameter_projection_ready:
+        con.execute(
+            f"""
+
+        CREATE TEMP TABLE physical_extent_runtime_leaves AS
+        SELECT l.*
+        FROM runtime_stellar_leaves l
+        WHERE EXISTS (
+          SELECT 1
+          FROM stellar_orbit_relation_bindings relation
+          WHERE relation.simulation_eligible
+            AND relation.canonical_system_stable_object_key=l.system_stable_object_key
+        );
+
+        CREATE TEMP TABLE physical_extent_leaf_applicability AS
+        WITH msc_classification AS (
+          SELECT b.hierarchy_node_key,
+            min(cp.classification_raw) FILTER (
+              WHERE cp.projection_status='eligible_for_quantity_selection'
+            )::VARCHAR AS classification_raw
+          FROM msc_runtime_leaf_bindings b
+          LEFT JOIN science.evidence_component_msc_classification_projection cp
+            ON cp.component_entity_id=b.component_entity_id
+          WHERE b.runtime_binding_status='accepted'
+          GROUP BY b.hierarchy_node_key
+        ), classified AS (
+          SELECT leaf.hierarchy_node_key,
+            coalesce(display.classification_value,
+              CASE
+                WHEN regexp_matches(trim(msc.classification_raw),'^(WD|D[A-Z0-9.]+)')
+                  THEN 'WHITE_DWARF'
+                ELSE upper(substr(trim(msc.classification_raw),1,1))
+              END,
+              'UNKNOWN')::VARCHAR AS classification_value,
+            msc.classification_raw
+          FROM physical_extent_runtime_leaves leaf
+          LEFT JOIN selected_stellar_display_classifications display
+            ON display.star_id=leaf.star_id
+          LEFT JOIN msc_classification msc
+            ON msc.hierarchy_node_key=leaf.hierarchy_node_key
+        )
+        SELECT hierarchy_node_key,classification_value,classification_raw,
+          CASE
+            WHEN classification_value IN
+              ('WHITE_DWARF','WD','D','DA','DB','DC','DO','DQ','DZ')
+              OR regexp_matches(coalesce(classification_raw,''),'^(WD|D[A-Z0-9.]+)')
+              THEN 'white_dwarf'
+            WHEN classification_value IN
+              ('NS','NEUTRON_STAR','PULSAR','MAGNETAR')
+              THEN 'neutron_star'
+            WHEN classification_value IN ('BLACK HOLE','BLACK_HOLE')
+              THEN 'black_hole'
+            WHEN classification_value IN ('L','T','Y') THEN 'brown_dwarf'
+            WHEN classification_value='WR' THEN 'evolved_star'
+            WHEN regexp_matches(coalesce(classification_raw,''),
+              '(^|[^A-Z])(I|II|III|IV)([^A-Z]|$)') THEN 'evolved_star'
+            WHEN classification_value IN ('O','B','A','F','G','K','M')
+              THEN 'ordinary_or_unresolved_evolutionary_star'
+            ELSE 'unknown_exact_leaf'
+          END::VARCHAR AS object_applicability_class,
+          'stellar_leaf_mass_applicability_v1'::VARCHAR AS applicability_policy_version
+        FROM classified;
+
+        CREATE TABLE stellar_leaf_parameter_binding_outcomes AS
+        WITH component_mass_inputs AS (
+          SELECT sp.evidence_id,sp.parameter_set_id,sp.component_entity_id,
+            sp.target_key,sp.canonical_system_stable_object_key,sp.quantity_key,
+            sp.normalized_value,sp.normalized_unit,sp.uncertainty_lower,
+            sp.uncertainty_upper,sp.bound_semantics,sp.method,sp.model,
+            sp.reference_raw,sp.authority_role,sp.projection_status,
+            sp.projection_reason,sp.policy_version AS evidence_policy_version,
+            sp.quality_json,
+            lower(nullif(trim(coalesce(
+              json_extract_string(sp.quality_json,'$.source_quality.MCode1'),
+              json_extract_string(sp.quality_json,'$.source_quality.MCode2')
+            )),''))::VARCHAR AS msc_mass_code,
+            'multiplicity.msc'::VARCHAR AS source_id,
+            'newmsc_20260619'::VARCHAR AS release_id,
+            b.hierarchy_node_key,b.runtime_component_key,b.runtime_system_stable_object_key,
+            b.runtime_binding_status,b.runtime_binding_reason,
+            b.runtime_identity_bridge_id
+          FROM science.evidence_component_msc_stellar_parameter_projection sp
+          LEFT JOIN msc_runtime_leaf_bindings b USING(component_entity_id)
+          WHERE sp.quantity_key='mass'
+            AND sp.projection_status='eligible_for_quantity_selection'
+          UNION ALL
+          SELECT sp.evidence_id,sp.parameter_set_id,NULL::VARCHAR AS component_entity_id,
+            sp.target_key,sp.canonical_system_stable_object_key,sp.quantity_key,
+            sp.normalized_value,sp.normalized_unit,sp.uncertainty_lower,
+            sp.uncertainty_upper,sp.bound_semantics,sp.method,sp.model,
+            sp.reference_raw,sp.authority_role,sp.projection_status,
+            sp.projection_reason,sp.policy_version AS evidence_policy_version,
+            sp.quality_json,NULL::VARCHAR AS msc_mass_code,
+            'multiplicity.debcat'::VARCHAR AS source_id,
+            'debcat_2025-12-08'::VARCHAR AS release_id,
+            b.hierarchy_node_key,b.runtime_component_key,b.runtime_system_stable_object_key,
+            coalesce(b.runtime_binding_status,'missing')::VARCHAR,
+            coalesce(b.runtime_binding_reason,'exact_msc_target_leaf_missing')::VARCHAR,
+            b.runtime_identity_bridge_id
+          FROM science.evidence_component_debcat_stellar_parameter_projection sp
+          LEFT JOIN msc_runtime_leaf_bindings b
+            ON b.source_component_key=sp.target_key
+          WHERE sp.quantity_key='log10_mass'
+            AND sp.projection_status='eligible_for_quantity_selection'
+        )
+        SELECT row_number() OVER (ORDER BY source_id,evidence_id)::BIGINT AS binding_outcome_id,
+          {sql_literal(build_id)}::VARCHAR AS build_id,source_id,release_id,
+          evidence_id,parameter_set_id,component_entity_id,target_key,
+          canonical_system_stable_object_key,quantity_key,normalized_value,
+          normalized_unit,uncertainty_lower,uncertainty_upper,bound_semantics,
+          method,model,reference_raw,authority_role,projection_status,
+          projection_reason,evidence_policy_version,quality_json,msc_mass_code,
+          hierarchy_node_key,
+          runtime_component_key,runtime_system_stable_object_key,
+          CASE
+            WHEN runtime_binding_status='accepted' AND hierarchy_node_key IS NOT NULL
+              THEN 'accepted'
+            WHEN runtime_binding_status IN
+              ('missing','ambiguous','excluded','conflicted','quarantined')
+              THEN runtime_binding_status
+            ELSE 'missing'
+          END::VARCHAR AS binding_status,
+          runtime_binding_reason AS binding_reason,runtime_identity_bridge_id,
+          false::BOOLEAN AS canonical_containment,
+          'stellar_leaf_parameter_binding_v1'::VARCHAR AS binding_policy_version
+        FROM component_mass_inputs
+        ORDER BY source_id,evidence_id;
+
+        CREATE TABLE stellar_leaf_parameter_evidence AS
+        WITH canonical_candidates AS (
+          SELECT l.system_id,l.system_stable_object_key,l.hierarchy_node_key,
+            l.leaf_component_key,l.star_id,l.stable_object_key,
+            'mass_msun'::VARCHAR AS quantity_key,
+            facts.normalized_value::DOUBLE AS normalized_value,
+            facts.value_lower::DOUBLE AS value_lower,
+            facts.value_upper::DOUBLE AS value_upper,
+            facts.interval_semantics::VARCHAR AS interval_semantics,
+            CASE
+              WHEN facts.method IN ('gaia_dr3_flame','photometric_white_dwarf_atmosphere_fit')
+                OR facts.model IS NOT NULL THEN 'source_model'
+              ELSE 'source'
+            END::VARCHAR AS value_status,
+            CASE
+              WHEN facts.method IN ('gaia_dr3_flame','photometric_white_dwarf_atmosphere_fit')
+                OR facts.model IS NOT NULL THEN 30 ELSE 20
+            END::INTEGER AS authority_rank,
+            facts.authority_reason::VARCHAR AS authority_reason,
+            facts.selected_fact_id::VARCHAR AS selected_fact_id,
+            facts.evidence_id::VARCHAR AS evidence_id,
+            facts.parameter_set_id::VARCHAR AS parameter_set_id,
+            facts.source_id::VARCHAR AS source_id,facts.release_id::VARCHAR AS release_id,
+            facts.method::VARCHAR AS method,facts.model::VARCHAR AS model,
+            facts.reference_raw::VARCHAR AS reference_raw,
+            facts.fact_status::VARCHAR AS source_fact_status,
+            0.88::DOUBLE AS confidence_score,
+            'exact_permanent_star_identity'::VARCHAR AS binding_reason,
+            applicability.object_applicability_class,
+            CASE
+              WHEN facts.method='gaia_dr3_flame' THEN 'calibrated_source_model'
+              WHEN facts.method='photometric_white_dwarf_atmosphere_fit'
+                THEN 'compact_object_source_model'
+              ELSE 'selected_source_measurement_or_estimate'
+            END::VARCHAR AS mass_method_class,
+            'accepted_exact_leaf_selected_fact'::VARCHAR AS applicability_decision,
+            applicability.applicability_policy_version,
+            NULL::VARCHAR AS msc_mass_code,facts.quality_json::JSON AS quality_json
+          FROM physical_extent_runtime_leaves l
+          JOIN physical_extent_leaf_applicability applicability
+            USING(hierarchy_node_key)
+          JOIN selected_stellar_parameters p USING(star_id)
+          JOIN selected_fact_source.mass_msun facts
+            ON facts.selected_fact_id=p.mass_msun_fact_id
+          WHERE facts.normalized_value>0
+        ), component_candidates AS (
+          SELECT l.system_id,l.system_stable_object_key,l.hierarchy_node_key,
+            l.leaf_component_key,l.star_id,l.stable_object_key,
+            'mass_msun'::VARCHAR AS quantity_key,
+            CASE WHEN outcome.source_id='multiplicity.debcat'
+              THEN pow(10.0,outcome.normalized_value)
+              ELSE outcome.normalized_value END::DOUBLE AS normalized_value,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat'
+                AND outcome.uncertainty_lower IS NOT NULL
+                THEN pow(10.0,outcome.normalized_value-outcome.uncertainty_lower)
+              WHEN outcome.msc_mass_code='m' THEN outcome.normalized_value
+            END::DOUBLE AS value_lower,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat'
+                AND outcome.uncertainty_upper IS NOT NULL
+                THEN pow(10.0,outcome.normalized_value+outcome.uncertainty_upper)
+            END::DOUBLE AS value_upper,
+            CASE WHEN outcome.source_id='multiplicity.debcat'
+              THEN 'source_log10_symmetric_uncertainty_transformed_to_linear_bounds'
+              WHEN outcome.msc_mass_code='m' THEN 'source_lower_bound_only'
+              ELSE outcome.bound_semantics END::VARCHAR AS interval_semantics,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat' THEN 'source'
+              WHEN outcome.msc_mass_code='r' THEN 'source'
+              WHEN outcome.msc_mass_code IN ('v','k','a','q','s') THEN 'source_model'
+              WHEN outcome.msc_mass_code='m' THEN 'lower_bound'
+              ELSE 'excluded'
+            END::VARCHAR AS value_status,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat' THEN 10
+              WHEN outcome.msc_mass_code='r' THEN 25
+              WHEN outcome.msc_mass_code IN ('v','k','q','s') THEN 40
+              WHEN outcome.msc_mass_code='a' THEN 45
+              ELSE 90
+            END::INTEGER AS authority_rank,
+            outcome.authority_role::VARCHAR AS authority_reason,
+            NULL::VARCHAR AS selected_fact_id,outcome.evidence_id,
+            outcome.parameter_set_id,outcome.source_id,outcome.release_id,
+            outcome.method,outcome.model,outcome.reference_raw,
+            outcome.projection_status::VARCHAR AS source_fact_status,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat' THEN 0.97
+              WHEN outcome.msc_mass_code='r' THEN 0.86
+              WHEN outcome.msc_mass_code IN ('v','k','q') THEN 0.72
+              WHEN outcome.msc_mass_code='s' THEN 0.68
+              WHEN outcome.msc_mass_code='a' THEN 0.62
+              WHEN outcome.msc_mass_code='m' THEN 0.40
+              ELSE 0.30
+            END::DOUBLE AS confidence_score,
+            outcome.binding_reason,applicability.object_applicability_class,
+            CASE WHEN outcome.source_id='multiplicity.debcat'
+              THEN 'dynamical_source_measurement'
+              WHEN outcome.msc_mass_code='r'
+                THEN 'source_publication_component_mass'
+              WHEN outcome.msc_mass_code IN ('v','k','a','q')
+                THEN 'calibrated_source_model'
+              WHEN outcome.msc_mass_code='s'
+                THEN 'source_compiled_unresolved_subsystem_sum'
+              WHEN outcome.msc_mass_code='m'
+                THEN 'source_minimum_mass_bound'
+              ELSE 'source_compiled_mass_with_unresolved_method'
+            END::VARCHAR AS mass_method_class,
+            CASE
+              WHEN outcome.source_id='multiplicity.debcat'
+                THEN 'accepted_exact_leaf_dynamical_mass'
+              WHEN outcome.msc_mass_code='r'
+                THEN 'accepted_exact_leaf_publication_mass'
+              WHEN outcome.msc_mass_code IN ('v','k','a','q')
+                THEN 'accepted_exact_leaf_calibrated_estimate'
+              WHEN outcome.msc_mass_code='s'
+                AND l.node_kind<>'inferred_star_leaf'
+                THEN 'accepted_exact_unresolved_subsystem_mass_sum'
+              WHEN outcome.msc_mass_code='s'
+                THEN 'excluded_subsystem_mass_sum_not_applicable_to_leaf'
+              WHEN outcome.msc_mass_code='m'
+                THEN 'excluded_minimum_mass_is_lower_bound_only'
+              ELSE 'excluded_mass_method_not_resolved'
+            END::VARCHAR AS applicability_decision,
+            applicability.applicability_policy_version,
+            outcome.msc_mass_code,outcome.quality_json
+          FROM stellar_leaf_parameter_binding_outcomes outcome
+          JOIN physical_extent_runtime_leaves l
+            ON l.hierarchy_node_key=outcome.hierarchy_node_key
+          JOIN physical_extent_leaf_applicability applicability
+            ON applicability.hierarchy_node_key=l.hierarchy_node_key
+          WHERE outcome.binding_status='accepted'
+            AND outcome.normalized_value>0
+        ), candidates AS (
+          SELECT * FROM canonical_candidates
+          UNION ALL
+          SELECT * FROM component_candidates
+        )
+        SELECT row_number() OVER (
+            ORDER BY system_id,hierarchy_node_key,quantity_key,authority_rank,
+              source_id,evidence_id
+          )::BIGINT AS leaf_parameter_evidence_id,
+          {sql_literal(build_id)}::VARCHAR AS build_id,*,
+          'stellar_leaf_parameter_evidence_v1'::VARCHAR AS projection_version
+        FROM candidates
+        ORDER BY system_id,hierarchy_node_key,quantity_key,authority_rank,
+          source_id,evidence_id;
+
+        CREATE TABLE stellar_leaf_selected_parameters AS
+        WITH ranked AS (
+          SELECT evidence.*,
+            row_number() OVER (
+              PARTITION BY hierarchy_node_key,quantity_key
+              ORDER BY authority_rank,confidence_score DESC,source_id,evidence_id
+            ) AS candidate_rank
+          FROM stellar_leaf_parameter_evidence evidence
+          WHERE applicability_decision LIKE 'accepted_%'
+        ), top_authority AS (
+          SELECT hierarchy_node_key,quantity_key,min(authority_rank)::INTEGER AS authority_rank
+          FROM ranked GROUP BY 1,2
+        ), conflicts AS (
+          SELECT ranked.hierarchy_node_key,ranked.quantity_key,
+            count(*)::INTEGER AS top_candidate_count,
+            count(DISTINCT round(ranked.normalized_value,9))::INTEGER
+              AS distinct_top_value_count,
+            min(ranked.normalized_value)::DOUBLE AS candidate_value_min,
+            max(ranked.normalized_value)::DOUBLE AS candidate_value_max,
+            to_json(list(ranked.evidence_id ORDER BY ranked.source_id,ranked.evidence_id))::VARCHAR
+              AS top_evidence_ids_json
+          FROM ranked JOIN top_authority USING(hierarchy_node_key,quantity_key,authority_rank)
+          GROUP BY 1,2
+        )
+        SELECT row_number() OVER (ORDER BY leaf.system_id,leaf.hierarchy_node_key)::BIGINT
+            AS selected_leaf_parameter_id,
+          {sql_literal(build_id)}::VARCHAR AS build_id,leaf.system_id,
+          leaf.system_stable_object_key,leaf.hierarchy_node_key,
+          leaf.leaf_component_key,leaf.star_id,leaf.stable_object_key,
+          'mass_msun'::VARCHAR AS quantity_key,
+          CASE WHEN coalesce(conflict.distinct_top_value_count,0)<=1
+            THEN selected.normalized_value END::DOUBLE AS normalized_value,
+          CASE WHEN coalesce(conflict.distinct_top_value_count,0)<=1
+            THEN selected.value_lower END::DOUBLE AS value_lower,
+          CASE WHEN coalesce(conflict.distinct_top_value_count,0)<=1
+            THEN selected.value_upper END::DOUBLE AS value_upper,
+          selected.interval_semantics,
+          CASE
+            WHEN selected.leaf_parameter_evidence_id IS NULL THEN 'missing'
+            WHEN conflict.distinct_top_value_count>1 THEN 'conflicted'
+            ELSE selected.value_status
+          END::VARCHAR AS value_status,
+          CASE
+            WHEN selected.leaf_parameter_evidence_id IS NULL THEN 'missing'
+            WHEN conflict.distinct_top_value_count>1 THEN 'conflicted'
+            ELSE 'accepted'
+          END::VARCHAR AS selection_status,
+          CASE
+            WHEN selected.leaf_parameter_evidence_id IS NULL
+              THEN 'no_applicable_exact_leaf_mass_evidence'
+            WHEN conflict.distinct_top_value_count>1
+              THEN 'equal_authority_mass_candidates_disagree'
+            ELSE selected.authority_reason
+          END::VARCHAR AS selection_reason,
+          selected.authority_rank,selected.confidence_score,
+          selected.leaf_parameter_evidence_id,selected.selected_fact_id,
+          selected.evidence_id,selected.parameter_set_id,selected.source_id,
+          selected.release_id,selected.method,selected.model,selected.reference_raw,
+          selected.object_applicability_class,selected.mass_method_class,
+          selected.applicability_decision,selected.applicability_policy_version,
+          coalesce(conflict.top_candidate_count,0)::INTEGER AS top_candidate_count,
+          coalesce(conflict.distinct_top_value_count,0)::INTEGER
+            AS distinct_top_value_count,
+          conflict.candidate_value_min,conflict.candidate_value_max,
+          coalesce(conflict.top_evidence_ids_json,'[]')::VARCHAR AS top_evidence_ids_json,
+          'stellar_leaf_mass_selection_v1'::VARCHAR AS selection_policy_version
+        FROM physical_extent_runtime_leaves leaf
+        LEFT JOIN ranked selected
+          ON selected.hierarchy_node_key=leaf.hierarchy_node_key
+         AND selected.quantity_key='mass_msun' AND selected.candidate_rank=1
+        LEFT JOIN conflicts conflict
+          ON conflict.hierarchy_node_key=leaf.hierarchy_node_key
+         AND conflict.quantity_key='mass_msun'
+        ORDER BY leaf.system_id,leaf.hierarchy_node_key;
+
+        CREATE TABLE stellar_leaf_parameter_source_accounting AS
+        SELECT * FROM (VALUES
+          ('multiplicity.msc','newmsc_20260619','mass_msun',
+            (SELECT count(*) FROM science.evidence_component_msc_stellar_parameter_projection
+              WHERE quantity_key='mass'),
+            (SELECT count(*) FROM science.evidence_component_msc_stellar_parameter_projection
+              WHERE quantity_key='mass' AND projection_status='eligible_for_quantity_selection')),
+          ('multiplicity.debcat','debcat_2025-12-08','mass_msun',
+            (SELECT count(*) FROM science.evidence_component_debcat_stellar_parameter_projection
+              WHERE quantity_key='log10_mass'),
+            (SELECT count(*) FROM science.evidence_component_debcat_stellar_parameter_projection
+              WHERE quantity_key='log10_mass' AND projection_status='eligible_for_quantity_selection')),
+          ('multiplicity.sb9','cds_b_sb9_snapshot_20260715','mass_msun',
+            (SELECT count(*) FROM science.evidence_component_sb9_stellar_parameter_projection
+              WHERE quantity_key LIKE '%mass%'),0),
+          ('multiplicity.sbx','sbx_tap_full_rolling_snapshot_v1','mass_msun',
+            (SELECT count(*) FROM science.evidence_component_sbx_stellar_parameter_projection
+              WHERE quantity_key LIKE '%mass%'),0),
+          ('tess.eb.villanova','tess-eb-v3','mass_msun',
+            (SELECT count(*) FROM science.evidence_component_tess_eb_stellar_parameter_projection
+              WHERE quantity_key LIKE '%mass%'),0),
+          ('gaia.dr3.non_single_star','gaia_dr3_1250ly_nss_v2','mass_msun',0,0)
+        ) source(source_id,release_id,quantity_key,preserved_evidence_count,
+          eligible_evidence_count);
+
+            """
+        )
+    else:
+        # Classification-only unit fixtures do not carry the full scientific
+        # projection graph. Production compilation always takes the branch above.
+        con.execute(
+            f"""
+            CREATE TEMP TABLE physical_extent_runtime_leaves AS
+            SELECT * FROM runtime_stellar_leaves WHERE false;
+            CREATE TABLE stellar_leaf_parameter_binding_outcomes AS
+            SELECT {sql_literal(build_id)}::VARCHAR AS build_id WHERE false;
+            CREATE TABLE stellar_leaf_parameter_evidence AS
+            SELECT {sql_literal(build_id)}::VARCHAR AS build_id WHERE false;
+            CREATE TABLE stellar_leaf_selected_parameters AS
+            SELECT NULL::BIGINT AS selected_leaf_parameter_id,
+              {sql_literal(build_id)}::VARCHAR AS build_id,NULL::BIGINT AS system_id,
+              NULL::VARCHAR AS system_stable_object_key,
+              NULL::VARCHAR AS hierarchy_node_key,NULL::VARCHAR AS leaf_component_key,
+              NULL::BIGINT AS star_id,NULL::VARCHAR AS stable_object_key,
+              NULL::VARCHAR AS quantity_key,NULL::DOUBLE AS normalized_value,
+              NULL::DOUBLE AS value_lower,NULL::DOUBLE AS value_upper,
+              NULL::VARCHAR AS interval_semantics,NULL::VARCHAR AS value_status,
+              NULL::VARCHAR AS selection_status,NULL::VARCHAR AS selection_reason,
+              NULL::INTEGER AS authority_rank,NULL::DOUBLE AS confidence_score,
+              NULL::BIGINT AS leaf_parameter_evidence_id,
+              NULL::VARCHAR AS selected_fact_id,NULL::VARCHAR AS evidence_id,
+              NULL::VARCHAR AS parameter_set_id,NULL::VARCHAR AS source_id,
+              NULL::VARCHAR AS release_id,NULL::VARCHAR AS method,
+              NULL::VARCHAR AS model,NULL::VARCHAR AS reference_raw,
+              NULL::VARCHAR AS object_applicability_class,
+              NULL::VARCHAR AS mass_method_class,
+              NULL::VARCHAR AS applicability_decision,
+              NULL::VARCHAR AS applicability_policy_version,
+              NULL::INTEGER AS top_candidate_count,
+              NULL::INTEGER AS distinct_top_value_count,
+              NULL::DOUBLE AS candidate_value_min,NULL::DOUBLE AS candidate_value_max,
+              NULL::VARCHAR AS top_evidence_ids_json,
+              NULL::VARCHAR AS selection_policy_version
+            WHERE false;
+            CREATE TABLE stellar_leaf_parameter_source_accounting AS
+            SELECT NULL::VARCHAR AS source_id,NULL::VARCHAR AS release_id,
+              NULL::VARCHAR AS quantity_key,NULL::BIGINT AS preserved_evidence_count,
+              NULL::BIGINT AS eligible_evidence_count WHERE false;
+            """
+        )
+
+    con.execute(
+        f"""
+
         CREATE TABLE stellar_leaf_display_classifications AS
         WITH leaves AS (
           SELECT * FROM runtime_stellar_leaves
@@ -1174,18 +1641,15 @@ def create_leaf_classifications(con: duckdb.DuckDBPyConnection, build_id: str) -
                  WHEN sp.normalized_value<1.40 THEN 'F'
                  WHEN sp.normalized_value<2.10 THEN 'A'
                  WHEN sp.normalized_value<16.0 THEN 'B' ELSE 'O' END,
-            'assumed','selected_msc_component_mass_main_sequence_prior',sp.evidence_id,
-            sp.value_raw,0.35,ce.source_id,ce.release_id,sp.evidence_id
+            'assumed','selected_leaf_mass_main_sequence_prior',sp.evidence_id,
+            cast(sp.normalized_value AS VARCHAR),0.35,sp.source_id,sp.release_id,
+            sp.evidence_id
           FROM leaves l
-          JOIN msc_runtime_leaf_bindings b
-            ON b.runtime_binding_status='accepted'
-           AND b.hierarchy_node_key=l.hierarchy_node_key
-          JOIN science.evidence_component_msc_component_entities ce
-            ON ce.component_entity_id=b.component_entity_id
-          JOIN science.evidence_component_msc_stellar_parameter_projection sp
-            ON sp.component_entity_id=ce.component_entity_id
-           AND sp.projection_status='eligible_for_quantity_selection'
-           AND sp.quantity_key='mass' AND sp.normalized_value>0
+          JOIN stellar_leaf_selected_parameters sp
+            ON sp.hierarchy_node_key=l.hierarchy_node_key
+           AND sp.quantity_key='mass_msun'
+           AND sp.selection_status='accepted'
+           AND sp.normalized_value>0
         ), ranked AS (
           SELECT *,row_number() OVER (PARTITION BY hierarchy_node_key
             ORDER BY evidence_rank,confidence_score DESC,selected_fact_id,classification_value) rn
@@ -1234,6 +1698,10 @@ def create_indexes(con: duckdb.DuckDBPyConnection) -> None:
         "CREATE INDEX leaf_system_idx ON stellar_leaf_display_classifications(system_id)",
         "CREATE UNIQUE INDEX msc_runtime_binding_component_uq ON msc_runtime_leaf_bindings(component_entity_id)",
         "CREATE INDEX msc_runtime_binding_leaf_idx ON msc_runtime_leaf_bindings(hierarchy_node_key)",
+        "CREATE UNIQUE INDEX leaf_selected_parameter_uq ON stellar_leaf_selected_parameters(hierarchy_node_key,quantity_key)",
+        "CREATE INDEX leaf_selected_parameter_system_idx ON stellar_leaf_selected_parameters(system_id)",
+        "CREATE INDEX leaf_parameter_evidence_leaf_idx ON stellar_leaf_parameter_evidence(hierarchy_node_key,quantity_key)",
+        "CREATE UNIQUE INDEX leaf_parameter_binding_outcome_uq ON stellar_leaf_parameter_binding_outcomes(source_id,evidence_id)",
         "CREATE UNIQUE INDEX selected_stellar_parameters_star_uq ON selected_stellar_parameters(star_id)",
         "CREATE UNIQUE INDEX selected_display_star_uq ON selected_stellar_display_classifications(star_id)",
         "CREATE UNIQUE INDEX selected_planet_parameters_planet_uq ON selected_planet_parameters(planet_id)",
@@ -1255,6 +1723,10 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
             "component_entities", "system_hierarchy_edges",
             "stellar_leaf_display_classifications", "selected_stellar_parameters",
             "msc_runtime_leaf_bindings",
+            "stellar_leaf_parameter_binding_outcomes",
+            "stellar_leaf_parameter_evidence",
+            "stellar_leaf_selected_parameters",
+            "stellar_leaf_parameter_source_accounting",
             "selected_stellar_display_classifications", "selected_planet_parameters",
             "selected_stellar_variability", "wise_sources", "orbit_edges",
             "orbital_solutions", "sol_small_body_objects", "sol_artificial_objects",
@@ -1307,6 +1779,70 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
         "duplicate_msc_runtime_component_bindings": scalar(
             "SELECT count(*) FROM (SELECT component_entity_id FROM msc_runtime_leaf_bindings "
             "GROUP BY 1 HAVING count(*)<>1)"
+        ),
+        "component_mass_binding_inventory_delta": abs(
+            counts["stellar_leaf_parameter_binding_outcomes"]
+            - scalar("SELECT "
+                     "(SELECT count(*) FROM science.evidence_component_msc_stellar_parameter_projection "
+                     " WHERE quantity_key='mass' AND projection_status='eligible_for_quantity_selection') + "
+                     "(SELECT count(*) FROM science.evidence_component_debcat_stellar_parameter_projection "
+                     " WHERE quantity_key='log10_mass' AND projection_status='eligible_for_quantity_selection')")
+        ),
+        "duplicate_component_mass_binding_outcomes": scalar(
+            "SELECT count(*) FROM (SELECT source_id,evidence_id "
+            "FROM stellar_leaf_parameter_binding_outcomes GROUP BY 1,2 HAVING count(*)<>1)"
+        ),
+        "accepted_component_mass_without_exact_leaf": scalar(
+            "SELECT count(*) FROM stellar_leaf_parameter_binding_outcomes "
+            "WHERE binding_status='accepted' AND "
+            "(hierarchy_node_key IS NULL OR runtime_component_key IS NULL)"
+        ),
+        "unaccepted_component_mass_with_exact_leaf": scalar(
+            "SELECT count(*) FROM stellar_leaf_parameter_binding_outcomes "
+            "WHERE binding_status<>'accepted' AND hierarchy_node_key IS NOT NULL"
+        ),
+        "selected_leaf_mass_inventory_delta": abs(
+            counts["stellar_leaf_selected_parameters"]
+            - scalar("SELECT count(*) FROM physical_extent_runtime_leaves")
+        ),
+        "duplicate_selected_leaf_parameters": scalar(
+            "SELECT count(*) FROM (SELECT hierarchy_node_key,quantity_key "
+            "FROM stellar_leaf_selected_parameters GROUP BY 1,2 HAVING count(*)<>1)"
+        ),
+        "accepted_leaf_mass_without_lineage": scalar(
+            "SELECT count(*) FROM stellar_leaf_selected_parameters "
+            "WHERE selection_status='accepted' AND "
+            "(normalized_value IS NULL OR normalized_value<=0 OR source_id IS NULL "
+            "OR evidence_id IS NULL OR authority_rank IS NULL)"
+        ),
+        "accepted_leaf_mass_without_applicability": scalar(
+            "SELECT count(*) FROM stellar_leaf_selected_parameters "
+            "WHERE selection_status='accepted' AND "
+            "(object_applicability_class IS NULL OR mass_method_class IS NULL "
+            "OR applicability_decision IS NULL "
+            "OR applicability_decision NOT LIKE 'accepted_%' "
+            "OR applicability_policy_version<>'stellar_leaf_mass_applicability_v1')"
+        ),
+        "inapplicable_msc_mass_selected": scalar(
+            "SELECT count(*) FROM stellar_leaf_selected_parameters selected "
+            "JOIN stellar_leaf_parameter_binding_outcomes outcome "
+            "ON outcome.evidence_id=selected.evidence_id "
+            "AND outcome.source_id=selected.source_id "
+            "WHERE selected.selection_status='accepted' "
+            "AND outcome.source_id='multiplicity.msc' "
+            "AND (outcome.msc_mass_code IN ('m','-') "
+            "OR outcome.msc_mass_code IS NULL "
+            "OR (outcome.msc_mass_code='s' AND selected.applicability_decision "
+            "<> 'accepted_exact_unresolved_subsystem_mass_sum'))"
+        ),
+        "unaccepted_leaf_mass_with_value": scalar(
+            "SELECT count(*) FROM stellar_leaf_selected_parameters "
+            "WHERE selection_status<>'accepted' AND normalized_value IS NOT NULL"
+        ),
+        "invalid_leaf_mass_status": scalar(
+            "SELECT count(*) FROM stellar_leaf_selected_parameters "
+            "WHERE value_status NOT IN ('source','source_model','derived','missing','conflicted') "
+            "OR selection_status NOT IN ('accepted','missing','conflicted')"
         ),
         "accepted_msc_runtime_bindings_without_leaf": scalar(
             "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_status='accepted' "
@@ -1463,7 +1999,47 @@ def verify(con: duckdb.DuckDBPyConnection, policy: dict[str, Any]) -> dict[str, 
                 "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) "
                 "FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 GROUP BY 1,2 "
                 "HAVING count(*) FILTER (WHERE runtime_binding_status='accepted')=0)"
-            )
+            ),
+            "component_mass_binding_outcomes": {
+                row[0]: int(row[1])
+                for row in con.execute(
+                    "SELECT binding_status,count(*) FROM stellar_leaf_parameter_binding_outcomes "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            },
+            "selected_leaf_mass_status": {
+                row[0]: int(row[1])
+                for row in con.execute(
+                    "SELECT selection_status,count(*) FROM stellar_leaf_selected_parameters "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            },
+            "selected_leaf_mass_authority": {
+                str(row[0] or 'missing'): int(row[1])
+                for row in con.execute(
+                    "SELECT source_id,count(*) FROM stellar_leaf_selected_parameters "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            },
+            "selected_leaf_mass_value_status": {
+                str(row[0] or 'missing'): int(row[1])
+                for row in con.execute(
+                    "SELECT value_status,count(*) FROM stellar_leaf_selected_parameters "
+                    "GROUP BY 1 ORDER BY 1"
+                ).fetchall()
+            },
+            "accepted_msc_component_mass_bindings": scalar(
+                "SELECT count(*) FROM stellar_leaf_parameter_binding_outcomes "
+                "WHERE source_id='multiplicity.msc' AND binding_status='accepted'"
+            ),
+            "accepted_leaf_masses_without_source_bounds": scalar(
+                "SELECT count(*) FROM stellar_leaf_selected_parameters "
+                "WHERE selection_status='accepted' AND value_lower IS NULL AND value_upper IS NULL"
+            ),
+            "mass_prior_display_classifications": scalar(
+                "SELECT count(*) FROM stellar_leaf_display_classifications "
+                "WHERE evidence_basis='selected_leaf_mass_main_sequence_prior'"
+            ),
         },
         "runtime_graph_status": policy["runtime_graph_status"],
     }
@@ -1538,6 +2114,15 @@ def compile_runtime_arm(
         )
         for table in policy["tess_runtime_tables"]
     }
+    selected_fact_products = {
+        table: timing.run(
+            f"verify_selected_fact_{table}",
+            lambda relative=relative: product_path(
+                inputs["selected_facts"], relative
+            ),
+        )
+        for table, relative in policy["selected_fact_tables"].items()
+    }
     compiler_sha = file_sha256(Path(__file__).resolve())
     policy_sha = file_sha256(policy_path)
     input_identity = {
@@ -1579,6 +2164,7 @@ def compile_runtime_arm(
                     stellar_orbit_products=stellar_orbit_products,
                     stellar_orbit_bridge_products=stellar_orbit_bridge_products,
                     tess_runtime_products=tess_runtime_products,
+                    selected_fact_products=selected_fact_products,
                 ),
             )
             copy_selected_surfaces(
@@ -1614,7 +2200,7 @@ def compile_runtime_arm(
             "determinism": "logical_tables",
         }
         manifest = {
-            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v6",
+            "schema_version": "spacegate.e7_clean_runtime_arm_manifest.v8",
             "build_id": build_id,
             "status": "pass",
             "generated_at": utc_now(),

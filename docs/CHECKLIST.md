@@ -1086,8 +1086,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Implement M8.3e.3b Physical Extent Coverage Recovery: carry exact-scope
   component mass evidence into a typed selected leaf projection, rerun the
   accepted-period Kepler derivation with uncertainty and lineage, quarantine
-  incoherent rows, and evaluate a separately labeled projected/estimated view
-  without weakening Physical Orbits
+  incoherent rows, and pin separately labeled future Projected Separation and
+  Estimated Scale contracts without weakening Physical Orbits
+- [ ] Implement M8.3e.3c Projected Separation and Estimated Scale as two
+  separately reviewed contracts after source-efficiency, uncertainty,
+  scientific-control, and usability gates; do not expose either unfinished mode
 - [x] Make physical navigation indicators traverse single-child wrappers and
   refresh when projected scale changes, preserving bounded offscreen arrows and
   unresolved beacons across scale transitions

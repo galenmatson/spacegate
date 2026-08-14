@@ -3600,10 +3600,10 @@ Required work:
 - evaluate bounded stellar-mass models only for exact ordinary-star leaves whose
   applicability is established. Propagate a mass interval into an orbital-axis
   interval and do not promote a presentation class prior into accepted science;
-- add a separately named projected or estimated separation view only for rows
-  with applicable astrometric evidence. A sky-projected separation may describe
-  a measured snapshot or feed a versioned statistical model, but it may not be
-  drawn as a known Keplerian orbit or labeled Physical Orbits;
+- reserve separate Projected Separation and Estimated Scale contracts without
+  exposing unfinished controls. A sky projected separation is an epoch bearing
+  measured snapshot; an estimated scale is a versioned statistical interval.
+  Neither may be drawn as a known Keplerian orbit or labeled Physical Orbits;
 - route incoherent accepted axis/period pairs and unresolved component scope to
   deterministic quarantine or AAA adjudication rather than bypassing the
   physical coherence gate.
@@ -3612,6 +3612,33 @@ Acceptance requires a machine-readable coverage A/B, exact component scope,
 uncertainty and lineage preservation, deterministic rebuilds, no named-system
 production branches, and unchanged behavior for already verified physical
 systems such as Castor.
+
+### M8.3e.3c. Projected Separation and Estimated Scale
+
+Goal:
+
+- make scientifically useful wide multiple scale evidence explorable when a
+  defensible Keplerian axis remains unavailable, without diluting the meaning
+  of Physical Orbits.
+
+Status: pinned after M8.3e.3b. The two contracts are specified in
+`docs/PROJECTED_AND_ESTIMATED_SCALE.md`; neither mode is implemented or exposed.
+
+Required work:
+
+- implement Projected Separation as an epoch bearing two dimensional sky plane
+  snapshot from exact scope angular separation, position angle, distance, and
+  uncertainty evidence, with no implied orbit ellipse;
+- implement Estimated Scale only from a reviewed population model with explicit
+  priors, applicability, calibration, posterior interval, uncertainty, and
+  derivation lineage;
+- research source efficiency, archive usage expectations, retrieval cadence,
+  and cache policy before increasing external source traffic;
+- design uncertainty presentation that cannot be confused with measured three
+  dimensional geometry or a known animated orbit;
+- pass scientific positive and negative controls plus compiler, API, renderer,
+  desktop, mobile, accessibility, and deterministic build gates before either
+  control is activated.
 
 ### M8.3e.4. Mobile Public UI and Touch Reliability
 

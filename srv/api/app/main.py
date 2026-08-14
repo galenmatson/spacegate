@@ -932,6 +932,12 @@ def _simulation_field(
     generator_version: Optional[str] = None,
     confidence: Optional[float] = None,
     notes: Optional[str] = None,
+    value_lower: Optional[float] = None,
+    value_upper: Optional[float] = None,
+    interval_semantics: Optional[str] = None,
+    evidence_id: Optional[str] = None,
+    parameter_set_id: Optional[str] = None,
+    selection_policy_version: Optional[str] = None,
 ) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "key": key,
@@ -956,6 +962,18 @@ def _simulation_field(
         out["confidence"] = confidence
     if notes:
         out["notes"] = notes
+    if value_lower is not None:
+        out["value_lower"] = value_lower
+    if value_upper is not None:
+        out["value_upper"] = value_upper
+    if interval_semantics:
+        out["interval_semantics"] = interval_semantics
+    if evidence_id:
+        out["evidence_id"] = evidence_id
+    if parameter_set_id:
+        out["parameter_set_id"] = parameter_set_id
+    if selection_policy_version:
+        out["selection_policy_version"] = selection_policy_version
     return out
 
 
@@ -2366,6 +2384,64 @@ def _render_scene_contract(
         for key, row in components_by_key.items()
         if str(row.get("component_type") or "") == "planet"
     }
+    leaf_parameter_rows = (
+        (arm.get("stellar_leaf_selected_parameters") or {}).get("items") or []
+    )
+    leaf_parameter_by_key: Dict[str, Dict[str, Any]] = {}
+    for row in leaf_parameter_rows:
+        if str(row.get("quantity_key") or "") != "mass_msun":
+            continue
+        for field_name in (
+            "hierarchy_node_key",
+            "leaf_component_key",
+            "stable_object_key",
+        ):
+            key = str(row.get(field_name) or "").strip()
+            if key:
+                leaf_parameter_by_key[key] = row
+
+    def selected_leaf_mass_field(*keys: Any) -> Optional[Dict[str, Any]]:
+        row = next(
+            (
+                leaf_parameter_by_key.get(str(key))
+                for key in keys
+                if key and leaf_parameter_by_key.get(str(key))
+            ),
+            None,
+        )
+        if not row:
+            return None
+        status = str(row.get("value_status") or "missing")
+        value = _float_or_none(row.get("normalized_value"))
+        accepted = str(row.get("selection_status") or "") == "accepted" and value is not None
+        return _simulation_field(
+            key="mass_msun",
+            label="Mass",
+            value=value if accepted else None,
+            unit="Msun",
+            status=status if accepted else str(row.get("selection_status") or "missing"),
+            basis=str(row.get("selection_reason") or "selected leaf mass unavailable"),
+            layer="arm",
+            confidence_tier=(
+                "high" if _float_or_none(row.get("confidence_score")) and float(row["confidence_score"]) >= 0.9
+                else "medium" if accepted else "missing"
+            ),
+            replacement_target="higher-authority exact-component mass evidence",
+            source_catalog=row.get("source_id"),
+            source_reference=row.get("reference_raw") or row.get("evidence_id"),
+            confidence=_float_or_none(row.get("confidence_score")),
+            value_lower=_float_or_none(row.get("value_lower")),
+            value_upper=_float_or_none(row.get("value_upper")),
+            interval_semantics=row.get("interval_semantics"),
+            evidence_id=row.get("evidence_id"),
+            parameter_set_id=row.get("parameter_set_id"),
+            selection_policy_version=row.get("selection_policy_version"),
+            notes=(
+                "Exact leaf mass selected by the shared component parameter policy."
+                if accepted
+                else str(row.get("selection_reason") or "Exact leaf mass is unavailable.")
+            ),
+        )
     msc_endpoint_evidence_by_key: Dict[str, Dict[str, Any]] = {}
     for row in ((arm.get("msc_system_details") or {}).get("items") or []):
         for side in ("primary", "secondary"):
@@ -2631,6 +2707,12 @@ def _render_scene_contract(
             return render_key
         readiness = star_readiness_by_id.get(star_id) or {}
         fields = _field_map(readiness.get("fields") or [])
+        selected_mass = selected_leaf_mass_field(
+            render_key,
+            f"comp:star:{render_key}",
+        )
+        if selected_mass is not None:
+            fields["mass_msun"] = selected_mass
         body_class = _stellar_body_class(star)
         fields["object_type"] = _stellar_body_class_field(
             value=body_class,
@@ -2756,7 +2838,8 @@ def _render_scene_contract(
         evidence = msc_endpoint_evidence_by_key.get(component_key) or {}
         seed = _stable_seed(system.get("stable_object_key"), component_key, "star_visual")
         spectral_type_raw = evidence.get("spectral_type_raw")
-        source_mass = _float_or_none(evidence.get("mass_msun"))
+        selected_mass = selected_leaf_mass_field(component_key)
+        source_mass = _float_or_none((selected_mass or {}).get("value"))
         spectral_class = _visual_star_color_class({}, fallback=spectral_type_raw) if spectral_type_raw else None
         body_class = _stellar_body_class({"spectral_class": spectral_class, "spectral_type_raw": spectral_type_raw})
         source_teff = _teff_from_spectral_type(spectral_type_raw)
@@ -2871,22 +2954,8 @@ def _render_scene_contract(
                 )
             ),
             "mass_msun": (
-                _simulation_field(
-                    key="mass_msun",
-                    label="Mass",
-                    value=source_mass,
-                    unit="Msun",
-                    status="source",
-                    basis="arm.msc_system_details:endpoint_mass",
-                    layer="arm",
-                    confidence_tier="medium",
-                    replacement_target="component-specific reviewed mass",
-                    source_catalog=evidence.get("source_catalog") or "msc",
-                    source_reference=evidence.get("source_reference"),
-                    confidence=0.75,
-                    notes=f"MSC mass code: {evidence.get('mass_code')}" if evidence.get("mass_code") else None,
-                )
-                if source_mass is not None
+                selected_mass
+                if selected_mass is not None
                 else (
                     _simulation_field(
                         key="mass_msun",
@@ -3003,7 +3072,15 @@ def _render_scene_contract(
         teff = _float_or_none(facts.get("teff_k"))
         if teff is None and spectral_type:
             teff = _teff_from_spectral_type(spectral_type)
-        mass = _float_or_none(facts.get("mass_msun"))
+        selected_mass = selected_leaf_mass_field(
+            node.get("hierarchy_node_key"),
+            node.get("stable_component_key"),
+            node.get("canonical_key"),
+            render_key,
+        )
+        mass = _float_or_none((selected_mass or {}).get("value"))
+        if mass is None and selected_mass is None:
+            mass = _float_or_none(facts.get("mass_msun"))
         radius = _float_or_none(facts.get("radius_rsun"))
         luminosity = _float_or_none(facts.get("luminosity_lsun"))
         luminosity_status = str(facts.get("luminosity_lsun_status") or "selected")
@@ -3091,7 +3168,9 @@ def _render_scene_contract(
                 )
             ),
             "mass_msun": (
-                _field_from_hierarchy_quick_fact(
+                selected_mass
+                if selected_mass is not None
+                else _field_from_hierarchy_quick_fact(
                     node=node,
                     facts=facts,
                     key="mass_msun",
@@ -5196,6 +5275,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "derived_physical_parameters": {"count": 0, "items": []},
         "derived_stellar_classifications": {"count": 0, "items": []},
         "stellar_leaf_display_classifications": {"count": 0, "items": []},
+        "stellar_leaf_selected_parameters": {"count": 0, "items": []},
         "errors": [],
     }
     if not arm_path_raw:
@@ -5218,6 +5298,19 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             output["stellar_leaf_display_classifications"] = {"count": len(rows), "items": rows}
+        if _duckdb_has_table(con, "stellar_leaf_selected_parameters"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    """
+                    SELECT *
+                    FROM stellar_leaf_selected_parameters
+                    WHERE system_id = ?
+                    ORDER BY hierarchy_node_key,quantity_key
+                    """,
+                    [int(system.get("system_id"))],
+                )
+            )
+            output["stellar_leaf_selected_parameters"] = {"count": len(rows), "items": rows}
         component_rows: List[Dict[str, Any]] = []
         component_by_key: Dict[str, Dict[str, Any]] = {}
         component_filters = ["(core_object_type = 'system' AND core_object_id = ?)"]

@@ -72,6 +72,10 @@ RUNTIME_TABLES = {
     "sol_artificial_objects",
     "sol_small_body_objects",
     "stellar_leaf_display_classifications",
+    "stellar_leaf_parameter_binding_outcomes",
+    "stellar_leaf_parameter_evidence",
+    "stellar_leaf_selected_parameters",
+    "stellar_leaf_parameter_source_accounting",
     "msc_runtime_leaf_bindings",
     "system_hierarchy_edges",
 }
@@ -116,6 +120,31 @@ REQUIRED_COLUMNS = {
         "leaf_component_key", "classification_value", "classification_status",
         "evidence_basis", "selected_fact_id", "source_catalog", "source_pk",
         "confidence_score", "has_classification_conflict", "projection_version",
+    },
+    "stellar_leaf_parameter_binding_outcomes": {
+        "binding_outcome_id", "source_id", "release_id", "evidence_id",
+        "parameter_set_id", "target_key", "quantity_key", "normalized_value",
+        "hierarchy_node_key", "runtime_component_key", "binding_status",
+        "binding_reason", "quality_json", "msc_mass_code",
+        "binding_policy_version",
+    },
+    "stellar_leaf_parameter_evidence": {
+        "leaf_parameter_evidence_id", "system_id", "hierarchy_node_key",
+        "leaf_component_key", "quantity_key", "normalized_value", "value_lower",
+        "value_upper", "value_status", "authority_rank", "evidence_id",
+        "source_id", "release_id", "object_applicability_class",
+        "mass_method_class", "applicability_decision",
+        "applicability_policy_version", "msc_mass_code", "quality_json",
+        "projection_version",
+    },
+    "stellar_leaf_selected_parameters": {
+        "selected_leaf_parameter_id", "system_id", "hierarchy_node_key",
+        "leaf_component_key", "quantity_key", "normalized_value", "value_lower",
+        "value_upper", "value_status", "selection_status", "selection_reason",
+        "authority_rank", "evidence_id", "source_id", "release_id",
+        "object_applicability_class", "mass_method_class",
+        "applicability_decision", "applicability_policy_version",
+        "selection_policy_version",
     },
     "orbit_edges": {
         "orbit_edge_id", "host_component_key", "primary_component_key",
@@ -174,7 +203,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     started = time.monotonic()
     manifest = load_object(build_dir / "manifest.json")
     failures: dict[str, Any] = {}
-    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v6":
+    if manifest.get("schema_version") != "spacegate.e7_clean_runtime_arm_manifest.v8":
         failures["manifest_schema"] = manifest.get("schema_version")
     if manifest.get("status") != "pass":
         failures["manifest_status"] = manifest.get("status")
@@ -242,6 +271,15 @@ def verify(build_dir: Path) -> dict[str, Any]:
                 "msc_runtime_containment_promotions": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE canonical_containment"),
                 "accepted_collision_binding_without_identity_bridge": scalar(con, "SELECT count(*) FROM msc_runtime_leaf_bindings WHERE runtime_binding_reason='exact_release_scoped_leaf_identity_bridge' AND (runtime_binding_status<>'accepted' OR runtime_identity_bridge_id IS NULL OR runtime_identity_bridge_build_id IS NULL OR runtime_identity_bridge_policy_version IS NULL)"),
                 "multiple_accepted_casefold_collision_bindings": scalar(con, "SELECT count(*) FROM (SELECT wds_id_raw,lower(component_label_normalized) FROM msc_runtime_leaf_bindings WHERE source_candidate_count>1 AND runtime_binding_status='accepted' GROUP BY 1,2 HAVING count(*)<>1)"),
+                "duplicate_component_mass_binding_outcomes": scalar(con, "SELECT count(*) FROM (SELECT source_id,evidence_id FROM stellar_leaf_parameter_binding_outcomes GROUP BY 1,2 HAVING count(*)<>1)"),
+                "accepted_component_mass_without_exact_leaf": scalar(con, "SELECT count(*) FROM stellar_leaf_parameter_binding_outcomes WHERE binding_status='accepted' AND (hierarchy_node_key IS NULL OR runtime_component_key IS NULL)"),
+                "unaccepted_component_mass_with_exact_leaf": scalar(con, "SELECT count(*) FROM stellar_leaf_parameter_binding_outcomes WHERE binding_status<>'accepted' AND hierarchy_node_key IS NOT NULL"),
+                "duplicate_selected_leaf_parameters": scalar(con, "SELECT count(*) FROM (SELECT hierarchy_node_key,quantity_key FROM stellar_leaf_selected_parameters GROUP BY 1,2 HAVING count(*)<>1)"),
+                "accepted_leaf_mass_without_lineage": scalar(con, "SELECT count(*) FROM stellar_leaf_selected_parameters WHERE selection_status='accepted' AND (normalized_value IS NULL OR normalized_value<=0 OR source_id IS NULL OR evidence_id IS NULL OR authority_rank IS NULL)"),
+                "accepted_leaf_mass_without_applicability": scalar(con, "SELECT count(*) FROM stellar_leaf_selected_parameters WHERE selection_status='accepted' AND (object_applicability_class IS NULL OR mass_method_class IS NULL OR applicability_decision IS NULL OR applicability_decision NOT LIKE 'accepted_%' OR applicability_policy_version<>'stellar_leaf_mass_applicability_v1')"),
+                "inapplicable_msc_mass_selected": scalar(con, "SELECT count(*) FROM stellar_leaf_selected_parameters selected JOIN stellar_leaf_parameter_binding_outcomes outcome ON outcome.evidence_id=selected.evidence_id AND outcome.source_id=selected.source_id WHERE selected.selection_status='accepted' AND outcome.source_id='multiplicity.msc' AND (outcome.msc_mass_code IN ('m','-') OR outcome.msc_mass_code IS NULL OR (outcome.msc_mass_code='s' AND selected.applicability_decision<>'accepted_exact_unresolved_subsystem_mass_sum'))"),
+                "unaccepted_leaf_mass_with_value": scalar(con, "SELECT count(*) FROM stellar_leaf_selected_parameters WHERE selection_status<>'accepted' AND normalized_value IS NOT NULL"),
+                "invalid_leaf_mass_status": scalar(con, "SELECT count(*) FROM stellar_leaf_selected_parameters WHERE value_status NOT IN ('source','source_model','derived','missing','conflicted') OR selection_status NOT IN ('accepted','missing','conflicted')"),
                 "orphan_hierarchy_parents": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.parent_component_key WHERE c.component_entity_id IS NULL"),
                 "orphan_hierarchy_children": scalar(con, "SELECT count(*) FROM system_hierarchy_edges e LEFT JOIN component_entities c ON c.stable_component_key=e.child_component_key WHERE c.component_entity_id IS NULL"),
                 "source_claim_containment_edges": scalar(con, "SELECT count(*) FROM system_hierarchy_edges WHERE source_catalog<>'canonical_hierarchy' AND edge_kind='contains'"),
@@ -290,7 +328,7 @@ def verify(build_dir: Path) -> dict[str, Any]:
     if nonzero:
         failures["invariants"] = nonzero
     return {
-        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v6",
+        "schema_version": "spacegate.e7_clean_runtime_arm_verification.v7",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "build_id": manifest.get("build_id"),
         "status": "pass" if not failures else "fail",

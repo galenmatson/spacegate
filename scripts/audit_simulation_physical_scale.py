@@ -158,7 +158,7 @@ def _contract_checks(report: dict[str, Any]) -> dict[str, int]:
     orbits = [*(report.get("orbits") or []), *(report.get("planet_orbits") or [])]
     root_bounds = (report.get("physical_contract") or {}).get("root_bounds") or {}
     return {
-        "physical_scale_schema_mismatch": int(contracts.get("physical_scale") != "simulation_physical_scale_v1"),
+        "physical_scale_schema_mismatch": int(contracts.get("physical_scale") != "simulation_physical_scale_v2"),
         "focus_graph_schema_mismatch": int(contracts.get("focus_graph") != "simulation_focus_graph_v2"),
         "visual_scale_schema_mismatch": int(contracts.get("visual_scale") != "visual_scale_v2"),
         "invalid_root_physical_bound": int(

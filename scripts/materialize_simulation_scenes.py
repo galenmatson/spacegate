@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import gzip
+import hashlib
 import json
 import os
 import resource
@@ -125,6 +126,46 @@ def _resolve_build_dir(state_dir: Path, build_id: str | None) -> tuple[str, Path
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _system_ids_from_manifest(path: Path, *, build_id: str) -> tuple[list[int], dict[str, Any]]:
+    if not path.is_file():
+        raise SystemExit(f"Missing scene selection manifest: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"Invalid scene selection manifest: {path}: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schema_version") != "spacegate.simulation_scene_selection.v1":
+        raise SystemExit("Unsupported scene selection manifest schema")
+    if str(payload.get("target_build_id") or "") != build_id:
+        raise SystemExit("Scene selection manifest and target scientific build differ")
+    raw_ids = payload.get("system_ids")
+    if not isinstance(raw_ids, list):
+        raise SystemExit("Scene selection manifest has no system_ids array")
+    try:
+        system_ids = [int(value) for value in raw_ids]
+    except (TypeError, ValueError) as exc:
+        raise SystemExit("Scene selection manifest contains a non-integer system ID") from exc
+    if any(value <= 0 for value in system_ids) or len(system_ids) != len(set(system_ids)):
+        raise SystemExit("Scene selection manifest system IDs must be positive and unique")
+    if int(payload.get("system_count") or -1) != len(system_ids):
+        raise SystemExit("Scene selection manifest system_count is inconsistent")
+    return sorted(system_ids), {
+        "path": str(path),
+        "sha256": _file_sha256(path),
+        "schema_version": payload["schema_version"],
+        "selection_policy_version": payload.get("selection_policy_version"),
+        "source_build_id": payload.get("source_build_id"),
+        "system_count": len(system_ids),
+    }
 
 
 def _rows_to_dicts(cur: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
@@ -488,9 +529,23 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     selection_started = _performance_token()
     selected_system_ids = list(args.system_id)
+    selection_manifest = None
+    selection_manifest_path = str(
+        getattr(args, "system_id_manifest", None) or ""
+    ).strip()
     public_read_full_scene_policy = bool(
         getattr(args, "public_read_full_scene_policy", False)
     )
+    if selection_manifest_path:
+        if selected_system_ids or public_read_full_scene_policy:
+            raise SystemExit(
+                "--system-id-manifest cannot be combined with --system-id or "
+                "--public-read-full-scene-policy"
+            )
+        selected_system_ids, selection_manifest = _system_ids_from_manifest(
+            Path(selection_manifest_path).resolve(),
+            build_id=build_id,
+        )
     if public_read_full_scene_policy:
         if selected_system_ids:
             raise SystemExit(
@@ -672,6 +727,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "limit": args.limit,
             "system_id": args.system_id,
             "public_read_full_scene_policy": public_read_full_scene_policy,
+            "system_id_manifest": selection_manifest,
             "min_dist_ly": args.min_dist_ly,
             "max_dist_ly": args.max_dist_ly,
             "min_star_count": args.min_star_count,
@@ -707,6 +763,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--build-dir", default=None, help="Explicit build directory, including an unpromoted .tmp build.")
     parser.add_argument("--system-id", action="append", type=int, default=[], help="Specific system_id to materialize; can be repeated.")
     parser.add_argument(
+        "--system-id-manifest",
+        help=(
+            "Versioned scene-selection JSON containing the exact build-keyed "
+            "system ID set to materialize."
+        ),
+    )
+    parser.add_argument(
         "--public-read-full-scene-policy",
         action="store_true",
         help="Select the exact build-keyed full-scene set from the public-read artifact.",
@@ -736,8 +799,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if args.limit <= 0 and not args.system_id:
-        raise SystemExit("--limit must be > 0 unless --system-id is provided")
+    if args.limit <= 0 and not args.system_id and not args.system_id_manifest:
+        raise SystemExit(
+            "--limit must be > 0 unless --system-id or --system-id-manifest is provided"
+        )
     if args.top_coolness_limit < 0:
         raise SystemExit("--top-coolness-limit must be >= 0")
     if args.workers < 1 or args.workers > 32:

@@ -713,16 +713,21 @@ Contract notes:
   meshes. `true_orbits` preserves linear rendered planet-orbit ratios from
   source semi-major axes inside the scene envelope; it does not add an inner
   readability offset. `true_bodies` and `log` are also client presentation
-  modes and must not mutate core, ARM, DISC, or RIM data. Artifact v16 exposes
+  modes and must not mutate core, ARM, DISC, or RIM data. Artifact v18 exposes
   `visual_scale_v2`: public labels are Structure, Local Orbit, Body Contrast,
   Log, and Physical Orbits. Structure is explicitly schematic, Log is
   explicitly nonlinear, and only Physical Orbits provides a scene-wide linear
   ruler inside the active focus.
-- Artifact v16 adds `render_scene.physical_scale` with schema
-  `simulation_physical_scale_v1`. Its `orbit_extent_policy` identifies the
+- Artifact v18 exposes `render_scene.physical_scale` with schema
+  `simulation_physical_scale_v2`. Its `orbit_extent_policy` identifies the
   accepted source and versioned Kepler-derivation rules; every orbit row carries
-  `physical_extent` with `applicability`, `status`, semi-major axis AU,
-  apoapsis AU, eccentricity, uncertainty/confidence, and lineage as available.
+  `physical_extent` with `applicability`, `completeness`, `axis_basis`,
+  semi-major axis AU, apoapsis AU, eccentricity, endpoint total mass and mass
+  interval, `mass_basis`, independent orientation and phase status,
+  uncertainty/confidence, and lineage as available. A Kepler-derived axis names
+  whether it used measurements only, an applicable source model, or another
+  accepted derivation. Its input lineage points back to exact selected leaf
+  parameter evidence.
   Unsupported, assumed-placement, projected-separation-only, and physically
   incoherent inputs remain explicit unavailable or rejected states.
 - Artifact v17 carries `render_scene.focus_graph` with schema
@@ -735,9 +740,8 @@ Contract notes:
   named-system conditions.
 - In Physical Orbits mode the active focus defines one linear AU-to-scene
   transform shared by every supported orbit, HZ, and formation line. Meshes,
-  halos, labels, and pick targets remain readable presentation markers. A scale
-  lens may use a second camera/viewport but must share the existing WebGL
-  context and does not alter the API scene or focus contract.
+  halos, labels, and pick targets remain readable presentation markers. The
+  experimental scale lens is not an active public control.
 - `render_scene.assumptions` is an additive export of every rendered field with
   `status="assumed"`. Each record is shaped for
   `disc.simulation_assumptions` materialization and includes `assumption_key`,
@@ -822,6 +826,15 @@ or render leaf as `stellar_leaf_classification`. `system.stellar_class_badges`
 is the same ordered leaf sequence. Clients must use this projection for public
 class badges instead of independently combining CORE stars, MSC aggregate
 components, renderer priors, or display names.
+
+Simulation-scene artifact v18 also resolves runtime ARM
+`stellar_leaf_selected_parameters` onto the matching render body. The current
+quantity is `mass_msun`. A field may have status `source`, `source_model`,
+`derived`, `missing`, or `conflicted`, and carries exact evidence,
+parameter-set, source/release, bounds, interval, and selection-policy lineage
+when available. Physical orbit derivation accepts only a complete applicable
+endpoint set. A missing or conflicted selected row blocks legacy quick facts or
+renderer mass priors from becoming physical-scale inputs.
 Simulation-scene artifact v7 resolves projection rows through canonical,
 leaf-component, and evidence-component keys. When the projection is present,
 unprojected ARM endpoints are not renderer members; this prevents a source

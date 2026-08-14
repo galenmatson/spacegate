@@ -516,3 +516,10 @@ Required columns:
 - Disc tables are append/regenerate artifacts, not manual-edit datasets.
 - Any logic change that affects outputs must bump `generator_version`.
 - Every disc row must be attributable to a build and generation method.
+- Physical Orbits may use only accepted ARM axes or versioned physical
+  derivations from accepted selected facts. DISC presentation radii and visual
+  mass priors cannot make an orbit physical.
+- Future `projected_separation` and `estimated_scale` presentation families are
+  separate contracts. The former is an epoch bearing sky plane snapshot; the
+  latter is a statistical interval with explicit priors. Neither is an accepted
+  Keplerian orbit. See `docs/PROJECTED_AND_ESTIMATED_SCALE.md`.

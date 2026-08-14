@@ -1812,3 +1812,54 @@ projection.
 If MSC retrieval/cook fails:
 - ingest must fail
 - promotion must not proceed
+
+## Selected Stellar Leaf Parameters v1
+
+Runtime ARM carries exact-scope component parameters needed by scientific
+consumers without flattening source evidence into CORE.
+
+### `stellar_leaf_parameter_binding_outcomes`
+
+One row per attempted eligible source component mass input. It records source
+and release, evidence and parameter-set identity, source target, canonical
+system claim, exact runtime hierarchy leaf when resolved, binding status and
+reason, and identity-bridge lineage. Allowed outcomes are `accepted`,
+`missing`, `excluded`, `ambiguous`, `conflicted`, or `quarantined`. These rows
+do not assert canonical containment. MSC rows retain `quality_json` and the
+source `msc_mass_code` so method and scope survive runtime projection.
+
+### `stellar_leaf_parameter_evidence`
+
+One row per bound mass candidate attached to an exact hierarchy leaf, including
+preserved candidates that are inapplicable to point-mass selection.
+Required semantics include normalized value and unit, lower and upper bounds,
+interval semantics, value status (`source`, `source_model`, `derived`,
+`lower_bound`, or `excluded`),
+quantity-specific authority rank, method or model, reference, confidence, and
+exact evidence lineage. Each candidate also records its object applicability
+class, mass-method class, applicability decision, and policy version. Competing
+candidates remain separate.
+
+### `stellar_leaf_selected_parameters`
+
+One row per physical-extent-relevant stellar leaf and quantity. Accepted rows
+identify the exact winning evidence candidate and selection policy. Missing or
+equal-authority conflicted rows retain an explicit reason and no numeric value.
+The current v1 quantity is `mass_msun`.
+
+Authority is quantity specific. DEBCat dynamical masses outrank accepted
+canonical source measurements; applicable canonical source models follow;
+MSC compiled component mass estimates are the final source-model tier. This is
+not a catalog-wide ranking. No system-level value, display name match, coarse
+stellar badge, or presentation prior can supply a leaf mass.
+
+MSC method codes also control applicability. Published component values and
+calibrated source estimates may be selected at their respective authority
+levels. Subsystem sums apply only to an exact unresolved subsystem endpoint.
+Minimum masses remain lower bounds, and an unknown mass method is preserved as
+evidence but excluded from point-mass selection. A successful identity binding
+does not make an inapplicable scientific value selectable.
+
+The projection is the only scientific mass-selection input for stellar
+Physical Orbits. ARM preserves source evidence and alternatives even when the
+selected row is missing or conflicted.

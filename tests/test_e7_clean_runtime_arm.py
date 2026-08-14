@@ -439,6 +439,7 @@ def test_policy_json_is_canonical_object() -> None:
         "solar_identity", "solar_runtime", "stellar_orbits",
         "stellar_orbit_bridge",
         "tess_runtime",
+        "selected_facts",
     }
 
 

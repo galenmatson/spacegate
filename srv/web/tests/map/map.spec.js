@@ -2312,7 +2312,7 @@ test.describe("public 3D map beta", () => {
     const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
     expect(sceneResponse.ok()).toBeTruthy();
     const scenePayload = await sceneResponse.json();
-    expect(scenePayload.render_scene?.physical_scale?.schema_version).toBe("simulation_physical_scale_v1");
+    expect(scenePayload.render_scene?.physical_scale?.schema_version).toBe("simulation_physical_scale_v2");
     expect(scenePayload.render_scene?.focus_graph?.schema_version).toBe("simulation_focus_graph_v2");
     expect(scenePayload.render_scene?.focus_graph?.root_focus_key).toBeTruthy();
     expect(Object.keys(scenePayload.render_scene?.focus_graph?.nodes || {}).length).toBeGreaterThanOrEqual(8);

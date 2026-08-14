@@ -1,11 +1,15 @@
 {
-  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v6",
-  "policy_version": "2026-08-09.e7-clean-runtime-arm.13",
-  "compiler_version": "e7_clean_runtime_arm_compiler_v8",
+  "schema_version": "spacegate.e7_clean_runtime_arm_policy.v8",
+  "policy_version": "2026-08-14.e7-clean-runtime-arm.15",
+  "compiler_version": "e7_clean_runtime_arm_compiler_v10",
   "rules": {
     "open_stability_databases": false,
     "canonical_containment_from_runtime_hierarchy_only": true,
     "scientific_values_from_selected_facts_only": true,
+    "selected_component_mass_requires_exact_leaf": true,
+    "msc_mass_codes_control_applicability": true,
+    "presentation_mass_priors_can_scale_physical_orbits": false,
+    "equal_authority_mass_disagreement_is_conflict": true,
     "source_relation_claims_create_containment": false,
     "context_only_orbits_create_renderable_edges": false,
     "copy_historical_evidence_warehouse_into_runtime_arm": false
@@ -20,6 +24,11 @@
       "build_id": "c30fd4236d98d0df676f44bd",
       "relative_path": "derived/evidence_lake_v2/clean_science/c30fd4236d98d0df676f44bd",
       "manifest_sha256": "7c474c084cc9ef291d6b9cc0a8909d0fc4c28be7929a63598b424013e8a6d65a"
+    },
+    "selected_facts": {
+      "build_id": "5d9ec188dc2aab4c19439b89",
+      "relative_path": "derived/evidence_lake_v2/selected_facts/5d9ec188dc2aab4c19439b89",
+      "manifest_sha256": "6de5f75bb5f4236dab3bf95c169001c36f5b605834f0973045499d343bef008c"
     },
     "clean_wise": {
       "build_id": "ec8e218402c3a4a3b55b2811",
@@ -62,6 +71,9 @@
     "selected_stellar_physics",
     "selected_stellar_variability"
   ],
+  "selected_fact_tables": {
+    "mass_msun": "selected_facts__mass_msun.parquet"
+  },
   "clean_wise_tables": [
     "allwise_sources",
     "catwise_sources",
@@ -102,6 +114,7 @@
   "runtime_graph_status": {
     "component_containment": "implemented_from_canonical_hierarchy",
     "stellar_leaf_classification": "implemented_from_selected_science_and_exact_release_scoped_component_identity_bridge",
+    "stellar_leaf_parameters": "implemented_from_selected_canonical_facts_and_exact_release_scoped_component_evidence_with_quantity_specific_authority",
     "cross_source_orbit_selection": "implemented_from_selected_coherent_solutions_or_source_relation periods_and_exact_leaf_or_group_endpoint_bridge",
     "solar_minor_body_projection": "implemented_from_permanent_solar_identity_and_selected_runtime_evidence",
     "tess_candidate_compatibility": "implemented_from_clean_key_rebound_selected_tess_evidence"

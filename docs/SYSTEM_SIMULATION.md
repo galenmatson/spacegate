@@ -954,6 +954,66 @@ Success criteria:
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 
+## Selected Component Mass and Physical Extent v2
+
+M8.3e.3b makes Physical Orbits consume one selected exact-leaf mass projection
+from runtime ARM. The renderer no longer chooses between MSC endpoint values,
+canonical quick facts, source models, or visual mass priors.
+
+The projection preserves each candidate's source and release, exact hierarchy
+leaf, parameter set, method or model, uncertainty or bounds, status,
+confidence, and evidence lineage. Quantity-specific authority prefers DEBCat
+dynamical component masses, accepted canonical source measurements, applicable
+canonical source models, and then MSC compiled component mass estimates. Equal
+authority candidates with distinct values conflict instead of being averaged.
+
+Mass applicability rules are deliberately conservative:
+
+- direct and dynamical exact-component masses may apply to ordinary, evolved,
+  substellar, white-dwarf, neutron-star, and black-hole leaves when the source
+  scope is accepted;
+- calibrated source-model estimates apply only to the exact object for which
+  the source supplied them, including method-specific evolved or compact-object
+  models;
+- Spacegate does not activate a generic class-to-mass or main-sequence empirical
+  fallback for physical scaling in this contract;
+- unknown leaves may use exact source mass evidence, but never an unknown-star
+  default or a renderer color/size prior;
+- unresolved subsystems require complete applicable descendant leaf masses or
+  an accepted coherent source axis. A system-level mass is never copied onto a
+  leaf;
+- missing, ambiguous, conflicted, excluded, or quarantined endpoint mass keeps
+  the relation unavailable.
+
+MSC component masses retain the catalog's mass method code as defined by Note 3
+of the pinned release readme. Publication values
+(`r`) remain source evidence. Magnitude, color, spectral type, and mass ratio
+estimates (`v`, `k`, `a`, and `q`) are source model evidence. A subsystem sum
+(`s`) applies only when the exact runtime endpoint is itself an unresolved
+subsystem. A minimum secondary mass (`m`) remains a lower bound and cannot be
+used as the point mass in a Kepler axis derivation. Unknown mass methods are
+preserved but excluded from selection.
+
+An accepted coherent source semi-major axis remains authoritative. Otherwise,
+an accepted period plus the complete endpoint mass sum may produce a relative
+semi-major axis through `kepler_axis_from_period_total_mass_v2`. Available mass
+and period bounds propagate monotonically into an axis interval. The result
+records whether it used measurements only, a source model, or another accepted
+derivation. Orientation, phase, and eccentricity remain independent: a valid
+axis does not manufacture any of them.
+
+An accepted period in this policy is source or source-model orbital evidence.
+The Local Orbit presentation period sometimes estimated from projected
+separation is explicitly ineligible: combining that estimate with endpoint
+masses would merely turn the same sky-plane snapshot back into a misleading
+Keplerian axis.
+
+`simulation_physical_scale_v2`, `physical_orbit_extent_policy_v3`, and scene
+artifact v18 reject older cached contracts. Projected separations, static
+hierarchy positions, and display radii remain excluded from Physical Orbits.
+Future Projected Separation and Estimated Scale modes are separately reserved
+in `docs/PROJECTED_AND_ESTIMATED_SCALE.md` and are not active.
+
 Resolved local benchmark blockers:
 
 - Local build `20260630T_sim_beta_api_alias_v4` first made Sirius a valid

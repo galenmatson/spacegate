@@ -17,6 +17,7 @@ from materialize_simulation_scenes import (  # noqa: E402
     MATERIALIZER_VERSION,
     _scene_artifact_reusable,
     _state_dir_for_explicit_build,
+    _system_ids_from_manifest,
     _write_scene as _write_materialized_scene,
     run,
 )
@@ -71,6 +72,32 @@ def test_scene_writer_is_byte_deterministic(tmp_path: Path) -> None:
     _write_materialized_scene(first, payload)
     _write_materialized_scene(second, payload)
     assert first.read_bytes() == second.read_bytes()
+
+
+def test_scene_selection_manifest_is_build_keyed_and_bounded(tmp_path: Path) -> None:
+    path = tmp_path / "selection.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "spacegate.simulation_scene_selection.v1",
+                "target_build_id": "candidate",
+                "source_build_id": "baseline",
+                "selection_policy_version": "public_read_full_scene_policy_v1",
+                "system_count": 3,
+                "system_ids": [9, 2, 7],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    system_ids, lineage = _system_ids_from_manifest(path, build_id="candidate")
+
+    assert system_ids == [2, 7, 9]
+    assert lineage["source_build_id"] == "baseline"
+    assert lineage["system_count"] == 3
+    assert len(lineage["sha256"]) == 64
+    with pytest.raises(SystemExit, match="target scientific build differ"):
+        _system_ids_from_manifest(path, build_id="wrong")
 
 
 def test_explicit_out_build_infers_external_state_root(tmp_path: Path, monkeypatch) -> None:

@@ -69,7 +69,7 @@ const DEFAULT_VISUAL_SCALE = {
   planet_radius: { fallback_rearth: 1, factor: 0.085, min_scene: 0.105, max_scene: 0.34 },
   planet_orbit_radius: { fallback_au: 0.08, min_scene: 0.75, span_scene: 2.7 },
   binary_orbit_radius: { direct_pair_multiplier: 1, group_pair_motion_multiplier: 0.55 },
-  physical_orbit: { schema_version: "simulation_physical_scale_v1" },
+  physical_orbit: { schema_version: "simulation_physical_scale_v2" },
   collision_policy: {
     star_radius_fraction_of_nearest_sep: 0.28,
     min_visible_star_radius_scene: 0.045,
@@ -1084,11 +1084,47 @@ function orbitHoverPayload(orbit) {
   const physicalExtent = orbit.physical_extent || {};
   const coherence = physicalExtent.coherence || {};
   const physicalAxisField = physicalExtent.semi_major_axis_au || fieldRecord(orbit.fields, "semi_major_axis_au");
+  const massBasis = String(physicalExtent.mass_basis || "unavailable");
+  const axisBasis = String(physicalExtent.axis_basis || "unavailable");
+  const scaleBasisLabel = axisBasis === "accepted_orbit_axis"
+    ? "Source axis"
+    : (massBasis === "source_model_assisted" ? "Derived; source model assisted" : "Derived axis");
+  const totalMass = Number(physicalExtent.total_mass_msun);
+  const totalMassInterval = Array.isArray(physicalExtent.total_mass_interval_msun)
+    ? physicalExtent.total_mass_interval_msun.map(Number)
+    : [];
+  const totalMassLabel = Number.isFinite(totalMass)
+    ? `${formatNumber(totalMass, 3)} Msun${
+      totalMassInterval.length === 2
+      && totalMassInterval.every(Number.isFinite)
+      && (totalMassInterval[0] !== totalMass || totalMassInterval[1] !== totalMass)
+        ? ` (${formatNumber(totalMassInterval[0], 3)} to ${formatNumber(totalMassInterval[1], 3)})`
+        : ""
+    }`
+    : "Unknown";
+  const massStatus = massBasis === "source_model_assisted"
+    ? "source_model"
+    : (massBasis === "derived_assisted" ? "derived" : (massBasis === "measurements_only" ? "source" : "missing"));
+  const massField = {
+    key: "applicable_total_mass_msun",
+    label: "Applicable endpoint mass",
+    value: Number.isFinite(totalMass) ? totalMass : null,
+    value_lower: totalMassInterval[0],
+    value_upper: totalMassInterval[1],
+    unit: "Msun",
+    status: massStatus,
+    layer: "render_scene",
+    basis: massBasis,
+    generator_version: physicalExtent.policy_version,
+    notes: massBasis === "source_model_assisted"
+      ? "The Kepler scale uses at least one calibrated source model mass."
+      : "Mass basis used to test or derive this orbit's physical scale.",
+  };
   const physicalStatusField = {
     key: "physical_scale_status",
     label: "Physical scale",
     value: physicalExtent.applicability === "physical"
-      ? (physicalExtent.completeness === "complete" ? "Physical extent" : "Physical axis; eccentricity incomplete")
+      ? `${physicalExtent.completeness === "complete" ? "Physical extent" : "Physical axis; eccentricity incomplete"}; ${scaleBasisLabel}`
       : (coherence.status === "rejected" ? "Source axis rejected" : "Physical extent unavailable"),
     unit: null,
     status: physicalExtent.applicability === "physical" ? (physicalAxisField?.status || "derived") : (coherence.status === "rejected" ? "ambiguous" : "missing"),
@@ -1111,6 +1147,7 @@ function orbitHoverPayload(orbit) {
       staticReadoutRow("Semi-major axis", formatFieldValue(physicalAxisField, 4), physicalAxisField?.status || "missing", physicalAxisField),
       readoutRow(orbit.fields, "eccentricity", "Ecc.", "Unknown", 3),
       readoutRow(orbit.fields, "inclination_deg", "Incl.", "Unknown", 2),
+      staticReadoutRow("Endpoint mass", totalMassLabel, massStatus, massField),
       staticReadoutRow("Physical scale", String(physicalStatusField.value), physicalStatusField.status, physicalStatusField),
       staticReadoutRow("Guide", String(guideField.value), guideField.status, guideField),
     ],
@@ -5073,7 +5110,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) {
+function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, modelAssisted = false }) {
   const physical = scaleMode === PHYSICAL_SCALE_MODE;
   const activeFocus = focusNode(focusGraph, focusKey);
   if (!physical) {
@@ -5102,6 +5139,7 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey }) 
           <span>{length?.metric} / {length?.lightTime}</span>
           <small>View width {view?.primary}</small>
           <small>Screen-sized body markers; orbital distances are linear</small>
+          {modelAssisted ? <small>Some derived axes use calibrated source model masses</small> : null}
           {resolution.inherited ? (
             <small>Selected relation has no defensible extent; ruler retained from {scaleFocus?.display_name || "its measured parent"}</small>
           ) : null}
@@ -5419,6 +5457,11 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const renderScene = scene?.render_scene || {};
   const renderBodies = renderScene.bodies || {};
   const renderOrbits = renderScene.orbits || [];
+  const modelAssistedPhysicalScale = renderOrbits.some(
+    (orbit) => orbit?.physical_extent?.applicability === "physical"
+      && orbit?.physical_extent?.axis_basis !== "accepted_orbit_axis"
+      && orbit?.physical_extent?.mass_basis === "source_model_assisted",
+  );
   const visualScale = renderScene.visual_scale || {};
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
@@ -5883,7 +5926,13 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                     }}
                     onFocus={issueFocusRequest}
                   />
-                  <PhysicalScaleOverlay scaleMode={activeScaleMode} scaleReport={scaleReport} focusGraph={focusGraph} focusKey={activeFocusKey} />
+                  <PhysicalScaleOverlay
+                    scaleMode={activeScaleMode}
+                    scaleReport={scaleReport}
+                    focusGraph={focusGraph}
+                    focusKey={activeFocusKey}
+                    modelAssisted={modelAssistedPhysicalScale}
+                  />
                 </>
               ) : null}
             </>
