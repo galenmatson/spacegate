@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.legacy_derivation_inventory.v1",
-  "inventory_version": "2026-07-22.e5-legacy-inventory.2",
+  "inventory_version": "2026-08-15.e5-legacy-inventory.3",
   "scope": "Production paths that select, derive, infer, assume, classify, or transform astronomy values after canonical ingest and before public presentation.",
   "precedence": [
     "accepted_direct_or_dynamical_evidence",
@@ -277,6 +277,25 @@
       "materialized_markers": []
     },
     {
+      "path_id": "api.orbit.selected_leaf_kepler_axis",
+      "kind": "science_derivation_and_diagnostic",
+      "layer": "render_scene",
+      "value_status": "derived",
+      "outputs": ["semi_major_axis_au", "apoapsis_extent_au", "total_mass_msun", "axis_coherence_status"],
+      "inputs": ["accepted_orbital_period_days", "selected_exact_leaf_mass_msun", "accepted_source_semi_major_axis_au", "eccentricity"],
+      "algorithm_version": "kepler_axis_from_period_total_mass_v2",
+      "applicability": "A stellar relation with either a coherent accepted source axis or an accepted period and a complete set of applicable exact endpoint masses selected by stellar_leaf_mass_selection_v3.",
+      "uncertainty": "Period and endpoint mass intervals propagate monotonically into an axis interval when complete bounds are available. Missing eccentricity leaves the axis valid but the apoapsis bound incomplete.",
+      "confidence": "high for coherent source axes; medium for measurement based derivations; lower and explicit when calibrated source model masses contribute",
+      "provenance": "Scene physical_extent records every selected mass and period input, evidence and parameter set lineage, mass basis, algorithm and policy versions, independent orientation and phase status, and any rejected source axis.",
+      "supersession": {"state": "retain_as_disc_policy_after_selected_fact_input_cutover", "e5_derivation_key": "planet_semimajor_axis_kepler", "retirement_gate": "A later reviewed physical extent policy with equivalent exact scope, uncertainty, coherence, and lineage gates"},
+      "implementations": [
+        {"file": "srv/api/app/simulation_physical_scale.py", "symbol": "attach_physical_orbit_extent", "markers": ["kepler_axis_from_period_total_mass_v2", "stellar_orbit_kepler_coherence_v2", "simulation_physical_scale_v2"]},
+        {"file": "srv/web/src/SystemPreviewPanel.jsx", "symbol": "orbitHoverPayload", "markers": ["simulation_physical_scale_v2"]}
+      ],
+      "materialized_markers": []
+    },
+    {
       "path_id": "api.orbit.visual_assumptions",
       "kind": "presentation_prior",
       "layer": "disc_assumption",
@@ -331,13 +350,13 @@
       "value_status": "assumed",
       "outputs": ["scene_radius", "orbit_spacing", "subsystem_guide_radius"],
       "inputs": ["physical_radius", "semi_major_axis", "selected_scale_mode"],
-      "algorithm_version": "visual_scale_beta_v1",
+      "algorithm_version": "visual_scale_v2",
       "applicability": "All 3D simulation bodies and orbit guides requiring inspectable scale.",
       "uncertainty": "Presentation transform intentionally does not preserve physical ratios in clarity modes.",
       "confidence": "not_scientific",
       "provenance": "Render payload publishes scale mode, source fields, transform formula, and policy version.",
       "supersession": {"state": "retain_as_presentation_transform", "e5_derivation_key": null, "retirement_gate": "None; must remain visibly separate from science values"},
-      "implementations": [{"file": "srv/api/app/main.py", "symbol": "SIM_VISUAL_SCALE_POLICY", "markers": ["visual_scale_beta_v1", "clarity_scaled_not_physical"]}, {"file": "srv/web/src/SystemPreviewPanel.jsx", "symbol": "DEFAULT_VISUAL_SCALE", "markers": ["visual_scale_beta_v1"]}],
+      "implementations": [{"file": "srv/api/app/main.py", "symbol": "SIM_VISUAL_SCALE_POLICY", "markers": ["visual_scale_v2", "clarity_scaled_not_physical"]}, {"file": "srv/web/src/SystemPreviewPanel.jsx", "symbol": "DEFAULT_VISUAL_SCALE", "markers": ["visual_scale_v2"]}],
       "materialized_markers": []
     },
     {

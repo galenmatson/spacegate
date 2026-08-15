@@ -21,7 +21,7 @@ def test_checked_in_legacy_derivation_inventory_accounts_source_paths() -> None:
     )
 
     assert report["status"] == "pass"
-    assert report["validation"]["path_count"] == 24
+    assert report["validation"]["path_count"] == 25
     assert report["validation"]["unreferenced_policy_derivation_keys"] == []
     assert report["source_audit"]["unaccounted_versioned_markers"] == []
 
