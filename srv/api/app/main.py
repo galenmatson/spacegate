@@ -5342,7 +5342,8 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                            source_catalog, source_version, source_pk
                     FROM component_entities
                     WHERE {' OR '.join(component_filters)}
-                    ORDER BY component_type ASC, display_name ASC
+                    ORDER BY component_type ASC, display_name ASC,
+                             stable_component_key ASC
                     LIMIT 120
                     """,
                     component_params,
@@ -5365,7 +5366,10 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                     FROM system_hierarchy_edges
                     WHERE parent_component_key IN ({placeholders})
                        OR child_component_key IN ({placeholders})
-                    ORDER BY confidence_score DESC NULLS LAST
+                    ORDER BY confidence_score DESC NULLS LAST,
+                             parent_component_key ASC, child_component_key ASC,
+                             edge_kind ASC, member_role ASC NULLS LAST,
+                             source_catalog ASC NULLS LAST
                     LIMIT 80
                     """,
                     [*component_keys, *component_keys],
@@ -5390,7 +5394,8 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                                source_catalog, source_version, source_pk
                         FROM component_entities
                         WHERE stable_component_key IN ({placeholders})
-                        ORDER BY component_type ASC, display_name ASC
+                        ORDER BY component_type ASC, display_name ASC,
+                                 stable_component_key ASC
                         LIMIT 160
                         """,
                         missing_keys,
@@ -5406,6 +5411,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 key=lambda row: (
                     str(row.get("component_type") or ""),
                     str(row.get("display_name") or row.get("stable_component_key") or ""),
+                    str(row.get("stable_component_key") or ""),
                 )
             )
             component_keys = list(component_by_key.keys())
@@ -5449,7 +5455,8 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                                source_catalog, source_version, source_pk
                         FROM component_entities
                         WHERE stable_component_key IN ({placeholders})
-                        ORDER BY component_type ASC, display_name ASC
+                        ORDER BY component_type ASC, display_name ASC,
+                                 stable_component_key ASC
                         LIMIT 160
                         """,
                         missing_orbit_keys,

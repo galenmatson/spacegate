@@ -20,12 +20,40 @@ def _load(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _assumption_key(record: dict[str, Any], public_build_id: str) -> str:
+    payload = {
+        "build_id": public_build_id,
+        "object_type": record.get("object_type"),
+        "system_id": record.get("system_id"),
+        "star_id": record.get("star_id"),
+        "planet_id": record.get("planet_id"),
+        "orbit_edge_id": record.get("orbit_edge_id"),
+        "stable_object_key": record.get("stable_object_key"),
+        "stable_component_key": record.get("stable_component_key"),
+        "render_key": record.get("render_key"),
+        "parameter_key": record.get("parameter_key"),
+        "value_json": record.get("value_json"),
+        "assumption_version": record.get("assumption_version"),
+        "input_context_json": record.get("input_context_json"),
+        "replacement_target": record.get("replacement_target"),
+    }
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _normalize_public_build_id(value: Any, public_build_id: str) -> Any:
     if isinstance(value, dict):
+        build_keyed_assumption = (
+            isinstance(value.get("assumption_key"), str)
+            and value.get("build_id") == public_build_id
+            and value["assumption_key"] == _assumption_key(value, public_build_id)
+        )
         return {
             key: (
                 "<PUBLIC_BUILD_ID>"
                 if key == "build_id" and child == public_build_id
+                else "<BUILD_KEYED_ASSUMPTION_KEY>"
+                if key == "assumption_key" and build_keyed_assumption
                 else _normalize_public_build_id(child, public_build_id)
             )
             for key, child in value.items()
@@ -35,10 +63,39 @@ def _normalize_public_build_id(value: Any, public_build_id: str) -> Any:
     return value
 
 
+def _normalize_set_like_diagnostics(payload: dict[str, Any]) -> None:
+    """Canonicalize only diagnostic collections whose API contract is set-like."""
+    arm = payload.get("arm")
+    if not isinstance(arm, dict):
+        return
+    components = arm.get("components")
+    if isinstance(components, dict) and isinstance(components.get("items"), list):
+        components["items"].sort(
+            key=lambda item: (
+                str(item.get("component_type") or ""),
+                str(item.get("display_name") or ""),
+                str(item.get("stable_component_key") or ""),
+            )
+        )
+    hierarchy_edges = arm.get("hierarchy_edges")
+    if isinstance(hierarchy_edges, dict) and isinstance(hierarchy_edges.get("items"), list):
+        hierarchy_edges["items"].sort(
+            key=lambda item: (
+                -(float(item["confidence_score"]) if item.get("confidence_score") is not None else -1.0),
+                str(item.get("parent_component_key") or ""),
+                str(item.get("child_component_key") or ""),
+                str(item.get("edge_kind") or ""),
+                str(item.get("member_role") or ""),
+                str(item.get("source_catalog") or ""),
+            )
+        )
+
+
 def _logical_bytes(payload: dict[str, Any]) -> bytes:
     public_build_id = str(payload.get("build_id") or "")
     if not public_build_id:
         raise ValueError("scene lacks build_id")
+    _normalize_set_like_diagnostics(payload)
     normalized = _normalize_public_build_id(payload, public_build_id)
     return json.dumps(
         normalized,
@@ -90,10 +147,13 @@ def compare(before_dir: Path, after_dir: Path, expected_count: int | None) -> di
         "schema_version": "spacegate.simulation_scene_set_logical_determinism.v1",
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "normalization_policy": {
-            "version": "public_build_identity_only_v1",
+            "version": "public_build_identity_verified_assumption_key_and_diagnostic_sets_v3",
             "description": (
                 "Replace values of build_id fields only when they equal the scene's "
-                "top-level public build identity; preserve all scientific and source build IDs."
+                "top-level public build identity. Normalize an assumption_key only after "
+                "recomputing and matching its documented public-build-keyed hash. Sort only "
+                "the ARM component and hierarchy-edge diagnostic collections, whose API "
+                "contract is set-like. Preserve all scientific values and source build IDs."
             ),
         },
         "before_dir": str(before_dir),
