@@ -708,7 +708,9 @@ Success criteria:
 - Catalog, Map, and the simulator consume the same scale registry and
   normalizer. The former `Orbit` menu label is now consistently `Local Orbit`,
   and all surfaces expose Structured, Local Orbit, Body Contrast, Log, and
-  Physical Orbits without maintaining private option lists.
+  Physical Orbits without maintaining private option lists. The collapsed
+  simulator control always describes its active selection, even when Physical
+  Orbits is unavailable elsewhere in the menu.
 - `scripts/report_simulation_rate_policy.py` measures five-second fastest-planet
   and sixty-second shortest/top-level stellar candidates from accepted render
   periods. The August 9 review keeps automatic selection disabled because the

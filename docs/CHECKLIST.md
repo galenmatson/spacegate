@@ -1093,6 +1093,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   source names inside bounded labels, explain the exact scientific blockers for
   unavailable Physical Orbits, and return search-origin Explorer and Detail
   flows to the preserved result set and scroll position
+- [x] Make the collapsed simulation Scale control describe its currently
+  selected mode instead of inheriting the Physical Orbits availability warning
 - [ ] Implement M8.3e.3c Projected Separation and Estimated Scale as two
   separately reviewed contracts after source-efficiency, uncertainty,
   scientific-control, and usability gates; do not expose either unfinished mode

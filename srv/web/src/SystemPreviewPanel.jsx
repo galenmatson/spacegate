@@ -5853,9 +5853,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           disabled={status !== "ready" || webglReady === false}
           data-testid="system-preview-scale-mode"
           aria-label="System simulator scale mode"
-          title={physicalModeAvailable
-            ? scaleModeDetail(activeScaleMode)
-            : "Physical Orbits is unavailable at this focus because its subjects lack a defensible common AU placement."}
+          title={scaleModeDetail(activeScaleMode)}
         >
           {SCALE_MODE_OPTIONS.map((option) => (
             <option

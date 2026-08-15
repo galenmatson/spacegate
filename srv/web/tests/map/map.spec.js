@@ -944,6 +944,8 @@ test.describe("public 3D map beta", () => {
     const scale = panel.locator("[data-testid='system-preview-scale-mode']");
     await expect(scale).toBeVisible();
     await scale.selectOption("physical");
+    await expect(scale).toHaveValue("structure");
+    await expect(scale).toHaveAttribute("title", /Best for understanding system structure/i);
     const explanation = panel.locator("[data-testid='system-preview-physical-ruler']");
     await expect(explanation).toHaveAttribute("data-physical-scale-status", "unavailable");
     await expect(explanation).toContainText("Physical Orbits unavailable");
