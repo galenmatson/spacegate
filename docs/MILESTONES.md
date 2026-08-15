@@ -3584,12 +3584,16 @@ Goal:
 - recover defensible physical scale for the broad unresolved multiple-system
   population without weakening the meaning of Physical Orbits.
 
-Status: complete and locally promoted on Photon; not deployed. The clean D/E
+Status: complete and deployed to antiproton on 2026-08-15 as build
+`e7_1bee218514f4e2b24e1125e2_physical_extent_v1_full_public`. The clean D/E
 campaign reproduces 46 ARM tables, 7,719 scenes, 14,141 hierarchy bundles, and
-the Public Read science/search projection with zero logical differences. The
-local rollback and re-promotion drill passed. This is a scientific compiler and
-projection repair, not a renderer exception and not a prerequisite for the AAA
-foundation.
+the Public Read science/search projection with zero logical differences. Local
+rollback and re-promotion passed before release. Cold staging, destination
+verification, atomic activation, API/search/map/simulation checks, known-system
+goldens, and a live Chromium Map/System smoke passed at the public edge. The
+previous August release remains a verified cold-backed rollback. This is a
+scientific compiler and projection repair, not a renderer exception and not a
+prerequisite for the AAA foundation.
 
 Outcome:
 

@@ -448,3 +448,38 @@ known-system and nested-orbit benchmarks, all four map manifests, desktop and
 mobile browser smoke, 4K canvas-pixel verification, and progressive 1,000-ly
 rendering. Compatibility fallback is disabled. Retain the July 17 extracted
 build and publication artifacts until soak acceptance.
+
+## August 15, 2026 Physical Extent Activation Record
+
+Release `e7_1bee218514f4e2b24e1125e2_physical_extent_v1_full_public` was
+transferred and independently verified on `/data` before hot installation. The
+release contains a 24,266,357,963-byte extracted scientific build, a
+16,455,124,664-byte Public Read projection, 7,719 frozen and cached scenes, and
+978,966,758 bytes of Smart Tag serving data plus its portable archive.
+
+The hot planner required 58,449,112,024 free bytes, including the 15-GiB
+reserve. To satisfy that gate without deleting rollback science, the inactive
+July build was copied into its cold rollback bundle and verified before its hot
+copy was retired. The previously served August scientific build was verified
+against its release hashes and bind mounted from
+`/data/spacegate/staged/public-edge/out/20260804T1130Z_68fd99b_a2_planet_badges`
+at its original build-keyed path. The persistent bind is required for rollback
+and must not be removed while that release is retained.
+
+The capacity gate then passed with 68,274,933,760 bytes free. Installation used
+the verified cold source and complete destination verification; activation
+again verified the installed contract before changing `served/current`. The
+official deployment script rebuilt and recreated API and web containers and
+both reached healthy state. Root retained about 24 GB and `/data` about 60 GB
+after image rebuild.
+
+Public acceptance passed exact and fuzzy search, accepted and deferred TIC/TOI
+semantics, singleton and complex Public Read projections, Castor hierarchy and
+prebuilt simulation scene, the known-system benchmark, Smart Tag registry and
+system attachment, and all 100/250/500/1,000-ly tile manifests. Telemetry
+reported zero compatibility fallbacks. A headless Chromium smoke rendered the
+500-ly Map and Castor System Page canvases without page or console errors.
+
+The prior August release remains the immediate cold-backed rollback. Preserve
+both activation records, its persistent bind, the new installed release, and
+the cold incoming/staged payload until the public soak is accepted.

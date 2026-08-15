@@ -1088,6 +1088,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   accepted-period Kepler derivation with uncertainty and lineage, quarantine
   incoherent rows, and pin separately labeled future Projected Separation and
   Estimated Scale contracts without weakening Physical Orbits
+- [x] Deploy the verified M8.3e.3b public release to antiproton through cold
+  staging, destination verification, atomic activation, retained rollback, and
+  API/search/map/simulation/browser acceptance gates
 - [x] Complete the post-coverage simulation and navigation cleanup: stop
   physical label and beacon leaders outside readable body markers, wrap long
   source names inside bounded labels, explain the exact scientific blockers for

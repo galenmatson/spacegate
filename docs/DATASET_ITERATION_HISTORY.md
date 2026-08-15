@@ -5133,6 +5133,35 @@ Representative commits:
   mobile simulation layout check, canvas screenshots, and rebuilt Photon Docker
   health pass.
 
+### 193) Physical Extent v1 Public Edge Release
+
+- Build `e7_1bee218514f4e2b24e1125e2_physical_extent_v1_full_public` was packaged
+  as one release binding the scientific build, Public Read v2, 7,719 frozen and
+  cached simulation scenes, and Smart Tag registry
+  `79ad0373cd586867e821537211f50b7b516166eb5637c2d6544543fdaf085f13`.
+- The complete 34,115,404,068-byte transfer was staged on antiproton's cold
+  `/data` volume. All four release roles passed independent hash, build identity,
+  scene membership, and tag assignment verification before hot installation.
+- The inactive July Evidence Lake scientific build was copied into its existing
+  cold rollback bundle, checked against all release hashes, and only then retired
+  from root. The previously served August scientific build was independently
+  checked against its five release hashes and bind mounted from the cold tier,
+  preserving rollback while recovering hot installation capacity.
+- The hot capacity gate passed with 68,274,933,760 bytes available against
+  58,449,112,024 required, including the 15-GiB reserve. All six candidate
+  runtime units passed destination verification before atomic activation.
+- The official deployment rebuild reported healthy API and web containers and
+  public health identified the new build. Exact and fuzzy names, accepted and
+  deferred TIC/TOI identifiers, singleton and bundled Public Read paths, Castor
+  hierarchy and prebuilt scenes, all known-system goldens, Smart Tags, and the
+  100/250/500/1,000-ly map manifests passed with zero compatibility fallbacks.
+  A live Chromium 500-ly Map and Castor System Page smoke rendered both canvases
+  without page or console errors.
+- Root retains about 24 GB free after image rebuild; `/data` retains about 60 GB.
+  The previous August release and the July Evidence Lake rollback remain on the
+  cold tier. Incoming, staged, installed, and activation artifacts remain intact
+  for the public soak and must not be pruned until rollback retention is reviewed.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
