@@ -20,6 +20,28 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
+def _is_retired_legacy_mass_derivation(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Identify an old Kepler axis that depended on unselected endpoint masses.
+
+    The baseline audit records both masses accepted by the shared exact-leaf
+    projection and masses consumed by the legacy scene builder. A derived axis
+    is not scientific parity when only the latter set was complete.
+    """
+    selected_before = int(before.get("known_endpoint_masses") or 0)
+    legacy_before = int(before.get("legacy_known_endpoint_masses") or 0)
+    selected_after = int(after.get("known_endpoint_masses") or 0)
+    missing_after = int(after.get("missing_endpoint_masses") or 0)
+    return (
+        before.get("state") == "derived"
+        and before.get("axis_basis") == "kepler_period_total_mass"
+        and legacy_before > selected_before
+        and after.get("state") == "unavailable"
+        and after.get("axis_basis") == "unavailable"
+        and selected_after >= selected_before
+        and missing_after > 0
+    )
+
+
 def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
     before_rows = {
         str(row["relation_key"]): row
@@ -40,17 +62,30 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
         if before_rows[key].get("state") in {"unavailable", "rejected"}
         and after_rows[key].get("state") in {"physical", "derived"}
     ]
-    regressions = [
+    regression_candidates = [
         {"before": before_rows[key], "after": after_rows[key]}
         for key in shared
         if before_rows[key].get("state") in {"physical", "derived"}
         and after_rows[key].get("state") in {"unavailable", "rejected"}
     ]
+    justified_retirements = [
+        {
+            **candidate,
+            "retirement_reason": "legacy_kepler_axis_used_unselected_endpoint_mass",
+        }
+        for candidate in regression_candidates
+        if _is_retired_legacy_mass_derivation(candidate["before"], candidate["after"])
+    ]
+    regressions = [
+        candidate
+        for candidate in regression_candidates
+        if not _is_retired_legacy_mass_derivation(candidate["before"], candidate["after"])
+    ]
     count_keys = sorted(
         set((before.get("counts") or {}).keys()) | set((after.get("counts") or {}).keys())
     )
     return {
-        "schema_version": "spacegate.physical_extent_coverage_comparison.v1",
+        "schema_version": "spacegate.physical_extent_coverage_comparison.v2",
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "before_label": before.get("label"),
         "after_label": after.get("label"),
@@ -75,6 +110,8 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
         "transitions": dict(sorted(transitions.items())),
         "recovered_count": len(recovered),
         "recovered_relations": recovered,
+        "justified_retirement_count": len(justified_retirements),
+        "justified_retirements": justified_retirements,
         "regression_count": len(regressions),
         "regressions": regressions,
         "status": "pass" if not regressions and len(before_rows) == len(after_rows) == len(shared) else "fail",
@@ -97,6 +134,7 @@ def main() -> int:
             {
                 "status": report["status"],
                 "recovered_count": report["recovered_count"],
+                "justified_retirement_count": report["justified_retirement_count"],
                 "regression_count": report["regression_count"],
                 "transitions": report["transitions"],
             },

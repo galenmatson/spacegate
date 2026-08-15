@@ -51,3 +51,47 @@ def test_compare_fails_on_physical_regression() -> None:
 
     assert report["status"] == "fail"
     assert report["regression_count"] == 1
+
+
+def test_compare_accepts_retirement_of_legacy_unselected_mass_derivation() -> None:
+    before = _report("derived", physical=1)
+    before["relation_inventory"][0].update(
+        known_endpoint_masses=0,
+        missing_endpoint_masses=2,
+        legacy_known_endpoint_masses=2,
+    )
+    after = _report("unavailable", physical=0)
+    after["relation_inventory"][0].update(
+        known_endpoint_masses=1,
+        missing_endpoint_masses=1,
+        legacy_known_endpoint_masses=1,
+    )
+
+    report = compare(before, after)
+
+    assert report["status"] == "pass"
+    assert report["regression_count"] == 0
+    assert report["justified_retirement_count"] == 1
+    assert report["justified_retirements"][0]["retirement_reason"] == (
+        "legacy_kepler_axis_used_unselected_endpoint_mass"
+    )
+
+
+def test_compare_does_not_retire_source_axis_regression() -> None:
+    before = _report("physical", physical=1)
+    before["relation_inventory"][0].update(
+        axis_basis="accepted_source_axis",
+        known_endpoint_masses=0,
+        legacy_known_endpoint_masses=2,
+    )
+    after = _report("unavailable", physical=0)
+    after["relation_inventory"][0].update(
+        known_endpoint_masses=1,
+        missing_endpoint_masses=1,
+    )
+
+    report = compare(before, after)
+
+    assert report["status"] == "fail"
+    assert report["regression_count"] == 1
+    assert report["justified_retirement_count"] == 0
