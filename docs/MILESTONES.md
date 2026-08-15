@@ -3584,9 +3584,9 @@ Goal:
 - recover defensible physical scale for the broad unresolved multiple-system
   population without weakening the meaning of Physical Orbits.
 
-Status: queued from the M8.3e.3a coverage audit. This is a scientific compiler
-and projection repair, not a renderer exception and not a prerequisite for the
-AAA foundation.
+Status: implementation complete; clean scene A/B and local Photon acceptance
+are in progress. This is a scientific compiler and projection repair, not a
+renderer exception and not a prerequisite for the AAA foundation.
 
 Required work:
 

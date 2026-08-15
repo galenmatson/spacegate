@@ -102,22 +102,62 @@ phase status, and the fact that the axis is derived rather than fitted.
 ## Determinism
 
 Two clean finalized ARM compiles to separate roots produced the same immutable
-build ID `573ed7899255f17b9ca83283`. All 46 table schemas, row counts, and
+build ID `e0560ce5c334e461945732c9`. All 46 table schemas, row counts, and
 order-independent logical hashes match. DuckDB file byte hashes differ because
 physical page layout and generation metadata are not the scientific
 determinism contract.
 
-The compiles took 191.66 and 189.26 seconds of compiler wall time, peaked at
-about 46.4 GiB RSS, and produced approximately 13.8 GB ARM databases. The
+The compiles took 207.94 and 186.71 seconds of compiler wall time, peaked at
+about 46.5 GiB RSS, and produced 13.81 GB ARM databases. The
 independent ARM verifier passes every identity, scope, applicability,
 containment, lineage, orbit, TESS, solar-system, and inventory check.
 
 ## Scene And Scientific A/B
 
-The final two clean v19 scene closures, coverage A/B, named-system goldens,
-runtime latency measurements, local promotion and rollback evidence, and final
-retention disposition are recorded below when the active materialization gate
-finishes.
+Candidate D materialized all 7,719 policy-selected v20 scenes with no failures.
+The closure took 2,273.31 seconds with 24 workers and produced 93,190,086 bytes
+of compressed scene artifacts. The forkserver worker pool does not expose child
+CPU and RSS through the parent process counters, so the materializer's small
+reported parent RSS is not treated as total memory use. Host observation during
+the build peaked near 72 GiB used with about 50 GiB still available and no OOM.
+
+The clean scientific A/B accounts for all 9,307 stellar relations:
+
+| State | Baseline | Candidate D | Delta |
+| --- | ---: | ---: | ---: |
+| Physically scalable | 1,431 | 7,366 | +5,935 |
+| Accepted source axis | 1,423 | 1,059 | -364 |
+| Kepler-derived axis | 8 | 6,307 | +6,299 |
+| Rejected | 135 | 22 | -113 |
+| Unavailable, excluding rejected | 7,741 | 1,919 | -5,822 |
+
+There are 5,938 relation-level recoveries. Of these, 5,825 move from
+unavailable to derived, 113 move from rejected to derived, and 364 previously
+accepted axes fail the mass and period coherence test but retain physical scale
+through a defensible Kepler derivation. The remaining 22 rejected relations
+imply implausible stellar-system masses. Another 477 source axes fail coherence
+but have complete selected endpoint masses and therefore use the derived axis.
+No coherence check was bypassed.
+
+Of the 7,489 baseline relations with an accepted period but incomplete endpoint
+masses, 5,822 now have a physical extent and 1,667 remain unavailable because
+at least one exact endpoint still lacks an applicable selected mass. Another
+252 relations have no accepted axis, accepted period, or projected separation;
+the compiler leaves them structural rather than inventing an orbit.
+
+Three legacy derived axes are deliberately retired rather than counted as
+regressions. Two used a spectral-class mass prior that did not pass the new
+exact-leaf applicability policy. The third used a selected mass attached to a
+canonical parent star that the hierarchy resolves into a subsystem, so it is
+not an exact mass for the relation endpoint. The A/B gate records these under
+`legacy_kepler_axis_used_unselected_endpoint_mass`; it still fails any loss of
+an accepted source axis or a derivation backed by the shared selected-mass
+projection. There are zero true regressions.
+
+The final independent candidate E scene closure, scene logical determinism,
+named-system goldens, runtime latency measurements, local promotion and
+rollback evidence, and final retention disposition are recorded when their
+active gates finish.
 
 Machine reports are stored under:
 

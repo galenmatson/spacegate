@@ -1761,3 +1761,18 @@ After branch acceptance one duplicate freeze may be proposed through an
 enumerated retention dry run. Preserve at least one verified archive, its
 manifest, the cache report, and the machine audits; no v16 artifact is served
 publicly by this milestone.
+
+The August 15 M8.3e.3b Physical Extent Coverage Recovery verification protects
+the retained v18 baseline scene closure and reports plus both clean candidate
+roots under `/space/spacegate/physical-extent-coverage-v1/recovery-d/` and
+`recovery-e/` through branch acceptance. Candidate D is the local promotion
+candidate; candidate E is the independent logical reproduction. Preserve both
+runtime ARM databases, manifests, Public Read artifacts, public slices, complete
+v20 scene closures, and the machine reports under
+`state/reports/system-simulation-physical-scale-v1/physical-extent-coverage-v1/`
+until the ARM and scene determinism checks, local rollback drill, and review are
+accepted. After acceptance, candidate E and superseded failed candidate build
+trees may be proposed only through an enumerated dry run. Candidate D, the
+immediate served rollback, unique source evidence, and all accepted machine
+reports remain protected. Partial or failed scene closures are regenerable
+scratch only after their failure and lack of references are recorded.
