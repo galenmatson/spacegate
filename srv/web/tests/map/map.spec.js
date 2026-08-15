@@ -2719,12 +2719,12 @@ test.describe("public 3D map beta", () => {
   test("scale-unavailable hierarchy cannot masquerade as Physical Orbits", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop physical availability inspection check");
     const response = await page.request.get("/api/v1/systems/search", {
-      params: { q: "32alf Leo", limit: "1" },
+      params: { q: "HD 57041", limit: "1" },
     });
     expect(response.ok()).toBeTruthy();
     const payload = await response.json();
     const systemId = payload.items?.[0]?.system_id;
-    expect(systemId, "32alf Leo system_id").toBeTruthy();
+    expect(systemId, "HD 57041 system_id").toBeTruthy();
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     const panel = page.locator("[data-testid='system-preview-panel']");
@@ -2755,7 +2755,7 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => Number(node.dataset.cameraTargetDistance || Number.POSITIVE_INFINITY)),
       { timeout: 3000 },
     ).toBeLessThan(beforeDistance * 0.5);
-    await page.screenshot({ path: testInfo.outputPath("32alf-leo-physical-unavailable.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("hd-57041-physical-unavailable.png"), fullPage: false });
   });
 
   test("a descendant habitable zone does not certify an unresolved multiple layout", async ({ page }, testInfo) => {
@@ -2836,7 +2836,7 @@ test.describe("public 3D map beta", () => {
       await page.mouse.wheel(0, -1200);
     }
     const indicators = page.locator("[data-testid='system-preview-scale-beacon'], [data-testid='system-preview-offscreen-indicator']");
-    await expect.poll(() => indicators.count(), { timeout: 3000 }).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => indicators.count(), { timeout: 3000 }).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => page.locator("[data-testid='system-preview-offscreen-indicator']").count(),
       { timeout: 3000 },

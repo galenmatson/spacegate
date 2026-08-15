@@ -205,7 +205,11 @@ def main() -> int:
     reports = [_target_report(args.base_url, target) for target in targets]
     if args.require_contract:
         for report in reports:
-            report["checks"] = _contract_checks(report)
+            report["checks"] = (
+                _contract_checks(report)
+                if report.get("status") == "ok"
+                else {"search_resolution_missing": 1}
+            )
             report["status"] = "pass" if report.get("status") == "ok" and not any(report["checks"].values()) else "fail"
     output = {
         "schema_version": "spacegate.simulation_physical_scale_audit.v1",

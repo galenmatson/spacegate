@@ -132,11 +132,14 @@ def main():
         "simulation scene.render_scene",
     )
     visual_scale = scene_json.get("render_scene", {}).get("visual_scale", {})
-    if visual_scale.get("schema_version") != "visual_scale_beta_v1":
-        raise AssertionError("simulation scene render visual scale policy missing")
+    if visual_scale.get("schema_version") != "visual_scale_v2":
+        raise AssertionError("simulation scene render visual_scale_v2 policy missing")
     modes = {str(item.get("mode") or item.get("value") or "") for item in visual_scale.get("available_scale_modes", []) if isinstance(item, dict)}
-    if not {"structure", "true_orbits", "true_bodies", "log"}.issubset(modes):
+    if not {"structure", "true_orbits", "true_bodies", "log", "physical"}.issubset(modes):
         raise AssertionError("simulation scene render visual scale modes missing")
+    physical_scale = scene_json.get("render_scene", {}).get("physical_scale", {})
+    if physical_scale.get("schema_version") != "simulation_physical_scale_v2":
+        raise AssertionError("simulation scene render physical-scale policy missing")
     if not isinstance(visual_scale.get("collision_policy"), dict):
         raise AssertionError("simulation scene render visual scale collision policy missing")
     render_stars = ((scene_json.get("render_scene") or {}).get("bodies") or {}).get("stars") or []

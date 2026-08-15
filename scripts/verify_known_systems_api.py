@@ -240,13 +240,16 @@ def assert_render_scene_contract(
     assumptions = render_scene.get("assumptions") or []
     diagnostics = render_scene.get("diagnostics") or {}
     visual_scale = render_scene.get("visual_scale") or {}
-    if visual_scale.get("schema_version") != "visual_scale_beta_v1":
-        raise AssertionError(f"{case.query}: missing visual_scale_beta_v1 policy")
+    if visual_scale.get("schema_version") != "visual_scale_v2":
+        raise AssertionError(f"{case.query}: missing visual_scale_v2 policy")
+    physical_scale = render_scene.get("physical_scale") or {}
+    if physical_scale.get("schema_version") != "simulation_physical_scale_v2":
+        raise AssertionError(f"{case.query}: missing simulation_physical_scale_v2 policy")
     for scale_key in ("star_radius", "planet_radius", "planet_orbit_radius", "binary_orbit_radius"):
         if not isinstance(visual_scale.get(scale_key), dict):
             raise AssertionError(f"{case.query}: visual scale policy missing {scale_key}")
     modes = {str(item.get("mode") or item.get("value") or "") for item in (visual_scale.get("available_scale_modes") or []) if isinstance(item, dict)}
-    for mode in ("structure", "true_orbits", "true_bodies", "log"):
+    for mode in ("structure", "true_orbits", "true_bodies", "log", "physical"):
         if mode not in modes:
             raise AssertionError(f"{case.query}: visual scale policy missing {mode} mode")
     if visual_scale.get("default_scale_mode") != "structure":
