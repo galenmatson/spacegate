@@ -4783,8 +4783,10 @@ function SystemDetailPage({ buildId = "" }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const fromMap = searchParams.get("from") === "map";
+  const fromSearchResults = searchParams.get("from_surface") === "search-results";
   const mapReturnToken = String(searchParams.get("map_return") || "").replace(/[^a-zA-Z0-9_-]/g, "");
-  const mapReturnPath = mapReturnToken ? `/map?restore=${encodeURIComponent(mapReturnToken)}` : "/map";
+  const mapReturnBase = fromSearchResults ? "/" : "/map";
+  const mapReturnPath = mapReturnToken ? `${mapReturnBase}?restore=${encodeURIComponent(mapReturnToken)}` : mapReturnBase;
 
   React.useEffect(() => {
     let isActive = true;
@@ -4860,10 +4862,10 @@ function SystemDetailPage({ buildId = "" }) {
         {fromMap && (
           <div className="map-return-banner">
             <div>
-              <strong>Opened from the 3D map</strong>
-              <span>Return to the local star map to keep exploring nearby systems.</span>
+              <strong>{fromSearchResults ? "Opened from Star Search" : "Opened from the 3D map"}</strong>
+              <span>{fromSearchResults ? "Return to the same results and continue where you left off." : "Return to the local star map to keep exploring nearby systems."}</span>
             </div>
-            <Link to={mapReturnPath} className="button map-return-button">Back to 3D map</Link>
+            <Link to={mapReturnPath} className="button map-return-button">{fromSearchResults ? "Back to search results" : "Back to 3D map"}</Link>
           </div>
         )}
 

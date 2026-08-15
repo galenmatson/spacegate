@@ -568,6 +568,25 @@ function compactIdentifier(value, maxLength = 26) {
   return `${text.slice(0, half)}...${text.slice(-half)}`;
 }
 
+function wrapSceneLabel(value, maxCharacters = 21) {
+  const text = String(value || "").trim();
+  if (!text || text.length <= maxCharacters) return text ? [text] : [];
+  const searchStart = Math.max(1, Math.floor(text.length / 2) - 6);
+  const searchEnd = Math.min(text.length - 1, Math.ceil(text.length / 2) + 6);
+  let splitAt = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = searchStart; index <= searchEnd; index += 1) {
+    if (!/[\s/]/.test(text[index])) continue;
+    const distance = Math.abs(index - text.length / 2);
+    if (distance < bestDistance) {
+      splitAt = index;
+      bestDistance = distance;
+    }
+  }
+  if (splitAt < 0) splitAt = Math.ceil(text.length / 2);
+  return [text.slice(0, splitAt).trim(), text.slice(splitAt).trim()].filter(Boolean);
+}
+
 function formatFieldValue(field) {
   if (!field) {
     return "Unknown";
@@ -1670,6 +1689,7 @@ function SceneLabel({
   callout = false,
   calloutSide = 1,
   calloutVerticalPixels = 0,
+  calloutAnchorPixels = 6,
 }) {
   const groupRef = React.useRef(null);
   const spriteRef = React.useRef(null);
@@ -1698,9 +1718,11 @@ function SceneLabel({
       return null;
     }
     context.font = `600 ${fontSize}px ${typography.family}`;
-    const metrics = context.measureText(label);
-    canvas.width = Math.max(64, Math.ceil(metrics.width + paddingX * 2));
-    canvas.height = fontSize + paddingY * 2;
+    const lines = wrapSceneLabel(label);
+    const lineHeight = fontSize * 1.08;
+    const measuredWidth = Math.max(...lines.map((line) => context.measureText(line).width));
+    canvas.width = Math.max(64, Math.ceil(measuredWidth + paddingX * 2));
+    canvas.height = Math.ceil(lineHeight * lines.length + paddingY * 2);
     context.font = `600 ${fontSize}px ${typography.family}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
@@ -1709,15 +1731,18 @@ function SceneLabel({
     context.strokeStyle = contrast.lightBackground
       ? "rgba(250, 253, 255, 0.98)"
       : "rgba(2, 8, 14, 0.96)";
-    context.strokeText(label, canvas.width / 2, canvas.height / 2 + 1);
     context.fillStyle = resolvedColor;
-    context.fillText(label, canvas.width / 2, canvas.height / 2 + 1);
+    lines.forEach((line, index) => {
+      const y = paddingY + lineHeight * (index + 0.5) + 1;
+      context.strokeText(line, canvas.width / 2, y);
+      context.fillText(line, canvas.width / 2, y);
+    });
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
-    return { texture, aspect: canvas.width / canvas.height };
+    return { texture, aspect: canvas.width / canvas.height, lineCount: lines.length };
   }, [contrast.lightBackground, label, resolvedColor, typography.family, typography.revision]);
 
   useEffect(() => () => texturePayload?.texture?.dispose(), [texturePayload]);
@@ -1732,7 +1757,11 @@ function SceneLabel({
     const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
     const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
     const targetPixels = clampNumber(22.5 * scale, 16.5, 31.5);
-    const labelHeight = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
+    const labelHeight = clampNumber(
+      worldUnitsPerPixel * targetPixels * Math.max(1, texturePayload.lineCount),
+      0.0015,
+      0.68,
+    );
     const labelWidth = labelHeight * texturePayload.aspect;
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
     spriteRef.current.scale.set(labelWidth, labelHeight, 1);
@@ -1745,12 +1774,12 @@ function SceneLabel({
         groupRef.current.quaternion.copy(camera.quaternion);
       }
       const side = Number(calloutSide) < 0 ? -1 : 1;
-      const anchorPixels = 5.5;
+      const anchorPixels = Math.max(4, Number(calloutAnchorPixels) || 0);
       const gapPixels = Math.max(5, Number(screenGapPixels) || 0);
       const centerX = side * (worldUnitsPerPixel * (anchorPixels + gapPixels) + labelWidth / 2);
       const centerY = worldUnitsPerPixel * Number(calloutVerticalPixels || 0);
       spriteRef.current.position.set(centerX, centerY, 0);
-      leaderPositions[0] = side * worldUnitsPerPixel * 2.5;
+      leaderPositions[0] = side * worldUnitsPerPixel * anchorPixels;
       leaderPositions[1] = 0;
       leaderPositions[2] = 0;
       leaderPositions[3] = centerX - side * (labelWidth / 2 + worldUnitsPerPixel * 1.5);
@@ -1977,6 +2006,7 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
         callout={physicalMarker}
         calloutSide={calloutSide}
         calloutVerticalPixels={Number(star.physical_label_vertical_pixels) || 0}
+        calloutAnchorPixels={7.5}
         screenGapPixels={6}
       />
       <SceneLabel
@@ -3029,6 +3059,7 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
             callout={unavailablePhysicalMarker}
             calloutSide={unavailableCalloutSide}
             calloutVerticalPixels={Number(spec.orbit.physical_label_vertical_pixels) || 0}
+            calloutAnchorPixels={7}
             screenGapPixels={9}
           />
         </group>
@@ -3248,6 +3279,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
         callout={physicalMarker}
         calloutSide={calloutSide}
         calloutVerticalPixels={Number(subsystem.physical_label_vertical_pixels) || 0}
+        calloutAnchorPixels={selected ? 11 : 9}
         screenGapPixels={9}
       />
     </group>
@@ -3370,6 +3402,7 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
         callout={physicalMarker}
         calloutSide={calloutSide}
         calloutVerticalPixels={Number(planet.physical_label_vertical_pixels) || 0}
+        calloutAnchorPixels={planet.physical_scale_unavailable ? 6 : 5.5}
       />
     </group>
   );
@@ -5110,10 +5143,76 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, modelAssisted = false }) {
+function acceptedPhysicalInput(field) {
+  return ["source", "source_model", "derived"].includes(String(field?.status || "").toLowerCase());
+}
+
+function physicalScaleGapSummary(focusGraph, focusKey, orbits = []) {
+  const nodes = focusGraphNodes(focusGraph);
+  const active = focusNode(focusGraph, focusKey);
+  if (!active) {
+    return {
+      intro: "The simulator has no accepted hierarchy from which to establish one common AU scale.",
+      gaps: [],
+    };
+  }
+  const orbitByKey = new Map((orbits || []).map((orbit) => [String(orbit?.orbit_key || ""), orbit]));
+  const queue = [active.focus_key];
+  const visited = new Set();
+  const gaps = [];
+  while (queue.length) {
+    const key = queue.shift();
+    if (!key || visited.has(key) || !nodes[key]) continue;
+    visited.add(key);
+    const node = nodes[key];
+    queue.push(...(node.child_focus_keys || []));
+    if (!node.orbit_key || node.physical_bounds?.view_applicability !== "unavailable") continue;
+    const orbit = orbitByKey.get(String(node.orbit_key));
+    const extent = orbit?.physical_extent || {};
+    const coherence = extent.coherence || {};
+    const period = fieldRecord(orbit?.fields, "period_days");
+    const axis = extent.semi_major_axis_au || fieldRecord(orbit?.fields, "semi_major_axis_au");
+    let reason = "No accepted physical semi-major axis is available for this relation.";
+    if (coherence.status === "rejected") {
+      reason = "Its cataloged axis and period fail the physical coherence check, so the axis is rejected.";
+    } else if (acceptedPhysicalInput(period) && !Number.isFinite(Number(extent.total_mass_msun))) {
+      reason = "Its period is accepted, but one or both exact endpoint masses are unavailable.";
+    } else if (!acceptedPhysicalInput(axis) && !acceptedPhysicalInput(period)) {
+      reason = "It has neither an accepted semi-major axis nor an accepted orbital period.";
+    } else if (acceptedPhysicalInput(period)) {
+      reason = "Its accepted period cannot yet be combined with a complete applicable endpoint mass set.";
+    }
+    gaps.push({ label: node.display_name || orbit?.display_name || "Unresolved relation", reason });
+  }
+  if (!gaps.length && active.physical_bounds?.basis === "root_physical_layout_unavailable") {
+    (active.child_focus_keys || []).slice(0, 3).forEach((key) => {
+      const child = nodes[key];
+      gaps.push({
+        label: child?.display_name || "Disconnected branch",
+        reason: "No accepted relation places this branch relative to its siblings on one common AU scale.",
+      });
+    });
+  }
+  if (!gaps.length && active.physical_bounds?.basis === "simulation_tree_unavailable") {
+    gaps.push({
+      label: active.display_name || "System hierarchy",
+      reason: "An accepted simulation hierarchy is not available for this system.",
+    });
+  }
+  return {
+    intro: `${active.display_name || "This focus"} does not have a complete, defensible common AU placement.`,
+    gaps,
+    hiddenCount: Math.max(0, gaps.length - 3),
+  };
+}
+
+function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, modelAssisted = false, orbits = [], unavailableRequested = false }) {
   const physical = scaleMode === PHYSICAL_SCALE_MODE;
   const activeFocus = focusNode(focusGraph, focusKey);
-  if (!physical) {
+  const resolution = physicalScaleResolution(focusGraph, focusKey);
+  const unavailable = !resolution.radiusAu;
+  const explainUnavailable = unavailable && unavailableRequested;
+  if (!physical && !explainUnavailable) {
     return (
       <div className="system-preview-scale-note" data-testid="system-preview-scale-note">
         {scaleMode === "log" ? "Nonlinear display - local orbits and hierarchy guides use separate log transforms; there is no common AU ruler" : "Schematic distance - presentation scaled for readability"}
@@ -5122,15 +5221,23 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, mo
   }
   const length = physicalScaleReadout(scaleReport?.lengthAu);
   const view = physicalScaleReadout(scaleReport?.viewWidthAu);
-  const resolution = physicalScaleResolution(focusGraph, focusKey);
-  const unavailable = !resolution.radiusAu;
   const scaleFocus = resolution.scaleFocusKey ? focusNode(focusGraph, resolution.scaleFocusKey) : null;
+  const gapSummary = unavailable ? physicalScaleGapSummary(focusGraph, focusKey, orbits) : null;
   return (
     <div className="system-preview-physical-ruler" data-testid="system-preview-physical-ruler" data-physical-scale-status={unavailable ? "unavailable" : (resolution.inherited ? "inherited" : "available")}>
       {unavailable ? (
         <>
-          <strong>Physical extent unavailable for {activeFocus?.display_name || "this focus"}</strong>
-          <span>Showing the schematic Structure layout; no AU ruler applies</span>
+          <strong>Physical Orbits unavailable</strong>
+          <span>{gapSummary?.intro || `No common AU scale is available for ${activeFocus?.display_name || "this focus"}.`}</span>
+          {gapSummary?.gaps?.length ? (
+            <ul className="system-preview-scale-gaps">
+              {gapSummary.gaps.slice(0, 3).map((gap) => (
+                <li key={`${gap.label}:${gap.reason}`}><b>{gap.label}:</b> {gap.reason}</li>
+              ))}
+            </ul>
+          ) : null}
+          {gapSummary?.hiddenCount > 0 ? <small>And {gapSummary.hiddenCount} more unresolved relations.</small> : null}
+          <small>Disconnected branches stay schematic rather than receiving an invented orbit.</small>
         </>
       ) : (
         <>
@@ -5273,6 +5380,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [showFormationLines, setShowFormationLines] = useState(initialPresentation.showFormationLines);
   const [showLabels, setShowLabels] = useState(initialPresentation.showLabels);
   const [scaleMode, setScaleMode] = useState(initialPresentation.scaleMode);
+  const [physicalUnavailableRequested, setPhysicalUnavailableRequested] = useState(false);
   const [focusKey, setFocusKey] = useState("");
   const [focusHistory, setFocusHistory] = useState([]);
   const [focusRequest, setFocusRequest] = useState(null);
@@ -5420,6 +5528,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setFocusHistory([]);
     setFocusRequest(null);
     setScaleReport(null);
+    setPhysicalUnavailableRequested(false);
     setNavigationProjection([]);
     setSimulationDays(0);
     window.clearTimeout(hoverDelayRef.current);
@@ -5521,6 +5630,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   useEffect(() => {
     if (status !== "ready" || requestedScaleMode !== PHYSICAL_SCALE_MODE || physicalModeAvailable) return;
+    setPhysicalUnavailableRequested(true);
     setScaleMode("structure");
   }, [physicalModeAvailable, requestedScaleMode, status]);
   const issueFocusRequest = useCallback((nextFocusKey, { enter = true, preserveDistance = false } = {}) => {
@@ -5730,7 +5840,16 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         <span>Scale</span>
         <select
           value={activeScaleMode}
-          onChange={(event) => setScaleMode(normalizeScaleMode(event.target.value))}
+          onChange={(event) => {
+            const nextMode = normalizeScaleMode(event.target.value);
+            if (nextMode === PHYSICAL_SCALE_MODE && !physicalModeAvailable) {
+              setPhysicalUnavailableRequested(true);
+              setScaleMode("structure");
+              return;
+            }
+            setPhysicalUnavailableRequested(false);
+            setScaleMode(nextMode);
+          }}
           disabled={status !== "ready" || webglReady === false}
           data-testid="system-preview-scale-mode"
           aria-label="System simulator scale mode"
@@ -5932,6 +6051,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                     focusGraph={focusGraph}
                     focusKey={activeFocusKey}
                     modelAssisted={modelAssistedPhysicalScale}
+                    orbits={renderOrbits}
+                    unavailableRequested={physicalUnavailableRequested}
                   />
                 </>
               ) : null}

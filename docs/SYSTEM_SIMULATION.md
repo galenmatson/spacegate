@@ -797,6 +797,8 @@ Success criteria:
   close zoom cannot enlarge their central sphere or crossed rings into apparent
   physical structures. Unresolved scale beacons are displaced from their exact
   subject positions and use a visible leader and arrowhead back to the subject.
+  The arrowhead stops outside the target's readable screen marker rather than
+  covering its center. Long source names wrap inside the bounded beacon.
 - Physical extent-unavailable orbit markers also remain small screen-space
   diamonds with offset callouts. Prev and Next follow a stable depth-first
   circular tour over every focus node, including hierarchy groups and bodies,
@@ -830,7 +832,11 @@ Success criteria:
   visibly marked unavailable. Focusing a member neighborhood or relation with a
   valid AU extent re-enables the option. The simulator never labels schematic
   geometry Physical Orbits and never collapses unknown relations into a
-  misleading zero-distance physical system.
+  misleading zero-distance physical system. When the user requests the
+  unavailable mode, the scale panel names the blocking relations and explains
+  whether each lacks an accepted axis, an accepted period, applicable exact
+  endpoint masses, a coherent solution, or an accepted placement relation.
+  This explanation remains compact and never substitutes a visual guess.
 - ORB6 source unit flag `m` denotes milliarcseconds and `a` denotes arcseconds.
   Compiler policy `2026-08-13.e7-stellar-orbit-runtime.4` applies that general
   normalization before distance conversion. Runtime physical-scale validation

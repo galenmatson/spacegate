@@ -308,6 +308,9 @@ export function layoutBoundedIndicators(indicators, limit = 5) {
     const leaderStartY = targetDeltaY * edgeScale;
     const leaderDeltaX = targetDeltaX - leaderStartX;
     const leaderDeltaY = targetDeltaY - leaderStartY;
+    const leaderEndGap = item.unresolved
+      ? Math.max(12, Math.min(20, (Number(item.projectedRadiusPx) || 0) + 6))
+      : 3;
     placed.push({
       ...item,
       displayX: baseX,
@@ -316,7 +319,8 @@ export function layoutBoundedIndicators(indicators, limit = 5) {
       targetY,
       leaderStartX,
       leaderStartY,
-      leaderLength: Math.max(0, Math.hypot(leaderDeltaX, leaderDeltaY) - 3),
+      leaderEndGap,
+      leaderLength: Math.max(0, Math.hypot(leaderDeltaX, leaderDeltaY) - leaderEndGap - 5),
       leaderAngleDeg: Math.atan2(leaderDeltaY, leaderDeltaX) * 180 / Math.PI,
     });
   }

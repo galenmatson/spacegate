@@ -138,13 +138,20 @@ test("scale ruler uses 1-2-5 steps", () => {
 
 test("scale beacons are bounded and collision managed", () => {
   const laidOut = layoutBoundedIndicators([
-    { focusKey: "a", unresolved: true, x: 200, y: 120, viewportWidth: 400, viewportHeight: 240 },
+    { focusKey: "a", unresolved: true, projectedRadiusPx: 8, x: 200, y: 120, viewportWidth: 400, viewportHeight: 240 },
     { focusKey: "b", unresolved: true, x: 202, y: 121, viewportWidth: 400, viewportHeight: 240 },
     { focusKey: "c", offscreen: true, x: 390, y: 220, viewportWidth: 400, viewportHeight: 240 },
   ]);
   assert.equal(laidOut.length, 3);
   assert.ok(Math.abs(laidOut[0].displayX - laidOut[0].targetX) >= 90);
   assert.ok(laidOut[0].leaderLength >= 8);
+  assert.equal(laidOut[0].leaderEndGap, 14);
+  const leaderTipDistance = laidOut[0].leaderLength + 5;
+  const targetDistance = Math.hypot(
+    laidOut[0].targetX - laidOut[0].displayX - laidOut[0].leaderStartX,
+    laidOut[0].targetY - laidOut[0].displayY - laidOut[0].leaderStartY,
+  );
+  assert.ok(targetDistance - leaderTipDistance >= laidOut[0].projectedRadiusPx);
   assert.ok(Math.abs(laidOut[0].displayY - laidOut[1].displayY) >= 30);
   assert.ok(laidOut[2].displayX <= 328);
   assert.ok(laidOut[2].displayY <= 212);

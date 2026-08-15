@@ -1088,6 +1088,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   accepted-period Kepler derivation with uncertainty and lineage, quarantine
   incoherent rows, and pin separately labeled future Projected Separation and
   Estimated Scale contracts without weakening Physical Orbits
+- [x] Complete the post-coverage simulation and navigation cleanup: stop
+  physical label and beacon leaders outside readable body markers, wrap long
+  source names inside bounded labels, explain the exact scientific blockers for
+  unavailable Physical Orbits, and return search-origin Explorer and Detail
+  flows to the preserved result set and scroll position
 - [ ] Implement M8.3e.3c Projected Separation and Estimated Scale as two
   separately reviewed contracts after source-efficiency, uncertainty,
   scientific-control, and usability gates; do not expose either unfinished mode

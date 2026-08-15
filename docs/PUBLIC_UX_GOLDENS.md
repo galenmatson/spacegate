@@ -97,6 +97,10 @@ The Playwright map suite imports
   pagination, and scroll position. Same-system presentation controls survive
   Peek/Explorer/Detail while elapsed simulation time does not; a new system
   starts at `1x`.
+- Search origin is part of the navigation contract. Explorer Back or Close and
+  the System Detail return action restore the exact Search Results surface that
+  opened the system, including query, filters, sort, result set, and scroll
+  position. Map origin continues to restore the prior camera and drill state.
 - System Page layout checks cover the 1,600 CSS pixel outer envelope at desktop,
   4K, and ultrawide widths while narrative text remains at most `76ch` wide.
   Catalog and Map peer navigation, clean Catalog brand return, and contextual
@@ -156,6 +160,11 @@ The Playwright map suite imports
   linear AU transform inside the active focus; Structure must say that distance
   is presentation scaled; Log must identify its nonlinear scale and omit a
   conventional ruler; unavailable axes must remain visibly unavailable.
+- Physical scale beacons must wrap long source-native names inside their
+  bounded containers. Their leaders must end outside the target marker rather
+  than crossing the rendered body. An unavailable Physical Orbits request must
+  name the blocking scientific gaps and state that disconnected branches remain
+  schematic instead of receiving an invented orbit.
 - Desktop double click and explicit keyboard/touch Focus must reach the same
   stable focus node. Fit System, Parent, Back, sibling navigation, breadcrumb,
   selection, and pinned inspection must survive transitions without changing

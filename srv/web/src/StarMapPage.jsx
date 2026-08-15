@@ -2916,6 +2916,7 @@ function MapStarSearchShell({
   onReleasePreview,
   onCapturePreview,
   onRuntimeEvent,
+  resultsRef = null,
 }) {
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
   const toggleSpectral = (token) => {
@@ -3061,6 +3062,7 @@ function MapStarSearchShell({
 
       {resultsOpen && (
         <section
+          ref={resultsRef}
           className={`map-search-results ${resultsHidden ? "is-hidden" : ""}`}
           data-testid="map-star-search-results"
           data-results-hidden={resultsHidden ? "true" : "false"}
@@ -3176,11 +3178,14 @@ export default function StarMapPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const restoreStateRef = useRef(readStoredMapReturnState(searchParams.get("restore")));
   const restoredMapState = restoreStateRef.current;
+  const restoredSearchState = restoredMapState?.search && typeof restoredMapState.search === "object"
+    ? restoredMapState.search
+    : null;
   const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readMapDeviceProfile);
   const initialMapDefaultsRef = useRef(mapDeviceDefaultsFor(deviceRuntimeProfile));
   const initialMapDefaults = initialMapDefaultsRef.current;
   const [mapRadiusLy, setMapRadiusLy] = useState(() => {
-    const requestedRadius = Number(searchParams.get("radius"));
+    const requestedRadius = Number(searchParams.get("radius") || restoredMapState?.mapRadiusLy);
     return MAP_RADIUS_OPTIONS_LY.includes(requestedRadius) ? requestedRadius : initialMapDefaults.radiusLy;
   });
   const monolithicDiagnosticMode = searchParams.get("map_transport") === "monolithic";
@@ -3254,9 +3259,9 @@ export default function StarMapPage({
   const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
   const [previewCooldownActive, setPreviewCooldownActive] = useState(false);
   const [previewSnapshotCache, setPreviewSnapshotCache] = useState(() => new Map());
-  const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
-  const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
-  const [mapSearchFilters, setMapSearchFilters] = useState({
+  const [mapSearchQuery, setMapSearchQuery] = useState(() => restoredSearchState?.query ?? searchParams.get("q") ?? "");
+  const [mapSearchSort, setMapSearchSort] = useState(() => restoredSearchState?.sort || searchParams.get("sort") || ((restoredSearchState?.query || searchParams.get("q")) ? "match" : "distance"));
+  const [mapSearchFilters, setMapSearchFilters] = useState(() => ({
     distanceRange: [0, mapRadiusLy],
     starRange: [0, 1],
     planetRange: [0, 1],
@@ -3264,15 +3269,19 @@ export default function StarMapPage({
     temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
     spectralClass: "",
     planetCategories: [],
-  });
+    ...(restoredSearchState?.filters || {}),
+  }));
   const [mapSearchResults, setMapSearchResults] = useState([]);
-  const [mapSearchResultsOpen, setMapSearchResultsOpen] = useState(false);
+  const [mapSearchResultsOpen, setMapSearchResultsOpen] = useState(Boolean(restoredSearchState?.resultsOpen));
   const [mapSearchLoading, setMapSearchLoading] = useState(false);
   const [mapSearchError, setMapSearchError] = useState("");
   const [mapSearchCursor, setMapSearchCursor] = useState(null);
   const [mapSearchHasMore, setMapSearchHasMore] = useState(false);
   const [mapSearchStats, setMapSearchStats] = useState("");
   const mapSearchTokenRef = useRef(0);
+  const mapSearchResultsRef = useRef(null);
+  const restoredSearchRunRef = useRef(false);
+  const pendingSearchScrollRef = useRef(Number.isFinite(Number(restoredSearchState?.scrollTop)) ? Number(restoredSearchState.scrollTop) : null);
   const mapNameStyleInitializedRef = useRef(false);
   const mapCameraStateRef = useRef(restoredMapState?.camera || DEFAULT_MAP_CAMERA_STATE);
   const previewPoolIdsRef = useRef(new Set());
@@ -3287,6 +3296,7 @@ export default function StarMapPage({
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
+  const drillReturnSurfaceRef = useRef(null);
   const tileManagerRef = useRef(null);
   const tileSystemsRef = useRef(new Map());
   const detailSystemsRef = useRef(new Map());
@@ -3754,6 +3764,7 @@ export default function StarMapPage({
   }, [drillMode, peekSize.height, peekSize.width]);
 
   const exitDrillMode = useCallback((consumeHistory = true) => {
+    drillReturnSurfaceRef.current = null;
     setDrillMode("flight");
     if (consumeHistory && drillHistoryPushedRef.current) {
       window.history.back();
@@ -3761,9 +3772,13 @@ export default function StarMapPage({
   }, []);
 
   const backToPeekFromExplore = useCallback(() => {
+    if (drillReturnSurfaceRef.current === "search-results") {
+      exitDrillMode();
+      return;
+    }
     drillHistoryPushedRef.current = false;
     setDrillMode("peek");
-  }, []);
+  }, [exitDrillMode]);
 
   const selectSystem = useCallback((system, options = {}) => {
     if (!system) {
@@ -4509,10 +4524,19 @@ export default function StarMapPage({
       peekSize,
       mapFrame,
       showDirectionLabels,
+      mapRadiusLy,
       selectionHistoryIds: selectionHistory.map((item) => item.system_id).filter(Boolean),
+      search: {
+        open: mapSearchOpen,
+        resultsOpen: mapSearchResultsOpen,
+        query: mapSearchQuery,
+        sort: mapSearchSort,
+        filters: mapSearchFilters,
+        scrollTop: Number(mapSearchResultsRef.current?.scrollTop) || 0,
+      },
     });
     return token;
-  }, [drillMode, mapFrame, peekSize, selectedSystem, selectionHistory, showDirectionLabels]);
+  }, [drillMode, mapFrame, mapRadiusLy, mapSearchFilters, mapSearchOpen, mapSearchQuery, mapSearchResultsOpen, mapSearchSort, peekSize, selectedSystem, selectionHistory, showDirectionLabels]);
 
   useEffect(() => {
     const captureForConcept = (event) => {
@@ -4529,11 +4553,14 @@ export default function StarMapPage({
     }
     const token = captureMapReturnState(system);
     const params = new URLSearchParams({ from: "map" });
+    if (mapSearchResultsOpen) {
+      params.set("from_surface", "search-results");
+    }
     if (token) {
       params.set("map_return", token);
     }
     navigate(`/systems/${system.system_id}?${params.toString()}`);
-  }, [captureMapReturnState, navigate]);
+  }, [captureMapReturnState, mapSearchResultsOpen, navigate]);
 
   const selectSearchSystem = useCallback((system, options = {}) => {
     const existing = systems.find((item) => String(item.system_id) === String(system?.system_id));
@@ -4552,10 +4579,11 @@ export default function StarMapPage({
     ]);
     selectSystem(mapItem, { openPeek: true, focus: Boolean(options.focus) });
     if (options.explore) {
+      drillReturnSurfaceRef.current = options.fromSearch ? "search-results" : null;
       setDrillMode("explore");
       setFocusToken((value) => value + 1);
     }
-    if (location.pathname !== "/map") {
+    if (location.pathname !== "/map" && !options.fromSearch) {
       navigate("/map");
     }
   }, [flushMapSystems, location.pathname, mapFrame, navigate, selectSystem, systems]);
@@ -4618,6 +4646,13 @@ export default function StarMapPage({
       setMapSearchHasMore(Boolean(payload.has_more));
       const elapsed = Number(payload.query_time_ms);
       setMapSearchStats(`${formatNumber(append ? mapSearchResults.length + items.length : items.length, 0)} systems · ${formatNumber(Number.isFinite(elapsed) ? elapsed : performance.now() - started, 0)} ms`);
+      if (!append && pendingSearchScrollRef.current !== null) {
+        const scrollTop = pendingSearchScrollRef.current;
+        pendingSearchScrollRef.current = null;
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          if (mapSearchResultsRef.current) mapSearchResultsRef.current.scrollTop = scrollTop;
+        }));
+      }
     } catch (exc) {
       if (mapSearchTokenRef.current === token) {
         setMapSearchError(exc instanceof Error ? exc.message : "Star Search unavailable");
@@ -4633,6 +4668,12 @@ export default function StarMapPage({
       }
     }
   }, [filterExtents, mapRadiusLy, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, monolithicDiagnosticMode, nameStyle, setSearchParams]);
+
+  useEffect(() => {
+    if (restoredSearchRunRef.current || !restoredSearchState?.resultsOpen) return;
+    restoredSearchRunRef.current = true;
+    runMapSearch({ append: false });
+  }, [restoredSearchState, runMapSearch]);
 
   const closeMapSearchResults = useCallback(() => {
     setMapSearchResultsOpen(false);
@@ -5215,7 +5256,7 @@ export default function StarMapPage({
           selectSearchSystem(system);
         }}
         onExploreSystem={(system) => {
-          selectSearchSystem(system, { explore: true, focus: true });
+          selectSearchSystem(system, { explore: true, focus: true, fromSearch: true });
         }}
         onOpenDetail={openSystemDetail}
         results={mapSearchResults}
@@ -5238,6 +5279,7 @@ export default function StarMapPage({
         onReleasePreview={releaseSearchPreview}
         onCapturePreview={captureSearchPreview}
         onRuntimeEvent={handleRuntimeEvent}
+        resultsRef={mapSearchResultsRef}
       />
 
       <aside className="map-hud map-controls-panel">

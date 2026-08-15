@@ -898,6 +898,59 @@ test.describe("public 3D map beta", () => {
     ).toBeLessThan(0.25);
   });
 
+  test("search-origin Explorer and Detail return to the same results and scroll position", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop search return workflow");
+    await openMap(page);
+    const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    if (await searchToggle.getAttribute("aria-pressed") !== "true") {
+      await searchToggle.click();
+    }
+    const input = page.locator("[data-testid='map-star-search-input']");
+    await input.fill("HD");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    const results = page.locator("[data-testid='map-star-search-results']");
+    const cards = results.locator(".map-search-card");
+    await expect(cards.first()).toBeVisible();
+    await expect.poll(() => cards.count()).toBeGreaterThan(4);
+    await results.evaluate((node) => { node.scrollTop = 480; });
+    const initialScroll = await results.evaluate((node) => node.scrollTop);
+    expect(initialScroll).toBeGreaterThan(200);
+
+    const chosen = cards.nth(2);
+    await chosen.getByRole("button", { name: "Explore" }).click();
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
+    await drill.getByRole("button", { name: /^Back$/ }).click();
+    await expect(results).toBeVisible();
+    await expect(input).toHaveValue("HD");
+    await expect.poll(() => results.evaluate((node) => node.scrollTop)).toBeGreaterThan(200);
+
+    await cards.nth(2).getByRole("button", { name: "Detail" }).click();
+    await expect(page).toHaveURL(/\/systems\/.+from_surface=search-results.+map_return=/);
+    const returnButton = page.getByRole("link", { name: "Back to search results" });
+    await expect(returnButton).toHaveAttribute("href", /^\/\?restore=/);
+    await returnButton.click();
+    await expect(page).toHaveURL(/[?&]q=HD(?:&|$)/);
+    await expect(page.locator("[data-testid='map-star-search-input']")).toHaveValue("HD");
+    const restoredResults = page.locator("[data-testid='map-star-search-results']");
+    await expect(restoredResults.locator(".map-search-card").first()).toBeVisible();
+    await expect.poll(() => restoredResults.evaluate((node) => node.scrollTop)).toBeGreaterThan(200);
+  });
+
+  test("unavailable Physical Orbits explains the blocking scientific gaps", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop physical gap explanation");
+    await page.goto("/systems/17784413", { waitUntil: "domcontentloaded" });
+    const panel = page.locator("[data-testid='system-preview-panel']");
+    const scale = panel.locator("[data-testid='system-preview-scale-mode']");
+    await expect(scale).toBeVisible();
+    await scale.selectOption("physical");
+    const explanation = panel.locator("[data-testid='system-preview-physical-ruler']");
+    await expect(explanation).toHaveAttribute("data-physical-scale-status", "unavailable");
+    await expect(explanation).toContainText("Physical Orbits unavailable");
+    await expect(explanation).toContainText(/neither an accepted semi-major axis nor an accepted orbital period/i);
+    await expect(explanation).toContainText(/stay schematic rather than receiving an invented orbit/i);
+  });
+
   test("fresh map defaults follow the detected capability tier without a screen grid", async ({ page }) => {
     await openMap(page);
     const canvas = page.locator(".map-canvas canvas");
@@ -2737,7 +2790,9 @@ test.describe("public 3D map beta", () => {
     await expect(physicalOption).toHaveText(/Physical Orbits.*Unavailable/i);
     await scale.selectOption("physical");
     await expect(scale).toHaveValue("structure");
-    await expect(panel.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
+    const unavailableExplanation = panel.locator("[data-testid='system-preview-physical-ruler']");
+    await expect(unavailableExplanation).toHaveAttribute("data-physical-scale-status", "unavailable");
+    await expect(unavailableExplanation).toContainText(/Physical Orbits unavailable/i);
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
       { timeout: 3000 },

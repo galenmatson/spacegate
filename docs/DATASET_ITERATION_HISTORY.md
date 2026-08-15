@@ -5098,6 +5098,23 @@ Representative commits:
   to the retained build, and re-promotion. It is accepted on Photon and was not
   deployed to antiproton.
 
+### 191) Physical Scale Explanations and Search Return State
+
+- This checkpoint changes no scientific evidence, selected facts, hierarchy,
+  or physical extent. It improves how the verified scene contract is explained
+  and how users return from a system investigation.
+- Physical labels and unresolved scale beacons now reserve a screen-space gap
+  around their subject. Long source-native relation names wrap within bounded
+  labels instead of escaping their containers.
+- Requesting Physical Orbits where no common AU layout is defensible keeps the
+  rendered scene schematic and names the relations blocked by missing axes,
+  periods, applicable endpoint masses, coherence, or accepted placement.
+- Explorer and System Detail opened from Search Results now return to that exact
+  query and scroll position. Existing map-origin returns continue to restore
+  camera, selection, and drill state.
+- Unit, tile-contract, and seven desktop Playwright regressions pass against the
+  rebuilt Photon containers with no scientific artifact or cache version change.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

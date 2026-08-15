@@ -10670,6 +10670,28 @@ main {
   font-size: 0.58rem;
 }
 
+.system-preview-physical-ruler[data-physical-scale-status="unavailable"] {
+  justify-items: start;
+  width: min(390px, calc(100% - 20px));
+  text-align: left;
+}
+
+.system-preview-scale-gaps {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0;
+  padding-left: 16px;
+  color: #c7d7e4;
+  font-family: var(--font-body);
+  font-size: 0.64rem;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.system-preview-scale-gaps b {
+  color: #eef6ff;
+}
+
 .system-preview-ruler-line {
   position: relative;
   min-width: 42px;
@@ -10736,7 +10758,8 @@ main {
 }
 
 .system-preview-scale-beacon {
-  grid-template-columns: max-content;
+  grid-template-columns: minmax(0, 1fr);
+  width: min(150px, calc(100% - 24px));
   border-style: dashed;
   border-color: color-mix(in srgb, #ffd166 66%, var(--border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #ffd166 12%, transparent), 0 6px 18px rgba(0, 0, 0, 0.3);
@@ -10749,6 +10772,11 @@ main {
 .system-preview-scale-beacon strong,
 .system-preview-scale-beacon small {
   grid-column: 1;
+  overflow: visible;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .system-preview-indicator-leader {

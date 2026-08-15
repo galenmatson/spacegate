@@ -3605,7 +3605,13 @@ Outcome:
   unresolved values;
 - scene artifact v20 rejects stale mass-selection contracts, and the locally
   served candidate passes API, search, hierarchy, simulation, desktop, mobile,
-  4K, ultrawide, theme, runtime, and rollback gates.
+  4K, ultrawide, theme, runtime, and rollback gates;
+- the post-coverage UI checkpoint keeps label and scale-beacon leaders outside
+  readable target markers, wraps long source-native names, and explains the
+  exact accepted-axis, period, endpoint-mass, coherence, or relation-placement
+  gaps that prevent a common AU layout. Search-origin Explorer and Detail flows
+  restore their exact result set and scroll position, while map-origin Detail
+  retains the existing camera and drill return contract.
 
 Required work:
 
