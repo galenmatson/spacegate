@@ -42,10 +42,15 @@ def make_public_read(path: Path, build_id: str) -> dict[str, object]:
         "sample_limit": None,
         "projection_schema_version": "spacegate.public_read.v2",
         "search_schema_version": "spacegate.search.v2",
+        "verification": {
+            "status": "pass",
+            "sqlite_integrity": "ok",
+        },
         "artifact": {
             "path": path.name,
             "bytes": path.stat().st_size,
             "sha256": sha256(path),
+            "hash_status": "verified",
         },
     }
 
@@ -346,6 +351,16 @@ def test_release_rejects_old_smart_tag_source_summary_schema(tmp_path: Path) -> 
         "spacegate.smart_tag_source_summary.v2"
     )
     with pytest.raises(ValueError, match="smart-tag manifest is incompatible"):
+        release.validate_release(value)
+
+
+def test_release_requires_public_read_integrity_attestation(tmp_path: Path) -> None:
+    manifest, _, _ = make_fixture(tmp_path)
+    value = release.load_json(manifest)
+    value["public_read_manifest"]["verification"]["sqlite_integrity"] = "failed"
+    with pytest.raises(
+        ValueError, match="public-read artifact and embedded manifest disagree"
+    ):
         release.validate_release(value)
 
 

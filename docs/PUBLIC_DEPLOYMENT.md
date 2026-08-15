@@ -307,6 +307,13 @@ when hot free space cannot retain the complete missing closure plus 15 GiB.
 `--install-hot` may be added to the transfer helper only when that gate is
 already known to pass.
 
+Public Read staging first requires the embedded compiler verification to record
+`sqlite_integrity: ok` and `hash_status: verified`, then verifies the complete
+artifact SHA-256 at each copied destination. It reads only the bounded build
+metadata after that identity check. Repeating SQLite `quick_check` against the
+slow cold tier is intentionally avoided because the byte-identical source has
+already passed that integrity check during compilation.
+
 ## Scene-Only Contract Refresh
 
 Renderer and hierarchy repairs may advance the simulation-scene materializer

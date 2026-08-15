@@ -168,10 +168,14 @@ def validate_release(value: dict[str, Any]) -> dict[str, Any]:
     ):
         raise ValueError("public-read manifest is incompatible with release")
     public_artifact = public_manifest.get("artifact") or {}
+    public_verification = public_manifest.get("verification") or {}
     if (
         public_artifact.get("bytes") != artifacts["public_read"]["bytes"]
         or str(public_artifact.get("sha256") or "").lower()
         != artifacts["public_read"]["sha256"]
+        or public_artifact.get("hash_status") != "verified"
+        or public_verification.get("status") != "pass"
+        or public_verification.get("sqlite_integrity") != "ok"
     ):
         raise ValueError("public-read artifact and embedded manifest disagree")
     scenes = value.get("simulation_scene_manifest")
@@ -530,11 +534,10 @@ def read_public_build_id(path: Path) -> str:
         row = con.execute(
             "SELECT value FROM metadata WHERE key='build_id'"
         ).fetchone()
-        integrity = con.execute("PRAGMA quick_check").fetchone()
     finally:
         con.close()
-    if row is None or integrity is None or integrity[0] != "ok":
-        raise ValueError("public-read SQLite metadata or quick-check failed")
+    if row is None:
+        raise ValueError("public-read SQLite build metadata is missing")
     return str(row[0])
 
 
