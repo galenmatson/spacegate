@@ -3612,6 +3612,12 @@ Outcome:
   gaps that prevent a common AU layout. Search-origin Explorer and Detail flows
   restore their exact result set and scroll position, while map-origin Detail
   retains the existing camera and drill return contract.
+- the final review checkpoint makes every non-Peek scale panel dismissible,
+  adds a 1-2-5 viewport ruler for the linear planet/HZ transform in Local Orbit,
+  and gives Log a mapping key rather than a misleading scene-wide ruler. System
+  simulations inherit the saved Star Map WASD, ESDF, or numpad scheme; canvas
+  focus and event containment prevent the underlying map from moving, while the
+  selected object remains the camera orbit target.
 
 Required work:
 

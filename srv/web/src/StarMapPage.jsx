@@ -3,6 +3,14 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
+  CAMERA_KEYBIND_OPTIONS as MAP_KEYBIND_OPTIONS,
+  CAMERA_KEYBIND_SCHEMES as MAP_KEYBIND_SCHEMES,
+  cameraMovementToken as mapMovementToken,
+  isCameraKeyboardInputTarget as isKeyboardInputTarget,
+  readStoredCameraKeybindScheme as readStoredMapKeybindScheme,
+  writeStoredCameraKeybindScheme,
+} from "./cameraKeybindings.js";
+import {
   MAP_PLANET_BADGE_PALETTE,
   MAP_PLANET_BAND_PALETTE,
   MAP_PLANET_BADGE_STYLES,
@@ -88,7 +96,6 @@ const MAP_UTILITY_LINKS = [
 const MAP_VISIBLE_UTILITY_LABELS = new Set(["HELP", "DATA"]);
 const MAP_MENU_UTILITY_LABELS = new Set(["ABT", "SPT", "SRC"]);
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
-const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
@@ -151,42 +158,6 @@ const DEFAULT_MOBILE_FLIGHT_STATE = {
 };
 const KEYBOARD_BASE_SPEED = 7;
 const KEYBOARD_BOOST_SPEED = 18;
-const MAP_KEYBIND_SCHEMES = {
-  wasd: {
-    id: "wasd",
-    label: "WASD",
-    forward: "w",
-    back: "s",
-    left: "a",
-    right: "d",
-    up: "q",
-    down: "z",
-    hint: "WASD fly · Q/Z vertical",
-  },
-  esdf: {
-    id: "esdf",
-    label: "ESDF",
-    forward: "e",
-    back: "d",
-    left: "s",
-    right: "f",
-    up: "a",
-    down: "z",
-    hint: "ESDF fly · A/Z vertical",
-  },
-  num8456: {
-    id: "num8456",
-    label: "8456",
-    forward: "numpad8",
-    back: "numpad5",
-    left: "numpad4",
-    right: "numpad6",
-    up: "numpad7",
-    down: "numpad1",
-    hint: "8456 fly · 7/1 vertical",
-  },
-};
-const MAP_KEYBIND_OPTIONS = Object.values(MAP_KEYBIND_SCHEMES);
 const TOUCH_LOOK_SENSITIVITY = 0.003;
 const TOUCH_PINCH_SPEED = 0.018;
 const TOUCH_PAN_SPEED = 0.012;
@@ -447,18 +418,6 @@ function readStoredMapPeekSize() {
   }
 }
 
-function readStoredMapKeybindScheme() {
-  if (typeof window === "undefined") {
-    return "wasd";
-  }
-  try {
-    const stored = window.localStorage.getItem(MAP_KEYBIND_STORAGE_KEY);
-    return MAP_KEYBIND_SCHEMES[stored] ? stored : "wasd";
-  } catch {
-    return "wasd";
-  }
-}
-
 function readStoredMapFrame() {
   if (typeof window === "undefined") {
     return "icrs";
@@ -567,19 +526,6 @@ function parseMapCameraDatasetPosition(value) {
     .split(",")
     .map((item) => Number(item));
   return parts.length === 3 && parts.every((item) => Number.isFinite(item)) ? parts : null;
-}
-
-function isKeyboardInputTarget(target) {
-  const element = target instanceof Element ? target : null;
-  return Boolean(element?.closest?.("input, select, textarea, [contenteditable='true']"));
-}
-
-function mapMovementToken(event) {
-  const code = String(event.code || "").toLowerCase();
-  if (/^numpad[0-9]$/.test(code)) {
-    return code;
-  }
-  return String(event.key || "").toLowerCase();
 }
 
 function isCatalogFallbackName(value) {
@@ -3514,11 +3460,7 @@ export default function StarMapPage({
   }, [peekSize]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(MAP_KEYBIND_STORAGE_KEY, keybindScheme);
-    } catch {
-      // Control preference persistence is optional.
-    }
+    writeStoredCameraKeybindScheme(keybindScheme);
   }, [keybindScheme]);
 
   useEffect(() => {

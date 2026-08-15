@@ -570,7 +570,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add a true physical simulator scale mode where both orbit distances and
   body radii use one shared linear scale, with explicit usability warnings and
   enough zoom range to inspect compact inner systems inside wide outer systems
-- [ ] Add WASD/ESDF/numpad/arrow-style flight controls to standalone System
+- [x] Add WASD/ESDF/numpad/arrow-style flight controls to standalone System
   Simulation Explorer/detail contexts, matching Star Map keybind policy where
   practical
 - [x] Add collision-safe Structure-mode star radius caps with separate visible,
@@ -1095,6 +1095,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   flows to the preserved result set and scroll position
 - [x] Make the collapsed simulation Scale control describe its currently
   selected mode instead of inheriting the Physical Orbits availability warning
+- [x] Make simulator scale information dismissible, add an honest Local Orbit
+  viewport ruler and Log planet/HZ mapping key, and reuse the selected Star Map
+  WASD/ESDF/numpad camera scheme without moving an underlying map surface
 - [ ] Implement M8.3e.3c Projected Separation and Estimated Scale as two
   separately reviewed contracts after source-efficiency, uncertainty,
   scientific-control, and usability gates; do not expose either unfinished mode

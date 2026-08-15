@@ -4,6 +4,15 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
 import {
+  CAMERA_KEYBIND_CHANGE_EVENT,
+  CAMERA_KEYBIND_SCHEMES,
+  CAMERA_KEYBIND_STORAGE_KEY,
+  cameraMovementToken,
+  isCameraKeyboardInputTarget,
+  normalizeCameraKeybindScheme,
+  readStoredCameraKeybindScheme,
+} from "./cameraKeybindings.js";
+import {
   OBJECT_BADGE_TAG_CATEGORIES,
   HeroSmartTagList,
   SmartTag,
@@ -53,6 +62,7 @@ const LIGHT_SCENE_CONTRAST = Object.freeze({
 });
 const SceneContrastContext = React.createContext(DARK_SCENE_CONTRAST);
 const SIM_DAYS_PER_SECOND = 0.7;
+const SYSTEM_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const SIM_SPEED_OPTIONS = [0.25, 1, 5, 20, 100, 500, 1000, 5000, 10000];
 const SYSTEM_SIMULATION_TITLE = "Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.";
 const INLINE_SUBJECT_TAG_EXCLUDES = Object.freeze([
@@ -333,6 +343,42 @@ function scaledPlanetOrbitRadius(orbitAu, maxOrbitAu, visualScale = DEFAULT_VISU
     return Number(policy.min_scene || 0.75) + (numerator / denominator) * Number(policy.span_scene || 2.7);
   }
   return Number(policy.min_scene || 0.75) + Math.sqrt(source / maxOrbit) * Number(policy.span_scene || 2.7);
+}
+
+function orbitPresentationScaleDefinition(stars = [], planets = [], visualScale = DEFAULT_VISUAL_SCALE) {
+  const policy = visualScale.planet_orbit_radius || DEFAULT_VISUAL_SCALE.planet_orbit_radius;
+  const orbitValues = planets
+    .map((planet) => Number(planet?.orbitAu ?? numericField(planet?.fields, "semi_major_axis_au")))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const habitableValues = stars
+    .map((star) => habitableZoneBoundsAu(star)?.outerAu)
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const fallbackAu = Math.max(0.0001, Number(policy.fallback_au || 0.08));
+  const maxOrbitAu = Math.max(fallbackAu, 0.1, ...orbitValues, ...habitableValues);
+  const outerSceneRadius = Number(policy.min_scene || 0.75) + Number(policy.span_scene || 2.7);
+  return {
+    fallbackAu,
+    maxOrbitAu,
+    localSceneUnitsPerAu: outerSceneRadius / maxOrbitAu,
+    logInnerSceneRadius: Number(policy.min_scene || 0.75),
+    logSpanScene: Number(policy.span_scene || 2.7),
+  };
+}
+
+function logarithmicOrbitScaleTicks(definition, count = 4) {
+  const fallbackAu = Number(definition?.fallbackAu);
+  const maxOrbitAu = Number(definition?.maxOrbitAu);
+  if (!Number.isFinite(fallbackAu) || fallbackAu <= 0 || !Number.isFinite(maxOrbitAu) || maxOrbitAu <= 0) return [];
+  const denominator = Math.max(0.0001, Math.log1p(maxOrbitAu / fallbackAu));
+  return Array.from({ length: Math.max(2, count) }, (_, index) => {
+    const fraction = index / Math.max(1, count - 1);
+    const valueAu = fallbackAu * Math.expm1(denominator * fraction);
+    return {
+      fraction,
+      valueAu: index === 0 ? 0 : valueAu,
+      label: index === 0 ? "0 AU" : physicalScaleReadout(valueAu)?.primary,
+    };
+  });
 }
 
 function scaledBinaryOrbitRadius(orbit, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", fallbackRadius = 1.0) {
@@ -3504,14 +3550,22 @@ function RendererResourceMetrics({ focusGraph = null, focusKey = "", sceneUnitsP
   return null;
 }
 
-function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest = null, targetRegistryRef = null }) {
+function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest = null, targetRegistryRef = null, keybindScheme = "wasd" }) {
   const { camera, gl, invalidate } = useThree();
   const controlsRef = React.useRef(null);
+  const keysRef = React.useRef(new Set());
+  const motionVectorsRef = React.useRef({
+    direction: new THREE.Vector3(),
+    strafe: new THREE.Vector3(),
+    movement: new THREE.Vector3(),
+    offset: new THREE.Vector3(),
+  });
   const lastTargetObjectIdRef = React.useRef("");
   const lastTargetPositionRef = React.useRef(new THREE.Vector3(0, 0, 0));
   const appliedFocusTokenRef = React.useRef("");
   const transitionRef = React.useRef(null);
   const activeScaleMode = normalizeScaleMode(scaleMode);
+  const activeKeybind = CAMERA_KEYBIND_SCHEMES[normalizeCameraKeybindScheme(keybindScheme)] || CAMERA_KEYBIND_SCHEMES.wasd;
   const writeCameraState = useCallback(() => {
     gl.domElement.dataset.cameraPosition = [
       camera.position.x.toFixed(3),
@@ -3575,6 +3629,71 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
   }, [activeScaleMode, camera, gl, invalidate, writeCameraState]);
 
   useEffect(() => {
+    const canvas = gl.domElement;
+    const movementKeys = new Set([
+      activeKeybind.forward,
+      activeKeybind.back,
+      activeKeybind.left,
+      activeKeybind.right,
+      activeKeybind.up,
+      activeKeybind.down,
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+      "shift",
+    ]);
+    const focusCanvas = () => canvas.focus({ preventScroll: true });
+    const handleKeyDown = (event) => {
+      if (isCameraKeyboardInputTarget(event.target)) return;
+      const token = cameraMovementToken(event);
+      if (!movementKeys.has(token)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      keysRef.current.add(token);
+      invalidate();
+    };
+    const handleKeyUp = (event) => {
+      const token = cameraMovementToken(event);
+      if (!movementKeys.has(token)) return;
+      keysRef.current.delete(token);
+    };
+    const clearKeys = () => keysRef.current.clear();
+    canvas.tabIndex = 0;
+    canvas.setAttribute("aria-label", `Interactive system simulation. ${activeKeybind.hint}; arrow keys also move the camera and Shift boosts speed.`);
+    canvas.setAttribute("aria-keyshortcuts", [
+      activeKeybind.forward,
+      activeKeybind.back,
+      activeKeybind.left,
+      activeKeybind.right,
+      activeKeybind.up,
+      activeKeybind.down,
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+    ].join(" "));
+    canvas.dataset.simulationKeybindScheme = activeKeybind.id;
+    canvas.dataset.simulationKeybindHint = activeKeybind.hint;
+    canvas.addEventListener("pointerdown", focusCanvas);
+    canvas.addEventListener("keydown", handleKeyDown, { passive: false });
+    window.addEventListener("keyup", handleKeyUp);
+    canvas.addEventListener("blur", clearKeys);
+    return () => {
+      clearKeys();
+      canvas.removeEventListener("pointerdown", focusCanvas);
+      canvas.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      canvas.removeEventListener("blur", clearKeys);
+      delete canvas.dataset.simulationKeybindScheme;
+      delete canvas.dataset.simulationKeybindHint;
+      delete canvas.dataset.simulationKeyboardMotion;
+      canvas.removeAttribute("aria-label");
+      canvas.removeAttribute("aria-keyshortcuts");
+    };
+  }, [activeKeybind, gl, invalidate]);
+
+  useEffect(() => {
     if (!controlsRef.current) {
       return;
     }
@@ -3591,7 +3710,7 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
     invalidate();
   }, [camera, invalidate, resetToken, writeCameraState]);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (controlsRef.current) {
       const requestToken = String(focusRequest?.token || "");
       const targetId = String(focusRequest?.targetId || "");
@@ -3639,6 +3758,37 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
           invalidate();
         }
       }
+      const keys = keysRef.current;
+      const { direction, strafe, movement, offset } = motionVectorsRef.current;
+      movement.set(0, 0, 0);
+      camera.getWorldDirection(direction).normalize();
+      strafe.crossVectors(direction, SYSTEM_WORLD_UP).normalize();
+      if (keys.has(activeKeybind.forward) || keys.has("arrowup")) movement.add(direction);
+      if (keys.has(activeKeybind.back) || keys.has("arrowdown")) movement.sub(direction);
+      if (keys.has(activeKeybind.right) || keys.has("arrowright")) movement.add(strafe);
+      if (keys.has(activeKeybind.left) || keys.has("arrowleft")) movement.sub(strafe);
+      if (keys.has(activeKeybind.up)) movement.add(SYSTEM_WORLD_UP);
+      if (keys.has(activeKeybind.down)) movement.sub(SYSTEM_WORLD_UP);
+      if (movement.lengthSq() > 0 && !transitionRef.current) {
+        const target = controlsRef.current.target;
+        const targetDistance = Math.max(controlsRef.current.minDistance, camera.position.distanceTo(target));
+        const baseSpeed = clampNumber(
+          targetDistance * 0.65,
+          activeScaleMode === PHYSICAL_SCALE_MODE ? 0.01 : 0.04,
+          activeScaleMode === PHYSICAL_SCALE_MODE ? 40 : 14,
+        );
+        movement.normalize().multiplyScalar(baseSpeed * (keys.has("shift") ? 2.6 : 1) * Math.min(0.05, delta));
+        camera.position.add(movement);
+        offset.copy(camera.position).sub(target);
+        if (offset.lengthSq() < controlsRef.current.minDistance ** 2) {
+          if (offset.lengthSq() < 0.00000001) offset.copy(direction).multiplyScalar(-1);
+          camera.position.copy(target).add(offset.setLength(controlsRef.current.minDistance));
+        }
+        gl.domElement.dataset.simulationKeyboardMotion = "active";
+        invalidate();
+      } else {
+        gl.domElement.dataset.simulationKeyboardMotion = "idle";
+      }
       const changed = controlsRef.current.update();
       writeCameraState();
       if (changed) {
@@ -3650,7 +3800,7 @@ function CameraControls({ resetToken = 0, scaleMode = "structure", focusRequest 
   return null;
 }
 
-function ViewportScaleReporter({ enabled = false, sceneUnitsPerAU = null, targetRegistryRef = null, focusTargetId = "", onChange = null }) {
+function ViewportScaleReporter({ enabled = false, sceneUnitsPerAU = null, mode = "", targetRegistryRef = null, focusTargetId = "", onChange = null }) {
   const { camera, size } = useThree();
   const lastReportRef = React.useRef("");
   const lastSampleRef = React.useRef(0);
@@ -3668,11 +3818,12 @@ function ViewportScaleReporter({ enabled = false, sceneUnitsPerAU = null, target
     const lengthAu = niceScaleLength(desiredAu);
     const widthPx = lengthAu ? (lengthAu / viewWidthAu) * size.width : 0;
     const report = {
+      mode,
       lengthAu,
       widthPx: clampNumber(widthPx, 54, Math.max(54, size.width * 0.28)),
       viewWidthAu,
     };
-    const signature = [lengthAu?.toPrecision(5), widthPx.toFixed(1), viewWidthAu.toPrecision(5)].join(":");
+    const signature = [mode, lengthAu?.toPrecision(5), widthPx.toFixed(1), viewWidthAu.toPrecision(5)].join(":");
     if (signature !== lastReportRef.current) {
       lastReportRef.current = signature;
       onChange(report);
@@ -4698,7 +4849,7 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
   return null;
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", focusKey = "", focusRequest = null, navigationTargets = [], transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, theme = "simple_dark", onHover, onSelect, onFocus, onPointerMissed, onClockSample, onContextLost, onScaleReport, onNavigationTargetsChange }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", focusKey = "", focusRequest = null, navigationTargets = [], keybindScheme = "wasd", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, labelTypography = DEFAULT_SCENE_LABEL_TYPOGRAPHY, theme = "simple_dark", onHover, onSelect, onFocus, onPointerMissed, onClockSample, onContextLost, onScaleReport, onNavigationTargetsChange }) {
   const targetRegistryRef = React.useRef(new Map());
   const contrast = sceneContrastForTheme(theme);
   const baseVisualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
@@ -4811,6 +4962,13 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       };
     });
   }, [scene, visualScale, renderScaleMode, physicalLabelLayout]);
+  const orbitScaleDefinition = useMemo(
+    () => orbitPresentationScaleDefinition(stars, planets, visualScale),
+    [planets, stars, visualScale],
+  );
+  const reportedSceneUnitsPerAu = activeScaleMode === PHYSICAL_SCALE_MODE
+    ? physicalUnitsPerAu
+    : (activeScaleMode === "true_orbits" ? orbitScaleDefinition.localSceneUnitsPerAu : null);
 
   const subsystems = useMemo(() => (
     (scene?.render_scene?.bodies?.subsystems || []).map((subsystem, idx) => {
@@ -4854,10 +5012,11 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
           physicalLabelCount={new Set(physicalLabelLayout.values()).size}
         />
         <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
-        <CameraControls resetToken={resetToken} scaleMode={renderScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} />
+        <CameraControls resetToken={resetToken} scaleMode={renderScaleMode} focusRequest={focusRequest} targetRegistryRef={targetRegistryRef} keybindScheme={keybindScheme} />
         <ViewportScaleReporter
-          enabled={activeScaleMode === PHYSICAL_SCALE_MODE}
-          sceneUnitsPerAU={physicalUnitsPerAu}
+          enabled={[PHYSICAL_SCALE_MODE, "true_orbits"].includes(activeScaleMode)}
+          sceneUnitsPerAU={reportedSceneUnitsPerAu}
+          mode={activeScaleMode}
           targetRegistryRef={targetRegistryRef}
           focusTargetId={focusRequest?.targetId || ""}
           onChange={onScaleReport}
@@ -5206,25 +5365,84 @@ function physicalScaleGapSummary(focusGraph, focusKey, orbits = []) {
   };
 }
 
-function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, modelAssisted = false, orbits = [], unavailableRequested = false }) {
+function ScaleOverlayClose({ onDismiss }) {
+  return (
+    <button
+      type="button"
+      className="system-preview-scale-dismiss"
+      aria-label="Close scale information"
+      title="Close scale information"
+      onClick={onDismiss}
+    >
+      X
+    </button>
+  );
+}
+
+function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, modelAssisted = false, orbits = [], unavailableRequested = false, orbitScaleDefinition = null, onDismiss = null }) {
   const physical = scaleMode === PHYSICAL_SCALE_MODE;
   const activeFocus = focusNode(focusGraph, focusKey);
   const resolution = physicalScaleResolution(focusGraph, focusKey);
   const unavailable = !resolution.radiusAu;
   const explainUnavailable = unavailable && unavailableRequested;
   if (!physical && !explainUnavailable) {
+    if (scaleMode === "true_orbits") {
+      const localReport = scaleReport?.mode === "true_orbits" ? scaleReport : null;
+      const length = physicalScaleReadout(localReport?.lengthAu);
+      const view = physicalScaleReadout(localReport?.viewWidthAu);
+      return (
+        <div className="system-preview-physical-ruler" data-testid="system-preview-local-ruler" data-scale-kind="local-orbit">
+          <ScaleOverlayClose onDismiss={onDismiss} />
+          <div className="system-preview-ruler-line" style={{ width: `${localReport?.widthPx || 90}px` }} />
+          <strong>{length?.primary || "Measuring local view"}</strong>
+          {length ? <span>{length.metric} / {length.lightTime}</span> : null}
+          {view ? <small>View width {view.primary}</small> : null}
+          <small>Planet and habitable zone spacing uses this local linear scale</small>
+          <small>Stellar hierarchy distances remain schematic</small>
+        </div>
+      );
+    }
+    if (scaleMode === "log") {
+      const ticks = logarithmicOrbitScaleTicks(orbitScaleDefinition);
+      return (
+        <div className="system-preview-log-scale" data-testid="system-preview-log-scale-key">
+          <ScaleOverlayClose onDismiss={onDismiss} />
+          <strong>Logarithmic planet and zone scale</strong>
+          <div className="system-preview-log-scale-rail" aria-label="Logarithmic local orbit scale mapping">
+            {ticks.map((tick, index) => (
+              <span
+                key={`${tick.fraction}:${tick.label}`}
+                className="system-preview-log-scale-tick"
+                data-edge={index === 0 ? "start" : (index === ticks.length - 1 ? "end" : "")}
+                style={{ left: `${tick.fraction * 100}%` }}
+              >
+                <i />
+                <b>{tick.label}</b>
+              </span>
+            ))}
+          </div>
+          <small>Mapping key, not a viewport ruler</small>
+          <small>Stellar hierarchy uses a separate presentation transform</small>
+        </div>
+      );
+    }
     return (
       <div className="system-preview-scale-note" data-testid="system-preview-scale-note">
-        {scaleMode === "log" ? "Nonlinear display - local orbits and hierarchy guides use separate log transforms; there is no common AU ruler" : "Schematic distance - presentation scaled for readability"}
+        <ScaleOverlayClose onDismiss={onDismiss} />
+        {scaleMode === "true_bodies"
+          ? "Body size contrast - radii are emphasized while distances remain presentation scaled"
+          : "Schematic distance - presentation scaled for readability"}
       </div>
     );
   }
-  const length = physicalScaleReadout(scaleReport?.lengthAu);
-  const view = physicalScaleReadout(scaleReport?.viewWidthAu);
+  const physicalReport = scaleReport?.mode === PHYSICAL_SCALE_MODE ? scaleReport : null;
+  const length = physicalScaleReadout(physicalReport?.lengthAu);
+  const view = physicalScaleReadout(physicalReport?.viewWidthAu);
   const scaleFocus = resolution.scaleFocusKey ? focusNode(focusGraph, resolution.scaleFocusKey) : null;
   const gapSummary = unavailable ? physicalScaleGapSummary(focusGraph, focusKey, orbits) : null;
   return (
     <div className="system-preview-physical-ruler" data-testid="system-preview-physical-ruler" data-physical-scale-status={unavailable ? "unavailable" : (resolution.inherited ? "inherited" : "available")}>
+      <ScaleOverlayClose onDismiss={onDismiss} />
       {unavailable ? (
         <>
           <strong>Physical Orbits unavailable</strong>
@@ -5241,7 +5459,7 @@ function PhysicalScaleOverlay({ scaleMode, scaleReport, focusGraph, focusKey, mo
         </>
       ) : (
         <>
-          <div className="system-preview-ruler-line" style={{ width: `${scaleReport?.widthPx || 90}px` }} />
+          <div className="system-preview-ruler-line" style={{ width: `${physicalReport?.widthPx || 90}px` }} />
           <strong>{length?.primary}</strong>
           <span>{length?.metric} / {length?.lightTime}</span>
           <small>View width {view?.primary}</small>
@@ -5380,6 +5598,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [showFormationLines, setShowFormationLines] = useState(initialPresentation.showFormationLines);
   const [showLabels, setShowLabels] = useState(initialPresentation.showLabels);
   const [scaleMode, setScaleMode] = useState(initialPresentation.scaleMode);
+  const [scaleInfoDismissed, setScaleInfoDismissed] = useState(false);
+  const [cameraKeybindScheme, setCameraKeybindScheme] = useState(readStoredCameraKeybindScheme);
   const [physicalUnavailableRequested, setPhysicalUnavailableRequested] = useState(false);
   const [focusKey, setFocusKey] = useState("");
   const [focusHistory, setFocusHistory] = useState([]);
@@ -5451,6 +5671,23 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       setScaleMode(normalizeScaleMode(defaultScaleMode));
     }
   }, [defaultScaleMode, persistPresentationState, systemId]);
+
+  useEffect(() => {
+    const handleKeybindChange = (event) => {
+      setCameraKeybindScheme(normalizeCameraKeybindScheme(event?.detail?.scheme));
+    };
+    const handleStorage = (event) => {
+      if (event.key === CAMERA_KEYBIND_STORAGE_KEY) {
+        setCameraKeybindScheme(normalizeCameraKeybindScheme(event.newValue));
+      }
+    };
+    window.addEventListener(CAMERA_KEYBIND_CHANGE_EVENT, handleKeybindChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(CAMERA_KEYBIND_CHANGE_EVENT, handleKeybindChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (!persistPresentationState) {
@@ -5528,6 +5765,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setFocusHistory([]);
     setFocusRequest(null);
     setScaleReport(null);
+    setScaleInfoDismissed(false);
     setPhysicalUnavailableRequested(false);
     setNavigationProjection([]);
     setSimulationDays(0);
@@ -5572,6 +5810,14 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       && orbit?.physical_extent?.mass_basis === "source_model_assisted",
   );
   const visualScale = renderScene.visual_scale || {};
+  const orbitScaleDefinition = useMemo(
+    () => orbitPresentationScaleDefinition(
+      Array.isArray(renderBodies.stars) ? renderBodies.stars : [],
+      Array.isArray(renderBodies.planets) ? renderBodies.planets : [],
+      mergeVisualScale(visualScale),
+    ),
+    [scene],
+  );
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
   const peekPresentation = normalizedPresentationMode === "peek";
@@ -5843,10 +6089,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           onChange={(event) => {
             const nextMode = normalizeScaleMode(event.target.value);
             if (nextMode === PHYSICAL_SCALE_MODE && !physicalModeAvailable) {
+              setScaleInfoDismissed(false);
               setPhysicalUnavailableRequested(true);
               setScaleMode("structure");
               return;
             }
+            setScaleInfoDismissed(false);
             setPhysicalUnavailableRequested(false);
             setScaleMode(nextMode);
           }}
@@ -5995,6 +6243,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 focusKey={activeFocusKey}
                 focusRequest={focusRequest}
                 navigationTargets={navigationTargets}
+                keybindScheme={cameraKeybindScheme}
                 transparentBackground={normalizedPresentationMode !== "detail"}
                 frameLoop={effectiveFrameLoop}
                 preserveDrawingBuffer={captureFrame || !cardPresentation}
@@ -6043,15 +6292,19 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                     }}
                     onFocus={issueFocusRequest}
                   />
-                  <PhysicalScaleOverlay
-                    scaleMode={activeScaleMode}
-                    scaleReport={scaleReport}
-                    focusGraph={focusGraph}
-                    focusKey={activeFocusKey}
-                    modelAssisted={modelAssistedPhysicalScale}
-                    orbits={renderOrbits}
-                    unavailableRequested={physicalUnavailableRequested}
-                  />
+                  {!scaleInfoDismissed ? (
+                    <PhysicalScaleOverlay
+                      scaleMode={activeScaleMode}
+                      scaleReport={scaleReport}
+                      focusGraph={focusGraph}
+                      focusKey={activeFocusKey}
+                      modelAssisted={modelAssistedPhysicalScale}
+                      orbits={renderOrbits}
+                      unavailableRequested={physicalUnavailableRequested}
+                      orbitScaleDefinition={orbitScaleDefinition}
+                      onDismiss={() => setScaleInfoDismissed(true)}
+                    />
+                  ) : null}
                 </>
               ) : null}
             </>

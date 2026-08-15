@@ -160,6 +160,11 @@ The Playwright map suite imports
   linear AU transform inside the active focus; Structure must say that distance
   is presentation scaled; Log must identify its nonlinear scale and omit a
   conventional ruler; unavailable axes must remain visibly unavailable.
+- Local Orbit must show a 1-2-5 viewport ruler scoped only to its linear
+  planet/HZ transform and disclose that stellar hierarchy placement remains
+  schematic. Log must show a bounded planet/HZ mapping key and identify it as
+  not being a viewport ruler. Every non-Peek scale panel must be keyboard
+  dismissible and reopen when another scale is selected.
 - Physical scale beacons must wrap long source-native names inside their
   bounded containers. Their leaders must end outside the target marker rather
   than crossing the rendered body. An unavailable Physical Orbits request must
@@ -170,13 +175,15 @@ The Playwright map suite imports
   selection, and pinned inspection must survive transitions without changing
   scientific membership or presentation settings.
 - Wide-system goldens require bounded, collision-managed scale beacons or
-  offscreen indicators instead of enlarged inner orbits. A scale lens must use
-  one existing WebGL context, remain dismissible and viewport-contained, and
-  preserve right-drag camera panning.
+  offscreen indicators instead of enlarged inner orbits. The retired scale-lens
+  prototype must not allocate another WebGL context or leave dormant controls.
+- Focused simulator keyboard movement must inherit the saved Star Map
+  WASD/ESDF/numpad scheme, retain arrow keys and Shift boost, keep the selected
+  object as orbit/zoom target, and never move an underlying map at the same time.
 - Desktop, 4K, ultrawide, and mobile physical-scale captures must remain
   nonblank in all eight themes. The measured gate compares readiness, frame
   cadence, selection latency, heap, canvas pixels, renderer allocations, and
-  lens cadence against the retained pre-change Structure baseline under
+  camera-motion cadence against the retained pre-change Structure baseline under
   `state/reports/system-simulation-physical-scale-v1/`.
   Dedicated high-resolution coverage uses
   `playwright.simulation-physical.config.js` at 3,840x2,160 and 3,440x1,440.

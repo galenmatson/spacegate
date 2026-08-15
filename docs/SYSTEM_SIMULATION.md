@@ -759,12 +759,21 @@ Success criteria:
   transform to every supported orbit, habitable zone, and formation line in the
   active focus. Star and planet meshes, halos, labels, and pick targets remain
   readable markers and are not physical-radius claims.
+- Local Orbit now has a deterministic 1-2-5 viewport ruler for its one linear
+  planet, habitable-zone, and formation-line transform. The ruler explicitly
+  states that stellar hierarchy distances remain schematic. Log instead shows
+  a fixed mapping key for its local planet/HZ transform because hierarchy guides
+  use a separate nonlinear presentation transform; it is not labeled as a
+  viewport ruler.
 - Physical mode uses a deterministic 1-2-5 viewport ruler covering roughly one
   fifth of the view. It reports AU by default, kAU or light-years at wide scales,
   standard metric prefixes such as Gm/Tm/Pm, light-travel time, and the current
   view span. Expanded orbit inspection reports semi-major axis, period,
   eccentricity, physical-scale status, and lineage. It never relabels projected
   separation or a presentation radius as physical distance.
+- Scale information panels in non-Peek simulations have an accessible close
+  control. Choosing another scale reopens its applicable explanation or ruler,
+  so dismissal does not permanently hide scale semantics.
 - Whole-system physical views with extreme inner-to-outer scale ratios suppress
   unreadable enlarged inner geometry and expose bounded, collision-managed scale
   beacons for important unresolved regions. Offscreen indicators prioritize the
@@ -779,6 +788,13 @@ Success criteria:
   object's live scene position while preserving camera distance, so zoom and
   orbit remain centered on the selection. Double clicking an OBJECTS row also
   enters its focus-graph region and animates to the corresponding bounds.
+- The simulation canvas inherits the persistent Star Map camera scheme:
+  WASD with Q/Z vertical, ESDF with A/Z vertical, or numpad 8456 with 7/1
+  vertical; arrow keys remain available and Shift boosts motion. Keyboard
+  movement begins only after the simulation canvas receives focus, stops key
+  propagation to an underlying map, translates the camera without discarding
+  the selected OrbitControls target, and preserves normal pointer orbit, pan,
+  and wheel zoom behavior.
 - A host star's habitable-zone disk follows sourced or derived planet
   inclinations when available. If its displayed planets use disclosed visual
   inclination assumptions, the disk follows their median displayed plane so

@@ -5115,6 +5115,24 @@ Representative commits:
 - Unit, tile-contract, and seven desktop Playwright regressions pass against the
   rebuilt Photon containers with no scientific artifact or cache version change.
 
+### 192) Simulator Scale Aids and Shared Camera Controls
+
+- This presentation checkpoint changes no scientific evidence, selected facts,
+  hierarchy, orbital extent, scene schema, or immutable science artifact.
+- Local Orbit gains a 1-2-5 viewport ruler for its linear planet, habitable-zone,
+  and formation-line transform while explicitly leaving stellar hierarchy
+  placement schematic. Log gains a bounded planet/HZ mapping key because its
+  hierarchy guides use a separate nonlinear presentation transform.
+- Non-Peek scale information is dismissible with an accessible close control and
+  reopens when the user chooses another scale.
+- System simulations reuse the persistent Star Map WASD, ESDF, or numpad scheme,
+  plus arrow keys and Shift boost. Canvas-local keyboard capture prevents an
+  underlying map from moving, and camera translation retains the selected object
+  as the OrbitControls target.
+- Shared keybinding unit tests, the production build, desktop simulation golden,
+  mobile simulation layout check, canvas screenshots, and rebuilt Photon Docker
+  health pass.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

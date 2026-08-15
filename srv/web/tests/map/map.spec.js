@@ -2489,6 +2489,12 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitMaxBodyToMinOrbitRatio || 1)),
       { timeout: 3000 }
     ).toBeLessThan(0.45);
+    const localRuler = page.locator("[data-testid='system-preview-local-ruler']");
+    await expect(localRuler).toBeVisible();
+    await expect(localRuler).toContainText(/Planet and habitable zone spacing.*local linear scale/i);
+    await expect(localRuler).toContainText(/Stellar hierarchy distances remain schematic/i);
+    await localRuler.getByRole("button", { name: "Close scale information" }).click();
+    await expect(localRuler).toHaveCount(0);
     await scaleModeSelect.selectOption("true_bodies");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
@@ -2554,6 +2560,21 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 },
     ).toBe("0.001");
     await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      window.localStorage.setItem("spacegate.map.keybindScheme", "esdf");
+      window.dispatchEvent(new CustomEvent("spacegate:camera-keybind-change", { detail: { scheme: "esdf" } }));
+    });
+    await expect(sharedClockCanvas).toHaveAttribute("data-simulation-keybind-scheme", "esdf");
+    await expect(sharedClockCanvas).toHaveAttribute("aria-keyshortcuts", /e d s f a z/i);
+    const keyboardTargetBefore = await sharedClockCanvas.getAttribute("data-camera-target-position");
+    const keyboardPositionBefore = await sharedClockCanvas.getAttribute("data-camera-position");
+    await sharedClockCanvas.focus();
+    await page.keyboard.down("e");
+    await page.waitForTimeout(350);
+    await page.keyboard.up("e");
+    await expect.poll(() => sharedClockCanvas.getAttribute("data-camera-position")).not.toBe(keyboardPositionBefore);
+    await expect(sharedClockCanvas).toHaveAttribute("data-camera-target-position", keyboardTargetBefore || "");
+    await page.waitForTimeout(700);
     const closeZoomBox = await sharedClockCanvas.boundingBox();
     expect(closeZoomBox, "physical close-zoom canvas bounds").toBeTruthy();
     await page.mouse.move(closeZoomBox.x + closeZoomBox.width / 2, closeZoomBox.y + closeZoomBox.height / 2);
@@ -2570,7 +2591,10 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-lens-control='true']")).toHaveCount(0);
     await expect(page.locator("[data-testid='system-preview-scale-lens']")).toHaveCount(0);
     await scaleModeSelect.selectOption("log");
-    await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/nonlinear.*no common AU ruler/i);
+    const logScaleKey = page.locator("[data-testid='system-preview-log-scale-key']");
+    await expect(logScaleKey).toContainText(/Logarithmic planet and zone scale/i);
+    await expect(logScaleKey).toContainText(/Mapping key, not a viewport ruler/i);
+    await expect(logScaleKey.locator(".system-preview-log-scale-tick")).toHaveCount(4);
     await expect(page.locator("[data-testid='system-preview-physical-ruler']")).toHaveCount(0);
     await scaleModeSelect.selectOption("structure");
     await expect(page.locator("[data-testid='system-preview-scale-note']")).toContainText(/presentation scaled/i);
