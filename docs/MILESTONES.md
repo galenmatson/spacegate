@@ -3584,9 +3584,28 @@ Goal:
 - recover defensible physical scale for the broad unresolved multiple-system
   population without weakening the meaning of Physical Orbits.
 
-Status: implementation complete; clean scene A/B and local Photon acceptance
-are in progress. This is a scientific compiler and projection repair, not a
-renderer exception and not a prerequisite for the AAA foundation.
+Status: complete and locally promoted on Photon; not deployed. The clean D/E
+campaign reproduces 46 ARM tables, 7,719 scenes, 14,141 hierarchy bundles, and
+the Public Read science/search projection with zero logical differences. The
+local rollback and re-promotion drill passed. This is a scientific compiler and
+projection repair, not a renderer exception and not a prerequisite for the AAA
+foundation.
+
+Outcome:
+
+- physically scalable stellar relations increased from 1,431 of 9,307 to
+  7,366 through exact component evidence and reusable policy;
+- 5,822 of the 7,489 accepted-period rows with incomplete endpoint masses now
+  have defensible Kepler-derived physical scale;
+- 22 incoherent relations remain rejected, 1,919 remain unavailable, and three
+  legacy extents based on unselected or wrong-scope mass priors were deliberately
+  retired; no accepted source axis or selected-mass derivation regressed;
+- all 8,429 MSC leaves previously classified from component mass are accounted:
+  7,758 accepted point masses, two conflicts, and 669 explicitly inapplicable or
+  unresolved values;
+- scene artifact v20 rejects stale mass-selection contracts, and the locally
+  served candidate passes API, search, hierarchy, simulation, desktop, mobile,
+  4K, ultrawide, theme, runtime, and rollback gates.
 
 Required work:
 

@@ -1083,7 +1083,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   placement, local planet/HZ neighborhoods, and optional formation overlays;
   prevent a descendant overlay from certifying an unresolved multiple's root
   as a physical view, without named-system production logic
-- [ ] Implement M8.3e.3b Physical Extent Coverage Recovery: carry exact-scope
+- [x] Implement M8.3e.3b Physical Extent Coverage Recovery: carry exact-scope
   component mass evidence into a typed selected leaf projection, rerun the
   accepted-period Kepler derivation with uncertainty and lineage, quarantine
   incoherent rows, and pin separately labeled future Projected Separation and

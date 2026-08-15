@@ -5051,6 +5051,53 @@ Representative commits:
   projection to the physical compiler. M8.3e.3b will repair that contract and
   measure the recovery before considering lower-confidence estimated views.
 
+### 190) Exact Component Mass Evidence Recovers Physical Extents
+
+- M8.3e.3b replaces the discarded MSC mass input with a typed exact-leaf
+  parameter projection. Binding outcomes, competing evidence, and selected or
+  unresolved decisions remain separate. The projection never transfers a
+  system mass to a component and never binds components by their display names.
+- Every one of the 8,429 MSC leaves that previously received a class from a
+  component mass is now accounted. Of those, 7,758 retain an accepted point
+  mass and display class, two are explicit equal-authority conflicts, and 669
+  remain missing because the available value is a lower bound, unresolved
+  method, or inapplicable subsystem sum.
+- The full selected projection contains direct dynamical, publication,
+  calibrated source-model, and defensible derived mass evidence with exact
+  source, release, method, parameter-set, uncertainty, applicability, and
+  lineage fields. It records 22,836 binding outcomes, 15,747 evidence rows, and
+  16,064 selected or explicitly unresolved relevant leaves.
+- The physical-axis compiler now uses that projection as its only endpoint-mass
+  authority. Accepted source axes remain preferred when coherent. An accepted
+  period plus complete applicable endpoint masses may produce a versioned
+  Kepler-derived relative axis and uncertainty interval. It does not manufacture
+  eccentricity, orientation, phase, or another missing orbital element.
+- Clean scientific A/B raises physically scalable stellar relations from 1,431
+  of 9,307 to 7,366. It records 5,938 justified recoveries, 22 still rejected
+  incoherent relations, 1,919 unavailable relations, and zero true regressions.
+  Of the 7,489 baseline period-bearing rows with incomplete endpoint masses,
+  5,822 recover physical scale and 1,667 remain unavailable.
+- Three legacy Kepler extents are deliberately retired. Two used unselected
+  spectral-class mass priors, and one used a mass attached to a parent that the
+  accepted hierarchy resolves into a subsystem. The comparator cannot use this
+  retirement category to conceal loss of an accepted source axis or a derivation
+  backed by the shared selected-mass projection.
+- Two clean ARM compiles reproduce one logical 46-table build. Two independent
+  Public Read projections and 7,719-scene closures reproduce identical logical
+  science, search, and scene sets. Scene artifacts advance to v20 so stale caches
+  cannot mix the old mass-selection contract with the repaired one.
+- Projected Separation and Estimated Scale remain separate future contracts.
+  Neither is exposed as Physical Orbits, and neither may animate a projected
+  snapshot or statistical estimate as a known Keplerian ellipse.
+- The D/E closures independently reproduce all 14,141 Public Read hierarchy
+  bundles with the same logical hash and zero failures. Candidate D's final
+  Smart Tag attachment uses the complete bundle closure and stays below the
+  1.5 GiB hot-artifact budget.
+- Candidate D passed local promotion, live named and negative controls, exact
+  TIC/TOI behavior, API and browser suites, constrained runtime checks, rollback
+  to the retained build, and re-promotion. It is accepted on Photon and was not
+  deployed to antiproton.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
